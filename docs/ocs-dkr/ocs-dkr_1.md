@@ -164,15 +164,15 @@ $ export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
 
 ### 注意
 
-Bash 允许您通过在 ```` or `$()`. These will be evaluated first and the result will be substituted in the outer commands.
+Bash 允许您通过在 `` ` ``或者`$()`中包含子命令来插入命令。这些将首先被评估，结果将被替换到外部命令中。
 
 If you are the kind that loves to poke around, the Boot2Docker default user is `docker` and the password is `tcuser`.
 
 The boot2Docker management tool provides several commands:
 
-``` 中包含子命令来插入命令
+``` 
 
-**$ boot2docker**
+$ boot2docker
 
 Usage: boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|ip|delete|download|version} [<args>]
 
@@ -182,7 +182,7 @@ When using boot2Docker, the `DOCKER_HOST` environment variable has to be availab
 
 ```
 
-**alias setdockerhost='export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375'**
+alias setdockerhost='export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375'
 
 ```
 
@@ -190,7 +190,7 @@ Now, whenever you open a new terminal or get the above error, just run the follo
 
 ```
 
-**$ setdockerhost**
+$ setdockerhost
 
 ```
 
@@ -207,9 +207,9 @@ To upgrade your existing virtual machine, open a terminal and run the following 
 
 ```
 
-**$ boot2docker stop**
+$ boot2docker stop
 
-**$ boot2docker download**
+$ boot2docker download
 
 ```
 
@@ -233,7 +233,7 @@ Before running the DevStack route's `stack.sh` script, configure the **virtual**
 
 ```
 
-**VIRT_DRIVER=docker**
+VIRT_DRIVER=docker
 
 ```
 
@@ -241,9 +241,9 @@ Then run the Docker installation script from the `devstack` directory. The `soca
 
 ```
 
-**$ apt-get install socat**
+$ apt-get install socat
 
-**$ ./tools/docker/install_docker.sh**
+$ ./tools/docker/install_docker.sh
 
 ```
 
@@ -251,7 +251,7 @@ Finally, run the `stack.sh` script from the `devstack` directory:
 
 ```
 
-**$ ./stack.sh**
+$ ./stack.sh
 
 ```
 
@@ -265,7 +265,7 @@ If you are co-locating the `docker` registry alongside the Glance service, run t
 
 ```
 
-**$ sudo yum -y install docker-registry**
+$ sudo yum -y install docker-registry
 
 ```
 
@@ -273,9 +273,9 @@ In the `/etc/sysconfig/docker-registry` folder, set the `REGISTRY_PORT` and `SET
 
 ```
 
-**$ export SETTINGS_FLAVOR=openstack**
+$ export SETTINGS_FLAVOR=openstack
 
-**$ export REGISTRY_PORT=5042**
+$ export REGISTRY_PORT=5042
 
 ```
 
@@ -283,9 +283,9 @@ In the `docker` registry file, you will also need to specify the OpenStack authe
 
 ```
 
-**$ source /root/keystonerc_admin**
+$ source /root/keystonerc_admin
 
-**$ export OS_GLANCE_URL=http://localhost:9292**
+$ export OS_GLANCE_URL=http://localhost:9292
 
 ```
 
@@ -293,13 +293,13 @@ By default, `/etc/docker-registry.yml` sets the local or alternate `storage_path
 
 ```
 
-**openstack:**
+openstack:
 
-**storage: glance**
+storage: glance
 
-**storage_alternate: local**
+storage_alternate: local
 
-**storage_path: /var/lib/docker-registry**
+storage_path: /var/lib/docker-registry
 
 ```
 
@@ -307,9 +307,9 @@ By default, `/etc/docker-registry.yml` sets the local or alternate `storage_path
 
 ```
 
-**$ usermod -G docker nova**
+$ usermod -G docker nova
 
-**$ service openstack-nova-compute restart**
+$ service openstack-nova-compute restart
 
 ```
 
@@ -317,9 +317,9 @@ By default, `/etc/docker-registry.yml` sets the local or alternate `storage_path
 
 ```
 
-**$ sudo service redis start**
+$ sudo service redis start
 
-**$ sudo chkconfig redis on**
+$ sudo chkconfig redis on
 
 ```
 
@@ -327,9 +327,9 @@ By default, `/etc/docker-registry.yml` sets the local or alternate `storage_path
 
 ```
 
-**$ sudo service docker-registry start**
+$ sudo service docker-registry start
 
-**$ sudo chkconfig docker-registry on**
+$ sudo chkconfig docker-registry on
 
 ```
 
@@ -341,9 +341,9 @@ Edit the `/etc/nova/nova.conf` configuration file according to the following opt
 
 ```
 
-**[DEFAULT]**
+[DEFAULT]
 
-**compute_driver = docker.DockerDriver**
+compute_driver = docker.DockerDriver
 
 ```
 
@@ -351,7 +351,7 @@ Alternatively, if you want to use your own Docker-Registry, which listens on a p
 
 ```
 
-**docker_registry_default_port = 5042**
+docker_registry_default_port = 5042
 
 ```
 
@@ -361,9 +361,9 @@ Glance needs to be configured to support the Docker container format. Just add D
 
 ```
 
-**[DEFAULT]**
+[DEFAULT]
 
-**container_formats = ami,ari,aki,bare,ovf,docker**
+container_formats = ami,ari,aki,bare,ovf,docker
 
 ```
 
@@ -377,13 +377,13 @@ Once you configured Nova to use the `docker` driver, the flow is the same as tha
 
 ```
 
-**$ docker search hipache**
+$ docker search hipache
 
-**Found 3 results matching your query ("hipache")**
+Found 3 results matching your query ("hipache")
 
-**NAME                             DESCRIPTION**
+NAME                             DESCRIPTION
 
-**samalba/hipache                  https://github.com/dotcloud/hipache**
+samalba/hipache                  https://github.com/dotcloud/hipache
 
 ```
 
@@ -391,11 +391,11 @@ Then tag the image with the Docker-Registry location and push it:
 
 ```
 
-**$ docker pull samalba/hipache**
+$ docker pull samalba/hipache
 
-**$ docker tag samalba/hipache localhost:5042/hipache**
+$ docker tag samalba/hipache localhost:5042/hipache
 
-**$ docker push localhost:5042/hipache**
+$ docker push localhost:5042/hipache
 
 ```
 
@@ -403,13 +403,13 @@ The push refers to a repository:
 
 ```
 
-**[localhost:5042/hipache] (len: 1)**
+[localhost:5042/hipache] (len: 1)
 
-**Sending image list**
+Sending image list
 
-**Pushing repository localhost:5042/hipache (1 tags)**
+Pushing repository localhost:5042/hipache (1 tags)
 
-**Push 100% complete**
+Push 100% complete
 
 ```
 
@@ -417,7 +417,7 @@ In this case, the Docker-Registry (running in a docker container with a port map
 
 ```
 
-**$ glance image-list**
+$ glance image-list
 
 ```
 
@@ -429,7 +429,7 @@ You can boot instances with the `nova` `boot` command:
 
 ```
 
-**$ nova boot --image "docker-busybox:latest" --flavor m1.tiny test**
+$ nova boot --image "docker-busybox:latest" --flavor m1.tiny test
 
 ```
 
@@ -441,7 +441,7 @@ Once the instance is booted, it will be listed in `nova` `list`:
 
 ```
 
-**$ nova list**
+$ nova list
 
 ```
 
@@ -449,7 +449,7 @@ You can also see the corresponding container in Docker:
 
 ```
 
-**$ docker ps**
+$ docker ps
 
 ```
 
@@ -476,7 +476,7 @@ Run the following command in your terminal:
 
 ```
 
-**$ git clone https://git@github.com/dotcloud/docker**
+$ git clone https://git@github.com/dotcloud/docker
 
 ```
 
@@ -484,9 +484,9 @@ This command clones the official Docker source code repository from the `Github`
 
 ```
 
-**$ cd docker**
+$ cd docker
 
-**$ sudo make build**
+$ sudo make build
 
 ```
 
@@ -500,7 +500,7 @@ Now we are ready to compile that binary:
 
 ```
 
-**$ sudo make binary**
+$ sudo make binary
 
 ```
 
@@ -510,7 +510,7 @@ Before replacing your existing binary though, run the tests:
 
 ```
 
-**$ sudo make test**
+$ sudo make test
 
 ```
 
@@ -518,15 +518,15 @@ If the tests pass, then it is safe to replace your current binary with the one y
 
 ```
 
-**$ sudo service docker stop**
+$ sudo service docker stop
 
-**$ alias wd='which docker'**
+$ alias wd='which docker'
 
-**$ sudo cp $(wd) $(wd)_**
+$ sudo cp $(wd) $(wd)_
 
-**$ sudo cp $(pwd)/bundles/<version>-dev/binary/docker-<version>-dev $(wd)**
+$ sudo cp $(pwd)/bundles/<version>-dev/binary/docker-<version>-dev $(wd)
 
-**$ sudo service docker start**
+$ sudo service docker start
 
 ```
 
@@ -542,7 +542,7 @@ To verify that your installation is successful, run the following command in you
 
 ```
 
-**$ docker run -i -t ubuntu echo Hello World!**
+$ docker run -i -t ubuntu echo Hello World!
 
 ```
 
@@ -550,23 +550,16 @@ The `docker` `run` command starts a container with the `ubuntu` base image. Sinc
 
 ```
 
-无法找到本地镜像'ubuntu'
+Unable to find image 'ubuntu' locally
+Pulling repository ubuntu
+e54ca5efa2e9: Download complete
+511136ea3c5a: Download complete
+d7ac5e4f1812: Download complete
+2f4b4d6a4a06: Download complete
+83ff768040a0: Download complete
+6c37f792ddac: Download complete
 
-拉取存储库 ubuntu
-
-e54ca5efa2e9：下载完成
-
-511136ea3c5a：下载完成
-
-d7ac5e4f1812：下载完成
-
-2f4b4d6a4a06：下载完成
-
-83ff768040a0：下载完成
-
-6c37f792ddac：下载完成
-
-你好，世界！
+Hello World!
 
 ```
 
@@ -592,10 +585,8 @@ Create a group called `docker` and add your user to that group to avoid having t
 
 ```
 
-$ sudo groupadd docker # 添加 docker 组
-
-$ sudo gpasswd -a $(whoami) docker # 将当前用户添加到组中
-
+$ sudo groupadd docker # Adds the docker group
+$ sudo gpasswd -a $(whoami) docker # Adds the current user to the group
 $ sudo service docker restart
 
 ```
@@ -609,13 +600,9 @@ Docker uses a bridge to manage network in the container. **Uncomplicated** **Fir
 ```
 
 $ sudo vim /etc/default/ufw
-
-# 更改：
-
+# Change:
 # DEFAULT_FORWARD_POLICY="DROP"
-
-# 到
-
+# to
 DEFAULT_FORWARD_POLICY="ACCEPT"
 
 ```
