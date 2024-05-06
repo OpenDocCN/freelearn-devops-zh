@@ -166,9 +166,9 @@ $ export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
 
 Bash 允许您通过在 `` ` ``或者`$()`中包含子命令来插入命令。这些将首先被评估，结果将被替换到外部命令中。
 
-If you are the kind that loves to poke around, the Boot2Docker default user is `docker` and the password is `tcuser`.
+如果您是那种喜欢四处探索的人，Boot2Docker 的默认用户是 `docker`，密码是 `tcuser`。
 
-The boot2Docker management tool provides several commands:
+boot2Docker 管理工具提供了几个命令：
 
 ``` 
 
@@ -178,7 +178,7 @@ Usage: boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restar
 
 ```
 
-When using boot2Docker, the `DOCKER_HOST` environment variable has to be available in the terminal session for Docker commands to work. So, if you are getting the `Post http:///var/run/docker.sock/v1.12/containers/create: dial unix /var/run/docker.sock: no such file or directory` error, it means that the environment variable is not assigned. It is easy to forget to set this environment variable when you open a new terminal. For OSX users, to make things easy, add the following line to your `.bashrc` or `.bash_profile` shells:
+使用 boot2Docker 时，必须在终端会话中使 `DOCKER_HOST` 环境变量可用，以使 Docker 命令起作用。因此，如果您遇到 `Post http:///var/run/docker.sock/v1.12/containers/create: dial unix /var/run/docker.sock: no such file or directory` 错误，意味着环境变量未分配。当您打开新终端时很容易忘记设置此环境变量。对于 OSX 用户，为了简化操作，请将以下行添加到您的 `.bashrc` 或 `.bash_profile` shell 中：
 
 ```
 
@@ -186,7 +186,7 @@ alias setdockerhost='export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375
 
 ```
 
-Now, whenever you open a new terminal or get the above error, just run the following command:
+现在，每当您打开一个新的终端或出现上述错误时，只需运行以下命令：
 
 ```
 
@@ -194,16 +194,17 @@ $ setdockerhost
 
 ```
 
-![Mac OSX and Windows](img/4787_01_02_revised.jpg)
+![Mac OSX 和 Windows](img/4787_01_02_revised.jpg)
 
-This image shows how the terminal screen will look like when you have logged into the Boot2Docker VM.
+此图像显示了当您登录到 Boot2Docker VM 后终端屏幕的外观。
 
-### Upgrading Boot2Docker
+### 升级 Boot2Docker
 
-1.  Download the latest release of the Boot2Docker Installer for OSX from [`boot2docker.io/`](http://boot2docker.io/).
-2.  Run the installer, which will update VirtualBox and the Boot2Docker management tool.
+1.  从 [`boot2docker.io/`](http://boot2docker.io/) 下载 OSX 的最新版本 Boot2Docker Installer。
 
-To upgrade your existing virtual machine, open a terminal and run the following commands:
+1.  运行安装程序，将更新 VirtualBox 和 Boot2Docker 管理工具。
+
+要升级现有的虚拟机，请打开终端并运行以下命令：
 
 ```
 
@@ -215,21 +216,21 @@ $ boot2docker download
 
 # OpenStack
 
-OpenStack** is a piece of free and open source software that allows you to set up a cloud. It is primarily used to deploy public and private **Infrastructure** **as** **a** **Service** (**IaaS**) solutions. It consists of a pool of interrelated projects for the different components of a cloud setup such as compute schedulers, keychain managers, network managers, storage managers, dashboards, and so on.
+OpenStack** 是一款免费开源软件，可让您建立一个云。它主要用于部署公共和私有 **Infrastructure** **as** **a** **Service** (**IaaS**) 解决方案。它由一组相互关联的项目组成，用于云设置的不同组件，如计算调度程序、密钥链管理器、网络管理器、存储管理器、仪表板等等。
 
-Docker can act as a hypervisor driver for OpenStack Nova Compute. Docker support for OpenStack was introduced with the **Havana** release.
+Docker 可以作为 OpenStack Nova Compute 的虚拟化驱动程序。Docker 对 OpenStack 的支持是从 **Havana** 版本开始引入的。
 
-But... how?
+但是... 如何做到呢？
 
-Nova's Docker driver embeds a tiny HTTP server that talks to the Docker Engine's internal **Representational** **State** **Transfer** (**REST**) API (you will learn more on this later) through a **UNIX** **TCP** socket.
+Nova 的 Docker 驱动程序嵌入了一个微型 HTTP 服务器，通过 **UNIX** **TCP** socket 与 Docker 引擎的内部 **Representational** **State** **Transfer** (**REST**) API 通信（稍后您将了解更多）。
 
-Docker has its own image repository system called Docker-Registry, which can be embedded into Glance (OpenStack's image repository) to push and pull Docker images. Docker-Registry can be run either as a `docker` container or in a standalone mode.
+Docker 有其自己的镜像仓库系统，称为 Docker-Registry，可以嵌入到 Glance（OpenStack 的镜像仓库）中以推送和拉取 Docker 镜像。Docker-Registry 可以作为 `docker` 容器或独立模式运行。
 
-## Installation with DevStack
+## 使用 DevStack 安装
 
-If you are just setting up OpenStack and taking up the DevStack route, configuring the setup to use Docker is pretty easy.
+如果您只是设置 OpenStack 并采用 DevStack 路线，那么配置设置以使用 Docker 很容易。
 
-Before running the DevStack route's `stack.sh` script, configure the **virtual** **driver** option in the `localrc` file to use Docker:
+在运行 DevStack 路线的 `stack.sh` 脚本之前，请在 `localrc` 文件中配置 **virtual** **driver** 选项以使用 Docker：
 
 ```
 
@@ -237,7 +238,7 @@ VIRT_DRIVER=docker
 
 ```
 
-Then run the Docker installation script from the `devstack` directory. The `socat` utility is needed for this script (usually installed by the `stack.sh` script). If you don't have the `socat` utility installed, run the following:
+然后从 `devstack` 目录运行 Docker 安装脚本。此脚本需要 `socat` 实用程序（通常由 `stack.sh` 脚本安装）。如果您尚未安装 `socat` 实用程序，请运行以下命令：
 
 ```
 
@@ -247,7 +248,7 @@ $ ./tools/docker/install_docker.sh
 
 ```
 
-Finally, run the `stack.sh` script from the `devstack` directory:
+最后，从 `devstack` 目录运行 `stack.sh` 脚本：
 
 ```
 
@@ -255,13 +256,13 @@ $ ./stack.sh
 
 ```
 
-## Installing Docker for OpenStack manually
+## 手动为 OpenStack 安装 Docker
 
-Docker can also be installed manually if you already have OpenStack set up or in case the DevStack method doesn't work out:
+如果您已经设置了 OpenStack，或者 DevStack 方法不起作用，则可以手动安装 Docker：
 
-1.  Firstly, install Docker according to one of the Docker installation procedures.
+1.  首先，根据 Docker 的一个安装程序安装 Docker。
 
-If you are co-locating the `docker` registry alongside the Glance service, run the following command:
+如果您正在将 `docker` 注册表与 Glance 服务放置在一起，请运行以下命令：
 
 ```
 
@@ -269,7 +270,7 @@ $ sudo yum -y install docker-registry
 
 ```
 
-In the `/etc/sysconfig/docker-registry` folder, set the `REGISTRY_PORT` and `SETTINGS_FLAVOR` registries as follows:
+在 `/etc/sysconfig/docker-registry` 文件夹中，设置 `REGISTRY_PORT` 和 `SETTINGS_FLAVOR` 注册表如下：
 
 ```
 
@@ -279,7 +280,7 @@ $ export REGISTRY_PORT=5042
 
 ```
 
-In the `docker` registry file, you will also need to specify the OpenStack authentication variables. The following commands accomplish this:
+在 `docker` 注册文件中，您还需要指定 OpenStack 认证变量。以下命令完成此操作：
 
 ```
 
@@ -289,7 +290,7 @@ $ export OS_GLANCE_URL=http://localhost:9292
 
 ```
 
-By default, `/etc/docker-registry.yml` sets the local or alternate `storage_path` path for the openstack configuration under `/tmp`. You may want to alter the path to a more permanent location:
+默认情况下，`/etc/docker-registry.yml` 为 openstack 配置设置了本地或替代 `storage_path` 路径为 `/tmp`。您可能希望将路径更改为更永久的位置：
 
 ```
 
@@ -303,7 +304,7 @@ storage_path: /var/lib/docker-registry
 
 ```
 
-2.  In order for **Nova** to communicate with Docker over its local socket, add `nova` to the `docker` group and restart the `compute` service to pick up the change:
+1.  为了使 **Nova** 能够通过其本地套接字与 Docker 通信，请将 `nova` 添加到 `docker` 组，并重新启动 `compute` 服务以接收更改：
 
 ```
 
@@ -313,7 +314,7 @@ $ service openstack-nova-compute restart
 
 ```
 
-3.  Start Redis (used by the Docker Registry), if it wasn't started already:
+1.  启动 Redis（Docker Registry 使用），如果尚未启动：
 
 ```
 
@@ -323,7 +324,7 @@ $ sudo chkconfig redis on
 
 ```
 
-4.  Finally, start the registry:
+1.  最后，启动注册表：
 
 ```
 
@@ -333,11 +334,11 @@ $ sudo chkconfig docker-registry on
 
 ```
 
-## Nova configuration
+## Nova 配置
 
-Nova needs to be configured to use the `virt` Docker driver.
+Nova 需要配置为使用 `virt` Docker 驱动程序。
 
-Edit the `/etc/nova/nova.conf` configuration file according to the following options:
+根据以下选项编辑 `/etc/nova/nova.conf` 配置文件：
 
 ```
 
@@ -347,7 +348,7 @@ compute_driver = docker.DockerDriver
 
 ```
 
-Alternatively, if you want to use your own Docker-Registry, which listens on a port different than 5042, you can override the following option:
+或者，如果您想使用您自己的 Docker-Registry，并且监听的端口不同于 5042，则可以覆盖以下选项：
 
 ```
 
@@ -355,9 +356,9 @@ docker_registry_default_port = 5042
 
 ```
 
-## Glance configuration
+## Glance 配置
 
-Glance needs to be configured to support the Docker container format. Just add Docker to the list of container formats in the Glance configuration file:
+Glance 需要配置以支持 Docker 容器格式。只需在 Glance 配置文件中将 Docker 添加到容器格式列表中即可：
 
 ```
 
@@ -367,13 +368,13 @@ container_formats = ami,ari,aki,bare,ovf,docker
 
 ```
 
-### Tip
+### 提示
 
-Leave the default formats in order to not break an existing glance installation.
+为了不破坏现有的 glance 安装，请保留默认格式。
 
-## Docker-OpenStack flow
+## Docker-OpenStack 流程
 
-Once you configured Nova to use the `docker` driver, the flow is the same as that in any other driver:
+一旦您配置了 Nova 使用 `docker` 驱动程序，流程与任何其他驱动程序中的流程相同：
 
 ```
 
@@ -387,7 +388,7 @@ samalba/hipache                  https://github.com/dotcloud/hipache
 
 ```
 
-Then tag the image with the Docker-Registry location and push it:
+然后，使用 Docker-Registry 位置标记图像并推送它：
 
 ```
 
@@ -399,7 +400,7 @@ $ docker push localhost:5042/hipache
 
 ```
 
-The push refers to a repository:
+推送引用了一个仓库：
 
 ```
 
@@ -413,7 +414,7 @@ Push 100% complete
 
 ```
 
-In this case, the Docker-Registry (running in a docker container with a port mapped on 5042) will push the images to Glance. From there, Nova can reach them and you can verify the images with the Glance **Command**-**Line** **Interface** (**CLI**):
+在这种情况下，Docker-Registry（在一个端口映射为 5042 的 Docker 容器中运行）将图像推送到 Glance。从那里，Nova 可以访问它们，并且您可以使用 Glance **Command**-**Line** **Interface**（**CLI**）验证图像：
 
 ```
 
@@ -421,11 +422,11 @@ $ glance image-list
 
 ```
 
-### Note
+### 注意
 
-Only images with a docker container format will be bootable. The image basically contains a tarball of the container filesystem.
+只有具有 Docker 容器格式的图像才能启动。图像基本上包含容器文件系统的 tarball。
 
-You can boot instances with the `nova` `boot` command:
+您可以使用 `nova` `boot` 命令引导实例：
 
 ```
 
@@ -433,11 +434,11 @@ $ nova boot --image "docker-busybox:latest" --flavor m1.tiny test
 
 ```
 
-### Tip
+### 提示
 
-The command used will be the one configured in the image. Each container image can have a command configured for the run. The driver does not override this command.
+使用的命令将是在图像中配置的命令。每个容器图像都可以为运行配置一个命令。驱动程序不会覆盖此命令。
 
-Once the instance is booted, it will be listed in `nova` `list`:
+一旦实例引导完成，它将在 `nova` `list` 中列出：
 
 ```
 
@@ -445,7 +446,7 @@ $ nova list
 
 ```
 
-You can also see the corresponding container in Docker:
+您还可以在 Docker 中查看相应的容器：
 
 ```
 
@@ -453,26 +454,27 @@ $ docker ps
 
 ```
 
-# Inception: Build Docker in Docker
+# Inception：构建 Docker 中的 Docker
 
-Though installing from standard repositories is easier, they usually contain older versions, which means that you might miss critical updates or features. The best way to remain updated is to regularly get the latest version from the public `GitHub` repository. Traditionally, building software from a source has been painful and done only by people who actually work on the project. This is not so with Docker. From Docker 0.6, it has been possible to build Docker in Docker. This means that upgrading Docker is as simple as building a new version in Docker itself and replacing the binary. Let's see how this is done.
+虽然从标准仓库安装更容易，但它们通常包含较旧的版本，这意味着您可能会错过关键的更新或功能。保持更新的最佳方法是定期从公共 `GitHub` 仓库获取最新版本。传统上，从源代码构建软件是很痛苦的，只有实际从事项目工作的人才会这样做。但 Docker 不是这样。从 Docker 0.6 开始，就可以在 Docker 中构建 Docker。这意味着升级 Docker 就像在 Docker 中构建新版本并替换二进制文件一样简单。让我们看看如何做到这一点。
 
-## Dependencies
+## 依赖关系
 
-You need to have the following tools installed in a 64-bit Linux machine (VM or bare-metal) to build Docker:
+您需要在 64 位 Linux 机器（虚拟机或裸机）上安装以下工具才能构建 Docker：
 
-*   **Git
-*   **Make
++   **Git
 
-Git** is a free and open source distributed version control system designed to handle everything from small to very large projects with speed and efficiency. It is used here to clone the Docker public source code repository. Check out [git-scm.org](http://git-scm.org) for more details.
++   **Make
 
-The `make` utility is a software engineering tool used to manage and maintain computer programs. **Make** provides most help when the program consists of many component files. A `Makefile` file is used here to kick off the Docker containers in a repeatable and consistent way.
+Git** 是一个免费且开放源代码的分布式版本控制系统，旨在以速度和效率处理从小型到非常大型的项目。它在此用于克隆 Docker 公共源代码仓库。有关更多详细信息，请查看 [git-scm.org](http://git-scm.org)。
 
-## Building Docker from source
+`make` 实用程序是用于管理和维护计算机程序的软件工程工具。**Make** 在程序由许多组件文件组成时提供了最大的帮助。在这里，使用一个 `Makefile` 文件以一种可重复和一致的方式启动 Docker 容器。
 
-To build Docker in Docker, we will first fetch the source code and then run a few `make` commands that will, in the end, create a `docker` binary, which will replace the current binary in the Docker installation path.
+## 从源代码构建 Docker
 
-Run the following command in your terminal:
+要在 Docker 中构建 Docker，我们首先会获取源代码，然后运行几个 `make` 命令，最终创建一个 `docker` 二进制文件，该文件将替换 Docker 安装路径中的当前二进制文件。
+
+在终端中运行以下命令：
 
 ```
 
@@ -480,7 +482,7 @@ $ git clone https://git@github.com/dotcloud/docker
 
 ```
 
-This command clones the official Docker source code repository from the `Github` repository into a directory named `docker`:
+此命令将官方 Docker 源代码仓库从 `Github` 仓库克隆到名为 `docker` 的目录中：
 
 ```
 
@@ -490,13 +492,13 @@ $ sudo make build
 
 ```
 
-This will prepare the development environment and install all the dependencies required to create the binary. This might take some time on the first run, so you can go and have a cup of coffee.
+这将准备开发环境并安装创建二进制文件所需的所有依赖项。在第一次运行时可能需要一些时间，所以你可以去喝杯咖啡。
 
-### Tip
+### 提示
 
-If you encounter any errors that you find difficult to debug, you can always go to `#docker` on freenode IRC. The developers and the Docker community are very helpful.
+如果遇到任何难以调试的错误，您可以随时转到 `#docker` 上的 freenode IRC。开发人员和 Docker 社区都非常乐意帮助。
 
-Now we are ready to compile that binary:
+现在我们已经准备好编译二进制文件了：
 
 ```
 
@@ -504,9 +506,9 @@ $ sudo make binary
 
 ```
 
-This will compile a binary and place it in the `./bundles/<version>-dev/binary/` directory. And voila! You have a fresh version of Docker ready.
+这将编译一个二进制文件，并将其放置在 `./bundles/<version>-dev/binary/` 目录中。然后！您现在有一个准备就绪的 Docker 新版本。
 
-Before replacing your existing binary though, run the tests:
+但在替换现有二进制文件之前，请运行测试：
 
 ```
 
@@ -514,7 +516,7 @@ $ sudo make test
 
 ```
 
-If the tests pass, then it is safe to replace your current binary with the one you've just compiled. Stop the `docker` service, create a backup of the existing binary, and then copy the freshly baked binary in its place:
+如果测试通过，则可以安全地用您刚刚编译的二进制文件替换当前的二进制文件。停止 `docker` 服务，创建现有二进制文件的备份，然后将新鲜出炉的二进制文件复制到其位置：
 
 ```
 
@@ -530,15 +532,15 @@ $ sudo service docker start
 
 ```
 
-Congratulations! You now have the up-to-date version of Docker running.
+恭喜！您现在拥有最新版本的 Docker 运行。
 
-### Tip
+### 提示
 
-OSX and Windows users can follow the same procedures as SSH in the boot2Docker VM.
+OSX 和 Windows 用户可以按照 SSH 进入 boot2Docker VM 的相同步骤进行操作。
 
-# Verifying Installation
+# 验证安装
 
-To verify that your installation is successful, run the following command in your terminal console:
+要验证您的安装是否成功，请在终端控制台中运行以下命令：
 
 ```
 
@@ -546,7 +548,7 @@ $ docker run -i -t ubuntu echo Hello World!
 
 ```
 
-The `docker` `run` command starts a container with the `ubuntu` base image. Since this is the first time you are starting an `ubuntu` container, the output of the container will be something like this:
+`docker` `run` 命令使用`ubuntu`基础镜像启动容器。由于这是您首次启动`ubuntu`容器，容器的输出将类似于这样：
 
 ```
 
@@ -563,25 +565,25 @@ Hello World!
 
 ```
 
-When you issue the `docker` `run` `ubuntu` command, Docker looks for the `ubuntu` image locally, and it's not found, it will download the `ubuntu` image from the public `docker` registry. You will also see it say **Pulling** **dependent layers**.
+当您发出`docker` `run` `ubuntu`命令时，Docker 将在本地查找`ubuntu`镜像，如果找不到，它将从公共`docker`注册表下载`ubuntu`镜像。您还将看到它显示**正在拉取依赖层**。
 
-This means that it is downloading filesystem layers. By default, Docker uses AUFS, a layered copy-on-write filesystem, which means that the container image's filesystem is a culmination of multiple read-only filesystem layers. And these layers are shared between running containers. If you initiate an action that will write to this filesystem, it will create a new layer that will be the difference of the underlying layers and the new data. Sharing of common layers means that only the first container will take up a considerable amount of memory and subsequent containers will take up an insignificant amount of memory as they will be sharing the read-only layers. This means that you can run hundreds of containers even on a relatively low-powered laptop.
+这意味着它正在下载文件系统层。默认情况下，Docker 使用 AUFS，一种分层的写时复制文件系统，这意味着容器镜像的文件系统是多个只读文件系统层的结合体。而这些层是在运行的容器之间共享的。如果你启动了一个会写入此文件系统的操作，它将创建一个新的层，该层将是底层层和新数据的差异。共享常见层意味着只有第一个容器会占用大量内存，而后续容器将占用微不足道的内存，因为它们将共享只读层。这意味着即使在相对性能较低的笔记本电脑上，你也可以运行数百个容器。
 
-![Verifying Installation](img/4787_01_03.jpg)
+![验证安装](img/4787_01_03.jpg)
 
-Once the image has been completely downloaded, it will start the container and echo `Hello` `World!` in your console. This is another salient feature of the Docker containers. Every container is associated with a command and it should run that command. Remember that the Docker containers are unlike VMs in that they do not virtualize the entire operating system. Each `docker` container accepts only a single command and runs it in a sandboxed process that lives in an isolated environment.
+一旦镜像完全下载完成，它将启动容器并在您的控制台中回显`Hello``World!`。这是 Docker 容器的另一个显著特点。每个容器都与一个命令关联，并且应该运行该命令。请记住，Docker 容器不像虚拟机那样虚拟化整个操作系统。每个`docker`容器只接受一个单一命令，并在一个独立环境中运行它。
 
-# Useful tips
+# 有用的提示
 
-The following are two useful tips that might save you a lot of trouble later on. The first shows how to give the docker client non-root access, and the second shows how to configure the Ubuntu firewall rules to enable forwarding network traffic.
+以下是两个有用的提示，以后可能会为您节省大量麻烦。第一个显示了如何为 Docker 客户端提供非根访问权限，第二个显示了如何配置 Ubuntu 防火墙规则以启用转发网络流量。
 
-### Note
+### 注意
 
-You do not need to follow these if you are using Boot2Docker.
+如果您使用的是 Boot2Docker，则无需遵循这些步骤。
 
-## Giving non-root access
+## 给予非根访问权限
 
-Create a group called `docker` and add your user to that group to avoid having to add the `sudo` prefix to every `docker` command. The reason you need to run a `docker` command with the `sudo` prefix by default is that the `docker` daemon needs to run with `root` privileges, but the docker client (the commands you run) doesn't. So, by creating a `docker` group, you can run all the client commands without using the `sudo` prefix, whereas the daemon runs with the `root` privileges:
+创建一个名为`docker`的组，并将您的用户添加到该组，以避免每个`docker`命令都需要添加`sudo`前缀。默认情况下，您需要使用`sudo`前缀运行`docker`命令的原因是`docker`守护程序需要以`root`权限运行，但 docker 客户端（您运行的命令）不需要。因此，通过创建一个`docker`组，您可以在不使用`sudo`前缀的情况下运行所有客户端命令，而守护程序则以`root`权限运行：
 
 ```
 
@@ -591,11 +593,11 @@ $ sudo service docker restart
 
 ```
 
-You might need to log out and log in again for the changes to take effect.
+你可能需要退出并重新登录以使更改生效。
 
-## UFW settings
+## UFW 设置
 
-Docker uses a bridge to manage network in the container. **Uncomplicated** **Firewall** (**UFW**) is the default firewall tool in Ubuntu. It drops all forwarding traffic. You will need to enable forwarding like this:
+Docker 使用桥接来管理容器中的网络。**简化防火墙**（**UFW**）是 Ubuntu 中的默认防火墙工具。它会拒绝所有转发流量。您需要像这样启用转发：
 
 ```
 
@@ -607,7 +609,7 @@ DEFAULT_FORWARD_POLICY="ACCEPT"
 
 ```
 
-Reload the firewall by running the following command:
+运行以下命令重新加载防火墙：
 
 ```
 
@@ -615,7 +617,8 @@ $ sudo ufw reload
 
 ```
 
-Alternatively, if you want to be able to reach your containers from other hosts, then you should enable incoming connections on the docker port (`default` `2375`):
+或者，如果你想要能够从其他主机访问你的容器，那么你应该在 Docker 端口（`default` `2375`）上启用入站连接：
+
 
 ```
 
