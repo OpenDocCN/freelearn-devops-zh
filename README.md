@@ -1,4 +1,4 @@
-# 飞龙的 DevOps 译文集
+# FreeLearning DevOps 译文集
 
 > 协议：[CC BY-NC-SA 4.0](http://creativecommons.org/licenses/by-nc-sa/4.0/)
 > 
@@ -10,16 +10,16 @@
 ### Docker
 
 ```
-docker pull apachecn0/flygon-devops-zh
-docker run -tid -p <port>:80 apachecn0/flygon-devops-zh
+docker pull apachecn0/freelearn-devops-zh
+docker run -tid -p <port>:80 apachecn0/freelearn-devops-zh
 # 访问 http://localhost:{port} 查看文档
 ```
 
 ### NPM
 
 ```
-npm install -g flygon-devops-zh
-flygon-devops-zh <port>
+npm install -g freelearn-devops-zh
+freelearn-devops-zh <port>
 # 访问 http://localhost:{port} 查看文档
 ```
 
