@@ -1,0 +1,1 @@
+["```\n$ kubectl krew update\n```", "```\n$ cat kubectl-toppods\n#!/bin/bash\nkubectl top pods\n```", "```\n$ cp kubectl-toppods ~/bin\n```", "```\n$ chmod +x ~/bin/ kubectl-toppods\n```", "```\n$ kubectl toppods\nNAME                        CPU(cores)   MEMORY(bytes)\npostgresql-57578b68d9-6rpt8 1m           22Mi\n```"]

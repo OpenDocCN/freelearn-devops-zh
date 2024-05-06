@@ -46,22 +46,15 @@
 
 在我们深入讨论卷之前，让我们首先讨论一下如果容器中的应用程序更改了容器文件系统中的内容会发生什么。在这种情况下，更改都发生在我们在《精通容器》第三章中介绍的可写容器层中。我们可以通过运行一个容器并在其中执行一个创建新文件的脚本来快速演示这一点，就像这样：
 
-```
-$ docker container run --name demo \
- alpine /bin/sh -c 'echo "This is a test" > sample.txt'
-```
+[PRE0]
 
 上述命令创建了一个名为`demo`的容器，并在该容器内创建了一个名为`sample.txt`的文件，内容为`This is a test`。运行`echo`命令后容器退出，但仍保留在内存中，供我们进行调查。让我们使用`diff`命令来查找容器文件系统中与原始镜像文件系统相关的更改，如下所示：
 
-```
-$ docker container diff demo
-```
+[PRE1]
 
 输出应该如下所示：
 
-```
-A /sample.txt
-```
+[PRE2]
 
 显然，如`A`所示，容器的文件系统中已经添加了一个新文件，这是预期的。由于所有源自基础镜像（在本例中为`alpine`）的层都是不可变的，更改只能发生在可写容器层中。
 
@@ -75,29 +68,21 @@ A /sample.txt
 
 1.  使用`docker-machine`列出当前在 VirtualBox 中运行的所有虚拟机，如下所示：
 
-```
-$ docker-machine ls 
-```
+[PRE3]
 
 1.  如果您的列表中没有名为`node-1`的 VM，请使用以下命令创建一个：
 
-```
-$ docker-machine create --driver virtualbox node-1 
-```
+[PRE4]
 
 如果您在启用了 Hyper-V 的 Windows 上运行，可以参考第二章 *设置工作环境*中的内容，了解如何使用`docker-machine`创建基于 Hyper-V 的 VM。
 
 1.  另一方面，如果您有一个名为`node-1`的 VM，但它没有运行，请按以下方式启动它：
 
-```
-$ docker-machine start node-1
-```
+[PRE5]
 
 1.  现在一切准备就绪，使用`docker-machine`以这种方式 SSH 到这个 VM：
 
-```
-$ docker-machine ssh node-1
-```
+[PRE6]
 
 1.  您应该会看到这个欢迎图片：
 
@@ -107,27 +92,13 @@ docker-machine VM 欢迎消息
 
 1.  要创建一个新的数据卷，我们可以使用`docker volume create`命令。这将创建一个命名卷，然后可以将其挂载到容器中，用于持久数据访问或存储。以下命令创建一个名为`sample`的卷，使用默认卷驱动程序：
 
-```
-$ docker volume create sample 
-```
+[PRE7]
 
 默认的卷驱动程序是所谓的本地驱动程序，它将数据存储在主机文件系统中。
 
 1.  找出主机上存储数据的最简单方法是使用`docker volume inspect`命令查看我们刚刚创建的卷。实际位置可能因系统而异，因此这是找到目标文件夹的最安全方法。您可以在以下代码块中看到这个命令：
 
-```
-$ docker volume inspect sample [ 
-    { 
-        "CreatedAt": "2019-08-02T06:59:13Z",
-        "Driver": "local",
-        "Labels": {},
-        "Mountpoint": "/mnt/sda1/var/lib/docker/volumes/sample/_data",
-        "Name": "my-data",
-        "Options": {},
-        "Scope": "local"
-    } 
-] 
-```
+[PRE8]
 
 主机文件夹可以在输出中的`Mountpoint`下找到。在我们的情况下，当使用基于 LinuxKit 的 VM 在 VirtualBox 中运行`docker-machine`时，文件夹是`/mnt/sda1/var/lib/docker/volumes/sample/_data`。
 
@@ -139,10 +110,7 @@ $ docker volume inspect sample [
 
 1.  我们需要以`privileged`模式运行此容器，以访问文件系统的受保护部分，就像这样：
 
-```
-$ docker run -it --rm --privileged --pid=host \
- fundamentalsofdocker/nsenter / #
-```
+[PRE9]
 
 我们正在使用`--privileged`标志运行容器。这意味着在容器中运行的任何应用程序都可以访问主机的设备。`--pid=host`标志表示容器被允许访问主机的进程树（Docker 守护程序运行的隐藏 VM）。现在，前面的容器运行 Linux `nsenter`工具以进入主机的 Linux 命名空间，然后在其中运行一个 shell。通过这个 shell，我们因此被授予对主机管理的所有资源的访问权限。
 
@@ -154,10 +122,7 @@ $ docker run -it --rm --privileged --pid=host \
 
 1.  在容器内部，我们现在可以导航到代表卷挂载点的文件夹，然后列出其内容，如下所示：
 
-```
-/ # cd /mnt/sda1/var/lib/docker/volumes/sample/_data
-/ # ls -l total 0
-```
+[PRE10]
 
 由于我们尚未在卷中存储任何数据，该文件夹目前为空。
 
@@ -171,81 +136,39 @@ $ docker run -it --rm --privileged --pid=host \
 
 1.  为此，我们可以在`docker container run`命令中使用`-v`参数，如下所示：
 
-```
-$ docker container run --name test -it \
- -v sample:/data \
-    alpine /bin/sh Unable to find image 'alpine:latest' locally
-latest: Pulling from library/alpine
-050382585609: Pull complete
-Digest: sha256:6a92cd1fcdc8d8cdec60f33dda4db2cb1fcdcacf3410a8e05b3741f44a9b5998
-Status: Downloaded newer image for alpine:latest
-/ #
-```
+[PRE11]
 
 上述命令将`sample`卷挂载到容器内的`/data`文件夹。
 
 1.  在容器内，我们现在可以在`/data`文件夹中创建文件，然后退出，如下所示：
 
-```
-/ # cd /data / # echo "Some data" > data.txt 
-/ # echo "Some more data" > data2.txt 
-/ # exit
-```
+[PRE12]
 
 1.  如果我们导航到包含卷数据的主机文件夹并列出其内容，我们应该看到我们刚刚在容器内创建的两个文件（记住：我们需要使用`fundamentalsofdocker/nsenter`工具容器来这样做），如下所示：
 
-```
-$ docker run -it --rm --privileged --pid=host \
- fundamentalsofdocker/nsenter
-/ # cd /mnt/sda1/var/lib/docker/volumes/sample/_data
-/ # ls -l 
-total 8 
--rw-r--r-- 1 root root 10 Jan 28 22:23 data.txt
--rw-r--r-- 1 root root 15 Jan 28 22:23 data2.txt
-```
+[PRE13]
 
 1.  我们甚至可以尝试输出，比如说，第二个文件的内容，如下所示：
 
-```
-/ # cat data2.txt
-```
+[PRE14]
 
 1.  让我们尝试从主机在这个文件夹中创建一个文件，然后像这样使用另一个容器的卷：
 
-```
-/ # echo "This file we create on the host" > host-data.txt 
-```
+[PRE15]
 
 1.  通过按下*Ctrl* + *D*退出工具容器。
 
 1.  现在，让我们删除`test`容器，并基于 CentOS 运行另一个容器。这次，我们甚至将我们的卷挂载到不同的容器文件夹`/app/data`中，就像这样：
 
-```
-$ docker container rm test
-$ docker container run --name test2 -it \
- -v my-data:/app/data \
- centos:7 /bin/bash Unable to find image 'centos:7' locally
-7: Pulling from library/centos
-8ba884070f61: Pull complete
-Digest: sha256:a799dd8a2ded4a83484bbae769d97655392b3f86533ceb7dd96bbac929809f3c
-Status: Downloaded newer image for centos:7
-[root@275c1fe31ec0 /]#
-```
+[PRE16]
 
 1.  一旦进入`centos`容器，我们可以导航到我们已经挂载卷的`/app/data`文件夹，并列出其内容，如下所示：
 
-```
-[root@275c1fe31ec0 /]# cd /app/data 
-[root@275c1fe31ec0 /]# ls -l 
-```
+[PRE17]
 
 正如预期的那样，我们应该看到这三个文件：
 
-```
--rw-r--r-- 1 root root 10 Aug 2 22:23 data.txt
--rw-r--r-- 1 root root 15 Aug 2 22:23 data2.txt
--rw-r--r-- 1 root root 32 Aug 2 22:31 host-data.txt
-```
+[PRE18]
 
 这是数据在 Docker 卷中持久存在超出容器生命周期的明确证据，也就是说，卷可以被其他甚至不同的容器重复使用，而不仅仅是最初使用它的容器。
 
@@ -259,17 +182,13 @@ Status: Downloaded newer image for centos:7
 
 1.  以下命令删除了我们之前创建的`sample`卷：
 
-```
-$ docker volume rm sample 
-```
+[PRE19]
 
 1.  执行上述命令后，仔细检查主机上的文件夹是否已被删除。
 
 1.  为了清理系统，删除所有正在运行的容器，运行以下命令：
 
-```
-$ docker container rm -f $(docker container ls -aq)  
-```
+[PRE20]
 
 请注意，在用于删除容器的命令中使用`-v`或`--volume`标志，您可以要求系统同时删除与该特定容器关联的任何卷。当然，这只有在特定卷只被该容器使用时才有效。
 
@@ -281,36 +200,17 @@ $ docker container rm -f $(docker container ls -aq)
 
 1.  让我们创建一个`sample`卷并使用我们的 macOS 或 Windows 机器上的 Docker for Desktop 进行检查，就像这样：
 
-```
-$ docker volume create sample
-$ docker volume inspect sample
-[
- {
- "CreatedAt": "2019-08-02T07:44:08Z",
- "Driver": "local",
- "Labels": {},
- "Mountpoint": "/var/lib/docker/volumes/sample/_data",
- "Name": "sample",
- "Options": {},
- "Scope": "local"
- }
-]
-```
+[PRE21]
 
 `Mountpoint`显示为`/var/lib/docker/volumes/sample/_data`，但您会发现在您的 macOS 或 Windows 机器上没有这样的文件夹。原因是显示的路径是与 Docker for Windows 用于运行容器的隐藏 VM 相关的。此时，Linux 容器无法在 macOS 或 Windows 上本地运行。
 
 1.  接下来，让我们从`alpine`容器内部生成两个带有卷数据的文件。要运行容器并将示例`volume`挂载到容器的`/data`文件夹，请使用以下代码：
 
-```
-$ docker container run --rm -it -v sample:/data alpine /bin/sh
-```
+[PRE22]
 
 1.  在容器内的`/data`文件夹中生成两个文件，就像这样：
 
-```
-/ # echo "Hello world" > /data/sample.txt
-/ # echo "Other message" > /data/other.txt
-```
+[PRE23]
 
 1.  通过按*Ctrl + D*退出`alpine`容器。
 
@@ -320,34 +220,19 @@ $ docker container run --rm -it -v sample:/data alpine /bin/sh
 
 1.  让我们从运行容器的`fundamentalsofdocker/nsenter`镜像开始尝试提到的第一种方法。我们在上一节中已经在使用这个容器。运行以下代码：
 
-```
-$ docker run -it --rm --privileged --pid=host fundamentalsofdocker/nsenter / #
-```
+[PRE24]
 
 1.  现在我们可以导航到支持我们`sample`卷的文件夹，就像这样：
 
-```
-/ # cd /var/lib/docker/volumes/sample/_data
-```
+[PRE25]
 
 通过运行此代码来查看此文件夹中有什么：
 
-```
-**/ # ls -l** 
-total 8
--rw-r--r-- 1 root root 14 Aug 2 08:07 other.txt
--rw-r--r-- 1 root root 12 Aug 2 08:07 sample.txt
-```
+[PRE26]
 
 1.  让我们尝试从这个特殊容器内创建一个文件，然后列出文件夹的内容，如下所示：
 
-```
-/ # echo "I love Docker" > docker.txt
-/ # ls -l total 12
--rw-r--r-- 1 root root 14 Aug 2 08:08 docker.txt
--rw-r--r-- 1 root root 14 Aug 2 08:07 other.txt
--rw-r--r-- 1 root root 12 Aug 2 08:07 sample.txt
-```
+[PRE27]
 
 现在，我们在`sample`卷的支持文件夹中有了文件。
 
@@ -355,25 +240,15 @@ total 8
 
 1.  现在我们已经探索了第一种选项，如果您使用的是 macOS，让我们尝试`screen`工具，如下所示：
 
-```
-$ screen ~/Library/Containers/com.docker.docker/Data/com.docker.driver.amd64-linux/tty
-```
+[PRE28]
 
 1.  这样做，我们将会看到一个空屏幕。按*Enter*，将显示一个`docker-desktop:~#`命令行提示符。现在我们可以导航到卷文件夹，就像这样：
 
-```
-docker-desktop:~# cd /var/lib/docker/volumes/sample/_data
-```
+[PRE29]
 
 1.  让我们创建另一个带有一些数据的文件，然后列出文件夹的内容，如下所示：
 
-```
-docker-desktop:~# echo "Some other test" > test.txt 
-docker-desktop:~# ls -l
-total 16 -rw-r--r-- 1 root root 14 Aug 2 08:08 docker.txt -rw-r--r-- 1 root root 14 Aug 2 08:07 other.txt
--rw-r--r-- 1 root root 12 Aug 2 08:07 sample.txt
--rw-r--r-- 1 root root 16 Aug 2 08:10 test.txt
-```
+[PRE30]
 
 1.  要退出 Docker VM 的会话，请按*Ctrl* + *A* + *K*。
 
@@ -393,64 +268,41 @@ total 16 -rw-r--r-- 1 root root 14 Aug 2 08:08 docker.txt -rw-r--r-- 1 root root
 
 现在，当多个应用程序或进程同时访问数据时，我们必须非常小心以避免不一致。为了避免并发问题，如竞争条件，理想情况下只有一个应用程序或进程创建或修改数据，而所有其他进程同时访问这些数据只读取它。我们可以通过将卷作为只读挂载来强制在容器中运行的进程只能读取卷中的数据。看一下以下命令：
 
-```
-$ docker container run -it --name writer \
- -v shared-data:/data \
- alpine /bin/sh
-```
+[PRE31]
 
 在这里，我们创建了一个名为`writer`的容器，它有一个卷`shared-data`，以默认的读/写模式挂载：
 
 1.  尝试在这个容器内创建一个文件，就像这样：
 
-```
-# / echo "I can create a file" > /data/sample.txt 
-```
+[PRE32]
 
 它应该成功。
 
 1.  退出这个容器，然后执行以下命令：
 
-```
-$ docker container run -it --name reader \
- -v shared-data:/app/data:ro \
- ubuntu:19.04 /bin/bash
-```
+[PRE33]
 
 我们有一个名为`reader`的容器，它有相同的卷挂载为**只读**(`ro`)。
 
 1.  首先，确保你能看到在第一个容器中创建的文件，就像这样：
 
-```
-$ ls -l /app/data 
-total 4
--rw-r--r-- 1 root root 20 Jan 28 22:55 sample.txt
-```
+[PRE34]
 
 1.  然后，尝试创建一个文件，就像这样：
 
-```
-# / echo "Try to break read/only" > /app/data/data.txt
-```
+[PRE35]
 
 它将失败，并显示以下消息：
 
-```
-bash: /app/data/data.txt: Read-only file system
-```
+[PRE36]
 
 1.  通过在命令提示符处输入`exit`来退出容器。回到主机上，让我们清理所有容器和卷，如下所示：
 
-```
-$ docker container rm -f $(docker container ls -aq) 
-$ docker volume rm $(docker volume ls -q) 
-```
+[PRE37]
 
 1.  完成后，通过在命令提示符处输入 exit 退出 docker-machine VM。您应该回到您的 Docker for Desktop。使用 docker-machine 停止 VM，就像这样：
 
-```
-$ docker-machine stop node-1 
-```
+[PRE38]
 
 接下来，我们将展示如何将 Docker 主机中的任意文件夹挂载到容器中。
 
@@ -458,11 +310,7 @@ $ docker-machine stop node-1
 
 在某些情况下，比如开发新的容器化应用程序或者容器化应用程序需要从某个文件夹中消耗数据——比如说——由传统应用程序产生，使用挂载特定主机文件夹的卷非常有用。让我们看下面的例子：
 
-```
-$ docker container run --rm -it \
- -v $(pwd)/src:/app/src \
- alpine:latest /bin/sh
-```
+[PRE39]
 
 前面的表达式交互式地启动一个带有 shell 的 alpine 容器，并将当前目录的 src 子文件夹挂载到容器的 /app/src。我们需要使用 $(pwd)（或者 ``pwd``，无论哪种方式），即当前目录，因为在使用卷时，我们总是需要使用绝对路径。
 
@@ -472,42 +320,27 @@ $ docker container run --rm -it \
 
 1.  首先，在主机上创建一个新的文件夹，我们将把我们的网页资产—如 HTML、CSS 和 JavaScript 文件—放在其中，并导航到它，就像这样：
 
-```
-$ mkdir ~/my-web 
-$ cd ~/my-web 
-```
+[PRE40]
 
 1.  然后，我们创建一个简单的网页，就像这样：
 
-```
-$ echo "<h1>Personal Website</h1>" > index.html 
-```
+[PRE41]
 
 1.  现在，我们添加一个 `Dockerfile`，其中包含构建包含我们示例网站的镜像的说明。
 
 1.  在文件夹中添加一个名为 `Dockerfile` 的文件，内容如下：
 
-```
-FROM nginx:alpine
-COPY . /usr/share/nginx/html
-```
+[PRE42]
 
 Dockerfile 以最新的 Alpine 版本的 nginx 开始，然后将当前主机目录中的所有文件复制到 /usr/share/nginx/html 容器文件夹中。这是 nginx 期望网页资产位于的位置。
 
 1.  现在，让我们用以下命令构建镜像：
 
-```
-$ docker image build -t my-website:1.0 . 
-```
+[PRE43]
 
 1.  最后，我们从这个镜像中运行一个容器。我们将以分离模式运行容器，就像这样：
 
-```
-$ docker container run -d \
- --name my-site \
- -p 8080:80 \
- my-website:1.0
-```
+[PRE44]
 
 注意 `-p 8080:80` 参数。我们还没有讨论这个，但我们将在第十章《单主机网络》中详细讨论。目前，只需知道这将把 nginx 监听传入请求的容器端口 80 映射到您的笔记本电脑的端口 8080，然后您可以访问应用程序。
 
@@ -515,34 +348,17 @@ $ docker container run -d \
 
 1.  现在，在你喜欢的编辑器中编辑`index.html`文件，使其看起来像这样：
 
-```
-<h1>Personal Website</h1> 
-<p>This is some text</p> 
-```
+[PRE45]
 
 1.  现在保存它，然后刷新浏览器。哦！那没用。浏览器仍然显示`index.html`文件的先前版本，只包括标题。所以，让我们停止并删除当前容器，然后重建镜像，并重新运行容器，如下所示：
 
-```
-$ docker container rm -f my-site
-$ docker image build -t my-website:1.0 .
-$ docker container run -d \
- --name my-site \
-   -p 8080:80 \
- my-website:1.0
-```
+[PRE46]
 
 这次，当你刷新浏览器时，新内容应该显示出来。好吧，它起作用了，但涉及的摩擦太多了。想象一下，每次对网站进行简单更改时都要这样做。这是不可持续的。
 
 1.  现在是使用主机挂载卷的时候了。再次删除当前容器，并使用卷挂载重新运行它，就像这样：
 
-```
-$ docker container rm -f my-site
-$ docker container run -d \
- --name my-site \
-   -v $(pwd):/usr/share/nginx/html \
- -p 8080:80 \
- my-website:1.0
-```
+[PRE47]
 
 1.  现在，向`index.html`文件追加一些内容，并保存。然后，刷新你的浏览器。你应该看到变化。这正是我们想要实现的；我们也称之为*编辑和继续*体验。你可以对网页文件进行任意更改，并立即在浏览器中看到结果，而无需重建镜像和重新启动包含你的网站的容器。
 
@@ -556,11 +372,7 @@ $ docker container run -d \
 
 幸运的是，在`Dockerfile`中有一种定义卷的方法。这样做的关键字是`VOLUME`，我们可以添加单个文件夹的绝对路径或逗号分隔的路径列表。这些路径代表容器文件系统的文件夹。让我们看一些这样的卷定义示例，如下：
 
-```
-VOLUME /app/data 
-VOLUME /app/data, /app/profiles, /app/config 
-VOLUME ["/app/data", "/app/profiles", "/app/config"] 
-```
+[PRE48]
 
 前面片段中的第一行定义了一个要挂载到`/app/data`的单个卷。第二行定义了三个卷作为逗号分隔的列表。最后一个与第二行定义相同，但这次值被格式化为 JSON 数组。
 
@@ -572,66 +384,33 @@ VOLUME ["/app/data", "/app/profiles", "/app/config"]
 
 1.  首先，我们使用以下命令拉取镜像：
 
-```
-$ docker image pull mongo:3.7
-```
+[PRE49]
 
 1.  然后，我们检查这个镜像，并使用`--format`参数来从大量数据中提取必要的部分，如下：
 
-```
- $ docker image inspect \
-    --format='{{json .ContainerConfig.Volumes}}' \
-    mongo:3.7 | jq . 
-```
+[PRE50]
 
 请注意命令末尾的`| jq .`。我们正在将`docker image inspect`的输出导入`jq`工具，它会很好地格式化输出。如果您尚未在系统上安装`jq`，您可以在 macOS 上使用`brew install jq`，或在 Windows 上使用`choco install jq`来安装。
 
 上述命令将返回以下结果：
 
-```
-{
- "/data/configdb": {},
- "/data/db": {}
-}
-```
+[PRE51]
 
 显然，MongoDB 的`Dockerfile`在`/data/configdb`和`/data/db`定义了两个卷。
 
 1.  现在，让我们作为后台守护进程运行一个 MongoDB 实例，如下所示：
 
-```
-$ docker run --name my-mongo -d mongo:3.7
-```
+[PRE52]
 
 1.  我们现在可以使用`docker container inspect`命令获取有关已创建的卷等信息。
 
 使用此命令只获取卷信息：
 
-```
-$ docker inspect --format '{{json .Mounts}}' my-mongo | jq .
-```
+[PRE53]
 
 前面的命令应该输出类似这样的内容（缩短）：
 
-```
-[
-  {
-    "Type": "volume",
-    "Name": "b9ea0158b5...",
-    "Source": "/var/lib/docker/volumes/b9ea0158b.../_data",
-    "Destination": "/data/configdb",
-    "Driver": "local",
-    ...
-  },
-  {
-    "Type": "volume",
-    "Name": "5becf84b1e...",
-    "Source": "/var/lib/docker/volumes/5becf84b1.../_data",
-    "Destination": "/data/db",
-    ...
-  }
-]
-```
+[PRE54]
 
 请注意，为了便于阅读，`Name`和`Source`字段的值已被修剪。`Source`字段为我们提供了主机目录的路径，MongoDB 在容器内生成的数据将存储在其中。
 
@@ -649,36 +428,15 @@ $ docker inspect --format '{{json .Mounts}}' my-mongo | jq .
 
 1.  使用此命令：
 
-```
-$ export
-```
+[PRE55]
 
 在我的 macOS 上，我看到类似这样的东西（缩短）：
 
-```
-...
-COLORFGBG '7;0'
-COLORTERM truecolor
-HOME /Users/gabriel
-ITERM_PROFILE Default
-ITERM_SESSION_ID w0t1p0:47EFAEFE-BA29-4CC0-B2E7-8C5C2EA619A8
-LC_CTYPE UTF-8
-LOGNAME gabriel
-...
-```
+[PRE56]
 
 1.  接下来，让我们在`alpine`容器内运行一个 shell，并列出我们在那里看到的环境变量，如下所示：
 
-```
-$ docker container run --rm -it alpine /bin/sh
-/ # export 
-export HOME='/root'
-export HOSTNAME='91250b722bc3'
-export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-export PWD='/'
-export SHLVL='1'
-export TERM='xterm'
-```
+[PRE57]
 
 我们从`export`命令看到的前面的输出显然与我们直接在主机上看到的完全不同。
 
@@ -690,40 +448,21 @@ export TERM='xterm'
 
 现在，好处是我们实际上可以在启动时将一些配置值传递到容器中。我们可以使用`--env`（或简写形式`-e`）参数以`--env <key>=<value>`的形式这样做，其中`<key>`是环境变量的名称，`<value>`表示与该变量关联的值。假设我们希望在容器中运行的应用程序能够访问名为`LOG_DIR`的环境变量，其值为`/var/log/my-log`。我们可以使用以下命令来实现：
 
-```
-$ docker container run --rm -it \
- --env LOG_DIR=/var/log/my-log \
- alpine /bin/sh
-/ #
-```
+[PRE58]
 
 上述代码在`alpine`容器中启动了一个 shell，并在运行的容器内定义了所请求的环境。为了证明这是真的，我们可以在`alpine`容器内执行这个命令：
 
-```
-/ # export | grep LOG_DIR 
-export LOG_DIR='/var/log/my-log'
-```
+[PRE59]
 
 输出看起来如预期的那样。我们现在确实在容器内有了所请求的环境变量和正确的值。
 
 当然，当我们运行容器时，我们可以定义多个环境变量。我们只需要重复`--env`（或`-e`）参数。看一下这个示例：
 
-```
-$ docker container run --rm -it \
- --env LOG_DIR=/var/log/my-log \    --env MAX_LOG_FILES=5 \
- --env MAX_LOG_SIZE=1G \
- alpine /bin/sh
-/ #
-```
+[PRE60]
 
 如果我们现在列出环境变量，我们会看到以下内容：
 
-```
-/ # export | grep LOG 
-export LOG_DIR='/var/log/my-log'
-export MAX_LOG_FILES='5'
-export MAX_LOG_SIZE='1G'
-```
+[PRE61]
 
 让我们现在看一下我们有许多环境变量需要配置的情况。
 
@@ -735,41 +474,21 @@ export MAX_LOG_SIZE='1G'
 
 1.  创建一个`fod/05`文件夹并导航到它，就像这样：
 
-```
-$ mkdir -p ~/fod/05 && cd ~/fod/05
-```
+[PRE62]
 
 1.  使用您喜欢的编辑器在此文件夹中创建一个名为`development.config`的文件。将以下内容添加到文件中，并保存如下：
 
-```
-LOG_DIR=/var/log/my-log
-MAX_LOG_FILES=5
-MAX_LOG_SIZE=1G
-```
+[PRE63]
 
 注意我们每行定义一个环境变量的格式是`<key>=<value>`，其中，再次，`<key>`是环境变量的名称，`<value>`表示与该变量关联的值。
 
 1.  现在，从`fod/05`文件夹中，让我们运行一个`alpine`容器，将文件作为环境文件传递，并在容器内运行`export`命令，以验证文件中列出的变量确实已经在容器内部创建为环境变量，就像这样：
 
-```
-$ docker container run --rm -it \
- --env-file ./development.config \
- alpine sh -c "export"
-```
+[PRE64]
 
 确实，变量已经被定义，正如我们在生成的输出中所看到的：
 
-```
-export HOME='/root'
-export HOSTNAME='30ad92415f87'
-export LOG_DIR='/var/log/my-log'
-export MAX_LOG_FILES='5'
-export MAX_LOG_SIZE='1G'
-export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
-export PWD='/'
-export SHLVL='1'
-export TERM='xterm'
-```
+[PRE65]
 
 接下来，让我们看看如何为给定 Docker 镜像的所有容器实例定义环境变量的默认值。
 
@@ -779,42 +498,21 @@ export TERM='xterm'
 
 1.  使用您喜欢的编辑器在`~/fod/05`文件夹中创建一个名为`Dockerfile`的文件。将以下内容添加到文件中，并保存：
 
-```
-FROM alpine:latest
-ENV LOG_DIR=/var/log/my-log
-ENV  MAX_LOG_FILES=5
-ENV MAX_LOG_SIZE=1G
-```
+[PRE66]
 
 1.  使用前述`Dockerfile`创建一个名为`my-alpine`的容器镜像，如下所示：
 
-```
-$ docker image build -t my-alpine .
-```
+[PRE67]
 
 从该镜像运行一个容器实例，输出容器内定义的环境变量，就像这样：
 
-```
-$ docker container run --rm -it \
-    my-alpine sh -c "export | grep LOG" 
-export LOG_DIR='/var/log/my-log'
-export MAX_LOG_FILES='5'
-export MAX_LOG_SIZE='1G'
-```
+[PRE68]
 
 这正是我们所期望的。
 
 不过，好消息是，我们并不完全受困于这些变量值。我们可以使用`docker container run`命令中的`--env`参数覆盖其中一个或多个变量。看一下以下命令及其输出：
 
-```
-$ docker container run --rm -it \
-    --env MAX_LOG_SIZE=2G \
-    --env MAX_LOG_FILES=10 \
-    my-alpine sh -c "export | grep LOG" 
-export LOG_DIR='/var/log/my-log'
-export MAX_LOG_FILES='10'
-export MAX_LOG_SIZE='2G'
-```
+[PRE69]
 
 我们还可以使用环境文件和`docker container run`命令中的`--env-file`参数来覆盖默认值。请自行尝试。
 
@@ -822,25 +520,13 @@ export MAX_LOG_SIZE='2G'
 
 有时，我们希望在构建容器镜像时定义一些环境变量，这些变量在构建时是有效的。想象一下，你想定义一个`BASE_IMAGE_VERSION`环境变量，然后在你的`Dockerfile`中将其用作参数。想象一下以下的`Dockerfile`：
 
-```
-ARG BASE_IMAGE_VERSION=12.7-stretch
-FROM node:${BASE_IMAGE_VERSION}
-WORKDIR /app
-COPY packages.json .
-RUN npm install
-COPY . .
-CMD npm start
-```
+[PRE70]
 
 我们使用`ARG`关键字来定义一个默认值，每次从前述`Dockerfile`构建镜像时都会使用这个默认值。在这种情况下，这意味着我们的镜像使用`node:12.7-stretch`基础镜像。
 
 现在，如果我们想为—比如—测试目的创建一个特殊的镜像，我们可以使用`--build-arg`参数在构建镜像时覆盖这个变量，如下所示：
 
-```
-$ docker image build \
- --build-arg BASE_IMAGE_VERSION=12.7-alpine \
- -t my-node-app-test .
-```
+[PRE71]
 
 在这种情况下，生成的`my-node-test:latest`镜像将从`node:12.7-alpine`基础镜像构建，而不是从`node:12.7-stretch`默认镜像构建。
 

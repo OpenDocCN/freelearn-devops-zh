@@ -62,57 +62,21 @@ Docker 内容信任利用两个不同的密钥。第一个是标记密钥。标�
 
 这将允许您在您自己的后端注册表中使用自己的密钥。如果您正在使用 Docker Hub，使用 Docker 内容信任非常简单。
 
-```
-**$ export DOCKER_CONTENT_TRUST=1**
-
-```
+[PRE0]
 
 最重要的一点是，您需要给您推送的所有图像打上标签，这是在下一个命令中看到的：
 
-```
-**$ docker push scottpgallagher/ubuntu:latest**
-
-**The push refers to a repository [docker.io/scottpgallagher/ubuntu] (len: 1)**
-**f50e4a66df18: Image already exists**
-**a6785352b25c: Image already exists**
-**0998bf8fb9e9: Image already exists**
-**0a85502c06c9: Image already exists**
-**latest: digest: sha256:98002698c8d868b03708880ad2e1d36034c79a6698044b495ac34c4c16eacd57 size: 8008**
-**Signing and pushing trust metadata**
-**You are about to create a new root signing key passphrase. This passphrase**
-**will be used to protect the most sensitive key in your signing system. Please**
-**choose a long, complex passphrase and be careful to keep the password and the**
-**key file itself secure and backed up. It is highly recommended that you use a**
-**password manager to generate the passphrase and keep it safe. There will be no**
-**way to recover this key. You can find the key in your config directory.**
-**Enter passphrase for new root key with id d792b7a:**
-**Repeat passphrase for new root key with id d792b7a:**
-**Enter passphrase for new repository key with id docker.io/scottpgallagher/ubuntu (46a967e):**
-**Repeat passphrase for new repository key with id docker.io/scottpgallagher/ubuntu (46a967e):**
-**Finished initializing "docker.io/scottpgallagher/ubuntu"**
-
-```
+[PRE1]
 
 以上代码中最重要的一行是：
 
-```
-**latest: digest: sha256:98002698c8d868b03708880ad2e1d36034c79a6698044b495ac34c4c16eacd57 size: 8008**
-
-```
+[PRE2]
 
 这将为您提供用于验证图像的 SHA 哈希值，以及其大小。当有人要运行该`image/container`时，将在以后使用这些信息。
 
 如果您从没有这个图像的机器上执行`docker pull`，您可以看到它已经用该哈希签名。
 
-```
-**$ docker pull scottpgallagher/ubuntu**
-
-**Using default tag: latest**
-**latest: Pulling from scottpgallagher/ubuntu**
-**Digest: sha256:98002698c8d868b03708880ad2e1d36034c79a6698044b495ac34c4c16eacd57**
-**Status: Downloaded newer image for scottpgallagher/ubuntu:latest**
-
-```
+[PRE3]
 
 再次，当我们执行`pull`命令时，我们看到了 SHA 值的呈现。
 
@@ -194,10 +158,7 @@ DTR 是一个解决方案，提供了一个安全的位置，您可以在本地�
 
 一旦您安装了 Docker Engine，就该安装 DTR 组件了。如果您读到这一点，我们将假设您不是在 AWS 或 Microsoft Azure 上安装。如果您使用这两种方法之一，请参阅上面的链接。安装非常简单：
 
-```
-**$ sudo bash -c '$(sudo docker run docker/trusted-registry install)'**
-
-```
+[PRE4]
 
 ### 注意
 
@@ -269,60 +230,21 @@ DTR 是一个解决方案，提供了一个安全的位置，您可以在本地�
 
 首先，我们需要从**Docker Hub**拉取一个镜像。现在，你可以从头开始使用**Dockerfile**，然后进行 Docker 构建，然后推送，但是，为了演示，我们假设我们有`mysql`镜像，并且我们想以某种方式对其进行定制。
 
-```
-**$ docker pull mysql**
-
-**Using default tag: latest**
-**latest: Pulling from library/mysql**
-
-**1565e86129b8: Pull complete**
-**a604b236bcde: Pull complete**
-**2a1fefc8d587: Pull complete**
-**f9519f46a2bf: Pull complete**
-**b03fa53728a0: Pull complete**
-**ac2f3cdeb1c6: Pull complete**
-**b61ef27b0115: Pull complete**
-**9ff29f750be3: Pull complete**
-**ece4ebeae179: Pull complete**
-**95255626f143: Pull complete**
-**0c7947afc43f: Pull complete**
-**b3a598670425: Pull complete**
-**e287fa347325: Pull complete**
-**40f595e5339f: Pull complete**
-**0ab12a4dd3c8: Pull complete**
-**89fa423a616b: Pull complete**
-**Digest: sha256:72e383e001789562e943bee14728e3a93f2c3823182d14e3e01b3fd877976265**
-**Status: Downloaded newer image for mysql:latest**
-
-**$ docker images**
-
-**REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE**
-**mysql               latest              89fa423a616b        20 hours ago        359.9 MB**
-
-```
+[PRE5]
 
 现在，让我们假设我们对图像进行了定制。假设我们设置了容器，将其日志发送到一个日志聚合服务器，我们正在使用该服务器从我们运行的所有容器中收集日志。现在我们需要保存这些更改。
 
-```
-**$ docker commit be4ea9a7734e <dns.name>/mysql**
-
-```
+[PRE6]
 
 当我们进行提交时，我们需要一些信息。首先是容器 ID，我们可以通过运行`docker ps`命令来获取。我们还需要我们之前设置的注册表服务器的 DNS 名称，最后是一个唯一的镜像名称。在我们的情况下，我们将其保留为`mysql`。
 
 现在我们准备将更新后的镜像推送到我们的注册表服务器。我们唯一需要的信息是我们要推送的镜像名称，即`<dns.name>/mysql`。
 
-```
-**$ docker push <dns.name>/mysql**
-
-```
+[PRE7]
 
 现在，该镜像已准备好供我们组织中的其他用户使用。由于镜像位于我们的受信任的注册表中，我们可以控制客户对该镜像的访问。这可能意味着我们的客户需要我们的证书和密钥才能推送和拉取该镜像，以及在我们之前在上一节中介绍的组织设置中设置的权限。
 
-```
-**$ docker pull <dns.name>/mysql**
-
-```
+[PRE8]
 
 然后我们可以运行镜像，如果需要的话进行更改，并将新创建的镜像推送回受信任的注册服务器。
 
@@ -334,10 +256,7 @@ Docker Registry 是一个开源选项，如果您想完全自己操作的话。�
 
 Docker Registry 的安装非常简单，因为它运行在一个 Docker 容器中。这使您可以在几乎任何地方运行它，在您自己的服务器环境中的虚拟机中或在云环境中。通常使用的端口是端口`5000`，但您可以根据需要进行更改：
 
-```
-**$ docker run -d -p 5000:5000 --restart=always  --name registry registry:2.2**
-
-```
+[PRE9]
 
 您还会注意到我们上面的另一个项目是，我们正在指定要使用的版本，而不是留空并拉取最新版本。这是因为在撰写本书时，该注册表标签的最新版本仍为 0.9.1。现在，虽然这对一些人来说可能合适，但版本 2 已经足够稳定，可以考虑在生产环境中运行。我们还引入了`--restart=always`标志，以便在容器发生故障时，它将重新启动并可用于提供或接受镜像。
 
@@ -345,52 +264,19 @@ Docker Registry 的安装非常简单，因为它运行在一个 Docker 容器�
 
 现在是时候在您的新注册表上放一些图像了。我们首先需要一个要推送到注册表的图像，我们可以通过两种方式来实现。我们可以基于我们创建的 Docker 文件构建图像，或者我们可以从另一个注册表中拉取图像，在我们的情况下，我们将使用 Docker Hub，然后将该图像推送到我们的新注册表服务器。首先，我们需要选择一个图像，再次，我们将默认回到`mysql`图像，因为它是一个更受欢迎的图像，大多数人在某个时候可能会在其环境中使用。
 
-```
-**$ docker pull mysql**
-**Using default tag: latest**
-**latest: Pulling from library/mysql**
-
-**1565e86129b8: Pull complete**
-**a604b236bcde: Pull complete**
-**2a1fefc8d587: Pull complete**
-**f9519f46a2bf: Pull complete**
-**b03fa53728a0: Pull complete**
-**ac2f3cdeb1c6: Pull complete**
-**b61ef27b0115: Pull complete**
-**9ff29f750be3: Pull complete**
-**ece4ebeae179: Pull complete**
-**95255626f143: Pull complete**
-**0c7947afc43f: Pull complete**
-**b3a598670425: Pull complete**
-**e287fa347325: Pull complete**
-**40f595e5339f: Pull complete**
-**0ab12a4dd3c8: Pull complete**
-**89fa423a616b: Pull complete**
-**Digest: sha256:72e383e001789562e943bee14728e3a93f2c3823182d14e3e01b3fd877976265**
-**Status: Downloaded newer image for mysql:latest**
-
-```
+[PRE10]
 
 接下来，您需要标记图像，以便它现在指向您的新注册表，这样您就可以将其推送到新位置：
 
-```
-**$ docker tag mysql <IP_address>:5000/mysql**
-
-```
+[PRE11]
 
 让我们来分解上面的命令。我们正在做的是将`mysql`图像从 Docker Hub 中拉取，并将标签`<IP_address>:5000/mysql`应用于该图像。现在，`<IP_address>`部分将被 Docker 主机的 IP 地址替换，该主机正在运行注册表容器。这也可以是一个 DNS 名称，只要 DNS 指向正确的 IP 地址即可。我们还需要指定我们的注册表服务器的端口号，在我们的情况下，我们将其保留为端口`5000`，因此我们在标签中包括：`5000`。然后，我们将在命令的末尾给它相同的名称`mysql`。现在，我们准备将此图像推送到我们的新注册表。
 
-```
-**$ docker push <IP_address>:5000/mysql**
-
-```
+[PRE12]
 
 推送完成后，您现在可以从另一台配置有 Docker 并且可以访问注册表服务器的机器上将其拉取下来。
 
-```
-**$ docker pull <IP_address>:5000/mysql**
-
-```
+[PRE13]
 
 我们在这里看到的是默认设置，虽然如果您想使用防火墙等来保护环境，甚至是内部 IP 地址，它可能会起作用，但您可能仍然希望将安全性提升到下一个级别，这就是我们将在下一节中讨论的内容。我们如何使这更加安全？
 
@@ -402,22 +288,11 @@ Docker Registry 的安装非常简单，因为它运行在一个 Docker 容器�
 
 我们的新命令将如下所示：
 
-```
-**$ docker run -d -p 5000:5000 --restart=always --name registry \**
- **-e REGISTRY_HTTP_TLS_CERTIFICATE=server.crt \**
- **-e REGISTRY_HTTP_TLS_KEY=server.key \**
- **-v <certificate folder>/<path_on_container> \** 
- **registry:2.2.0**
-
-```
+[PRE14]
 
 您需要在证书所在的目录中，或在上述命令中指定完整路径。同样，我们保持标准端口`5000`，以及注册表的名称。您也可以将其更改为更适合您的内容。出于本书的目的，我们将保持接近官方文档中的内容，以便您在那里查找更多参考资料。接下来，我们在`run`命令中添加了两行额外的内容：
 
-```
- **-e REGISTRY_HTTP_TLS_CERTIFICATE=server.crt \**
- **-e REGISTRY_HTTP_TLS_KEY=server.key \**
-
-```
+[PRE15]
 
 这将允许您指定要使用的证书和密钥文件。这两个文件需要在您运行`run`命令的同一目录中，因为环境变量将在运行时寻找它们。现在，如果您喜欢，您还可以在运行命令中添加一个卷开关，使其更加清晰，并将证书和密钥放在那个文件夹中以这种方式运行注册表服务器。
 
@@ -425,42 +300,21 @@ Docker Registry 的安装非常简单，因为它运行在一个 Docker 容器�
 
 首先，您需要创建一个密码文件，该文件将在您的`run`命令中使用：
 
-```
-**$ docker run --entrypoint htpasswd registry:2.2.0 -bn <username> <password> > htpasswd**
-
-```
+[PRE16]
 
 现在，要理解这里发生了什么可能有点困惑，所以在我们跳转到`run`命令之前，让我们澄清一下。首先，我们发出了一个`run`命令。这个命令将运行`registry:2.2.0`容器，并且指定的入口点意味着运行`htpasswd`命令以及`-bn`开关，这将以加密方式将`username`和`password`注入到一个名为`htpasswd`的文件中，您将在注册表服务器上用于身份验证目的。`-b`表示批处理模式运行，而`-n`表示显示结果，`>`表示将这些项目放入文件而不是实际输出屏幕。
 
 现在，让我们来看看我们新增强的、完全安全的 Docker `run`命令：
 
-```
-**$ docker run -d -p 5000:5000 --restart=always --name registry \**
- **-e "REGISTRY_AUTH=htpasswd" \**
- **-e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Name" \**
- **-e REGISTRY_AUTH_HTPASSWD_PATH=htpasswd \**
- **-e REGISTRY_HTTP_TLS_CERTIFICATE=server.crt \**
- **-e REGISTRY_HTTP_TLS_KEY=server.key \**
- **registry:2.20**
-
-```
+[PRE17]
 
 再次，这是很多内容需要消化，但让我们一起来看一下。我们之前在一些地方已经看到了这些内容：
 
-```
- **-e REGISTRY_HTTP_TLS_CERTIFICATE=server.crt \**
- **-e REGISTRY_HTTP_TLS_KEY=server.key \**
-
-```
+[PRE18]
 
 新的内容包括：…（未完待续）
 
-```
- **-e "REGISTRY_AUTH=htpasswd" \**
- **-e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Name" \**
- **-e REGISTRY_AUTH_HTPASSWD_PATH=htpasswd \**
-
-```
+[PRE19]
 
 第一个告诉注册服务器使用`htpasswd`作为其验证客户端的身份验证方法。第二个为您的注册表提供一个名称，并且可以根据您自己的意愿进行更改。最后一个告诉注册服务器要使用的文件的位置，该文件将用于`htpasswd`身份验证。同样，您需要使用卷，并将`htpasswd`文件放在容器内的自己的卷中，以便日后更容易更新。您还需要记住，在执行 Docker `run`命令时，`htpasswd`文件需要放在与证书和密钥文件相同的目录中。
 

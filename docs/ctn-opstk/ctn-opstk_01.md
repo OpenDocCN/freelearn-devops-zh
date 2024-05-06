@@ -172,111 +172,39 @@ Docker 有两个版本，**社区版（CE）**和**企业版（EE）**：
 
 1.  首先，将官方 Docker 存储库的 GPG 密钥添加到系统中：
 
-```
- $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg |
-        sudo apt-key add 
-```
+[PRE0]
 
 1.  将 Docker 存储库添加到 APT 源：
 
-```
- $ sudo add-apt-repository "deb [arch=amd64]
- https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" 
-```
+[PRE1]
 
 1.  接下来，使用新添加的存储库更新 Docker 软件包的软件包数据库：
 
-```
- $ sudo apt-get update 
-```
+[PRE2]
 
 1.  确保要安装 Docker 存储库而不是默认的 Ubuntu 16.04 存储库：
 
-```
- $ apt-cache policy docker-ce 
-```
+[PRE3]
 
 1.  您应该看到类似以下的输出：
 
-```
- docker-ce:
-          Installed: (none)
-          Candidate: 17.06.0~ce-0~ubuntu
-          Version table:
-             17.06.0~ce-0~ubuntu 500
-                500 https://download.docker.com/linux/ubuntu xenial/stable 
- amd64 Packages
-             17.03.2~ce-0~ubuntu-xenial 500
-                500 https://download.docker.com/linux/ubuntu xenial/stable 
- amd64 Packages
-             17.03.1~ce-0~ubuntu-xenial 500
-               500 https://download.docker.com/linux/ubuntu xenial/stable 
- amd64 Packages
-             17.03.0~ce-0~ubuntu-xenial 500
-              500 https://download.docker.com/linux/ubuntu xenial/stable 
- amd64 Packages
-```
+[PRE4]
 
 请注意，`docker-ce`未安装，但安装候选项来自 Ubuntu 16.04 的 Docker 存储库。`docker-ce`版本号可能不同。
 
 1.  最后，安装 Docker：
 
-```
- $ sudo apt-get install -y docker-ce 
-```
+[PRE5]
 
 1.  Docker 现在应该已安装，守护程序已启动，并且已启用进程以在启动时启动。检查它是否正在运行：
 
-```
- $ sudo systemctl status docker
-        docker.service - Docker Application Container Engine
-           Loaded: loaded (/lib/systemd/system/docker.service; enabled; 
- vendor preset: enabled)
-           Active: active (running) since Sun 2017-08-13 07:29:14 UTC; 45s
- ago
-             Docs: https://docs.docker.com
-         Main PID: 13080 (dockerd)
-           CGroup: /system.slice/docker.service
-                   ├─13080 /usr/bin/dockerd -H fd://
-                   └─13085 docker-containerd -l 
- unix:///var/run/docker/libcontainerd/docker-containerd.sock --
- metrics-interval=0 --start
-```
+[PRE6]
 
 1.  通过运行 hello-world 镜像验证 Docker CE 是否正确安装：
 
-```
- $ sudo docker run hello-world 
-        Unable to find image 'hello-world:latest' locally 
-        latest: Pulling from library/hello-world 
-        b04784fba78d: Pull complete 
-        Digest:
- sha256:f3b3b28a45160805bb16542c9531888519430e9e6d6ffc09d72261b0d26
- ff74f 
-        Status: Downloaded newer image for hello-world:latest 
+[PRE7]
 
-        Hello from Docker! 
- This message shows that your installation appears to be
- working correctly.
-```
-
-```
- To generate this message, Docker took the following steps:
- The Docker client contacted the Docker daemon
- The Docker daemon pulled the hello-world image from the Docker Hub
- The Docker daemon created a new container from that image, 
- which ran the executable that produced the output you are 
- currently reading 
- The Docker daemon streamed that output to the Docker client, 
- which sent it to your terminal
- To try something more ambitious, you can run an Ubuntu 
- container with the following:
- $ docker run -it ubuntu bash 
-        Share images, automate workflows, and more with a free Docker ID: 
- https://cloud.docker.com/ 
- For more examples and ideas,
- visit: https://docs.docker.com/engine/userguide/.
-```
+[PRE8]
 
 # Docker 实践
 
@@ -284,18 +212,11 @@ Docker 有两个版本，**社区版（CE）**和**企业版（EE）**：
 
 语法采用以下形式：
 
-```
-$ docker [option] [command] [arguments]
-# To see help for individual command
-$ docker help [command]  
-```
+[PRE9]
 
 要查看有关 Docker 和 Docker 版本的系统范围信息，请使用以下命令：
 
-```
-$ sudo docker info
-$ sudo docker version  
-```
+[PRE10]
 
 Docker 有许多子命令来管理 Docker 守护程序管理的多个资源。以下是 Docker 支持的管理命令列表：
 
@@ -324,13 +245,7 @@ Docker 有许多子命令来管理 Docker 守护程序管理的多个资源。�
 
 您可以通过运行 Docker images 子命令列出 Docker 主机中所有可用的镜像。默认的 Docker 镜像将显示所有顶级镜像，它们的存储库和标签，以及它们的大小：
 
-```
-$ sudo docker images
-REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
-wordpress           latest              c4260b289fc7        10 days ago         406MB
-mysql               latest              c73c7527c03a        2 weeks ago         412MB
-hello-world         latest              1815c82652c0        2 months ago        1.84kB 
-```
+[PRE11]
 
 # 获取新镜像
 
@@ -338,37 +253,19 @@ Docker 将自动下载在 Docker 主机系统中不存在的任何镜像。如�
 
 要拉取基础镜像，请执行以下操作：
 
-```
-$ sudo docker pull Ubuntu 
-# To pull specific version 
-$ sudo docker pull ubuntu:16.04 
-```
+[PRE12]
 
 # 搜索 Docker 镜像
 
 Docker 最重要的功能之一是许多人为各种目的创建了 Docker 镜像。其中许多已经上传到 Docker Hub。您可以通过使用 docker search 子命令在 Docker Hub 注册表中轻松搜索 Docker 镜像：
 
-```
-$ sudo docker search ubuntu
-NAME                                           DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
-rastasheep/ubuntu-sshd                         Dockerized SSH service, built on top of of...   97                   [OK]
-ubuntu-upstart                                 Upstart is an event-based replacement for ...   76        [OK]
-ubuntu-debootstrap                             debootstrap --variant=minbase --components...   30        [OK]
-nuagebec/ubuntu                                Simple always updated Ubuntu docker images...   22                   [OK]
-tutum/ubuntu                                   Simple Ubuntu docker images with SSH access     18  
-```
+[PRE13]
 
 # 删除镜像
 
 要删除一个镜像，请运行以下命令：
 
-```
-$ sudo docker rmi hello-world
-Untagged: hello-world:latest
-Untagged: hello-world@sha256:b2ba691d8aac9e5ac3644c0788e3d3823f9e97f757f01d2ddc6eb5458df9d801
-Deleted: sha256:05a3bd381fc2470695a35f230afefd7bf978b566253199c4ae5cc96fafa29b37
-Deleted: sha256:3a36971a9f14df69f90891bf24dc2b9ed9c2d20959b624eab41bbf126272a023  
-```
+[PRE14]
 
 有关与 Docker 镜像相关的其余命令，请参考 Docker 文档。
 
@@ -380,53 +277,31 @@ Deleted: sha256:3a36971a9f14df69f90891bf24dc2b9ed9c2d20959b624eab41bbf126272a023
 
 启动容器很简单，因为`docker run`传递了您想要运行的镜像名称以及在容器内运行此命令。如果镜像不存在于本地机器上，Docker 将尝试从公共镜像注册表中获取它：
 
-```
-$ sudo docker run --name hello_world ubuntu /bin/echo hello world  
-```
+[PRE15]
 
 在上面的例子中，容器将启动，打印 hello world，然后停止。容器被设计为在其中执行的命令退出后停止。
 
 例如，让我们使用 Ubuntu 中的最新镜像运行一个容器。`-i`和`-t`开关的组合为您提供了对容器的交互式 shell 访问：
 
-```
-$ sudo docker run -it ubuntu
-root@a5b3bce6ed1b:/# ls
-bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root 
-run  sbin  srv  sys  tmp  usr  var  
-```
+[PRE16]
 
 # 列出容器
 
 您可以使用以下命令列出在 Docker 主机上运行的所有容器：
 
-```
-# To list active containers
-$ sudo docker ps
-
-# To list all containers
-$ sudo docker ps -a
-CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                      PORTS               NAMES
-2db72a5a0b99        ubuntu              "/bin/echo hello w..." 
-58 seconds ago      Exited (0) 58 seconds ago 
-hello_world  
-```
+[PRE17]
 
 # 检查容器的日志
 
 您还可以使用以下方法查看正在运行的容器记录的信息：
 
-```
-$ sudo docker logs hello_world
-hello world  
-```
+[PRE18]
 
 # 启动容器
 
 您可以使用以下方法启动已停止的容器：
 
-```
-$ sudo docker start hello_world  
-```
+[PRE19]
 
 同样，您可以使用诸如停止、暂停、取消暂停、重启、重新启动等命令来操作容器。
 
@@ -434,12 +309,7 @@ $ sudo docker start hello_world
 
 您还可以使用以下方法删除已停止的容器：
 
-```
-$ sudo docker delete hello_world
-
-# To delete a running container, use -force parameter
-$ sudo docker delete --force [container]  
-```
+[PRE20]
 
 有关 Docker 容器的其他命令，请参考 Docker 文档。
 

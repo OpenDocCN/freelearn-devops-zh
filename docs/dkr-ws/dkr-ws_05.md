@@ -32,21 +32,15 @@ Docker Compose 与**Docker Engine**一起工作，用于创建和管理多容器
 
 1.  使用以下命令将二进制文件下载到`/usr/local/bin`中：
 
-```
-sudo curl -L "https://github.com/docker/compose/releases/download/1.25.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-```
+[PRE0]
 
 1.  使用以下命令使下载的二进制文件可执行：
 
-```
-sudo chmod +x /usr/local/bin/docker-compose
-```
+[PRE1]
 
 1.  在所有操作系统的终端上使用以下命令测试 CLI 和安装：
 
-```
-docker-compose version
-```
+[PRE2]
 
 如果安装正确，您将看到 CLI 及其依赖项的版本如下。例如，在以下输出中，`docker-compose` CLI 的版本为`1.25.1-rc1`，其依赖项`docker-py`、`CPython`和`OpenSSL`也列出了它们的版本：
 
@@ -60,9 +54,7 @@ docker-compose version
 
 `docker-compose`命令能够管理多容器应用程序的完整生命周期。通过子命令，可以启动、停止和重新创建服务。此外，还可以检查正在运行的堆栈的状态并获取日志。在本章中，您将通过实践掌握这些基本命令。同样，可以使用以下命令列出所有功能的预览：
 
-```
-docker-compose --help
-```
+[PRE3]
 
 命令的输出应该如下所示：
 
@@ -116,36 +108,15 @@ Docker Compose 默认使用`docker-compose.yaml`和`docker-compose.yml`文件扩
 
 当在根目录的 `docker-compose.yaml` 文件中定义了以下内容时，`server` 容器将在运行服务之前构建：
 
-```
-version: "3"
-services:
-  server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile-server
-```
+[PRE4]
 
 同样，如果您想要使用来自 Docker 注册表的镜像，可以仅定义一个带有 `image` 字段的服务：
 
-```
-version: "3"
-services:
-  server:
-    image: nginx
-```
+[PRE5]
 
 Docker Compose 默认创建一个网络，每个容器都连接到此网络。此外，容器可以使用主机名连接到其他容器。例如，假设您在 `webapp` 文件夹中有以下 `docker-compose.yaml` 文件：
 
-```
-version: "3"
-services:
-  server:
-    image: nginx
-  db:
-    image: postgres
-    ports:
-      - "8032:5432"
-```
+[PRE6]
 
 当您使用此配置启动 `docker-compose` 时，它首先创建了名为 `webapp_default` 的网络。随后，`docker-compose` 创建了 `server` 和 `db` 容器，并分别以 `server` 和 `db` 的名称加入了 `webapp_default` 网络。
 
@@ -161,20 +132,7 @@ Docker Compose 还作为`docker-compose.yaml`文件的一部分创建和管理�
 
 使用以下`docker-compose.yaml`文件，`docker-compose`将使用 Docker 引擎中的默认卷插件创建名为`data`的卷。此卷将被挂载到`database`容器的`/database`路径和`backup`容器的`/backup`路径。此 YAML 文件及其内容创建了一个服务堆栈，运行数据库并在没有停机时间的情况下持续备份：
 
-```
-version: "3"
-services:
-  database:
-    image: my-db-service
-    volumes:
-      - data:/database
-  backup:
-    image: my-backup-service
-    volumes:
-      - data:/backup
-volumes:
-  data:
-```
+[PRE7]
 
 注意
 
@@ -194,68 +152,33 @@ Docker Compose 文件的官方参考文档可在[`docs.docker.com/compose/compos
 
 1.  创建一个名为`server-with-compose`的文件夹，并使用`cd`命令进入其中：
 
-```
-mkdir server-with-compose
-cd server-with-compose
-```
+[PRE8]
 
 1.  创建一个名为`init`的文件夹，并使用`cd`命令进入其中：
 
-```
-mkdir init
-cd init
-```
+[PRE9]
 
 1.  创建一个包含以下内容的 Bash 脚本文件，并将其保存为`prepare.sh`：
 
-```
-#!/usr/bin/env sh
-rm /data/index.html
-echo "<h1>Welcome from Docker Compose!</h1>" >> /data/index.html
-echo "<img src='http://bit.ly/moby-logo' />" >> /data/index.html
-```
+[PRE10]
 
 该脚本使用`echo`命令生成一个示例 HTML 页面。
 
 1.  创建一个名为`Dockerfile`的文件，并包含以下内容：
 
-```
-FROM busybox
-ADD prepare.sh /usr/bin/prepare.sh
-RUN chmod +x /usr/bin/prepare.sh
-ENTRYPOINT ["sh", "/usr/bin/prepare.sh"] 
-```
+[PRE11]
 
 此`Dockerfile`基于`busybox`，这是一个用于节省空间的容器的微型操作系统，并将`prepare.sh`脚本添加到文件系统中。此外，它使文件可执行，并将其设置为`ENTRYPOINT`命令。`ENTRYPOINT`命令，在我们的情况下，`prepare.sh`脚本在 Docker 容器启动时被初始化。
 
 1.  使用`cd ..`命令将目录更改为父文件夹，并创建一个名为`docker-compose.yaml`的文件，包含以下内容：
 
-```
-version: "3"
-services:
-  init:
-    build:
-      context: ./init
-    volumes:
-      - static:/data
-
-  server:
-    image: nginx
-    volumes:
-      - static:/usr/share/nginx/html  
-    ports:
-      - "8080:80"
-volumes:
-  static:
-```
+[PRE12]
 
 此`docker-compose`文件创建一个名为`static`的卷，以及两个名为`init`和`server`的服务。该卷被挂载到两个容器上。此外，服务器已发布端口`8080`，连接到容器端口`80`。
 
 1.  使用以下命令以`detach`模式启动应用程序，以继续使用终端：
 
-```
-docker-compose up --detach 
-```
+[PRE13]
 
 以下图片显示了执行上述命令时发生的情况：
 
@@ -283,9 +206,7 @@ docker-compose up --detach
 
 1.  如果不需要应用程序运行，使用以下命令停止并移除所有资源:
 
-```
-docker-compose down
-```
+[PRE14]
 
 该命令将返回以下输出:
 
@@ -315,37 +236,21 @@ docker-compose down
 
 在`docker-compose.yaml`文件的`services`部分，可以为每个服务定义环境变量。例如，以下是在 Docker Compose 文件中为`server`服务设置的`LOG_LEVEL`和`METRICS_PORT`环境变量：
 
-```
-server:
-  environment:
-    - LOG_LEVEL=DEBUG
-    - METRICS_PORT=8444
-```
+[PRE15]
 
 当在`docker-compose.yaml`文件中未为环境变量设置值时，可以通过运行`docker-compose`命令从 shell 中获取值。例如，`server`服务的`HOSTNAME`环境变量将直接从 shell 中设置：
 
-```
-server:
-  environment:
-    - HOSTNAME
-```
+[PRE16]
 
 当运行`docker-compose`命令的 shell 没有`HOSTNAME`环境变量的值时，容器将以空环境变量启动。
 
 此外，可以将环境变量存储在`.env`文件中，并在`docker-compose.yaml`文件中进行配置。一个名为`database.env`的示例文件可以按键值列表的方式进行结构化，如下所示：
 
-```
-DATABASE_ADDRESS=mysql://mysql:3535
-DATABASE_NAME=db
-```
+[PRE17]
 
 在`docker-compose.yaml`文件中，环境变量文件字段配置在相应的服务下，如下所示：
 
-```
-server:
-  env_file:
-    - database.env
-```
+[PRE18]
 
 当 Docker Compose 创建`server`服务时，它将把`database.env`文件中列出的所有环境变量设置到容器中。
 
@@ -359,42 +264,23 @@ Docker Compose 中的服务是通过环境变量进行配置的。在这个练�
 
 1.  创建一个名为`server-with-configuration`的文件夹，并使用`cd`命令进入其中：
 
-```
-mkdir server-with-configuration
-cd server-with-configuration
-```
+[PRE19]
 
 1.  创建一个名为`print.env`的`.env`文件，并包含以下内容：
 
-```
-ENV_FROM_ENV_FILE_1=HELLO
-ENV_FROM_ENV_FILE_2=WORLD
-```
+[PRE20]
 
 在这个文件中，使用它们的值定义了两个环境变量`ENV_FROM_ENV_FILE_1`和`ENV_FROM_ENV_FILE_2`。
 
 1.  创建一个名为`docker-compose.yaml`的文件，并包含以下内容：
 
-```
-version: "3"
-services:
-  print:
-    image: busybox
-    command: sh -c 'sleep 5 && env'
-    env_file:
-    - print.env
-    environment:
-    - ENV_FROM_COMPOSE_FILE=HELLO
-    - ENV_FROM_SHELL
-```
+[PRE21]
 
 在这个文件中，定义了一个单容器应用程序，容器运行`env`命令来打印环境变量。它还使用名为`print.env`的环境文件，以及两个额外的环境变量`ENV_FROM_COMPOSE_FILE`和`ENV_FROM_SHELL`。
 
 1.  使用以下命令将`ENV_FROM_SHELL`导出到 shell 中：
 
-```
-export ENV_FROM_SHELL=WORLD
-```
+[PRE22]
 
 1.  使用`docker-compose up`命令启动应用程序。输出应该如下所示：![图 5.11：启动应用程序](img/B15021_05_11.jpg)
 
@@ -412,20 +298,7 @@ Docker Compose 运行和管理在`docker-compose.yaml`文件中定义的多容�
 
 假设您有一个包含三个容器的应用程序，其`docker-compose.yaml`文件如下：
 
-```
-version: "3"
-services:
-  init:
-    image: busybox
-  pre:
-    image: busybox
-    depends_on:
-    - "init"
-  main:
-    image: busybox
-    depends_on:
-    - "pre"
-```
+[PRE23]
 
 在这个文件中，`main`容器依赖于`pre`容器，而`pre`容器依赖于`init`容器。Docker Compose 按照`init`、`pre`和`main`的顺序启动容器，如*图 5.12*所示。此外，容器将按相反的顺序停止：`main`、`pre`，然后是`init`。
 
@@ -443,46 +316,11 @@ services:
 
 1.  创建一个名为`server-with-dependency`的文件夹，并使用`cd`命令进入其中：
 
-```
-mkdir server-with-dependency
-cd server-with-dependency
-```
+[PRE24]
 
 1.  创建一个名为`docker-compose.yaml`的文件，并包含以下内容：
 
-```
-version: "3"
-services:
-  clean:
-    image: busybox
-    command: "rm -rf /static/index.html"
-    volumes:
-      - static:/static 
-  init:
-    image: busybox
-    command: "sh -c 'echo This is from init container >>       /static/index.html'"
-    volumes:
-      - static:/static 
-    depends_on:
-    - "clean"
-  pre:
-    image: busybox
-    command: "sh -c 'echo This is from pre container >>       /static/index.html'"
-    volumes:
-      - static:/static 
-    depends_on:
-    - "init"
-  server:
-    image: nginx
-    volumes:
-      - static:/usr/share/nginx/html  
-    ports:
-      - "8080:80"
-    depends_on:
-    - "pre"
-volumes:
-  static:
-```
+[PRE25]
 
 这个文件包括四个服务和一个卷。卷的名称是`static`，它被挂载到所有服务上。前三个服务对静态卷采取单独的操作。`clean`容器删除`index.html`文件，然后`init`容器开始填充`index.html`。随后，`pre`容器向`index.html`文件写入额外的一行。最后，`server`容器提供`static`文件夹中的内容。
 

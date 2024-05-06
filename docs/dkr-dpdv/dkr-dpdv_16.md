@@ -64,48 +64,19 @@ Compose 文件包括组成应用程序的整个服务堆栈。它还包括应用
 
 克隆应用程序的 GitHub 存储库，以便在本地机器上拥有所有应用程序源文件。
 
-```
-$ git clone https://github.com/dockersamples/atsea-sample-shop-app.git
-Cloning into `'atsea-sample-shop-app'`...
-remote: Counting objects: `636`, `done`.
-remote: Total `636` `(`delta `0``)`, reused `0` `(`delta `0``)`, pack-reused `636`
-Receiving objects: `100`% `(``636`/636`)`, `7`.23 MiB `|` `28`.25 MiB/s, `done`.
-Resolving deltas: `100`% `(``197`/197`)`, `done`. 
-```
+[PRE0]
 
 `该应用程序由多个目录和源文件组成。请随意探索它们。但是，我们将专注于`docker-stack.yml`文件。我们将把它称为*堆栈文件*，因为它定义了应用程序及其要求。
 
 在最高级别，它定义了 4 个顶级键。
 
-```
-`version``:`
-`services``:`
-`networks``:`
-`secrets``:` 
-```
+[PRE1]
 
 `**版本**表示 Compose 文件格式的版本。这必须是 3.0 或更高才能与堆栈一起使用。**服务**是我们定义组成应用程序的服务堆栈的地方。**网络**列出了所需的网络，**秘密**定义了应用程序使用的秘密。
 
 如果我们展开每个顶级键，我们将看到如何将事物映射到图 14.1。堆栈文件有五个名为“reverse_proxy”、“database”、“appserver”、“visualizer”和“payment_gateway”的服务。图 14.1 也是如此。堆栈文件有三个名为“front-tier”、“back-tier”和“payment”的网络。图 14.1 也是如此。最后，堆栈文件有四个名为“postgres_password”、“staging_token”、“revprox_key”和“revprox_cert”的秘密。图 14.1 也是如此。
 
-```
-version: "3.2"
-services:
-    reverse_proxy:
-    database:
-    appserver:
-    visualizer:
-    payment_gateway:
-networks:
-    front-tier:
-    back-tier:
-    payment:
-secrets:
-    postgres_password:
-    staging_token:
-    revprox_key:
-    revprox_cert: 
-```
+[PRE2]
 
 `重要的是要理解，堆栈文件捕获并定义了整个应用程序的许多要求。因此，它是一种应用程序自我文档化的形式，也是弥合开发和运维之间差距的重要工具。
 
@@ -121,15 +92,7 @@ secrets:
 
 ##### 网络
 
-```
-`networks``:`
-  `front``-``tier``:`
-  `back``-``tier``:`
-  `payment``:`
-    `driver``:` `overlay`
-    `driver_opts``:`
-      `encrypted``:` `'yes'` 
-```
+[PRE3]
 
 `定义了三个网络; `front-tier`，`back-tier`和`payment`。默认情况下，它们都将由`overlay`驱动程序创建为覆盖网络。但是`payment`网络很特别 - 它需要加密的数据平面。
 
@@ -149,17 +112,7 @@ secrets:
 
 秘密被定义为顶级对象，我们使用的堆栈文件定义了四个：
 
-```
-`secrets``:`
-  `postgres_password``:`
-    `external``:` `true`
-  `staging_token``:`
-    `external``:` `true`
-  `revprox_key``:`
-    `external``:` `true`
-  `revprox_cert``:`
-    `external``:` `true` 
-```
+[PRE4]
 
 `请注意，所有四个都被定义为`external`。这意味着它们必须在堆栈部署之前已经存在。
 
@@ -179,20 +132,7 @@ secrets:
 
 正如我们所看到的，`reverse_proxy`服务定义了一个镜像、端口、秘密和网络。
 
-```
-`reverse_proxy``:`
-  `image``:` `dockersamples``/``atseasampleshopapp_reverse_proxy`
-  `ports``:`
-    `-` `"80:80"`
-    `-` `"443:443"`
-  `secrets``:`
-    `-` `source``:` `revprox_cert`
-      `target``:` `revprox_cert`
-    `-` `source``:` `revprox_key`
-      `target``:` `revprox_key`
-  `networks``:`
-    `-` `front``-``tier` 
-```
+[PRE5]
 
 `image`键是服务对象中唯一强制的键。顾名思义，它定义了将用于构建服务副本的 Docker 镜像。
 
@@ -208,12 +148,7 @@ Docker Stacks 和 Docker Compose 之间的一个区别是，堆栈不支持**构
 
 默认情况下，所有端口都使用*入口模式*进行映射。这意味着它们将被映射并且可以从 Swarm 中的每个节点访问 - 即使节点没有运行副本。另一种选择是*主机模式*，在这种模式下，端口仅在运行服务副本的 Swarm 节点上映射。但是，*主机模式*要求您使用长格式语法。例如，使用长格式语法在*主机模式*下映射端口 80 将是这样的：
 
-```
-ports:
-  - target: 80
-    published: 80
-    mode: host 
-```
+[PRE6]
 
 `长格式语法是推荐的，因为它更容易阅读和更强大（支持入口模式**和**主机模式）。但是，它至少需要版本 3.2 的 Compose 文件格式。
 
@@ -223,11 +158,7 @@ ports:
 
 在此服务中定义的秘密将被挂载到每个服务副本中，如`/run/secrets/revprox_cert`和`/run/secrets/revprox_key`。要将其中一个挂载为`/run/secrets/uber_secret`，您可以在堆栈文件中定义如下：
 
-```
-secrets:
-  - source: revprox_cert
-    target: uber_secret 
-```
+[PRE7]
 
 **networks**键确保服务的所有副本都将连接到`front-tier`网络。此处指定的网络必须在`networks`顶级键中定义，如果尚不存在，Docker 将将其创建为覆盖。
 
@@ -235,42 +166,17 @@ secrets:
 
 数据库服务还定义了一个镜像、一个网络和一个秘密。除此之外，它还引入了环境变量和放置约束。
 
-```
-`database``:`
-  `image``:` `dockersamples``/``atsea_db`
-  `environment``:`
-    `POSTGRES_USER``:` `gordonuser`
-    `POSTGRES_DB_PASSWORD_FILE``:` `/run/secrets/``postgres_password`
-    `POSTGRES_DB``:` `atsea`
-  `networks``:`
-    `-` `back``-``tier`
-  `secrets``:`
-    `-` `postgres_password`
-  `deploy``:`
-    `placement``:`
-      `constraints``:`
-        `-` `'node.role == worker'` 
-```
+[PRE8]
 
 **环境** 键允许您将环境变量注入服务副本。此服务使用三个环境变量来定义数据库用户、数据库密码的位置（挂载到每个服务副本中的秘密）和数据库的名称。
 
-```
-`environment``:`
-  `POSTGRES_USER``:` `gordonuser`
-  `POSTGRES_DB_PASSWORD_FILE``:` `/run/secrets/``postgres_password`
-  `POSTGRES_DB``:` `atsea` 
-```
+[PRE9]
 
 `> **注意：** 将所有三个值作为秘密传递更安全，因为这样可以避免在明文变量中记录数据库名称和数据库用户。
 
 该服务还在 `deploy` 键下定义了 *放置约束*。这确保了该服务的副本始终在 Swarm *worker* 节点上运行。
 
-```
-`deploy``:`
-  `placement``:`
-    `constraints``:`
-      `-` `'node.role == worker'` 
-```
+[PRE10]
 
 放置约束是一种拓扑感知调度的形式，可以是影响调度决策的好方法。Swarm 目前允许您针对以下所有进行调度：
 
@@ -290,29 +196,7 @@ secrets:
 
 `appserver` 服务使用一个镜像，连接到三个网络，并挂载一个秘密。它还在 `deploy` 键下引入了几个其他功能。
 
-```
-`appserver``:`
-  `image``:` `dockersamples``/``atsea_app`
-  `networks``:`
-    `-` `front``-``tier`
-    `-` `back``-``tier`
-    `-` `payment`
-  `deploy``:`
-    `replicas``:` `2`
-    `update_config``:`
-      `parallelism``:` `2`
-      `failure_action``:` `rollback`
-    `placement``:`
-      `constraints``:`
-        `-` `'node.role == worker'`
-    `restart_policy``:`
-      `condition``:` `on``-``failure`
-      `delay``:` `5``s`
-      `max_attempts``:` `3`
-      `window``:` `120``s`
-  `secrets``:`
-    `-` `postgres_password` 
-```
+[PRE11]
 
 让我们更仔细地看看 `deploy` 键下的新内容。
 
@@ -320,41 +204,17 @@ secrets:
 
 `services.appserver.deploy.update_config` 告诉 Docker 在对服务进行更新时如何操作。对于此服务，Docker 将一次更新两个副本（`parallelism`），如果检测到更新失败，将执行“回滚”。回滚将基于服务的先前定义启动新的副本。`failure_action` 的默认值是 `pause`，这将停止进一步更新副本。另一个选项是 `continue`。
 
-```
-`update_config``:`
-  `parallelism``:` `2`
-  `failure_action``:` `rollback` 
-```
+[PRE12]
 
 `services.appserver.deploy.restart-policy`对象告诉 Swarm 如何重新启动副本（容器），如果它们失败的话。此服务的策略将在副本以非零退出代码停止时重新启动（`condition: on-failure`）。它将尝试重新启动失败的副本 3 次，并等待最多 120 秒来决定重新启动是否成功。在三次重新启动尝试之间将等待 5 秒。
 
-```
-`restart_policy``:`
-  `condition``:` `on``-``failure`
-  `delay``:` `5``s`
-  `max_attempts``:` `3`
-  `window``:` `120``s` 
-```
+[PRE13]
 
 `###### visualizer
 
 visualizer 服务引用了一个镜像，映射了一个端口，定义了一个更新配置，并定义了一个放置约束。它还挂载了一个卷，并为容器停止操作定义了一个自定义宽限期。
 
-```
-`visualizer``:`
-  `image``:` `dockersamples``/``visualizer``:``stable`
-  `ports``:`
-    `-` `"8001:8080"`
-  `stop_grace_period``:` `1``m30s`
-  `volumes``:`
-    `-` `"/var/run/docker.sock:/var/run/docker.sock"`
-  `deploy``:`
-    `update_config``:`
-      `failure_action``:` `rollback`
-    `placement``:`
-      `constraints``:`
-        `-` `'node.role == manager'` 
-```
+[PRE14]
 
 当 Docker 停止一个容器时，它向容器内部的 PID 1 进程发出`SIGTERM`。容器（其 PID 1 进程）然后有 10 秒的宽限期来执行任何清理操作。如果它没有处理信号，它将在 10 秒后被强制终止，使用`SIGKILL`。`stop_grace_period`属性覆盖了这个 10 秒的宽限期。
 
@@ -372,22 +232,7 @@ visualizer 服务引用了一个镜像，映射了一个端口，定义了一个
 
 `payment_gateway`服务指定了一个镜像，挂载了一个秘密，连接到一个网络，定义了一个部分部署策略，然后施加了一些放置约束。
 
-```
-`payment_gateway``:`
-  `image``:` `dockersamples``/``atseasampleshopapp_payment_gateway`
-  `secrets``:`
-    `-` `source``:` `staging_token`
-      `target``:` `payment_token`
-  `networks``:`
-    `-` `payment`
-  `deploy``:`
-    `update_config``:`
-      `failure_action``:` `rollback`
-    `placement``:`
-      `constraints``:`
-        `-` `'node.role == worker'`
-        `-` `'node.labels.pcidss == yes'` 
-```
+[PRE15]
 
 `我们之前见过所有这些选项，除了在放置约束中的`node.label`。节点标签是使用`docker node update`命令添加到 Swarm 节点的自定义定义标签。因此，它们只适用于 Swarm 中节点的角色（您不能在独立容器或 Swarm 之外利用它们）。
 
@@ -431,58 +276,25 @@ visualizer 服务引用了一个镜像，映射了一个端口，定义了一个
 
 在您想要成为 Swarm 管理节点的节点上运行以下命令。
 
-```
- $ docker swarm init
- Swarm initialized: current node (lhma...w4nn) is now a manager.
- <Snip> 
-```
+[PRE16]
 
 `* 添加工作节点。
 
 复制在上一个命令的输出中显示的`docker swarm join`命令。将其粘贴到要加入为工作节点的两个节点中。
 
-```
- //Worker 1 (wrk-1)
- wrk-1$ docker swarm join --token SWMTKN-1-2hl6...-...3lqg 172.31.40.192:2377
- This node joined a swarm as a worker.
-
- //Worker 2 (wrk-2)
- wrk-2$ docker swarm join --token SWMTKN-1-2hl6...-...3lqg 172.31.40.192:2377
- This node joined a swarm as a worker. 
-```
+[PRE17]
 
 `* 验证 Swarm 是否配置为一个管理节点和两个工作节点。
 
 从管理节点运行此命令。
 
-```
- $ docker node ls
- ID            HOSTNAME   STATUS     AVAILABILITY    MANAGER STATUS
- lhm...4nn *   mgr-1      Ready      Active          Leader
- b74...gz3     wrk-1      Ready      Active
- o9x...um8     wrk-2      Ready      Active 
-`````
+[PRE18]``
 
-```The Swarm is now ready.
-
-The `payment_gateway` service has set of placement constraints forcing it to only run on **worker nodes** with the `pcidss=yes` node label. In this step we’ll add that node label to `wrk-1`.
-
-In the real world you would harden at least one of your Docker nodes to PCI standards before labelling it. However, this is just a lab, so we’ll skip the hardening step and just add the label to `wrk-1`.
-
-Run the following commands from the Swarm manager.
-
-1.  Add the node label to `wrk-1`.
-
-```
+[PRE19]
 
 $ docker node update --label-add pcidss=yes wrk-1
 
-```
-
- `Node labels only apply within the Swarm.` 
-`*   Verify the node label.
-
-```
+[PRE20]
 
 $ docker node inspect wrk-1
 
@@ -512,67 +324,9 @@ $ docker node inspect wrk-1
 
 <Snip>
 
-```` 
+[PRE21]``
 
- ``The `wrk-1` worker node is now configured so that it can run replicas for the `payment_gateway` service.
-
-The application defines four secrets, all of which need creating before the app can be deployed:
-
-*   `postgress_password`
-*   `staging_token`
-*   `revprox_cert`
-*   `revprox_key`
-
-Run the following commands from the manager node to create them.
-
-1.  Create a new key pair.
-
-Three of the secrets will be populated with cryptographic keys. We’ll create the keys in this step and then place them inside of Docker secrets in the next steps.
-
-```
- $ openssl req -newkey rsa:4096 -nodes -sha256 \
-   -keyout domain.key -x509 -days 365 -out domain.crt 
-```
-
- `You’ll have two new files in your current directory. We’ll use them in the next step.` 
-`*   Create the `revprox_cert`, `revprox_key`, and `postgress_password` secrets.
-
-```
- $ docker secret create revprox_cert domain.crt
- cqblzfpyv5cxb5wbvtrbpvrrj
-
- $ docker secret create revprox_key domain.key
- jqd1ramk2x7g0s2e9ynhdyl4p
-
- $ docker secret create postgres_password domain.key
- njpdklhjcg8noy64aileyod6l 
-```
-
-`*   Create the `staging_token` secret.
-
-```
- $ echo staging | docker secret create staging_token -
- sqy21qep9w17h04k3600o6qsj 
-```
-
-`*   List the secrets.
-
-```
- $ docker secret ls
- ID          NAME                CREATED              UPDATED
- njp...d6l   postgres_password   47 seconds ago       47 seconds ago
- cqb...rrj   revprox_cert        About a minute ago   About a minute ago
- jqd...l4p   revprox_key         About a minute ago   About a minute ago
- sqy...qsj   staging_token       23 seconds ago       23 seconds ago 
-``````
-
-```That’s all of the pre-requisites taken care of. Time to deploy the app!
-
-##### Deploying the sample app
-
-If you haven’t already done so, clone the app’s GitHub repo to your Swarm manager.
-
-```
+[PRE22]
 
 $ git clone https://github.com/dockersamples/atsea-sample-shop-app.git
 
@@ -590,22 +344,7 @@ $ git clone https://github.com/dockersamples/atsea-sample-shop-app.git
 
 $ `cd` atsea-sample-shop-app
 
-```
-
- `Now that you have the code, you are ready to deploy the app.
-
-Stacks are deployed using the `docker stack deploy` command. In its basic form, it accepts two arguments:
-
-*   name of the stack file
-*   name of the stack
-
-The application’s GitHub repository contains a stack file called `docker-stack.yml`, so we’ll use this as stack file. We’ll call the stack `seastack`, though you can choose a different name if you don’t like that.
-
-Run the following commands from within the `atsea-sample-shop-app` directory on the Swarm manager.
-
-Deploy the stack (app).
-
-```
+[PRE23]
 
 使用 docker 堆栈部署-docker-stack.yml seastack
 
@@ -627,21 +366,7 @@ Deploy the stack (app).
 
 创建服务 seastack_reverse_proxy
 
-```
-
- `You can run `docker network ls` and `docker service ls` commands to see the networks and services that were deployed as part of the app.
-
-A few things to note from the output of the command.
-
-The networks were created before the services. This is because the services attach to the networks, so need the networks to be created before they can start.
-
-Docker prepends the name of the stack to every resource it creates. In our example, the stack is called `seastack`, so all resources are named `seastack_<resource>`. For example, the `payment` network is called `seastack_payment`. Resources that were created prior to the deployment, such as secrets, do not get renamed.
-
-Another thing to note is the presence of a network called `seastack_default`. This isn’t defined in the stack file, so why was it created? Every service needs to attach to a network, but the `visualizer` service didn’t specify one. Therefore, Docker created one called `seastack_default` and attached it to that.
-
-You can verify the status of a stack with a couple of commands. `docker stack ls` lists all stacks on the system, including how many services they have. `docker stack ps <stack-name>` gives more detailed information about a particular stack, such as *desired state* and *current state*. Let’s see them both.
-
-```
+[PRE24]
 
 $ docker stack ls
 
@@ -665,11 +390,7 @@ seastack_database.1 wrk-2 运行 运行`7`分钟前
 
 seastack_appserver.2 wrk-1 运行 运行`7`分钟前
 
-```
-
- `The `docker stack ps` command is a good place to start when troubleshooting services that fail to start. It gives an overview of every service in the stack, including which node each replica is scheduled on, current state, desired state, and error message. The following output shows two failed attempts to start a replica for the `reverse_proxy` service on the `wrk-2` node.
-
-```
+[PRE25]
 
 $ docker stack ps seastack
 
@@ -681,13 +402,7 @@ reverse_proxy.1 wrk-2 关机 失败 `"任务：非零退出（1）"`
 
 `\_`reverse_proxy.1 wrk-2 关机 失败 `"任务：非零退出（1）"`
 
-```
-
- `For more detailed logs of a particular service you can use the `docker service logs` command. You pass it either the service name/ID, or replica ID. If you pass it the service name or ID, you’ll get the logs for all service replicas. If you pass it a particular replica ID, you’ll only get the logs for that replica.
-
-The following `docker service logs` command shows the logs for all replicas in the `seastack_reverse_proxy` service that had the two failed replicas in the previous output.
-
-```
+[PRE26]
 
 $ docker service logs seastack_reverse_proxy
 
@@ -701,45 +416,7 @@ seastack_reverse_proxy.1.zhc3cjeti9d4@wrk-2 `|` nginx：`[`emerg`]`主机未找�
 
 seastack_reverse_proxy.1.1tmya243m5um@mgr-1 `|` `10`.255.0.2 `"GET / HTTP/1.1"` `302`
 
-```
-
- `The output is trimmed to fit the page, but you can see that logs from all three service replicas are shown (the two that failed and the one that’s running). Each line starts with the name of the replica, which includes the service name, replica number, replica ID, and name of host that it’s scheduled on. Following that is the log output.
-
-> **Note:** You might have noticed that all of the replicas in the previous output showed as replica number 1\. This is because Docker created one at a time and only started a new one when the previous one had failed.
-
-It’s hard to tell because the output is trimmed to fit the book, but it looks like the first two replicas failed because they were relying on something in another service that was still starting (a sort of race condition when dependent services are starting).
-
-You can follow the logs (`--follow`), tail them (`--tail`), and get extra details (`--details`).
-
-Now that the stack is up and running, let’s see how to manage it.
-
-#### Managing the app
-
-We know that a *stack* is set of related services and infrastructure that gets deployed and managed as a unit. And while that’s a fancy sentence full of buzzwords, it reminds us that the stack is built from normal Docker resources — networks, volumes, secrets, services etc. This means we can inspect and reconfigure these with their normal docker commands: `docker network`, `docker volume`, `docker secret`, `docker service`…
-
-With this in mind, it’s possible to use the `docker service` command to manage services that are part of the stack. A simple example would be using the `docker service scale` command to increase the number of replicas in the `appserver` service. However, **this is not the recommended method!**
-
-The recommended method is the declarative method, which uses the stack file as the ultimate source of truth. As such, all changes to the stack should be made to the stack file, and the updated stack file used to redeploy the app.
-
-Here’s a quick example of why the imperative method (making changes via the CLI) is bad:
-
-> *Imagine that we have a stack deployed from the `docker-stack.yml` file that we cloned from GitHub earlier in the chapter. This means we have two replicas of the `appserver` service. If we use the `docker service scale` command to change that to 4 replicas, the current state of the cluster will be 4 replicas, but the stack file will still define 2\. Admittedly, that doesn’t sound like the end of the world. However, imagine we then make a different change to the stack, this time via the stack file, and we roll it out with the `docker stack deploy` command. As part of this rollout, the number of `appserver` replicas in the cluster will be rolled back to 2, because this is what the stack file defines. For this kind of reason, it is recommended to make all changes to the application via the stack file, and to manage the file in a proper version control system.*
-
-Let’s walk through the process of making a couple of declarative changes to the stack.
-
-We’ll make the following changes:
-
-*   Increase the number of `appserver` replicas from 2 to 10
-*   Increase the stop grace period for the visualizer service to 2 minutes
-
-Edit the `docker-stack.yml` file and update the following two values:
-
-*   `.services.appserver.deploy.replicas=10`
-*   `.services.visualizer.stop_grace_period=2m`
-
-The relevant sections of the stack file will now look like this:
-
-```
+[PRE27]
 
 <Snip>
 
@@ -773,11 +450,7 @@ stop_grace_period: 2m     <<更新值
 
 <Snip
 
-```
-
- `Save the file and redeploy the app.
-
-```
+[PRE28]
 
 $ docker stack deploy -c docker-stack.yml seastack
 
@@ -791,13 +464,7 @@ $ docker stack deploy -c docker-stack.yml seastack
 
 更新服务 seastack_payment_gateway `(`id: w4gsdxfnb5gofwtvmdiooqvxs`)`
 
-```
-
- `Re-deploying the app like this will only update the changed components.
-
-Run a `docker stack ps` to see the number of `appserver` replicas increasing.
-
-```
+[PRE29]
 
 $ docker stack ps seastack
 
@@ -827,21 +494,7 @@ seastack_appserver.9    wrk-2    运行中         运行中 `1` 秒前
 
 seastack_appserver.10   wrk-1    运行中         启动 `7` 秒前
 
-```
-
- `The output has been trimmed so that it fits on the page, and so that only the affected services are shown.
-
-Notice that there are two lines for the `visualizer` service. One line shows a replica that was shutdown 3 seconds ago, and the other line shows a replica that has been running for 1 second. This is because we pushed a change to the `visualizer` service, so Swarm terminated the existing replica and started a new one with the new `stop_grace_period` value.
-
-Also note that we now have 10 replicas for the `appserver` service, and that they are in various states in the “CURRENT STATE” column — some are *running* whereas others are still *starting*.
-
-After enough time, the cluster will converge so that *desired state* and *current state* match. At that point, what is deployed and observed on the cluster will exactly match what is defined in the stack file. This is a happy place to be :-D
-
-This update pattern should be used for all updates to the app/stack. I.e. **all changes should be made declaratively via the stack file, and rolled out using `docker stack deploy`**.
-
-The correct way to delete a stack is with the `docker stack rm` command. Be warned though! It deletes the stack without asking for confirmation.
-
-```
+[PRE30]
 
 $ docker stack rm seastack
 
@@ -863,25 +516,4 @@ $ docker stack rm seastack
 
 删除网络 seastack_back-tier
 
-```
-
- `Notice that the networks and services were deleted, but the secrets were not. This is because the secrets were pre-created and existed before the stack was deployed. If your stack defines volumes at the top-level, these will not be deleted by `docker stack rm` either. This is because volumes are intended as long-term persistent data stores and exist independent of the lifecycle of containers, services, and stacks.
-
-Congratulations! You know how to deploy and manage a multi-service app using Docker Stacks.
-
-### Deploying apps with Docker Stacks - The Commands
-
-*   `docker stack deploy` is the command we use to deploy **and** update stacks of services defined in a stack file (usually `docker-stack.yml`).
-*   `docker stack ls` will list all stacks on the Swarm, including how many services they have.
-*   `docker stack ps` gives detailed information about a deployed stack. It accepts the name of the stack as its main argument, lists which node each replica is running on, and shows *desired state* and *current state*.
-*   `docker stack rm` is the command to delete a stack from the Swarm. It does not ask for confirmation before deleting the stack.
-
-### Chapter Summary
-
-Stacks are the native Docker solution for deploying and managing multi-service applications. They’re baked into the Docker engine, and offer a simple declarative interface for deploying and managing the entire lifecycle of an application.
-
-We start with application code and a set of infrastructure requirements — things like networks, ports, volumes and secrets. We containerize the application and group together all of the app services and infrastructure requirements into a single declarative stack file. We set the number of replicas, as well as rolling update and restart policies. Then we take the file and deploy the application from it using the `docker stack deploy` command.
-
-Future updates to the deployed app should be done declaratively by checking the stack file out of source control, updating it, re-deploying the app, and checking the stack file back in to source control.
-
-Because the stack file defines things like number of service replicas, you should maintain separate stack files for each of your environments, such as dev, test and prod.`````````````````````````````````
+[PRE31][PRE32]`

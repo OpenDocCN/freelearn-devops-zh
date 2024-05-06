@@ -60,50 +60,15 @@
 
 1.  如果您尚未克隆此书的 github 存储库，请使用以下命令进行克隆：
 
-```
-git clone https://github.com/PacktPublishing/Hands-On-Kubernetes-on-Azure---Second-Edition Hands-On-Kubernetes-on-Azure
-cd Hands-On-Kubernetes-on-Azure/Chapter03/
-```
+[PRE0]
 
 1.  输入以下命令以部署主节点：
 
-```
-kubectl apply -f redis-master-deployment.yaml
-```
+[PRE1]
 
 应用程序下载和启动需要一些时间。在等待时，让我们了解您刚刚输入和执行的命令。让我们开始探索使用的 YAML 文件的内容：
 
-```
-1 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
-2 kind: Deployment
-3 metadata:
-4   name: redis-master
-5   labels:
-6     app: redis
-7 spec:
-8   selector:
-9     matchLabels:
-10      app: redis
-11      role: master
-12      tier: backend
-13  replicas: 1
-14  template:
-15    metadata:
-16      labels:
-17        app: redis
-18        role: master
-19        tier: backend
-20    spec:
-21      containers:
-22      - name: master
-23        image: k8s.gcr.io/redis:e2e # or just image: redis
-24        resources:
-25          requests:
-26            cpu: 100m
-27            memory: 100Mi
-28        ports:
-29        - containerPort: 6379
-```
+[PRE2]
 
 让我们深入了解提供的参数的代码：
 
@@ -139,9 +104,7 @@ Kubernetes 的 YAML 定义类似于 Docker 运行特定容器镜像时给出的�
 
 `redis-master`部署现在应该已经完成。继续在您在上一部分打开的 Azure Cloud Shell 中输入以下内容：
 
-```
-kubectl get all
-```
+[PRE3]
 
 你应该会得到*图 3.4*中显示的输出：
 
@@ -153,9 +116,7 @@ kubectl get all
 
 通过执行`kubectl describe <object> <instance-name>`命令，可以获得更多详细信息，如下所示：
 
-```
-kubectl describe deployment/redis-master
-```
+[PRE4]
 
 这将生成以下输出：
 
@@ -167,15 +128,11 @@ kubectl describe deployment/redis-master
 
 在下一节中，我们将介绍一个名为 ConfigMaps 的新概念，然后重新创建 Redis 主节点。因此，在继续之前，我们需要清理当前版本，可以通过运行以下命令来完成：
 
-```
-kubectl delete deployment/redis-master
-```
+[PRE5]
 
 执行此命令将产生以下输出：
 
-```
-deployment.extensions "redis-master" deleted
-```
+[PRE6]
 
 在本节中，您检查了您创建的 Redis 主节点部署。您看到了部署与 ReplicaSet 的关系，以及 ReplicaSet 与 Pod 的关系。在接下来的部分中，您将使用通过 ConfigMap 提供的特定于环境的配置重新创建这个 Redis 主节点。
 
@@ -205,28 +162,19 @@ ConfigMap 是一种便携的配置容器的方式，而不需要为每个配置�
 
 1.  通过在终端中键入`code redis-config`来打开 Azure Cloud Shell 代码编辑器。复制并粘贴以下两行，并将其保存为`redis-config`：
 
-```
-maxmemory 2mb
-maxmemory-policy allkeys-lru
-```
+[PRE7]
 
 1.  现在您可以使用以下代码创建 ConfigMap：
 
-```
-kubectl create configmap example-redis-config --from-file=redis-config
-```
+[PRE8]
 
 1.  您应该得到以下输出：
 
-```
-configmap/example-redis-config created
-```
+[PRE9]
 
 1.  您可以使用相同的命令描述此 ConfigMap：
 
-```
-kubectl describe configmap/example-redis-config
-```
+[PRE10]
 
 1.  输出将如*图 3.6*所示：![使用 kubectl describe configmap/example-redis-config 命令，将生成提供名称、命名空间、标签、注释、数据、redis-config、内存和事件等详细信息的输出。](img/Figure_3.6.jpg)
 
@@ -240,57 +188,27 @@ kubectl describe configmap/example-redis-config
 
 1.  首先，删除先前创建的 ConfigMap：
 
-```
-kubectl delete configmap/example-redis-config
-```
+[PRE11]
 
 1.  将以下行复制并粘贴到名为`example-redis-config.yaml`的文件中，然后保存该文件：
 
-```
-apiVersion: v1
-data:
-  redis-config: |- 
-    maxmemory 2mb
-    maxmemory-policy allkeys-lru
-kind: ConfigMap
-metadata:
-  name: example-redis-config
-  namespace: default
-```
+[PRE12]
 
 1.  现在，您可以通过以下命令重新创建您的 ConfigMap：
 
-```
-kubectl create -f example-redis-config.yaml
-```
+[PRE13]
 
 1.  您应该得到以下输出：
 
-```
-configmap/example-redis-config created
-```
+[PRE14]
 
 1.  接下来，运行以下命令：
 
-```
-kubectl describe configmap/example-redis-config
-```
+[PRE15]
 
 1.  此命令返回与先前相同的输出：
 
-```
-Name:           example-redis-config
-Namespace:      default
-Labels:         <none>
-Annotations:    <none>
-Data
-====
-redis-config:
-----
-maxmemory 2mb
-maxmemory-policy allkeys-lru
-Events:	<none>
-```
+[PRE16]
 
 如您所见，使用 YAML 文件，您能够创建相同的 ConfigMap。
 
@@ -312,53 +230,7 @@ Events:	<none>
 
 如果您下载了本书附带的源代码，在*第三章*，*在 AKS 上部署应用程序*中有一个名为`redis-master-deployment_Modified.yaml`的文件，其中已经应用了必要的更改。
 
-```
-1 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
-2  kind: Deployment
-3  metadata:
-4    name: redis-master
-5    labels:
-6      app: redis
-7  spec:
-8    selector:
-9      matchLabels:
-10       app: redis
-11       role: master
-12       tier: backend
-13   replicas: 1
-14   template:
-15     metadata:
-16       labels:
-17         app: redis
-18         role: master
-19         tier: backend
-20     spec:
-21       containers:
-22       - name: master
-23         image: k8s.gcr.io/redis:e2e
-24         command:
-25         - redis-server
-26         - "/redis-master/redis.conf"
-27         env:
-28         - name: MASTER
-29           value: "true"
-30         volumeMounts:
-31         - mountPath: /redis-master
-32           name: config
-33         resources:
-34           requests:
-35             cpu: 100m
-36             memory: 100Mi
-37         ports:
-38         - containerPort: 6379
-39       volumes:
-40         - name: config
-41           configMap:
-42             name: example-redis-config
-43             items:
-44             - key: redis-config
-45               path: redis.conf
-```
+[PRE17]
 
 让我们深入了解代码，以理解不同的部分：
 
@@ -378,32 +250,19 @@ Events:	<none>
 
 1.  让我们创建这个更新后的部署：
 
-```
-kubectl create -f redis-master-deployment_Modified.yml
-```
+[PRE18]
 
 1.  这应该输出以下内容：
 
-```
-deployment.apps/redis-master created
-```
+[PRE19]
 
 1.  现在让我们确保配置已成功应用。首先，获取 Pod 的名称：
 
-```
-kubectl get pods
-```
+[PRE20]
 
 1.  然后`exec`进入 Pod 并验证已应用设置：
 
-```
-kubectl exec -it redis-master-<pod-id> redis-cli
-127.0.0.1:6379&gt; CONFIG GET maxmemory
-  1) "maxmemory" 2) "2097152"
-127.0.0.1:6379&gt; CONFIG GET maxmemory-policy
-  "maxmemory-policy"
-  "allkeys-lru" 127.0.0.1:6379&gt;exit
-```
+[PRE21]
 
 总之，您刚刚执行了配置云原生应用程序的重要且棘手的部分。您还会注意到应用程序必须配置为动态读取配置。配置应用程序后，您访问了正在运行的容器以验证运行配置。
 
@@ -425,30 +284,11 @@ kubectl exec -it redis-master-<pod-id> redis-cli
 
 Kubernetes 提供了`service`对象，它处理了这个确切的问题。使用标签匹配选择器，它代理流量到正确的 Pod，并进行负载平衡。在这种情况下，主服务只有一个 Pod，因此它只确保流量被定向到独立于 Pod 所在节点的 Pod。要创建服务，请运行以下命令：
 
-```
-kubectl apply -f redis-master-service.yaml 
-```
+[PRE22]
 
 Redis 主服务具有以下内容：
 
-```
-1   apiVersion: v1
-2   kind: Service
-3   metadata:
-4     name: redis-master
-5     labels:
-6       app: redis
-7       role: master
-8       tier: backend
-9   spec:
-10   ports:
-11   - port: 6379
-12     targetPort: 6379
-13    selector:
-14      app: redis
-15      role: master
-16      tier: backend
-```
+[PRE23]
 
 现在让我们看看您使用前面的代码创建了什么：
 
@@ -460,9 +300,7 @@ Redis 主服务具有以下内容：
 
 我们可以通过运行以下命令来检查服务的属性：
 
-```
-kubectl get service
-```
+[PRE24]
 
 这将给您一个如*图 3.7*所示的输出：
 
@@ -474,12 +312,7 @@ kubectl get service
 
 服务还为该服务引入了一个域名服务器（DNS）名称。DNS 名称的格式为`<service-name>.<namespace>.svc.cluster.local`；在我们的情况下，那将是`redis-master.default.svc.cluster.local`。为了看到这一点，我们将在我们的`redis-master` VM 上进行名称解析。默认镜像没有安装`nslookup`，所以我们将通过运行`ping`命令来绕过。如果该流量没有返回，不要担心；这是因为您没有在服务上公开`ping`，只有`redis`端口。让我们来看一下：
 
-```
-kubectl get pods
-#note the name of your redis-master pod
-kubectl exec -it redis-master-<pod-id> bash
-ping redis-master
-```
+[PRE25]
 
 这应该输出结果名称解析，显示您服务的完全合格域名（FQDN）和之前显示的 IP 地址。您可以通过`exit`命令退出 Pod，如*图 3.8*所示：
 
@@ -497,15 +330,11 @@ ping redis-master
 
 1.  通过运行以下命令创建部署：
 
-```
-kubectl apply -f redis-slave-deployment.yaml
-```
+[PRE26]
 
 1.  让我们现在检查所有已创建的资源：
 
-```
-kubectl get all
-```
+[PRE27]
 
 输出将如*图 3.9*所示：
 
@@ -515,48 +344,7 @@ kubectl get all
 
 1.  根据前面的输出，您可以看到您创建了两个`redis-slave` Pod 的副本。这可以通过检查`redis-slave-deployment.yaml`文件来确认：
 
-```
-1   apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
-2   kind: Deployment
-3   metadata:
-4     name: redis-slave
-5     labels:
-6       app: redis
-7   spec:
-8     selector:
-9       matchLabels:
-10       app: redis
-11       role: slave
-12       tier: backend
-13   replicas: 2
-14   template:
-15     metadata:
-16       labels:
-17         app: redis
-18         role: slave
-19         tier: backend
-20     spec:
-21       containers:
-22       - name: slave
-23         image: gcr.io/google_samples/gb-redisslave:v1
-24         resources:
-25           requests:
-26             cpu: 100m
-27             memory: 100Mi
-28         env:
-29         - name: GET_HOSTS_FROM
-30           value: dns
-31           # Using 'GET_HOSTS_FROM=dns' requires your cluster to
-32           # provide a dns service. As of Kubernetes 1.3, DNS is a built-in
-33           # service launched automatically. However, if the cluster you are using
-34           # does not have a built-in DNS service, you can instead
-35           # access an environment variable to find the master
-36           # service's host. To do so, comment out the 'value: dns' line above, and
-37           # uncomment the line below:
-38           # value: env
-39         ports:
-40         - containerPort: 6379
-```
+[PRE28]
 
 除了以下内容之外，其他都是一样的：
 
@@ -568,17 +356,13 @@ kubectl get all
 
 1.  与主服务一样，您需要通过运行以下命令公开从服务：
 
-```
-kubectl apply -f redis-slave-service.yaml
-```
+[PRE29]
 
 这个服务和`redis-master`服务之间唯一的区别是，这个服务会将流量代理到具有`role:slave`标签的 Pod。
 
 1.  通过运行以下命令来检查`redis-slave`服务：
 
-```
-kubectl get service
-```
+[PRE30]
 
 这应该会给您显示*图 3.10*中显示的输出：
 
@@ -594,15 +378,11 @@ kubectl get service
 
 您可以使用以下命令创建前端：
 
-```
-kubectl apply -f frontend-deployment.yaml
-```
+[PRE31]
 
 要验证部署，请运行此代码：
 
-```
-kubectl get pods
-```
+[PRE32]
 
 这将显示*图 3.11*中显示的输出：
 
@@ -612,45 +392,7 @@ kubectl get pods
 
 您会注意到这个部署指定了`3`个副本。部署具有通常的方面，但有一些小的变化，如下面的代码所示：
 
-```
-1   apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2 kind: Deployment
-2   metadata:
-3     name: frontend
-4     labels:
-5       app: guestbook
-6   spec:
-7     selector:
-8       matchLabels:
-9         app: guestbook
-10        tier: frontend
-11    replicas: 3
-12    template:
-13      metadata:
-14        labels:
-15          app: guestbook
-16          tier: frontend
-17      spec:
-18        containers:
-19        - name: php-redis
-20          image: gcr.io/google-samples/gb-frontend:v4
-21          resources:
-22            requests:
-23              cpu: 100m
-24              memory: 100Mi
-25          env:
-26          - name: GET_HOSTS_FROM
-27            value: dns
-28            # Using GET_HOSTS_FROM=dns requires your cluster to
-29            # provide a dns service. As of Kubernetes 1.3, DNS is a built-in
-30            # service launched automatically. However, if the cluster you are using
-31            # does not have a built-in DNS service, you can instead
-32            # access an environment variable to find the master
-33            # service's host. To do so, comment out the 'value: dns' line above, and
-34            # uncomment the line below:
-35            # value: env
-36          ports:
-37          - containerPort: 80
-```
+[PRE33]
 
 让我们看看这些变化：
 
@@ -684,42 +426,19 @@ kubectl get pods
 
 以下代码将帮助我们了解如何暴露前端服务：
 
-```
-1   apiVersion: v1
-2   kind: Service
-3   metadata:
-4     name: frontend
-5     labels:
-6       app: guestbook
-7       tier: frontend
-8   spec:
-9     # comment or delete the following line if you want to use a LoadBalancer
-10    # type: NodePort # line commented out
-11    # if your cluster supports it, uncomment the following to automatically create
-12    # an external load-balanced IP for the frontend service.
-13    type: LoadBalancer # line uncommented
-14    ports:
-15    - port: 80
-16    selector:
-17      app: guestbook
-18      tier: frontend
-```
+[PRE34]
 
 +   现在您已经看到了前端服务是如何暴露的，让我们通过以下步骤使 guestbook 应用程序准备好使用：
 
 1.  要创建服务，请运行以下命令：
 
-```
-kubectl create -f frontend-service.yaml
-```
+[PRE35]
 
 当您首次运行此步骤时，执行此步骤需要一些时间。在后台，Azure 必须执行一些操作以使其无缝。它必须创建一个 Azure 负载均衡器和一个公共 IP，并设置端口转发规则，以将端口`80`上的流量转发到集群的内部端口。
 
 1.  运行以下命令，直到`EXTERNAL-IP`列中有值为止：
 
-```
-kubectl get service
-```
+[PRE36]
 
 这应该显示*图 3.15*中显示的输出：
 
@@ -755,10 +474,7 @@ Azure 有两种类型的负载均衡器：基本和标准。
 
 为了节省您的免费试用虚拟机资源，最好删除创建的部署，然后使用以下命令运行下一轮部署：
 
-```
-kubectl delete deployment frontend redis-master redis-slave
-kubectl delete service frontend redis-master redis-slave
-```
+[PRE37]
 
 在前面的章节中，您已经部署了一个 Redis 集群并部署了一个可公开访问的 Web 应用程序。您已经了解了部署、ReplicaSets 和 Pods 之间的关联，以及 Kubernetes 如何使用`service`对象来路由网络流量。在本章的下一节中，您将使用 Helm 在 Kubernetes 上部署一个更复杂的应用程序。
 
@@ -790,15 +506,11 @@ Helm Charts 允许您编写带有特定参数的 YAML 文件，您可以动态�
 
 1.  使用以下命令添加包含稳定 Helm Charts 的存储库：
 
-```
-helm repo add stable https://kubernetes-charts.storage.googleapis.com/
-```
+[PRE38]
 
 1.  要安装 WordPress，我们将运行以下命令：
 
-```
-helm install handsonakswp stable/wordpress
-```
+[PRE39]
 
 此操作将导致 Helm 安装详细说明在[`github.com/helm/charts/tree/master/stable/wordpress`](https://github.com/helm/charts/tree/master/stable/wordpress)的图表。
 
@@ -814,9 +526,7 @@ Helm 安装需要一些时间，网站才能启动。让我们在网站加载时
 
 运行以下命令，您可以看到 MariaDB 附有可预测的编号，而 WordPress 部署附有随机编号：
 
-```
-kubectl get pods
-```
+[PRE40]
 
 这将生成*图 3.18*中显示的输出：
 
@@ -832,9 +542,7 @@ kubectl get pods
 
 StatefulSets 要求预先配置的卷或由**PersistentVolumeClaim**（**PVC**）处理的动态配置的卷。在我们的示例中，我们使用了 PVC。PVC 提供了对底层存储机制的抽象。让我们看看 MariaDB Helm Chart 通过运行以下命令为我们做了什么：
 
-```
-kubectl get statefulsets
-```
+[PRE41]
 
 这将向我们展示类似于*图 3.19*的东西：
 
@@ -844,41 +552,11 @@ kubectl get statefulsets
 
 通过导出 StatefulSet 的 YAML 定义，让我们更深入地了解一下：
 
-```
-kubectl get statefulset -o yaml > mariadbss.yaml
-code mariadbss.yaml
-```
+[PRE42]
 
 让我们看一下该 YAML 文件的最相关部分。代码已经被截断，只显示了最相关的部分：
 
-```
-1   apiVersion: v1
-2   items:
-3   - apiVersion: apps/v1
-4     kind: StatefulSet
-...
-106           volumeMounts:
-107           - mountPath: /bitnami/mariadb
-108             name: data
-...           
-128     volumeClaimTemplates:
-129     - metadata:
-130         creationTimestamp: null
-131         labels:
-132           app: mariadb
-133           component: master
-134           heritage: Helm
-135           release: handsonakswp
-136         name: data
-137       spec:
-138         accessModes:
-139         - ReadWriteOnce
-140         resources:
-141           requests:
-142             storage: 8Gi
-143         volumeMode: Filesystem
-...
-```
+[PRE43]
 
 前面代码的大部分元素在部署中已经涵盖过了。在接下来的块中，我们将突出显示关键的不同之处，只看 PVC：
 
@@ -902,9 +580,7 @@ PVC 可以被任何 Pod 使用，而不仅仅是 StatefulSet Pods。
 
 根据前面的信息，Kubernetes 动态请求并将 8Gi 卷绑定到此 Pod。在这种情况下，使用了由 Azure 磁盘支持的默认动态存储 provisioner。动态 provisioner 是在创建集群时由 Azure 设置的。要查看集群上可用的存储类，可以运行以下命令：
 
-```
-kubectl get storageclass
-```
+[PRE44]
 
 这将显示类似于*图 3.20*的输出：
 
@@ -914,9 +590,7 @@ kubectl get storageclass
 
 通过运行以下命令，我们可以获取有关 PVC 的更多详细信息：
 
-```
-kubectl get pvc
-```
+[PRE45]
 
 生成的输出显示在*图 3.21*中：
 
@@ -938,9 +612,7 @@ PVC 的概念抽象了云提供商的存储细节。这使得相同的 Helm 模�
 
 在分析 PVC 之后，让我们再次检查 Helm 部署。我们可以使用以下命令检查部署的状态：
 
-```
-helm ls
-```
+[PRE46]
 
 这应该返回*图 3.23*中显示的输出：
 
@@ -950,9 +622,7 @@ helm ls
 
 我们可以使用以下命令从 Helm 中获取更多信息：
 
-```
-helm status handsonakswp
-```
+[PRE47]
 
 这将返回*图 3.24*中显示的输出：
 
@@ -962,9 +632,7 @@ helm status handsonakswp
 
 这表明我们的图表已成功部署。它还显示了如何连接到我们的网站的更多信息。我们现在不会使用这些步骤；我们将在*第五章*“处理 AKS 中的常见故障”中重新讨论这些步骤，在该部分中我们将介绍如何修复存储挂载问题。现在，我们将查看 Helm 为我们创建的所有内容：
 
-```
-kubectl get all
-```
+[PRE48]
 
 这将生成类似于*图 3.25*的输出：
 
@@ -982,15 +650,11 @@ kubectl get all
 
 为了确保在接下来的章节中不会遇到问题，让我们删除 WordPress 网站。可以通过以下方式完成：
 
-```
-helm delete handsonakswp
-```
+[PRE49]
 
 按设计，我们的 PVCs 不会被删除。这确保持久数据得到保留。由于我们没有任何持久数据，我们也可以安全地删除这些数据：
 
-```
-kubectl delete pvc --all
-```
+[PRE50]
 
 #### 注意
 

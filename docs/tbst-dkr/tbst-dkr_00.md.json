@@ -1,0 +1,1 @@
+["```\nENTRYPOINT /usr/sbin/sshd -D \nVOLUME [\"/home\"] \nEXPOSE 22 \nEXPOSE 8080\n```", "```\nDocker build -t username/my-imagename -f /path/Dockerfile\n\n```"]

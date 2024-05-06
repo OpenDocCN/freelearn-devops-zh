@@ -28,29 +28,7 @@ CNM 是 Docker 用于定义容器网络模型的模型。在第七章中，*使�
 
 如前所述，现在可以通过添加`network`子命令直接通过 Docker 定义和管理网络。`network`命令为您提供了构建网络并将容器连接到网络所需的所有选项：
 
-```
-user@docker1:~$ docker network --help
-
-docker network --help
-
-Usage:  docker network COMMAND
-
-Manage Docker networks
-
-Options:
-      --help   Print usage
-
-Commands:
-  connect     Connect a container to a network
-  create      Create a network
-  disconnect  Disconnect a container from a network
-  inspect     Display detailed information on one or more networks
-  ls          List networks
-  rm          Remove one or more networks
-
-Run 'docker network COMMAND --help' for more information on a command.
-user@docker1:~$
-```
+[PRE0]
 
 在这个配方中，我们将学习如何查看定义的 Docker 网络以及检查它们的具体细节。
 
@@ -62,14 +40,7 @@ user@docker1:~$
 
 我们要做的第一件事是弄清楚 Docker 认为已经定义了哪些网络。这可以使用`network ls`子命令来完成：
 
-```
-user@docker1:~$ docker network ls
-NETWORK ID          NAME                DRIVER              SCOPE
-200d5292d5db        **bridge**              **bridge**              **local**
-12e399864b79        **host**                **host**                **local**
-cb6922b8b84f        **none**                **null**                **local**
-user@docker1:~$
-```
+[PRE1]
 
 正如我们所看到的，Docker 显示我们已经定义了三种不同的网络。要查看有关网络的更多信息，我们可以使用`network inspect`子命令检索有关网络定义及其当前状态的详细信息。让我们仔细查看每个定义的网络。
 
@@ -77,39 +48,7 @@ user@docker1:~$
 
 桥接网络代表 Docker 引擎默认创建的`docker0`桥：
 
-```
-user@docker1:~$ docker network inspect bridge
-[
-    {
-        "Name": "bridge",
-        "Id": "62fcda0787f2be01e65992e2a5a636f095970ea83c59fdf0980da3f3f555c24e",
-        "Scope": "local",
- **"Driver": "bridge",**
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": [
-                {
- **"Subnet": "172.17.0.0/16"**
-                }
-            ]
-        },
-        "Internal": false,
-        "Containers": {},
-        "Options": {
- **"com.docker.network.bridge.default_bridge": "true",**
- **"com.docker.network.bridge.enable_icc": "true",**
- **"com.docker.network.bridge.enable_ip_masquerade": "true",**
- **"com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",**
- **"com.docker.network.bridge.name": "docker0",**
- **"com.docker.network.driver.mtu": "1500"**
-        },
-        "Labels": {}
-    }
-]
-user@docker1:~$  
-```
+[PRE2]
 
 `inspect`命令的输出向我们展示了关于定义网络的大量信息：
 
@@ -129,28 +68,7 @@ user@docker1:~$
 
 `none`网络表示的就是它所说的，什么也没有。当您希望定义一个绝对没有网络定义的容器时，可以使用`none`模式。检查网络后，我们可以看到就网络定义而言，没有太多内容：
 
-```
-user@docker1:~$ docker network inspect none
-[
-    {
-        "Name": "none",
-        "Id": "a191c26b7dad643ca77fe6548c2480b1644a86dcc95cde0c09c6033d4eaff7f2",
-        "Scope": "local",
-        "Driver": "null",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": []
-        },
-        "Internal": false,
-        "Containers": {},
-        "Options": {},
-        "Labels": {}
-    }
-]
-user@docker1:~$
-```
+[PRE3]
 
 如您所见，`Driver`由`null`表示，这意味着这根本不是这个网络的`Driver`。`none`网络模式有一些用例，我们将在稍后讨论连接和断开连接到定义网络的容器时进行介绍。
 
@@ -158,28 +76,7 @@ user@docker1:~$
 
 *host*网络代表我们在第二章中看到的主机模式，*配置和监视 Docker 网络*，在那里容器直接绑定到 Docker 主机自己的网络接口。通过仔细观察，我们可以看到，与`none`网络一样，对于这个网络并没有太多定义。
 
-```
-user@docker1:~$ docker network inspect host
-[
-    {
-        "Name": "host",
-        "Id": "4b94353d158cef25b9c9244ca9b03b148406a608b4fd85f3421c93af3be6fe4b",
-        "Scope": "local",
-        "Driver": "host",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": []
-        },
-        "Internal": false,
-        "Containers": {},
-        "Options": {},
-        "Labels": {}
-    }
-]
-user@docker1:~$
-```
+[PRE4]
 
 尽管主机网络肯定比`none`模式做得更多，但从检查其定义来看，似乎并非如此。这里的关键区别在于这个网络使用主机`Driver`。由于这种网络类型使用现有主机的网络接口，我们不需要将其作为网络的一部分进行定义。
 
@@ -193,21 +90,11 @@ user@docker1:~$
 
 例如，我们可以使用以下过滤器显示所有用户定义的网络：
 
-```
-user@docker1:~$ docker network ls -f type=custom
-NETWORK ID          NAME                DRIVER              SCOPE
-a09b7617c550        mynetwork           bridge              local
-user@docker1:~$
-```
+[PRE5]
 
 或者我们可以显示所有包含`158`的网络 ID 的网络：
 
-```
-user@docker1:~$ docker network ls -f id=158
-NETWORK ID          NAME                DRIVER              SCOPE
-4b94353d158c        host                host                local
-user@docker1:~$
-```
+[PRE6]
 
 # 创建用户定义的网络
 
@@ -227,28 +114,7 @@ user@docker1:~$
 
 网络是通过使用`network create`子命令来定义的，该命令具有以下选项：
 
-```
-user@docker1:~$ docker network create --help
-
-Usage:  docker network create [OPTIONS] NETWORK
-
-Create a network
-
-Options:
-**--aux-address value**    Auxiliary IPv4 or IPv6 addresses used by Network driver (default map[])
-**-d, --driver string**    Driver to manage the Network (default "bridge")
-**--gateway value**        IPv4 or IPv6 Gateway for the master subnet (default [])
---help                 Print usage
-**--internal**             Restrict external access to the network
-**--ip-range value**       Allocate container ip from a sub-range (default [])
-**--ipam-driver string**   IP Address Management Driver (default "default")
-**--ipam-opt value**       Set IPAM driver specific options (default map[])
-**--ipv6**                 Enable IPv6 networking
-**--label value**          Set metadata on a network (default [])
-**-o, --opt value**        Set driver specific options (default map[])
-**--subnet value**         Subnet in CIDR format that represents a network segment (default [])
-user@docker1:~$
-```
+[PRE7]
 
 让我们花点时间讨论每个选项的含义：
 
@@ -284,41 +150,11 @@ user@docker1:~$
 
 保持合理的默认设置主题，实际上并不需要这些选项来创建用户定义网络。您可以通过只给它一个名称来创建您的第一个用户定义网络：
 
-```
-user@docker1:~$ docker network create mynetwork
-3fea20c313e8880538ab50fd591398bdfdac2378abac29aacb1be131cbfab40f
-user@docker1:~$
-```
+[PRE8]
 
 经过检查，我们可以看到 Docker 使用的默认设置：
 
-```
-user@docker1:~$ docker network inspect mynetwork
-[
-    {
-        "Name": "mynetwork",
-        "Id": "a09b7617c5504d4afd80c26b82587000c64046f1483de604c51fa4ba53463b50",
-        "Scope": "local",
-        "Driver": "bridge",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": {},
-            "Config": [
-                {
-                    "Subnet": "172.18.0.0/16",
-                    "Gateway": "172.18.0.1/16"
-                }
-            ]
-        },
-        "Internal": false,
-        "Containers": {},
-        "Options": {},
-        "Labels": {}
-    }
-]
-user@docker1:~$
-```
+[PRE9]
 
 Docker 假设如果您没有指定`Driver`，那么您想要使用桥接`Driver`创建网络。如果您在创建网络时没有定义子网，它还会自动选择并分配一个子网给这个桥接。
 
@@ -330,10 +166,7 @@ Docker 假设如果您没有指定`Driver`，那么您想要使用桥接`Driver`
 
 空的网络，即没有活动端点的网络，可以使用 `network rm` 命令删除：
 
-```
-user@docker1:~$ docker network rm mynetwork
-user@docker1:~$
-```
+[PRE10]
 
 这里值得注意的另一项是，Docker 使用户定义的网络持久化。在大多数情况下，手动定义的任何 Linux 网络结构在系统重新启动时都会丢失。Docker 记录网络配置并在 Docker 服务重新启动时负责回放。这对于通过 Docker 而不是自己构建网络来说是一个巨大的优势。
 
@@ -349,17 +182,7 @@ user@docker1:~$
 
 通过 `network connect` 和 `network disconnect` 子命令来连接和断开连接容器：
 
-```
-user@docker1:~$ docker network connect --help
-Usage:  docker network connect [OPTIONS] NETWORK CONTAINER
-Connects a container to a network
-  --alias=[]         Add network-scoped alias for the container
-  --help             Print usage
-  --ip               IP Address
-  --ip6              IPv6 Address
-  --link=[]          Add link to another container
-user@docker1:~$
-```
+[PRE11]
 
 让我们回顾一下连接容器到网络的选项：
 
@@ -373,207 +196,45 @@ user@docker1:~$
 
 一旦发送了`network connect`请求，Docker 会处理所有所需的配置，以便容器开始使用新的接口。让我们来看一个快速的例子：
 
-```
-user@docker1:~$ **docker run --name web1 -d jonlangemak/web_server_1**
-e112a2ab8197ec70c5ee49161613f2244f4353359b27643f28a18be47698bf59
-user@docker1:~$
-user@docker1:~$ **docker exec web1 ip addr**
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-8: **eth0**@if9: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
-    link/ether 02:42:ac:11:00:02 brd ff:ff:ff:ff:ff:ff
-    inet **172.17.0.2/16** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:acff:fe11:2/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker1:~$
-```
+[PRE12]
 
 在上面的输出中，我们启动了一个简单的容器，没有指定任何与网络相关的配置。结果是容器被映射到了`docker0`桥接。现在让我们尝试将这个容器连接到我们在上一个示例中创建的网络`mynetwork`：
 
-```
-user@docker1:~$ **docker network connect mynetwork web1**
-user@docker1:~$
-user@docker1:~$ docker exec web1 ip addr
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-8: **eth0**@if9: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
-    link/ether 02:42:ac:11:00:02 brd ff:ff:ff:ff:ff:ff
-    inet **172.17.0.2/16** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:acff:fe11:2/64 scope link
-       valid_lft forever preferred_lft forever
-10: **eth1**@if11: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
-    link/ether 02:42:ac:12:00:02 brd ff:ff:ff:ff:ff:ff
-    inet **172.18.0.2/16** scope global eth1
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:acff:fe12:2/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker1:~$
-```
+[PRE13]
 
 如您所见，容器现在在`mynetwork`网络上有一个 IP 接口。如果我们现在再次检查网络，我们应该看到一个容器关联：
 
-```
-user@docker1:~$ docker network inspect mynetwork
-[
-    {
-        "Name": "mynetwork",
-        "Id": "a09b7617c5504d4afd80c26b82587000c64046f1483de604c51fa4ba53463b50",
-        "Scope": "local",
-        "Driver": "bridge",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": {},
-            "Config": [
-                {
-                    "Subnet": "172.18.0.0/16",
-                    "Gateway": "172.18.0.1/16"
-                }
-            ]
-        },
-        "Internal": false,
-        "Containers": {           **"e112a2ab8197ec70c5ee49161613f2244f4353359b27643f28a18be47698bf59": {**
- **"Name": "web1",**
- **"EndpointID": "678b07162dc958599bf7d463da81a4c031229028ebcecb1af37ee7d448b54e3d",**
- **"MacAddress": "02:42:ac:12:00:02",**
- **"IPv4Address": "172.18.0.2/16",**
- **"IPv6Address": ""**
-            }
-        },
-        "Options": {},
-        "Labels": {}
-    }
-]
-user@docker1:~$
-```
+[PRE14]
 
 网络也可以很容易地断开连接。例如，我们现在可以通过将容器从桥接网络中移除来从`docker0`桥接中移除容器：
 
-```
-user@docker1:~$ **docker network disconnect bridge web1**
-user@docker1:~$
-user@docker1:~$ docker exec web1 ip addr
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-10: **eth1**@if11: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
-    link/ether 02:42:ac:12:00:02 brd ff:ff:ff:ff:ff:ff
-    inet **172.18.0.2/16** scope global eth1
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:acff:fe12:2/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker1:~$
-```
+[PRE15]
 
 有趣的是，Docker 还负责确保在连接和断开容器与网络时容器的连通性。例如，在将容器从桥接网络断开连接之前，容器的默认网关仍然在`docker0`桥接之外：
 
-```
-user@docker1:~$ docker exec web1 ip route
-**default via 172.17.0.1 dev eth0**
-172.17.0.0/16 dev eth2  proto kernel  scope link  src 172.17.0.2
-172.18.0.0/16 dev eth1  proto kernel  scope link  src 172.18.0.2
-user@docker1:~$
-```
+[PRE16]
 
 这是有道理的，因为我们不希望在将容器连接到新网络时中断容器的连接。然而，一旦我们通过断开与桥接网络的接口来移除托管默认网关的网络，我们会发现 Docker 会将默认网关更新为`mynetwork`桥接的剩余接口：
 
-```
-user@docker1:~$ docker exec web1 ip route
-**default via 172.18.0.1 dev eth1**
-172.18.0.0/16 dev eth1  proto kernel  scope link  src 172.18.0.2
-user@docker1:~$
-```
+[PRE17]
 
 这确保了无论连接到哪个网络，容器都具有连通性。
 
 最后，我想指出连接和断开容器与网络时`none`网络类型的一个有趣方面。正如我之前提到的，`none`网络类型告诉 Docker 不要将容器分配给任何网络。然而，这并不仅仅意味着最初，它是一个配置状态，告诉 Docker 容器不应该与任何网络关联。例如，假设我们使用`none`网络启动以下容器：
 
-```
-user@docker1:~$ docker run --net=none --name web1 -d jonlangemak/web_server_1
-9f5d73c55ee859335cd2449b058b68354f5b71cf37e57b72f5c984afcafb4b21
-user@docker1:~$ docker exec web1 ip addr
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-user@docker1:~$
-```
+[PRE18]
 
 如您所见，除了回环接口之外，容器没有任何网络接口。现在，让我们尝试将这个容器连接到一个新的网络：
 
-```
-user@docker1:~$ docker network connect mynetwork web1
-Error response from daemon: Container cannot be connected to multiple networks with one of the networks in private (none) mode
-user@docker1:~$
-```
+[PRE19]
 
 Docker 告诉我们，这个容器被定义为没有网络，并且阻止我们将容器连接到任何网络。如果我们检查`none`网络，我们可以看到这个容器实际上附加到它上面：
 
-```
-user@docker1:~$ docker network inspect none
-[
-    {
-        "Name": "none",
-        "Id": "a191c26b7dad643ca77fe6548c2480b1644a86dcc95cde0c09c6033d4eaff7f2",
-        "Scope": "local",
-        "Driver": "null",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": []
-        },
-        "Internal": false,
-        "Containers": {            **"931a0d7ad9244c135a19de6e23de314698112ccd00bc3856f4fab9b8cb241e60": {**
- **"Name": "web1",**
- **"EndpointID": "6a046449576e0e0a1e8fd828daa7028bacba8de335954bff2c6b21e01c78baf8",**
- **"MacAddress": "",**
- **"IPv4Address": "",**
- **"IPv6Address": ""**
-            }
-        },
-        "Options": {},
-        "Labels": {}
-    }
-]
-user@docker1:~$
-```
+[PRE20]
 
 为了将这个容器连接到一个新的网络，我们首先必须将其与`none`网络断开连接：
 
-```
-user@docker1:~$ **docker network disconnect none web1**
-user@docker1:~$ **docker network connect mynetwork web1**
-user@docker1:~$ docker exec web1 ip addr
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-18: **eth0**@if19: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
-    link/ether 02:42:ac:12:00:02 brd ff:ff:ff:ff:ff:ff
-    inet **172.18.0.2/16** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:acff:fe12:2/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker1:~$
-```
+[PRE21]
 
 一旦您将其与`none`网络断开连接，您就可以自由地将其连接到任何其他定义的网络。
 
@@ -611,15 +272,7 @@ user@docker1:~$
 
 ### 示例 1
 
-```
-docker network create --driver bridge \
---subnet=10.15.20.0/24 \
---gateway=10.15.20.1 \
---aux-address 1=10.15.20.2 --aux-address 2=10.15.20.3 \
---opt com.docker.network.bridge.host_binding_ipv4=10.10.10.101 \
---opt com.docker.network.bridge.name=linuxbridge1 \
-testbridge1
-```
+[PRE22]
 
 前面的`network create`语句定义了具有以下特征的网络：
 
@@ -641,40 +294,7 @@ testbridge1
 
 如果我们在检查后创建了前面提到的网络，我们应该看到我们定义的属性：
 
-```
-user@docker1:~$ docker network inspect testbridge1
-[
-    {
- **"Name": "testbridge1",**
-        "Id": "97e38457e68b9311113bc327e042445d49ff26f85ac7854106172c8884d08a9f",
-        "Scope": "local",
- **"Driver": "bridge",**
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": {},
-            "Config": [
-                {
- **"Subnet": "10.15.20.0/24",**
- **"Gateway": "10.15.20.1",**
-                    "AuxiliaryAddresses": {
- **"1": "10.15.20.2",**
- **"2": "10.15.20.3"**
-                    }
-                }
-            ]
-        },
-        "Internal": false,
-        "Containers": {},
-        "Options": {
- **"com.docker.network.bridge.host_binding_ipv4": "10.10.10.101",**
- **"com.docker.network.bridge.name": "linuxbridge1"**
-        },
-        "Labels": {}
-    }
-]
-user@docker1:~$
-```
+[PRE23]
 
 ### 注意
 
@@ -682,13 +302,7 @@ user@docker1:~$
 
 ### 示例 2
 
-```
-docker network create \
---subnet=192.168.50.0/24 \
---ip-range=192.168.50.128/25 \
---opt com.docker.network.bridge.enable_ip_masquearde=false \
-testbridge2
-```
+[PRE24]
 
 前面的`network create`语句定义了具有以下特征的网络：
 
@@ -706,35 +320,7 @@ testbridge2
 
 如示例 1 所述，如果我们创建桥接网络，则无需定义驱动程序类型。此外，如果我们可以接受网关是容器定义子网中的第一个可用 IP，我们也可以将其从定义中排除。创建后检查此网络应该显示类似于这样的结果：
 
-```
-user@docker1:~$ docker network inspect testbridge2
-[
-    {
- **"Name": "testbridge2",**
-        "Id": "2c8270425b14dab74300d8769f84813363a9ff15e6ed700fa55d7d2c3b3c1504",
-        "Scope": "local",
- **"Driver": "bridge",**
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": {},
-            "Config": [
-                {
- **"Subnet": "192.168.50.0/24",**
- **"IPRange": "192.168.50.128/25"**
-                }
-            ]
-        },
-        "Internal": false,
-        "Containers": {},
-        "Options": {
-            **"com.docker.network.bridge.enable_ip_masquearde": "false"**
-        },
-        "Labels": {}
-    }
-]
-user@docker1:~$
-```
+[PRE25]
 
 # 创建用户定义的覆盖网络
 
@@ -766,10 +352,7 @@ user@docker1:~$
 
 侥幸的是，Consul 本身可以作为一个 Docker 容器部署：
 
-```
-user@docker1:~$ docker run -d -p 8500:8500 -h consul \
---name consul progrium/consul -server -bootstrap
-```
+[PRE26]
 
 运行这个镜像将启动一个 Consul 键值存储的单个实例。一个单个实例就足够用于基本的实验测试。在我们的情况下，我们将在主机`docker1`上启动这个镜像。所有参与覆盖的 Docker 主机必须能够通过网络访问键值存储。
 
@@ -781,11 +364,7 @@ user@docker1:~$ docker run -d -p 8500:8500 -h consul \
 
 您的 Linux 内核版本需要是 3.16 或更高。您可以使用以下命令检查当前的内核版本：
 
-```
-user@docker1:~$ uname -r
-4.2.0-34-generic
-user@docker1:~$ 
-```
+[PRE27]
 
 ### 打开端口
 
@@ -801,66 +380,29 @@ Docker 主机必须能够使用以下端口相互通信：
 
 参与覆盖的所有主机都需要访问键值存储。为了告诉它们在哪里，我们定义了一些服务级选项：
 
-```
-ExecStart=/usr/bin/dockerd --cluster-store=consul://10.10.10.101:8500/network --cluster-advertise=eth0:0
-```
+[PRE28]
 
 cluster-store 变量定义了键值存储的位置。在我们的情况下，它是在主机`docker1`（`10.10.10.101`）上运行的容器。我们还需要启用`cluster-advertise`功能并传递一个接口和端口。这个配置更多地涉及使用 Swarm 集群，但该标志也作为启用多主机网络的一部分。也就是说，您需要传递一个有效的接口和端口。在这种情况下，我们使用主机物理接口和端口`0`。在我们的示例中，我们将这些选项添加到主机`docker2`，`docker3`和`docker4`上，因为这些是参与覆盖网络的主机。
 
 添加选项后，重新加载`systemd`配置并重新启动 Docker 服务。您可以通过检查`docker info`命令的输出来验证 Docker 是否接受了该命令：
 
-```
-user@docker2:~$ docker info
-…<Additional output removed for brevity>…
-Cluster store: **consul://10.10.10.101:8500/network**
-Cluster advertise: **10.10.10.102:0**
-…<Additional output removed for brevity>…
-```
+[PRE29]
 
 ## 如何做…
 
 现在我们已经满足了使用覆盖`Driver`的先决条件，我们可以部署我们的第一个用户定义的覆盖网络。定义用户定义的覆盖网络遵循与定义用户定义的桥网络相同的过程。例如，让我们使用以下命令配置我们的第一个覆盖网络：
 
-```
-user@docker2:~$ docker network create -d overlay myoverlay
-e4bdaa0d6f3afe1ae007a07fe6a1f49f1f963a5ddc8247e716b2bd218352b90e
-user@docker2:~$
-```
+[PRE30]
 
 就像用户定义的桥一样，我们不必输入太多信息来创建我们的第一个覆盖网络。事实上，唯一的区别在于我们必须将`Driver`指定为覆盖类型，因为默认的`Driver`类型是桥接。一旦我们输入命令，我们应该能够在参与覆盖网络的任何节点上看到定义的网络。
 
-```
-user@docker3:~$ docker network ls
-NETWORK ID          NAME                DRIVER              SCOPE
-55f86ddf18d5        bridge              bridge              local
-8faef9d2a7cc        host                host                local
-**3ad850433ed9        myoverlay           overlay             global**
-453ad78e11fe        none                null                local
-user@docker3:~$
-
-user@docker4:~$ docker network ls
-NETWORK ID          NAME                DRIVER              SCOPE
-3afd680b6ce1        bridge              bridge              local
-a92fe912af1d        host                host                local
-**3ad850433ed9        myoverlay           overlay             global**
-7dbc77e5f782        none                null                local
-user@docker4:~$
-```
+[PRE31]
 
 当主机`docker2`创建网络时，它将网络配置推送到存储中。现在所有主机都可以看到新的网络，因为它们都在读写来自同一个键值存储的数据。一旦网络创建完成，任何参与覆盖的节点（配置了正确的服务级选项）都可以查看、连接容器到并删除覆盖网络。
 
 例如，如果我们去到主机`docker4`，我们可以删除最初在主机`docker2`上创建的网络：
 
-```
-user@docker4:~$ **docker network rm myoverlay**
-myoverlay
-user@docker4:~$ docker network ls
-NETWORK ID          NAME                DRIVER              SCOPE
-3afd680b6ce1        bridge              bridge              local
-a92fe912af1d        host                host                local
-7dbc77e5f782        none                null                local
-user@docker4:~$
-```
+[PRE32]
 
 现在让我们用更多的配置来定义一个新的覆盖。与用户定义的桥接不同，覆盖`Driver`目前不支持在创建时使用`--opt`标志传递任何附加选项。也就是说，我们可以在覆盖类型网络上配置的唯一选项是`network create`子命令的一部分。
 
@@ -880,11 +422,7 @@ user@docker4:~$
 
 让我们在主机`docker4`上重新定义网络`myoverlay`：
 
-```
-user@docker4:~$ docker network create -d overlay \
---subnet 172.16.16.0/24  --aux-address ip2=172.16.16.2 \
---ip-range=172.16.16.128/25 myoverlay
-```
+[PRE33]
 
 在这个例子中，我们使用以下属性定义网络：
 
@@ -898,37 +436,11 @@ user@docker4:~$ docker network create -d overlay \
 
 与以前一样，这个网络现在可以在参与覆盖配置的三个主机上使用。现在让我们从主机`docker2`上的覆盖网络中定义我们的第一个容器：
 
-```
-user@docker2:~$ docker run --net=myoverlay --name web1 \
--d -P jonlangemak/web_server_1
-3d767d2d2bda91300827f444aa6c4a0762a95ce36a26537aac7770395b5ff673
-user@docker2:~$
-```
+[PRE34]
 
 在这里，我们要求主机启动一个名为`web1`的容器，并将其连接到网络`myoverlay`。现在让我们检查容器的 IP 接口配置：
 
-```
-user@docker2:~$ docker exec web1 ip addr
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-7: **eth0@if8**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP
-    link/ether 02:42:ac:10:10:81 brd ff:ff:ff:ff:ff:ff
-    inet **172.16.16.129/24** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:acff:fe10:1081/64 scope link
-       valid_lft forever preferred_lft forever
-10: **eth1**@if11: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
-    link/ether 02:42:ac:12:00:02 brd ff:ff:ff:ff:ff:ff
-    inet **172.18.0.2/16** scope global eth1
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:acff:fe12:2/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker2:~$
-```
+[PRE35]
 
 令人惊讶的是，容器有两个接口。`eth0`接口连接到与覆盖网络`myoverlay`相关联的网络，但`eth1`与一个新网络`172.18.0.0/16`相关联。
 
@@ -938,130 +450,39 @@ user@docker2:~$
 
 为了找出它连接到哪里，让我们试着找到容器的`eth1`接口连接到的 VETH 对的另一端。如第一章所示，*Linux 网络构造*，我们可以使用`ethtool`来查找 VETH 对的对等`接口 ID`。然而，当查看用户定义的网络时，有一种更简单的方法可以做到这一点。请注意，在前面的输出中，VETH 对的名称具有以下语法：
 
-```
-<interface name>@if<peers interface ID>
-```
+[PRE36]
 
 幸运的是，`if`后面显示的数字是 VETH 对的另一端的`接口 ID`。因此，在前面的输出中，我们看到`eth1`接口的匹配接口具有`接口 ID`为`11`。查看本地 Docker 主机，我们可以看到我们定义了一个接口`11`，它的`对等接口 ID`是`10`，与容器中的`接口 ID`匹配。
 
-```
-user@docker2:~$ ip addr show
-…<Additional output removed for brevity>…
-9: docker_gwbridge: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
-    link/ether 02:42:af:5e:26:cc brd ff:ff:ff:ff:ff:ff
-    inet 172.18.0.1/16 scope global docker_gwbridge
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:afff:fe5e:26cc/64 scope link
-       valid_lft forever preferred_lft forever
-**11: veth02e6ea5@if10:** <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue **master docker_gwbridge** state UP group default
-    link/ether ba:c7:df:7c:f4:48 brd ff:ff:ff:ff:ff:ff
-    inet6 fe80::b8c7:dfff:fe7c:f448/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker2:~$
-```
+[PRE37]
 
 注意，VETH 对的这一端（`接口 ID 11`）有一个名为`docker_gwbridge`的主机。也就是说，VETH 对的这一端是桥接`docker_gwbridge`的一部分。让我们再次查看 Docker 主机上定义的网络：
 
-```
-user@docker2:~$ docker network ls
-NETWORK ID          NAME                DRIVER
-9c91f85550b3        **myoverlay**           **overlay**
-b3143542e9ed        none                null
-323e5e3be7e4        host                host
-6f60ea0df1ba        bridge              bridge
-e637f106f633        **docker_gwbridge**     **bridge**
-user@docker2:~$
-```
+[PRE38]
 
 除了我们的覆盖网络，还有一个同名的新用户定义桥接。如果我们检查这个桥接，我们会看到我们的容器按预期连接到它，并且网络定义了一些选项：
 
-```
-user@docker2:~$ docker network inspect docker_gwbridge
-[
-    {
-        "Name": "docker_gwbridge",
-        "Id": "10a75e3638b999d7180e1c8310bf3a26b7d3ec7b4e0a7657d9f69d3b5d515389",
-        "Scope": "local",
-        "Driver": "bridge",
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": [
-                {
-                    "Subnet": "172.18.0.0/16",
-                    "Gateway": "172.18.0.1/16"
-                }
-            ]
-        },
-        "Internal": false,
-        "Containers": {
-            **"e3ae95368057f24fefe1a0358b570848d8798ddfd1c98472ca7ea250087df452": {**
- **"Name": "gateway_e3ae95368057",**
- **"EndpointID": "4cdfc1fb130de499eefe350b78f4f2f92797df9fe7392aeadb94d136abc7f7cd",**
- **"MacAddress": "02:42:ac:12:00:02",**
- **"IPv4Address": "172.18.0.2/16",**
- **"IPv6Address": ""**
- **}**
-        },
-        "Options": {
- **"com.docker.network.bridge.enable_icc": "false",**
- **"com.docker.network.bridge.enable_ip_masquerade": "true",**
- **"com.docker.network.bridge.name": "docker_gwbridge"**
-        },
-        "Labels": {}
-    }
-]
-user@docker2:~$
-```
+[PRE39]
 
 正如我们所看到的，此桥的 ICC 模式已禁用。ICC 防止同一网络桥上的容器直接通信。但是这个桥的目的是什么，为什么生成在`myoverlay`网络上的容器被连接到它上面呢？
 
 `docker_gwbridge`网络是用于覆盖连接的容器的外部容器连接的解决方案。覆盖网络可以被视为第 2 层网络段。您可以将多个容器连接到它们，并且该网络上的任何内容都可以跨越本地网络段进行通信。但是，这并不允许容器与网络外的资源通信。这限制了 Docker 通过发布端口访问容器资源的能力，以及容器与外部网络通信的能力。如果我们检查容器的路由配置，我们可以看到它的默认网关指向`docker_gwbridge`的接口：
 
-```
-user@docker2:~$ docker exec web1 ip route
-**default via 172.18.0.1 dev eth1**
-172.16.16.0/24 dev eth0  proto kernel  scope link  src 172.16.16.129
-172.18.0.0/16 dev eth1  proto kernel  scope link  src 172.18.0.2
-user@docker2:~$ 
-```
+[PRE40]
 
 再加上`docker_gwbridge`启用了 IP 伪装的事实，这意味着容器仍然可以与外部网络通信：
 
-```
-user@docker2:~$ docker exec -it web1 ping **4.2.2.2**
-PING 4.2.2.2 (4.2.2.2): 48 data bytes
-**56 bytes from 4.2.2.2: icmp_seq=0 ttl=50 time=27.473 ms**
-**56 bytes from 4.2.2.2: icmp_seq=1 ttl=50 time=37.736 ms**
---- 4.2.2.2 ping statistics ---
-2 packets transmitted, 2 packets received, 0% packet loss
-round-trip min/avg/max/stddev = 27.473/32.605/37.736/5.132 ms
-user@docker2:~$
-```
+[PRE41]
 
 与默认桥网络一样，如果容器尝试通过路由到达外部网络，它们将隐藏在其 Docker 主机 IP 接口后面。
 
 这也意味着，由于我使用`-P`标志在此容器上发布了端口，Docker 已经使用`docker_gwbridge`发布了这些端口。我们可以使用`docker port`子命令来验证端口是否已发布：
 
-```
-user@docker2:~$ docker port web1
-80/tcp -> 0.0.0.0:32768
-user@docker2:~$
-```
+[PRE42]
 
 通过使用`iptables`检查 netfilter 规则来验证端口是否在`docker_gwbridge`上发布：
 
-```
-user@docker2:~$ sudo iptables -t nat -L
-…<Additional output removed for brevity>…
-Chain DOCKER (2 references)
-target     prot opt source      destination
-RETURN     all  --  anywhere    anywhere
-RETURN     all  --  anywhere    anywhere
-**DNAT       tcp  --  anywhere    anywhere  tcp dpt:32768 to:172.18.0.2:80**
-user@docker2:~$
-```
+[PRE43]
 
 正如您在前面的输出中所看到的，Docker 正在使用`docker_gwbridge`上的容器接口来为 Docker 主机的接口提供端口发布。
 
@@ -1073,15 +494,7 @@ user@docker2:~$
 
 现在让我们启动另外两个容器，一个在主机`docker3`上，另一个在主机`docker4`上：
 
-```
-user@docker3:~$ **docker run --net=myoverlay --name web2 -d jonlangemak/web_server_2**
-da14844598d5a6623de089674367d31c8e721c05d3454119ca8b4e8984b91957
-user@docker3:~$
-user@docker4:~$  **docker run --net=myoverlay --name web2 -d jonlangemak/web_server_2**
-be67548994d7865ea69151f4797e9f2abc28a39a737eef48337f1db9f72e380c
-**docker: Error response from daemon: service endpoint with name web2 already exists.**
-user@docker4:~$
-```
+[PRE44]
 
 请注意，当我尝试在两个主机上运行相同的容器时，Docker 告诉我容器`web2`已经存在。Docker 不允许您在同一覆盖网络上以相同的名称运行容器。请回想一下，Docker 正在将与覆盖中的每个容器相关的信息存储在键值存储中。当我们开始讨论 Docker 名称解析时，使用唯一名称变得很重要。
 
@@ -1091,11 +504,7 @@ user@docker4:~$
 
 使用唯一名称在`docker4`上重新启动容器：
 
-```
-user@docker4:~$ docker run --net=myoverlay --name **web2-2** -d jonlangemak/web_server_2
-e64d00093da3f20c52fca52be2c7393f541935da0a9c86752a2f517254496e26
-user@docker4:~$
-```
+[PRE45]
 
 现在我们有三个容器在运行，每个主机上都有一个参与覆盖。让我们花点时间来想象这里发生了什么：
 
@@ -1113,58 +522,17 @@ user@docker4:~$
 
 重要的是要记住，Docker 主机没有直接连接到覆盖连接的容器的手段。对于桥接网络类型，这是可行的，因为主机在桥接上有一个接口，在覆盖类型网络的情况下，这个接口是不存在的。
 
-```
-user@docker2:~$ docker exec web1 curl -s http://172.16.16.130
-<body>
-  <html>
-    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #2 - Running on port 80**</span></h1>
-</body>
-  </html>
-user@docker2:~$
-```
+[PRE46]
 
 正如你所看到的，我们可以成功地从容器`web1`访问运行在容器`web2`中的 web 服务器。这些容器不仅位于完全不同的主机上，而且主机本身位于完全不同的子网上。这种类型的通信以前只有在两个容器坐在同一主机上，并连接到同一个桥接时才可用。我们可以通过检查每个相应容器上的 ARP 和 MAC 条目来证明容器相信自己是第 2 层相邻的：
 
-```
-user@**docker2**:~$ docker exec web1 arp -n
-Address         HWtype  HWaddress         Flags Mask            Iface
-**172.16.16.130   ether   02:42:ac:10:10:82 C                     eth0**
-172.18.0.1      ether   02:42:07:3d:f3:2c C                     eth1
-user@docker2:~$
-
-user@docker3:~$ docker exec web2 ip link show dev eth0
-6: eth0@if7: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP
-    link/ether **02:42:ac:10:10:82** brd ff:ff:ff:ff:ff:ff
-user@docker3:~$ 
-```
+[PRE47]
 
 我们可以看到容器有一个 ARP 条目，来自远程容器，指定其 IP 地址以及 MAC 地址。如果容器不在同一网络上，容器`web1`将不会有`web2`的 ARP 条目。
 
 我们可以验证我们从`docker4`主机上的`web2-2`容器对所有三个容器之间的本地连接性：
 
-```
-user@docker4:~$ docker exec -it web2-2 ping **172.16.16.129** -c 2
-PING 172.16.16.129 (172.16.16.129): 48 data bytes
-**56 bytes from 172.16.16.129: icmp_seq=0 ttl=64 time=0.642 ms**
-**56 bytes from 172.16.16.129: icmp_seq=1 ttl=64 time=0.777 ms**
---- 172.16.16.129 ping statistics ---
-2 packets transmitted, 2 packets received, 0% packet loss
-round-trip min/avg/max/stddev = 0.642/0.710/0.777/0.068 ms
-
-user@docker4:~$ docker exec -it web2-2 ping **172.16.16.130** -c 2
-PING 172.16.16.130 (172.16.16.130): 48 data bytes
-**56 bytes from 172.16.16.130: icmp_seq=0 ttl=64 time=0.477 ms**
-**56 bytes from 172.16.16.130: icmp_seq=1 ttl=64 time=0.605 ms**
---- 172.16.16.130 ping statistics ---
-2 packets transmitted, 2 packets received, 0% packet loss
-round-trip min/avg/max/stddev = 0.477/0.541/0.605/0.064 ms
-
-user@docker4:~$ docker exec -it web2-2 arp -n
-Address         HWtype  HWaddress         Flags Mask            Iface
-**172.16.16.129   ether   02:42:ac:10:10:81 C                     eth0**
-**172.16.16.130   ether   02:42:ac:10:10:82 C                     eth0**
-user@docker4:~$
-```
+[PRE48]
 
 现在我们知道覆盖网络是如何工作的，让我们谈谈它是如何实现的。覆盖传输所使用的机制是 VXLAN。我们可以通过查看在物理网络上进行的数据包捕获来看到容器生成的数据包是如何穿越底层网络的。
 
@@ -1184,14 +552,7 @@ Docker 主机使用自己的 IP 接口封装覆盖流量，并通过底层网络
 
 您现在可能想知道 VXLAN 覆盖的所有配置在哪里。到目前为止，我们还没有看到任何实际涉及 VXLAN 或隧道的配置。为了提供 VXLAN 封装，Docker 为每个用户定义的覆盖网络创建了我所说的 *覆盖命名空间*。正如我们在第一章中看到的 *Linux 网络构造*，您可以使用 `ip netns` 工具与网络命名空间进行交互。然而，由于 Docker 将它们的网络命名空间存储在非默认位置，我们将无法使用 `ip netns` 工具查看任何由 Docker 创建的命名空间。默认情况下，命名空间存储在 `/var/run/netns` 中。问题在于 Docker 将其网络命名空间存储在 `/var/run/docker/netns` 中，这意味着 `ip netns` 工具正在错误的位置查看由 Docker 创建的网络命名空间。为了解决这个问题，我们可以创建一个 `symlink`，将 `/var/run/docker/netns/` 链接到 `/var/run/nents`，如下所示：
 
-```
-user@docker4:~$ cd /var/run
-user@docker4:/var/run$ sudo ln -s /var/run/docker/netns netns
-user@docker4:/var/run$ sudo ip netns list
-eb40d6527d17 (id: 2)
-2-4695c5484e (id: 1) 
-user@docker4:/var/run$ 
-```
+[PRE49]
 
 请注意，定义了两个网络命名空间。覆盖命名空间将使用以下语法进行标识 `x-<id>`，其中 `x` 是一个随机数。
 
@@ -1201,60 +562,19 @@ user@docker4:/var/run$
 
 因此，在我们的情况下，覆盖命名空间是 `2-4695c5484e`，但它是从哪里来的呢？如果我们检查这个命名空间的网络配置，我们会看到它定义了一些不寻常的接口：
 
-```
-user@docker4:/var/run$ **sudo ip netns exec 2-4695c5484e ip link show**
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-2: **br0**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP mode DEFAULT group default
-    link/ether a6:1e:2a:c4:cb:14 brd ff:ff:ff:ff:ff:ff
-11: **vxlan1**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue **master br0** state UNKNOWN mode DEFAULT group default
-    link/ether a6:1e:2a:c4:cb:14 brd ff:ff:ff:ff:ff:ff link-netnsid 0
-13: **veth2@if12**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue master br0 state UP mode DEFAULT group default
-    link/ether b2:fa:2d:cc:8b:51 brd ff:ff:ff:ff:ff:ff link-netnsid 1
-user@docker4:/var/run$ 
-```
+[PRE50]
 
 这些接口定义了我之前提到的叠加网络命名空间。之前我们看到`web2-2`容器有两个接口。`eth1`接口是 VETH 对的一端，另一端放在`docker_gwbridge`上。在前面的叠加网络命名空间中显示的 VETH 对代表了容器`eth0`接口的一侧。我们可以通过匹配 VETH 对的一侧来证明这一点。请注意，VETH 对的这一端显示另一端的`接口 ID`为`12`。如果我们查看容器`web2-2`，我们会看到它的`eth0`接口的 ID 为`12`。反过来，容器的接口显示了一个 ID 为`13`的对 ID，这与我们在叠加命名空间中看到的输出相匹配：
 
-```
-user@docker4:/var/run$ **docker exec web2-2 ip link show**
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-**12: eth0@if13:** <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP
-    link/ether 02:42:ac:10:10:83 brd ff:ff:ff:ff:ff:ff
-14: eth1@if15: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP
-    link/ether 02:42:ac:12:00:02 brd ff:ff:ff:ff:ff:ff
-user@docker4:/var/run$ 
-```
+[PRE51]
 
 现在我们知道容器的叠加接口（`eth0`）是如何连接的，我们需要知道进入叠加命名空间的流量是如何封装并发送到其他 Docker 主机的。这是通过叠加命名空间的`vxlan1`接口完成的。该接口具有特定的转发条目，描述了叠加中的所有其他端点：
 
-```
-user@docker4:/var/run$ sudo ip netns exec 2-4695c5484e \
-bridge fdb show dev vxlan1
-a6:1e:2a:c4:cb:14 master br0 permanent
-a6:1e:2a:c4:cb:14 vlan 1 master br0 permanent
-**02:42:ac:10:10:82 dst 192.168.50.101 link-netnsid 0 self permanent**
-**02:42:ac:10:10:81 dst 10.10.10.102 link-netnsid 0 self permanent**
-user@docker4:/var/run$
-```
+[PRE52]
 
 请注意，我们有两个条目引用 MAC 地址和目的地。MAC 地址表示叠加中另一个容器的 MAC 地址，IP 地址是容器所在的 Docker 主机。我们可以通过检查其他主机来验证：
 
-```
-user@docker2:~$ ip addr show dev eth0
-2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
-    link/ether f2:e8:00:24:e2:de brd ff:ff:ff:ff:ff:ff
-    inet **10.10.10.102/24** brd 10.10.10.255 scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::f0e8:ff:fe24:e2de/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker2:~$
-user@docker2:~$ **docker exec web1 ip link show dev eth0**
-7: eth0@if8: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP
-    link/ether **02:42:ac:10:10:81** brd ff:ff:ff:ff:ff:ff
-user@docker2:~$
-```
+[PRE53]
 
 有了这些信息，叠加命名空间就知道为了到达目的地 MAC 地址，它需要在 VXLAN 中封装流量并将其发送到`10.10.10.102`（`docker2`）。
 
@@ -1274,23 +594,11 @@ user@docker2:~$
 
 定义一个用户定义的桥接并传递`internal`标志，以及在主机上为桥接指定自定义名称的标志。我们可以使用以下命令来实现这一点：
 
-```
-user@docker2:~$ **docker network create --internal \**
-**-o com.docker.network.bridge.name=mybridge1 myinternalbridge**
-aa990a5436fb2b01f92ffc4d47c5f76c94f3c239f6e9005081ff5c5ecdc4059a
-user@docker2:~$
-```
+[PRE54]
 
 现在，让我们看一下 Docker 分配给桥接的 IP 信息：
 
-```
-user@docker2:~$ ip addr show dev mybridge1
-13: mybridge1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default
-    link/ether 02:42:b5:c7:0e:63 brd ff:ff:ff:ff:ff:ff
-    inet **172.19.0.1/16** scope global mybridge1
-       valid_lft forever preferred_lft forever
-user@docker2:~$
-```
+[PRE55]
 
 有了这些信息，我们现在来检查一下 Docker 为这个桥接在 netfilter 中编程了什么。让我们检查过滤表并查看：
 
@@ -1298,17 +606,7 @@ user@docker2:~$
 
 在这种情况下，我正在使用`iptables-save`语法来查询当前的规则。有时，这比查看单个表更易读。
 
-```
-user@docker2:~$ sudo iptables-save
-# Generated by iptables-save v1.4.21
-…<Additional output removed for brevity>… 
-**-A DOCKER-ISOLATION ! -s 172.19.0.0/16 -o mybridge1 -j DROP**
-**-A DOCKER-ISOLATION ! -d 172.19.0.0/16 -i mybridge1 -j DROP** 
--A DOCKER-ISOLATION -j RETURN
-COMMIT
-# Completed on Tue Oct  4 23:45:24 2016
-user@docker2:~$
-```
+[PRE56]
 
 在这里，我们可以看到 Docker 添加了两条规则。第一条规定，任何不是源自桥接子网并且正在离开桥接接口的流量应该被丢弃。这可能很难理解，所以最容易的方法是以一个例子来思考。假设您网络上的主机`192.168.127.57`正在尝试访问这个桥接上的某些内容。该流量的源 IP 地址不会在桥接子网中，这满足了规则的第一部分。它还将尝试离开（或进入）`mybridge1`，满足了规则的第二部分。这条规则有效地阻止了所有入站通信。
 
@@ -1318,49 +616,20 @@ user@docker2:~$
 
 应该注意的是，Docker 允许您在针对内部桥接运行容器时指定发布（`-P`）标志。但是，端口将永远不会被映射：
 
-```
-user@docker2:~$ docker run --net=myinternalbridge --name web1 -d -P jonlangemak/web_server_1
-b5f069a40a527813184c7156633c1e28342e0b3f1d1dbb567f94072bc27a5934
-user@docker2:~$ docker port web1
-user@docker2:~$
-```
+[PRE57]
 
 ### 创建内部用户定义的覆盖网络
 
 创建内部覆盖遵循相同的过程。我们只需向`network create`子命令传递`--internal`标志。然而，在覆盖网络的情况下，隔离模型要简单得多。我们可以按以下方式创建内部覆盖网络：
 
-```
-user@docker2:~$ **docker network create -d overlay \**
-**--subnet 192.10.10.0/24 --internal myinternaloverlay**
-1677f2c313f21e58de256d9686fd2d872699601898fd5f2a3391b94c5c4cd2ec
-user@docker2:~$
-```
+[PRE58]
 
 创建后，它与非内部覆盖没有什么不同。区别在于当我们在内部覆盖上运行容器时：
 
-```
-user@docker2:~$ docker run --net=myinternaloverlay --name web1 -d -P jonlangemak/web_server_1
-c5b05a3c829dfc04ecc91dd7091ad7145cbce96fc7aa0e5ad1f1cf3fd34bb02b
-user@docker2:~$
-```
+[PRE59]
 
 检查容器接口配置，我们可以看到容器只有一个接口，它是覆盖网络（`192.10.10.0/24`）的成员。通常连接容器到`docker_gwbridge`（`172.18.0.0/16`）网络以进行外部连接的接口缺失：
 
-```
-user@docker2:~$ docker exec -it web1 ip addr
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-11: **eth0**@if12: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP
-    link/ether 02:42:c0:0a:0a:02 brd ff:ff:ff:ff:ff:ff
-    inet **192.10.10.2/24** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:c0ff:fe0a:a02/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker2:~$ 
-```
+[PRE60]
 
 覆盖网络本质上是隔离的，因此需要`docker_gwbridge`。不将容器接口映射到`docker_gwbridge`意味着没有办法在覆盖网络内部或外部进行通信。

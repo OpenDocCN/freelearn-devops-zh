@@ -82,34 +82,19 @@
 
 1.  `Dockerfile`可能是这样的：
 
-```
-FROM ubuntu:19.04
-RUN apt-get update && \
-    apt-get install -y iputils-ping
-CMD ping 127.0.0.1
-```
+[PRE0]
 
 请注意，在 Ubuntu 中，`ping`工具是`iputils-ping`包的一部分。构建名为`pinger`的镜像，例如，使用`docker image build -t my-pinger`。
 
 2. `Dockerfile`可能是这样的：
 
-```
-FROM alpine:latest
-RUN apk update && \
-    apk add curl
-```
+[PRE1]
 
 使用`docker image build -t my-alpine:1.0`构建镜像。
 
 3. 用于 Go 应用程序的`Dockerfile`可能是这样的：
 
-```
-FROM golang:alpine
-WORKDIR /app
-ADD . /app
-RUN cd /app && go build -o goapp
-ENTRYPOINT ./goapp
-```
+[PRE2]
 
 您可以在`~/fod/ch04/answer03`文件夹中找到完整的解决方案。
 
@@ -131,88 +116,51 @@ ENTRYPOINT ./goapp
 
 因此，我们建议以下操作：
 
-```
-$ docker-machine create --driver virtualbox volume-test
-$ docker-machine ssh volume-test
-```
+[PRE3]
 
 现在您在名为`volume-test`的 Linux VM 中，可以进行以下练习：
 
 1.  创建一个命名卷，运行以下命令：
 
-```
-$ docker volume create my-products
-```
+[PRE4]
 
 1.  执行以下命令：
 
-```
-$ docker container run -it --rm \
- -v my-products:/data:ro \
- alpine /bin/sh
-```
+[PRE5]
 
 1.  要获取卷在主机上的路径，请使用此命令：
 
-```
-$ docker volume inspect my-products | grep Mountpoint
-```
+[PRE6]
 
 （如果您使用`docker-machine`和 VirtualBox）应该导致这样：
 
-```
-"Mountpoint": "/mnt/sda1/var/lib/docker/volumes/myproducts/_data"
-```
+[PRE7]
 
 现在执行以下命令：
 
-```
-$ sudo su
-$ cd /mnt/sda1/var/lib/docker/volumes/my-products/_data
-$ echo "Hello world" > sample.txt
-$ exit
-```
+[PRE8]
 
 1.  执行以下命令：
 
-```
-$ docker run -it --rm -v my-products:/data:ro alpine /bin/sh
-/ # cd /data
-/data # cat sample.txt
-```
+[PRE9]
 
 在另一个终端中，执行此命令：
 
-```
-$ docker run -it --rm -v my-products:/app-data alpine /bin/sh
-/ # cd /app-data
-/app-data # echo "Hello other container" > hello.txt
-/app-data # exit
-```
+[PRE10]
 
 1.  执行这样的命令：
 
-```
-$ docker container run -it --rm \
- -v $HOME/my-project:/app/data \
- alpine /bin/sh
-```
+[PRE11]
 
 1.  退出两个容器，然后回到主机上，执行此命令：
 
-```
-$ docker volume prune
-```
+[PRE12]
 
 1.  答案是 B。每个容器都是一个沙盒，因此具有自己的环境。
 
 1.  收集所有环境变量及其相应的值到一个配置文件中，然后在`docker run`命令中使用`--env-file`命令行参数将其提供给容器，就像这样：
 
-```
-$ docker container run --rm -it \
- --env-file ./development.config \
- alpine sh -c "export"
-```
+[PRE13]
 
 # 第六章
 
@@ -288,53 +236,33 @@ $ docker container run --rm -it \
 
 1.  执行此命令：
 
-```
-$ docker network create --driver bridge frontend
-```
+[PRE14]
 
 1.  运行此命令：
 
-```
-
-$ docker container run -d --name n1 \
- --network frontend -p 8080:80 nginx:alpine
-$ docker container run -d --name n2 \
- --network frontend -p 8081:80 nginx:alpine
-```
+[PRE15]
 
 测试两个 NGINX 实例是否正常运行：
 
-```
-$ curl -4 localhost:8080
-$ curl -4 localhost:8081
-```
+[PRE16]
 
 在这两种情况下，您应该看到 NGINX 的欢迎页面。
 
 1.  要获取所有已附加容器的 IP，请运行此命令：
 
-```
-$ docker network inspect frontend | grep IPv4Address
-```
+[PRE17]
 
 您应该看到类似以下内容：
 
-```
-"IPv4Address": "172.18.0.2/16",
-"IPv4Address": "172.18.0.3/16",
-```
+[PRE18]
 
 要获取网络使用的子网，请使用以下命令（例如）：
 
-```
-$ docker network inspect frontend | grep subnet
-```
+[PRE19]
 
 您应该收到类似以下内容的信息（从上一个示例中获得）：
 
-```
-"Subnet": "172.18.0.0/16",
-```
+[PRE20]
 
 1.  “主机”网络允许我们在主机的网络命名空间中运行容器。
 
@@ -352,29 +280,19 @@ $ docker network inspect frontend | grep subnet
 
 1.  以下代码可用于以分离或守护程序模式运行应用程序：
 
-```
-$ docker-compose up -d
-```
+[PRE21]
 
 1.  执行以下命令以显示运行服务的详细信息：
 
-```
-$ docker-compose ps
-```
+[PRE22]
 
 这应该导致以下输出：
 
-```
-Name               Command               State  Ports
--------------------------------------------------------------------
-mycontent_nginx_1  nginx -g daemon off;  Up     0.0.0.0:3000->80/tcp
-```
+[PRE23]
 
 1.  以下命令可用于扩展 Web 服务：
 
-```
-$ docker-compose up --scale web=3
-```
+[PRE24]
 
 # 第十二章
 
@@ -402,44 +320,27 @@ $ docker-compose up --scale web=3
 
 1.  正确答案如下：
 
-```
-$ docker swarm init [--advertise-addr <IP address>]
-```
+[PRE25]
 
 `--advertise-addr`是可选的，只有在主机有多个 IP 地址时才需要。
 
 1.  在要移除的工作节点上执行以下命令：
 
-```
- $ docker swarm leave
-```
+[PRE26]
 
 在其中一个主节点上执行命令`$ docker node rm -f<node ID>`，其中`<node ID>`是要移除的工作节点的 ID。
 
 1.  正确答案如下：
 
-```
-$ docker network create \
- --driver overlay \
- --attachable \
- front-tier
-```
+[PRE27]
 
 1.  正确答案如下：
 
-```
-$ docker service create --name web \
- --network front-tier \
- --replicas 5 \
- -p 3000:80 \
- nginx:alpine
-```
+[PRE28]
 
 1.  正确答案如下：
 
-```
-$ docker service update --replicas 3 web
-```
+[PRE29]
 
 # 第十四章
 
@@ -455,23 +356,11 @@ $ docker service update --replicas 3 web
 
 1.  实现此目的的命令如下：
 
-```
-$ docker service update --image acme/inventory:2.1 \
- --update-parallelism 2 \
- --update-delay 60s \
- inventory
-```
+[PRE30]
 
 6.首先，我们需要从服务中删除旧的秘密，然后将新版本添加到其中（直接更新秘密是不可能的）：
 
-```
-$ docker service update \
- --secret-rm MYSQL_PASSWORD \
- inventory
-$ docker service update \
- --secret-add source=MYSQL_PASSWORD_V2, target=MYSQL_PASSWORD \
- inventory
-```
+[PRE31]
 
 # 第十五章
 

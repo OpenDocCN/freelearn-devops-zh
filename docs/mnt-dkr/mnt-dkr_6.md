@@ -36,38 +36,23 @@
 
 要安装 Docker，请确保您的云实例已更新，方法是运行：
 
-```
-**sudo yum update**
-
-```
+[PRE0]
 
 对于您的 CentOS 实例或 Ubuntu，请运行以下命令：
 
-```
-**sudo apt-get update**
-
-```
+[PRE1]
 
 更新后，运行以下命令安装软件。由于不同的云环境配置方式不同，最好切换到 root 用户以运行其余的命令，要做到这一点，请运行：
 
-```
-**sudo su -**
-
-```
+[PRE2]
 
 现在，您将能够使用以下命令运行安装脚本：
 
-```
-**curl -fsS https://raw.githubusercontent.com/russmckendrick/monitoring-docker/master/chapter06/install_docker/install_docker.sh | bash**
-
-```
+[PRE3]
 
 要检查一切是否按预期工作，请运行以下命令：
 
-```
-**docker run hello-world**
-
-```
+[PRE4]
 
 您应该看到类似于终端输出的内容，如下面的屏幕截图所示：
 
@@ -155,10 +140,7 @@ Sysdig 将 ContainerVision 描述为：
 
 运行的命令是：
 
-```
-**curl -s https://s3.amazonaws.com/download.draios.com/stable/install-agent | sudo bash -s -- --access_key wn5AYlhjRhgn3shcjW14y3yOT09WsF7d**
-
-```
+[PRE5]
 
 Shell 输出应该如下屏幕所示：
 
@@ -172,14 +154,7 @@ Shell 输出应该如下屏幕所示：
 
 要在基于云的机器上启动 WordPress 安装，请以 root 用户身份运行以下命令：
 
-```
-**sudo su -**
-**mkdir ~/wordpress**
-**curl -L https://raw.githubusercontent.com/russmckendrick/monitoring-docker/master/chapter05/wordpress/docker-compose.yml > ~/wordpress/docker-compose.yml**
-**cd ~/wordpress**
-**docker-compose up -d**
-
-```
+[PRE6]
 
 ## 探索您的容器
 
@@ -263,17 +238,11 @@ Datadog 是一个完整的监控平台；它支持各种服务器、平台和应
 
 代理可以直接安装在主机上，也可以作为容器安装。要直接在主机上安装，请运行以下命令，并确保使用您自己独特的`DD_API_KEY`：
 
-```
-**DD_API_KEY=wn5AYlhjRhgn3shcjW14y3yOT09WsF7d bash -c "$(curl -L https://raw.githubusercontent.com/DataDog/dd-agent/master/packaging/datadog-agent/source/install_agent.sh)"**
-
-```
+[PRE7]
 
 要将代理作为容器运行，请使用以下命令，并确保使用您自己的`DD_API_KEY`：
 
-```
-**sudo docker run -d --name dd-agent -h `hostname` -v /var/run/docker.sock:/var/run/docker.sock -v /proc/mounts:/host/proc/mounts:ro -v /sys/fs/cgroup/:/host/sys/fs/cgroup:ro -e API_KEY=wn5AYlhjRhgn3shcjW14y3yOT09WsF7d datadog/docker-dd-agent**
-
-```
+[PRE8]
 
 安装代理后，它将回调 Datadog，并且主机将出现在您的帐户中。
 
@@ -281,18 +250,11 @@ Datadog 是一个完整的监控平台；它支持各种服务器、平台和应
 
 为了做到这一点，首先需要允许 Datadog 代理访问您的 Docker 安装，方法是通过运行以下命令将`dd-agent`用户添加到 Docker 组中：
 
-```
-**usermod -a -G docker dd-agent**
-
-```
+[PRE9]
 
 下一步是创建`docker.yaml`配置文件，幸运的是，Datadog 代理附带了一个示例配置文件，我们可以使用；将其复制到指定位置，然后重新启动代理：
 
-```
-**cp -pr /etc/dd-agent/conf.d/docker.yaml.example /etc/dd-agent/conf.d/docker.yaml**
-**sudo /etc/init.d/datadog-agent restart**
-
-```
+[PRE10]
 
 现在我们的主机上的代理已经配置好，最后一步是通过网站启用集成。要做到这一点，请转到[`app.datadoghq.com/`](https://app.datadoghq.com/)，点击**集成**，向下滚动，然后点击**Docker**上的安装：
 
@@ -316,14 +278,7 @@ Datadog 是一个完整的监控平台；它支持各种服务器、平台和应
 
 如果您还没有启动容器，现在是一个很好的时机，让我们再次使用以下内容启动 WordPress 安装：
 
-```
-**sudo su -**
-**mkdir ~/wordpress**
-**curl -L https://raw.githubusercontent.com/russmckendrick/monitoring-docker/master/chapter05/wordpress/docker-compose.yml > ~/wordpress/docker-compose.yml**
-**cd ~/wordpress**
-**docker-compose up -d**
-
-```
+[PRE11]
 
 现在，返回到网络界面，您可以点击六边形上列出的任何服务。这将为您选择的服务显示一些基本指标。如果您点击**docker**，您将看到 Docker 仪表板的链接，以及各种图表等；点击这个链接将带您进入容器的更详细视图：
 
@@ -401,43 +356,23 @@ New Relic 提供的服务器监控服务是免费的，您只需要一个活跃�
 
 选择服务器将允许您开始探索代理正在记录的各种指标：
 
-```
-**yum install http://download.newrelic.com/pub/newrelic/el5/i386/newrelic-repo-5-3.noarch.rpm**
-**yum install newrelic-sysmond**
-
-```
+[PRE12]
 
 对于 Ubuntu，运行以下命令：
 
-```
-**echo 'deb http://apt.newrelic.com/debian/ newrelic non-free' | sudo tee /etc/apt/sources.list.d/newrelic.list**
-**wget -O- https://download.newrelic.com/548C16BF.gpg | sudo apt-key add -**
-**apt-get update**
-**apt-get install newrelic-sysmond**
-
-```
+[PRE13]
 
 ![探索 Web 界面](img/00056.jpeg)
 
-```
-**nrsysmond-config --set license_key= wn5AYlhjRhgn3shcjW14y3yOT09WsF7d**
-
-```
+[PRE14]
 
 现在代理已配置，我们需要将`newrelic`用户添加到`docker`组，以便代理可以访问我们的容器信息：
 
-```
-**usermod -a -G docker newrelic**
-
-```
+[PRE15]
 
 网络：让您查看主机的网络活动
 
-```
-**/etc/init.d/newrelic-sysmond restart**
-**/etc/init.d/docker restart**
-
-```
+[PRE16]
 
 ### 与本章中我们看过的其他 SaaS 产品一样，New Relic Servers 有一个基于主机的客户端，需要能够访问 Docker 二进制文件。要在 CentOS 机器上安装此客户端，请运行以下命令：
 

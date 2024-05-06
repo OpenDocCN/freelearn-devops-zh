@@ -30,16 +30,11 @@
 
 为了帮助我们查看正在运行的容器消耗的资源，Docker 提供了`stats`命令，作为我们正在运行的容器消耗资源的实时流。如果您希望限制流所呈现的数据，特别是如果您有大量正在运行的容器，您可以通过指定容器的名称或其 ID 来指定只提供某些容器：
 
-```
-docker stats <container_name|container_id>
-```
+[PRE0]
 
 `docker` `stats`命令的默认输出将为您提供容器的名称和 ID，容器正在使用的主机 CPU 和内存的百分比，容器正在发送和接收的数据，以及从主机存储中读取和写入的数据量：
 
-```
-NAME                CONTAINER           CPU %
-docker-stress       c8cf5ad9b6eb        400.43%
-```
+[PRE1]
 
 以下部分将重点介绍如何使用`docker stats`命令来监视我们的资源。我们还将向`stats`命令提供格式控制，以提供我们需要的信息。
 
@@ -51,29 +46,21 @@ docker-stress       c8cf5ad9b6eb        400.43%
 
 我们可以修改在我们的系统上运行的`docker stats`命令，通过提供`--format`选项来仅提供 CPU 使用情况的详细信息。这个选项允许我们指定我们需要的输出格式，因为我们可能只需要`stats`命令提供的一两个指标。以下示例配置了`stats`命令的输出以以`table`格式显示，只呈现容器的名称、ID 和正在使用的 CPU 百分比：
 
-```
-docker stats --format "table {{.Name}}\t{{.Container}}\t{{.CPUPerc}}"
-```
+[PRE2]
 
 如果我们没有运行 Docker 镜像，这个命令将提供一个包含以下三列的表格：
 
-```
-NAME                CONTAINER           CPU %
-```
+[PRE3]
 
 为了控制我们正在运行的容器使用的 CPU 核心数量，我们可以在`docker run`命令中使用`--cpus`选项。以下语法向我们展示了运行镜像，但通过使用`--cpus`选项限制了镜像可以访问的核心数量：
 
-```
-docker run --cpus 2 <docker-image>
-```
+[PRE4]
 
 更好的选择不是设置容器可以使用的核心数量，而是设置它可以共享的总量。Docker 提供了`--cpushares`或`-c`选项来设置容器可以使用的处理能力的优先级。通过使用这个选项，这意味着在运行容器之前我们不需要知道主机机器有多少个核心。这也意味着我们可以将正在运行的容器转移到不同的主机系统，而不需要更改运行镜像的命令。
 
 默认情况下，Docker 将为每个运行的容器分配 1,024 份份额。如果您将`--cpushares`值设置为`256`，它将拥有其他运行容器的四分之一的处理份额：
 
-```
-docker run --cpushares 256 <docker-image>
-```
+[PRE5]
 
 注意
 
@@ -93,36 +80,23 @@ docker run --cpushares 256 <docker-image>
 
 1.  创建一个新的`Dockerfile`并打开您喜欢的文本编辑器输入以下细节。您将使用 Ubuntu 作为基础来创建镜像，因为`stress`应用程序尚未作为易于在 Alpine 基础镜像上安装的软件包提供：
 
-```
-FROM ubuntu
-RUN apt-get update && apt-get install stress
-CMD stress $var
-```
+[PRE6]
 
 1.  使用`docker build`命令的`-t`选项构建新镜像并将其标记为`docker-stress`：
 
-```
-docker build -t docker-stress .
-```
+[PRE7]
 
 1.  在运行新的`docker-stress`镜像之前，请先停止并删除所有其他容器，以确保结果不会被系统上运行的其他容器混淆：
 
-```
-docker rm -f $(docker -a -q)
-```
+[PRE8]
 
 1.  在`Dockerfile`的*第 3 行*上，您会注意到`CMD`指令正在运行 stress 应用程序，后面跟着`$var`变量。这将允许您通过环境变量直接向容器上运行的 stress 应用程序添加命令行选项，而无需每次想要更改功能时都构建新镜像。通过运行您的镜像并使用`-e`选项添加环境变量来测试这一点。将`var="--cpu 4 --timeout 20"`作为`stress`命令的命令行选项添加：
 
-```
-docker run --rm -it -e var="--cpu 4 --timeout 20" docker-stress
-```
+[PRE9]
 
 `docker run`命令已添加了`var="--cpu 4 --timeout 20"`变量，这将特别使用这些命令行选项运行`stress`命令。`--cpu`选项表示将使用系统的四个 CPU 或核心，`--timeout`选项将允许压力测试运行指定的秒数 - 在本例中为`20`：
 
-```
-stress: info: [6] dispatching hogs: 4 cpu, 0 io, 0 vm, 0 hdd
-stress: info: [6] successful run completed in 20s
-```
+[PRE10]
 
 注意
 
@@ -130,101 +104,65 @@ stress: info: [6] successful run completed in 20s
 
 1.  运行`docker stats`命令，查看这对主机系统的影响。使用`--format`选项限制所提供的输出，只提供 CPU 使用情况：
 
-```
-docker stats --format "table {{.Name}}\t{{.Container}}\t{{.CPUPerc}}"
-```
+[PRE11]
 
 除非您的系统上运行着一个容器，否则您应该只看到表头，类似于此处提供的输出：
 
-```
-NAME                CONTAINER           CPU %
-```
+[PRE12]
 
 1.  在运行`stats`命令的同时，进入一个新的终端窗口，并再次运行`docker-stress`容器，就像本练习的*步骤 4*中一样。使用`--name`选项确保在使用`docker stress`命令时查看正确的镜像：
 
-```
-docker run --rm -it -e var="--cpu 4 --timeout 20" --name docker-stress docker-stress
-```
+[PRE13]
 
 1.  返回到运行`docker stats`的终端。现在您应该看到一些输出呈现在您的表上。您的输出将与以下内容不同，因为您的系统上可能运行着不同数量的核心。以下输出显示我们的 CPU 百分比使用了 400%。运行该命令的系统有六个核心。它显示 stress 应用程序正在使用四个可用核心中的 100%：
 
-```
-NAME                CONTAINER           CPU %
-docker-stress       c8cf5ad9b6eb        400.43%
-```
+[PRE14]
 
 1.  再次运行`docker-stress`容器，这次将`--cpu`选项设置为`8`：
 
-```
-docker run --rm -it -e var="--cpu 8 --timeout 20" --name docker-stress docker-stress
-```
+[PRE15]
 
 如您在以下统计输出中所见，我们已经达到了 Docker 容器几乎使用系统上所有六个核心的极限，为我们的系统上的次要进程留下了一小部分处理能力：
 
-```
-NAME                CONTAINER           CPU %
-docker-stress       8946da6ffa90        599.44%
-```
+[PRE16]
 
 1.  通过使用`--cpus`选项并指定要允许镜像使用的核心数量，来管理您的`docker-stress`镜像可以访问的核心数量。在以下命令中，将`2`设置为我们的容器被允许使用的核心数量：
 
-```
-docker run --rm -it -e var="--cpu 8 --timeout 20" --cpus 2 --name docker-stress docker-stress
-```
+[PRE17]
 
 1.  返回到运行`docker stats`的终端。您将看到正在使用的 CPU 百分比不会超过 200%，显示 Docker 将资源使用限制在我们系统上仅有的两个核心：
 
-```
-NAME                CONTAINER           CPU %
-docker-stress       79b32c67cbe3        208.91%
-```
+[PRE18]
 
 到目前为止，您只能一次在我们的系统上运行一个容器。这个练习的下一部分将允许您以分离模式运行两个容器。在这里，您将测试在运行的一个容器上使用`--cpu-shares`选项来限制它可以使用的核心数量。
 
 1.  如果您没有在终端窗口中运行`docker stats`，请像之前一样启动它，以便我们监视正在运行的进程：
 
-```
-docker stats --format "table {{.Name}}\t{{.Container}}\t{{.CPUPerc}}"
-```
+[PRE19]
 
 1.  访问另一个终端窗口，并启动两个`docker-stress`容器 - `docker-stress1`和`docker-stress2`。第一个将使用`--timeout`值为`60`，让压力应用程序运行 60 秒，但在这里，将`--cpu-shares`值限制为`512`：
 
-```
-docker run --rm -dit -e var="--cpu 8 --timeout 60" --cpu-shares 512 --name docker-stress1 docker-stress
-```
+[PRE20]
 
 容器的 ID 将返回如下：
 
-```
-5f617e5abebabcbc4250380b2591c692a30b3daf481b6c8d7ab8a0d1840d395f
-```
+[PRE21]
 
 第二个容器将不受限制，但`--timeout`值只有`30`，所以它应该先完成：
 
-```
-docker run --rm -dit -e var="--cpu 8 --timeout 30" --name docker-stress2 docker-stress2
-```
+[PRE22]
 
 容器的 ID 将返回如下：
 
-```
-83712c28866dd289937a9c5fe4ea6c48a6863a7930ff663f3c251145e2fbb97a
-```
+[PRE23]
 
 1.  回到运行`docker stats`的终端。您会看到两个容器正在运行。在以下输出中，我们可以看到名为`docker-stress1`和`docker-stress2`的容器。`docker-stress1`容器被设置为只有`512` CPU 份额，而其他容器正在运行。还可以观察到它只使用了第二个名为`docker-stress2`的容器的一半 CPU 资源：
 
-```
-NAME                CONTAINER           CPU %
-docker-stress1      5f617e5abeba        190.25%
-docker-stress2      83712c28866d        401.49%
-```
+[PRE24]
 
 1.  当第二个容器完成后，`docker-stress1`容器的 CPU 百分比将被允许使用运行系统上几乎所有六个可用的核心：
 
-```
-NAME                CONTAINER           CPU %
-stoic_keldysh       5f617e5abeba        598.66%
-```
+[PRE25]
 
 CPU 资源在确保应用程序以最佳状态运行方面起着重要作用。这个练习向您展示了在将容器部署到生产环境之前，监视和配置容器的处理能力有多么容易。接下来的部分将继续对容器的内存执行类似的监视和配置更改。
 
@@ -240,27 +178,19 @@ CPU 资源在确保应用程序以最佳状态运行方面起着重要作用。�
 
 再次强调，`docker stats`命令为我们提供了关于内存使用情况的大量信息。它将输出容器正在使用的内存百分比，以及当前内存使用量与其能够使用的总内存量的比较。与之前一样，我们可以通过`--format`选项限制所呈现的输出。在以下命令中，我们通过`.Name`、`.Container`、`.MemPerc`和`.MemUsage`属性，仅显示容器名称和 ID，以及内存百分比和内存使用量：
 
-```
-docker stats --format "table {{.Name}}\t{{.Container}}\t{{.MemPerc}}\t{{.MemUsage}}"
-```
+[PRE26]
 
 没有运行的容器，上述命令将显示以下输出：
 
-```
-NAME         CONTAINER          MEM %         MEM USAGE / LIMIT
-```
+[PRE27]
 
 如果我们想要限制或控制运行容器使用的内存量，我们有一些选项可供选择。其中一个可用的选项是`--memory`或`-m`选项，它将设置运行容器可以使用的内存量的限制。在以下示例中，我们使用了`--memory 512MB`的语法来限制可用于镜像的内存量为`512MB`：
 
-```
-docker run --memory 512MB <docker-image>
-```
+[PRE28]
 
 如果容器正在运行的主机系统也在使用交换空间作为可用内存的一部分，您还可以将内存从该容器分配为交换空间。这只需使用`--memory-swap`选项即可。这只能与`--memory`选项一起使用，正如我们在以下示例中所演示的。我们已将`--memory-swap`选项设置为`1024MB`，这是容器可用内存的总量，包括内存和交换内存。因此，在我们的示例中，交换空间中将有额外的`512MB`可用：
 
-```
-docker run --memory 512MB --memory-swap 1024MB <docker-image>
-```
+[PRE29]
 
 但需要记住，交换内存将被分配到磁盘，因此会比 RAM 更慢、响应更慢。
 
@@ -270,9 +200,7 @@ docker run --memory 512MB --memory-swap 1024MB <docker-image>
 
 另一个可用的选项，只有在需要确保运行容器始终可用时才能使用的是`--oom-kill-disable`选项。此选项会阻止内核在主机系统内存过低时杀死运行的容器。这应该只与`--memory`选项一起使用，以确保您设置了容器可用内存的限制。如果没有限制，`--oom-kill-disable`选项很容易使用主机系统上的所有内存：
 
-```
-docker run --memory 512MB --oom-kill-disable <docker-image>
-```
+[PRE30]
 
 尽管您的应用程序设计良好，但前面的配置为您提供了一些选项来控制运行容器使用的内存量。
 
@@ -284,78 +212,47 @@ docker run --memory 512MB --oom-kill-disable <docker-image>
 
 1.  运行`docker stats`命令以显示所需的百分比内存和内存使用值的相关信息：
 
-```
-docker stats --format "table {{.Name}}\t{{.Container}}\t{{.MemPerc}}\t{{.MemUsage}}"
-```
+[PRE31]
 
 这个命令将提供以下类似的输出：
 
-```
-NAME        CONTAINER       MEM %         MEM USAGE / LIMIT
-```
+[PRE32]
 
 1.  打开一个新的终端窗口再次运行`stress`命令。你的`docker-stress`镜像只有在使用`--cpu`选项时才会利用 CPU。使用以下命令中的`--vm`选项来启动你希望产生的工作进程数量以消耗内存。默认情况下，每个工作进程将消耗`256MB`：
 
-```
-docker run --rm -it -e var="--vm 2 --timeout 20" --name docker-stress docker-stress
-```
+[PRE33]
 
 当你返回监视正在运行的容器时，内存使用量只达到了限制的 20%左右。这可能因不同系统而异。由于只有两个工作进程在运行，每个消耗 256MB，你应该只会看到内存使用量达到大约 500MB：
 
-```
-NAME            CONTAINER      MEM %      MEM USAGE / LIMIT
-docker-stress   b8af08e4d79d   20.89%     415.4MiB / 1.943GiB
-```
+[PRE34]
 
 1.  压力应用程序还有`--vm-bytes`选项来控制每个被产生的工作进程将消耗的字节数。输入以下命令，将每个工作进程设置为`128MB`。当你监视它时，它应该显示较低的使用量：
 
-```
-docker run --rm -it -e var="--vm 2 --vm-bytes 128MB --timeout 20" --name stocker-stress docker-stress
-```
+[PRE35]
 
 正如你所看到的，压力应用程序在推动内存使用量时并没有取得很大的进展。如果你想要使用系统上可用的全部 8GB RAM，你可以使用`--vm 8 --vm-bytes` 1,024 MB：
 
-```
-NAME            CONTAINER      MEM %    MEM USAGE / LIMIT
-docker-stress   ad7630ed97b0   0.04%    904KiB / 1.943GiB
-```
+[PRE36]
 
 1.  使用`--memory`选项减少`docker-stress`镜像可用的内存。在以下命令中，你会看到我们将正在运行的容器的可用内存限制为`512MB`：
 
-```
-docker run --rm -it -e var="--vm 2 --timeout 20" --memory 512MB --name docker-stress docker-stress
-```
+[PRE37]
 
 1.  返回到运行`docker stats`的终端，你会看到内存使用率飙升到了接近 100%。这并不是一件坏事，因为它只是你正在运行的容器分配的一小部分内存。在这种情况下，它是 512MB，仅为之前的四分之一：
 
-```
-NAME            CONTAINER      MEM %     MEM USAGE / LIMIT
-docker-stress   bd84cf27e480   88.11%    451.1MiB / 512MiB
-```
+[PRE38]
 
 1.  同时运行多个容器，看看我们的`stats`命令如何响应。在`docker run`命令中使用`-d`选项将容器作为守护进程在主机系统的后台运行。现在，两个`docker-stress`容器都将使用六个工作进程，但我们的第一个镜像，我们将其命名为`docker-stress1`，被限制在`512MB`的内存上，而我们的第二个镜像，名为`docker-stress2`，只运行 20 秒，将拥有无限的内存：
 
-```
-docker run --rm -dit -e var="--vm 6 --timeout 60" --memory 512MB --name docker-stress1 docker-stress
-ca05e244d03009531a6a67045a5b1edbef09778737cab2aec7fa92eeaaa0c487
-docker run --rm -dit -e var="--vm 6 --timeout 20" --name docker-stress2 docker-stress
-6d9cbb966b776bb162a47f5e5ff3d88daee9b0304daa668fca5ff7ae1ee887ea
-```
+[PRE39]
 
 1.  返回到运行`docker stats`的终端。你会看到只有一个容器，即`docker-stress1`容器，被限制在 512MB，而`docker-stress2`镜像被允许在更多的内存上运行：
 
-```
-NAME             CONTAINER       MEM %    MEM USAGE / LIMIT
-docker-stress1   ca05e244d030    37.10%   190MiB / 512MiB
-docker-stress2   6d9cbb966b77    31.03%   617.3MiB / 1.943GiB
-```
+[PRE40]
 
 如果你等待一会儿，`docker-stress1`镜像将被留下来独自运行：
 
-```
-NAME             CONTAINER      MEM %    MEM USAGE / LIMIT
-docker-stress1   ca05e244d030   16.17%   82.77MiB / 512MiB
-```
+[PRE41]
 
 注意
 
@@ -371,33 +268,23 @@ docker-stress1   ca05e244d030   16.17%   82.77MiB / 512MiB
 
 `docker stats`命令还允许我们查看传输到和从我们的运行容器的数据。它有一个专用列，可以使用`docker stats`命令中的`BlockIO`值将其添加到我们的表中，该值代表对我们的主机磁盘驱动器或目录的读写操作：
 
-```
-docker stats --format "table {{.Name}}\t{{.Container}}\t{{.BlockIO}}"
-```
+[PRE42]
 
 如果我们的系统上没有任何运行的容器，上述命令应该为我们提供以下输出：
 
-```
-NAME                CONTAINER           BLOCK I/O
-```
+[PRE43]
 
 如果我们需要限制正在运行的容器可以移动到主机系统磁盘存储的数据量，我们可以从使用`--blkio-weight`选项开始，该选项与我们的`docker run`命令一起使用。此选项代表**块输入输出权重**，允许我们为容器设置一个相对权重，介于`10`和`1000`之间，并且相对于系统上运行的所有其他容器。所有容器将被设置为相同比例的带宽，即 500。如果为任何容器提供值 0，则此选项将被关闭。
 
-```
-docker run --blkio-weight <value> <docker-image>
-```
+[PRE44]
 
 我们可以使用的下一个选项是`--device-write-bps`，它将限制指定的设备可用的特定写入带宽，以字节每秒的值为单位。特定设备是相对于容器在主机系统上使用的设备。此选项还有一个“每秒输入/输出（IOPS）”选项，也可以使用。以下语法提供了该选项的基本用法，其中限制值设置为 MB 的数值：
 
-```
-docker run --device-write-bps <device>:<limit> <docker-image>
-```
+[PRE45]
 
 就像有一种方法可以限制写入进程到主机系统的磁盘一样，也有一种选项可以限制可用的读取吞吐量。同样，它还有一个“每秒输入/输出（IOPS）”选项，可以用来限制可以从正在运行的容器中读取的数据量。以下示例使用`--device-read-bps`选项作为`docker run`命令的一部分：
 
-```
-docker run --device-read-bps <device>:<limit> <docker-image>
-```
+[PRE46]
 
 如果您遵守容器最佳实践，磁盘输入或输出的过度消耗不应该是太大的问题。尽管如此，没有理由认为这不会给您造成任何问题。就像您已经处理过 CPU 和内存一样，您的磁盘输入和输出应该在将服务实施到生产环境之前在运行的容器上进行测试。
 
@@ -407,68 +294,39 @@ docker run --device-read-bps <device>:<limit> <docker-image>
 
 1.  打开一个新的终端窗口并运行以下命令：
 
-```
-docker stats --format "table {{.Name}}\t{{.Container}}\t{{.BlockIO}}" 
-```
+[PRE47]
 
 `docker stats`命令与`BlockIO`选项帮助我们监视从我们的容器到主机系统磁盘的输入和输出级别。
 
 1.  启动容器以从 bash 命令行访问它。在运行的`docker-stress`镜像上直接执行一些测试。stress 应用程序确实为您提供了一些选项，以操纵容器和主机系统上的磁盘利用率，但它仅限于磁盘写入：
 
-```
-docker run -it --rm --name docker-stress docker-stress /bin/bash
-```
+[PRE48]
 
 1.  与 CPU 和内存使用情况不同，块输入和输出显示容器使用的总量，因此它不会随着运行容器执行更多更改而动态变化。回到运行`docker stats`的终端。您应该看到输入和输出都为`0B`：
 
-```
-NAME                CONTAINER           BLOCK I/O
-docker-stress       0b52a034f814        0B / 0B
-```
+[PRE49]
 
 1.  在这种情况下，您将使用 bash shell，因为它可以访问`time`命令以查看每个进程需要多长时间。使用`dd`命令，这是一个用于复制文件系统和备份的 Unix 命令。在以下选项中，使用`if`（输入文件）选项创建我们的`/dev/zero`目录的副本，并使用`of`（输出文件）选项将其输出到`disk.out`文件。`bs`选项是块大小或应该一次读取的数据量，`count`是要读取的总块数。最后，将`oflag`值设置为`direct`，这意味着复制将避免缓冲区缓存，因此您将看到磁盘读取和写入的真实值：
 
-```
-time dd if=/dev/zero of=disk.out bs=1M count=10 oflag=direct
-10+0 records in
-10+0 records out
-10485760 bytes (10 MB, 10 MiB) copied, 0.0087094 s, 1.2 GB/s
-real    0m0.010s
-user    0m0.000s
-sys     0m0.007s
-```
+[PRE50]
 
 1.  回到运行`docker stats`命令的终端。您将看到超过 10MB 的数据发送到主机系统的磁盘。与 CPU 和内存不同，传输完成后，您不会看到此数据值下降：
 
-```
-NAME                CONTAINER           BLOCK I/O
-docker-stress       0b52a034f814        0B / 10.5MB
-```
+[PRE51]
 
 您还会注意到*步骤 4*中的命令几乎立即完成，`time`命令显示实际只需`0.01s`即可完成。您将看到如果限制可以写入磁盘的数据量会发生什么，但首先退出运行的容器，以便它不再存在于我们的系统中。
 
 1.  要再次启动我们的`docker-stress`容器，请将`--device-write-bps`选项设置为每秒`1MB`在`/dev/sda`设备驱动器上：
 
-```
-docker run -it --rm --device-write-bps /dev/sda:1mb --name docker-stress docker-stress /bin/bash
-```
+[PRE52]
 
 1.  再次运行`dd`命令，之前加上`time`命令，以测试需要多长时间。您会看到该命令花费的时间比*步骤 4*中的时间长得多。`dd`命令再次设置为复制`1MB`块，`10`次：
 
-```
-time dd if=/dev/zero of=test.out bs=1M count=10 oflag=direct
-```
+[PRE53]
 
 因为容器限制为每秒只能写入 1MB，所以该命令需要 10 秒，如下面的输出所示：
 
-```
-10+0 records in
-10+0 records out
-10485760 bytes (10 MB, 10 MiB) copied, 10.0043 s, 1.0 MB/s
-real    0m10.006s
-user    0m0.000s
-sys     0m0.004s
-```
+[PRE54]
 
 我们已经能够很容易地看到我们的运行容器如何影响底层主机系统，特别是在使用磁盘读写时。我们还能够看到我们如何轻松地限制可以写入设备的数据量，以便在运行容器之间减少争用。在下一节中，我们将快速回答一个问题，即如果您正在使用`docker-compose`，您需要做什么，并且限制容器使用的资源数量。
 
@@ -480,20 +338,7 @@ sys     0m0.004s
 
 以下代码块中的示例`compose`文件部署了我们在本章中一直在使用的`docker-stress`镜像。如果我们看*第 8 行*，我们可以看到`deploy`语句，后面是`resources`语句。这是我们可以为我们的容器设置限制的地方。就像我们在前面的部分中所做的那样，我们在*第 11 行*上将`cpus`设置为`2`，在*第 12 行*上将`memory`设置为`256MB`。 
 
-```
-1 version: '3'
-2 services:
-3   app:
-4     container_name: docker-stress
-5     build: .
-6     environment:
-7       var: "--cpu 2 --vm 6 --timeout 20"
-8     deploy:
-9       resources:
-10         limits:
-11           cpus: '2'
-12           memory: 256M
-```
+[PRE55]
 
 尽管我们只是简单地涉及了这个主题，但前面涵盖资源使用的部分应该指导您如何在`docker-compose.yml`文件中分配资源。这就是我们关于 Docker 容器资源使用的部分的结束。从这里开始，我们将继续研究创建我们的`Dockerfiles`的最佳实践，以及如何开始使用不同的应用程序来确保我们遵守这些最佳实践。
 
@@ -525,9 +370,7 @@ sys     0m0.004s
 
 如果您已经使用 Docker 一段时间，可能已经遇到了`MAINTAINER`指令，您可以在其中指定生成图像的作者。现在这已经被弃用，但您仍然可以使用`LABEL`指令来提供这些细节，就像我们在以下语法中所做的那样：
 
-```
-LABEL maintainer="myemailaddress@emaildomain.com"
-```
+[PRE56]
 
 ## 安装应用程序和语言
 
@@ -573,9 +416,7 @@ LABEL maintainer="myemailaddress@emaildomain.com"
 
 配置图像的一种方法，就像我们在`docker-stress`图像中看到的那样，是使用在运行图像时在命令行上设置的环境变量。如果未提供变量，则入口点或命令应包含默认值。这意味着即使未提供额外的变量，容器仍将启动和运行：
 
-```
-docker run -e var="<variable_name>" <image_name>
-```
+[PRE57]
 
 通过这样做，我们使我们的配置更加动态，但是当您有一个更大或更复杂的配置时，这可能会限制您的配置。环境变量可以很容易地从您的`docker run`命令转移到`docker-compose`，然后在 Swarm 或 Kubernetes 中使用。
 
@@ -583,25 +424,15 @@ docker run -e var="<variable_name>" <image_name>
 
 如果我们想要在本章中使用的`docker-stress`镜像中实现这一点，可以修改为使用配置文件来挂载我们想要运行的值。在以下示例中，我们修改了`Dockerfile`以设置*第 3 行*运行一个脚本，该脚本将代替我们运行`stress`命令：
 
-```
-1 FROM ubuntu
-2 RUN apt-get update && apt-get install stress
-3 CMD ["sh","/tmp/stress_test.sh"]
-```
+[PRE58]
 
 这意味着我们可以构建 Docker 镜像，并使其随时准备好供我们使用。我们只需要一个脚本，我们会挂载在`/tmp`目录中运行。我们可以使用以下示例：
 
-```
-1 #!/bin/bash
-2 
-3 /usr/bin/stress --cpu 8 --timeout 20 --vm 6 --timeout 60
-```
+[PRE59]
 
 这说明了将我们的值从环境变量移动到文件的想法。然后，我们将执行以下操作来运行容器和 stress 应用程序，知道如果我们想要更改`stress`命令使用的变量，我们只需要对我们挂载的文件进行微小的更改：
 
-```
-docker run --rm -it -v ${PWD}/stress_test.sh:/tmp/stress_test.sh docker-stress
-```
+[PRE60]
 
 注意
 
@@ -631,27 +462,19 @@ docker run --rm -it -v ${PWD}/stress_test.sh:/tmp/stress_test.sh docker-stress
 
 要在您的`Dockerfiles`上运行`hadolint`，您需要在您的系统上有`hadolint` Docker 镜像。正如您现在所知，这只是运行`docker pull`命令并使用所需镜像的名称和存储库的问题。在这种情况下，存储库和镜像都称为`hadolint`：
 
-```
-docker pull hadolint/hadolint
-```
+[PRE61]
 
 然后，您可以简单地运行`hadolint`镜像，并使用小于(`<`)符号将您的`Dockerfile`指向它，就像我们在以下示例中所做的那样：
 
-```
-docker run hadolint/hadolint < Dockerfile
-```
+[PRE62]
 
 如果您足够幸运，没有任何问题与您的`Dockerfile`，您不应该看到前面命令的任何输出。如果有需要忽略特定警告的情况，您可以使用`--ignore`选项，后跟触发警告的特定规则 ID：
 
-```
-docker run hadolint/hadolint hadolint --ignore <hadolint_rule_id> - < Dockerfile
-```
+[PRE63]
 
 如果您需要忽略一些警告，尝试在命令行中实现可能会有点复杂，因此`hadolint`还有设置配置文件的选项。`hadolint`配置文件仅限于忽略警告并提供受信任存储库的列表。您还可以使用 YAML 格式设置包含您忽略警告列表的配置文件。然后，`hadolint`将需要在运行的镜像上挂载此文件，以便应用程序使用它，因为它将在应用程序的主目录中查找`.hadolint.yml`配置文件位置：
 
-```
-docker run --rm -i -v ${PWD}/.hadolint.yml:/.hadolint.yaml hadolint/hadolint < Dockerfile
-```
+[PRE64]
 
 `hadolint`是用于清理您的`Dockerfiles`的更好的应用程序之一，并且可以轻松地作为构建和部署流水线的一部分进行自动化。作为替代方案，我们还将看一下名为`FROM:latest`的在线应用程序。这个应用程序是一个基于 Web 的服务，不提供与`hadolint`相同的功能，但允许您轻松地将您的`Dockerfile`代码复制粘贴到在线编辑器中，并获得有关`Dockerfile`是否符合最佳实践的反馈。
 
@@ -661,32 +484,15 @@ docker run --rm -i -v ${PWD}/.hadolint.yml:/.hadolint.yaml hadolint/hadolint < D
 
 1.  使用以下`docker pull`命令从`hadolint`存储库中拉取镜像：
 
-```
-docker pull hadolint/hadolint
-```
+[PRE65]
 
 1.  您已经准备好一个`Dockerfile`，其中包含您在本章早些时候用来测试和管理资源的`docker-stress`镜像。运行`hadolint`镜像以对此`Dockerfile`进行检查，或者对任何其他`Dockerfile`进行检查，并使用小于（`<`）符号发送到`Dockerfile`，如以下命令所示：
 
-```
-docker run --rm -i hadolint/hadolint < Dockerfile
-```
+[PRE66]
 
 从以下输出中可以看出，即使我们的`docker-stress`镜像相对较小，`hadolint`也提供了许多不同的方式，可以改善性能并帮助我们的镜像遵守最佳实践：
 
-```
-/dev/stdin:1 DL3006 Always tag the version of an image explicitly
-/dev/stdin:2 DL3008 Pin versions in apt get install. Instead of 
-'apt-get install <package>' use 'apt-get install 
-<package>=<version>'
-/dev/stdin:2 DL3009 Delete the apt-get lists after installing 
-something
-/dev/stdin:2 DL3015 Avoid additional packages by specifying 
-'--no-install-recommends'
-/dev/stdin:2 DL3014 Use the '-y' switch to avoid manual input 
-'apt-get -y install <package>'
-/dev/stdin:3 DL3025 Use arguments JSON notation for CMD 
-and ENTRYPOINT arguments
-```
+[PRE67]
 
 注意
 
@@ -694,54 +500,27 @@ and ENTRYPOINT arguments
 
 1.  `hadolint`还为您提供了使用`--ignore`选项来抑制不同检查的选项。在以下命令中，我们选择忽略`DL3008`警告，该警告建议您将安装的应用程序固定到特定版本号。执行`docker run`命令以抑制`DL3008`警告。请注意，在指定运行的镜像名称之后，您需要提供完整的`hadolint`命令，以及在提供`Dockerfile`之前提供额外的破折号（`-`）：
 
-```
-docker run --rm -i hadolint/hadolint hadolint --ignore DL3008 - < Dockerfile
-```
+[PRE68]
 
 您应该获得以下类似的输出：
 
-```
-/dev/stdin:1 DL3006 Always tag the version of an image explicitly
-/dev/stdin:2 DL3009 Delete the apt-get lists after installing 
-something
-/dev/stdin:2 DL3015 Avoid additional packages by specifying 
-'--no-install-recommends'
-/dev/stdin:2 DL3014 Use the '-y' switch to avoid manual input 
-'apt-get -y install <package>'
-/dev/stdin:3 DL3025 Use arguments JSON notation for CMD and 
-ENTRYPOINT arguments
-```
+[PRE69]
 
 1.  `hadolint`还允许您创建一个配置文件，以添加要忽略的任何警告，并在命令行上指定它们。使用`touch`命令创建一个名为`.hadolint.yml`的文件：
 
-```
-touch .hadolint.yml
-```
+[PRE70]
 
 1.  使用文本编辑器打开配置文件，并在`ignored`字段下输入您希望忽略的任何警告。如您所见，您还可以添加一个`trustedRegistries`字段，在其中列出您将从中拉取镜像的所有注册表。请注意，如果您的镜像不来自配置文件中列出的注册表之一，`hadolint`将提供额外的警告：
 
-```
-ignored:
-  - DL3006
-  - DL3008
-  - DL3009
-  - DL3015
-  - DL3014
-trustedRegistries:
-  - docker.io
-```
+[PRE71]
 
 1.  `hadolint`将在用户的主目录中查找您的配置文件。由于您正在作为 Docker 镜像运行`hadolint`，因此在执行`docker run`命令时，使用`-v`选项将文件从当前位置挂载到运行镜像的主目录上：
 
-```
-docker run --rm -i -v ${PWD}/.hadolint.yml:/.hadolint.yaml hadolint/hadolint < Dockerfile
-```
+[PRE72]
 
 该命令将输出如下：
 
-```
-/dev/stdin:3 DL3025 Use arguments JSON notation for CMD and ENTRYPOINT arguments
-```
+[PRE73]
 
 注意
 
@@ -749,24 +528,11 @@ docker run --rm -i -v ${PWD}/.hadolint.yml:/.hadolint.yaml hadolint/hadolint < D
 
 1.  最后，`hadolint`还允许您选择以 JSON 格式输出检查结果。再次，我们需要在命令行中添加一些额外的值。在命令行中，在将您的`Dockerfile`添加和解析到`hadolint`之前，添加额外的命令行选项`hadolint -f json`。在以下命令中，您还需要安装`jq`软件包：
 
-```
-docker run --rm -i -v ${PWD}/.hadolint.yml:/.hadolint.yaml hadolint/hadolint hadolint -f json - < Dockerfile | jq
-```
+[PRE74]
 
 您应该得到以下输出：
 
-```
-[
-  {
-    "line": 3,
-    "code": "DL3025",
-    "message": "Use arguments JSON notation for CMD and ENTRYPOINT arguments",
-    "column": 1,
-    "file": "/dev/stdin",
-    "level": "warning"
-  }
-]
-```
+[PRE75]
 
 注意
 
@@ -776,9 +542,7 @@ docker run --rm -i -v ${PWD}/.hadolint.yml:/.hadolint.yaml hadolint/hadolint had
 
 1.  要使用`FROM:latest`，打开您喜欢的网络浏览器，输入以下 URL：
 
-```
-https://www.fromlatest.io
-```
+[PRE76]
 
 当网页加载时，您应该看到类似以下截图的页面。在网页的左侧，您应该看到输入了一个示例`Dockerfile`，在网页的右侧，您应该看到一个潜在问题或优化`Dockerfile`的方法列表。右侧列出的每个项目都有一个下拉菜单，以向用户提供更多详细信息：
 
@@ -788,11 +552,7 @@ https://www.fromlatest.io
 
 1.  在这个练习的前一部分中，我们将使用`docker-stress`镜像的`Dockerfile`。要将其与`FROM:latest`一起使用，请将以下代码行复制到网页左侧，覆盖网站提供的示例`Dockerfile`：
 
-```
-FROM ubuntu
-RUN apt-get update && apt-get install stress
-CMD stress $var
-```
+[PRE77]
 
 一旦您将`Dockerfile`代码发布到网页上，页面将开始分析命令。正如您从以下截图中所看到的，它将提供有关如何解决潜在问题并优化`Dockerfile`以使镜像构建更快的详细信息：
 
@@ -810,89 +570,31 @@ Docker 已经有一个工具来验证您的`docker-compose.yml`文件，但是�
 
 1.  要开始使用`dcvalidator`，请克隆该项目的 GitHub 存储库。如果您还没有这样做，您需要运行以下命令来克隆存储库：
 
-```
-git clone https://github.com/serviceprototypinglab/dcvalidator.git
-```
+[PRE78]
 
 1.  命令行应用程序只需要 Python 3 来运行，但是您需要确保首先安装了所有的依赖项，因此请切换到您刚刚克隆的存储库的`dcvalidator`目录：
 
-```
-cd dcvalidator
-```
+[PRE79]
 
 1.  安装`dcvalidator`的依赖项很容易，您的系统很可能已经安装了大部分依赖项。要安装依赖项，请在`dcvalidator`目录中使用`pip3 install`命令，并使用`-r`选项来使用服务器目录中的`requirments.txt`文件：
 
-```
-pip3 install -r server/requirments.txt
-```
+[PRE80]
 
 1.  从头开始创建一个`docker-compose`文件，该文件将使用本章中已经创建的一些镜像。使用`touch`命令创建一个`docker-compose.yml`文件：
 
-```
-touch docker-compose.yml
-```
+[PRE81]
 
 1.  打开您喜欢的文本编辑器来编辑`docker-compose`文件。确保您还包括我们故意添加到文件中的错误，以确保`dcvalidator`能够发现这些错误，并且我们将使用本章前面创建的`docker-stress`镜像。确保您逐字复制此文件，因为我们正在努力确保在我们的`docker-compose.yml`文件中强制出现一些错误：
 
-```
-version: '3'
-services:
-  app:
-    container_name: docker-stress-20
-    build: .
-    environment:
-      var: "--cpu 2 --vm 6 --timeout 20"
-    ports:
-      - 80:8080
-      - 80:8080
-    dns: 8.8.8
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-  app2:
-    container_name: docker-stress-30
-    build: .
-    environment:
-      var: "--cpu 2 --vm 6 --timeout 30"
-    dxeploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-```
+[PRE82]
 
 1.  使用`-f`选项运行`validator-cli.py`脚本来解析我们想要验证的特定文件——在以下命令行中，即`docker-compose.yml`文件。然后，`-fi`选项允许您指定可用于验证我们的`compose`文件的过滤器。在以下代码中，我们正在使用`validator-cli`目前可用的所有过滤器：
 
-```
-python3 validator-cli.py -f docker-compose.yml -fi 'Duplicate Keys,Duplicate ports,Typing mistakes,DNS,Duplicate expose'
-```
+[PRE83]
 
 您应该获得以下类似的输出：
 
-```
-Warning: no kafka support
-loading compose files....
-checking consistency...
-syntax is ok
-= type: docker-compose
-- service:app
-Duplicate ports in service app port 80
-=================== ERROR ===================
-Under service: app
-The DNS is not appropriate!
-=============================================
-- service:app2
-=================== ERROR ===================
-I can not find 'dxeploy' tag under 'app2' service. 
-Maybe you can use: 
-deploy
-=============================================
-services: 2
-labels:
-time: 0.0s
-```
+[PRE84]
 
 正如预期的那样，`validator-cli.py`已经能够找到相当多的错误。它显示您在应用服务中分配了重复的端口，并且您设置的 DNS 也是不正确的。`App2`显示了一些拼写错误，并建议我们可以使用不同的值。
 
@@ -902,29 +604,11 @@ time: 0.0s
 
 1.  您会记得，我们使用了一个`docker-compose`文件来安装 Anchore 镜像扫描程序。当您有`compose`文件的 URL 位置时，使用`-u`选项传递文件的 URL 以进行验证。在这种情况下，它位于 Packt GitHub 账户上：
 
-```
-python3 validator-cli.py -u https://github.com/PacktWorkshops/The-Docker-Workshop/blob/master/Chapter11/Exercise11.03/docker-compose.yaml -fi 'Duplicate Keys,Duplicate ports,Typing mistakes,DNS,Duplicate expose'
-```
+[PRE85]
 
 如您在以下代码块中所见，`dcvalidator`没有在`docker-compose.yml`文件中发现任何错误：
 
-```
-Warning: no kafka support
-discard cache...
-loading compose files....
-checking consistency...
-syntax is ok
-= type: docker-compose=
-- service:engine-api
-- service:engine-catalog
-- service:engine-simpleq
-- service:engine-policy-engine
-- service:engine-analyzer
-- service:anchore-db
-services: 6
-labels:
-time: 0.6s
-```
+[PRE86]
 
 如您所见，Docker Compose 验证器相当基本，但它可以发现我们可能错过的`docker-compose.yml`文件中的一些错误。特别是在我们有一个较大的文件时，如果我们在尝试部署环境之前可能错过了一些较小的错误，这可能是可能的。这已经将我们带到了本章的这一部分的结束，我们一直在使用一些自动化流程和应用程序来验证和清理我们的`Dockerfiles`和`docker-compose.yml`文件。
 

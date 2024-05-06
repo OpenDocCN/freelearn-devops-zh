@@ -192,17 +192,11 @@ Zun 中有定期任务，在特定时间间隔内同步 Zun 数据库中的容�
 
 如有需要，创建 DevStack 的根目录：
 
-```
-$ sudo mkdir -p /opt/stack
-$ sudo chown $USER /opt/stack  
-```
+[PRE0]
 
 要克隆 DevStack 存储库，请执行以下操作：
 
-```
-$ git clone https://git.openstack.org/openstack-dev/devstack 
-/opt/stack/devstack  
-```
+[PRE1]
 
 现在，创建一个最小的`local.conf`来运行 DevStack 设置。我们将启用以下插件来创建 Zun 设置：
 
@@ -210,80 +204,27 @@ $ git clone https://git.openstack.org/openstack-dev/devstack
 
 +   `kuryr-libnetwork`：这是使用 Neutron 提供网络服务的 Docker libnetwork 驱动程序
 
-```
-$ cat > /opt/stack/devstack/local.conf << END
-[[local|localrc]]
-HOST_IP=$(ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/')
-DATABASE_PASSWORD=password
-RABBIT_PASSWORD=password
-SERVICE_TOKEN=password
-SERVICE_PASSWORD=password
-ADMIN_PASSWORD=password
-enable_plugin devstack-plugin-container https://git.openstack.org/openstack/devstack-plugin-container
-enable_plugin zun https://git.openstack.org/openstack/zun
-enable_plugin kuryr-libnetwork https://git.openstack.org/openstack/kuryr-libnetwork
-
-# Optional:  uncomment to enable the Zun UI plugin in Horizon
-# enable_plugin zun-ui https://git.openstack.org/openstack/zun-ui
-END
-```
+[PRE2]
 
 现在运行 DevStack：
 
-```
-$ cd /opt/stack/devstack
-$ ./stack.sh  
-```
+[PRE3]
 
 创建一个新的 shell 并源自 DevStack `openrc`脚本以使用 Zun CLI：
 
-```
-$ source /opt/stack/devstack/openrc admin admin
-
-```
+[PRE4]
 
 现在，让我们通过查看服务列表来验证 Zun 的安装：
 
-```
-$ zun service-list
-+----+--------+-------------+-------+----------+-----------------+---------------------------+--------------------------+
-| Id | Host   | Binary      | State | Disabled | Disabled Reason | Created At                | Updated At                |
-+----+--------+-------------+-------+----------+-----------------+---------------------------+---------------------------+
-| 1  | galvin | zun-compute | up    | False    | None            | 2017-10-10 11:22:50+00:00 | 2017-10-10 11:37:03+00:00 |
-+----+--------+-------------+-------+----------+-----------------+---------------------------+---------------------------+  
-```
+[PRE5]
 
 让我们看一下主机列表，其中还显示了在 Zun 中注册供使用的计算节点：
 
-```
-$ zun host-list
-+--------------------------------------+----------+-----------+------+--------------------+--------+
-| uuid                                 | hostname | mem_total | cpus | os                 | labels |
-+--------------------------------------+----------+-----------+------+--------------------+--------+
-| 08fb3f81-d88e-46a1-93b9-4a2c18ed1f83 | galvin   | 3949      | 1    | Ubuntu 16.04.3 LTS | {}     |
-+--------------------------------------+----------+-----------+------+--------------------+--------+  
-```
+[PRE6]
 
 我们可以看到我们有一个计算节点，即主机本身。现在，让我们也看看主机中可用的资源：
 
-```
-$ zun host-show galvin
-+------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Property         | Value                                                                                                                                                                                               |
-+------------------+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| hostname         | galvin                                                                                                                                                                                              |
-| uuid             | 08fb3f81-d88e-46a1-93b9-4a2c18ed1f83                                                                                                                                                                |
-| links            | ["{u'href': u'http://10.0.2.15/v1/hosts/08fb3f81-d88e-46a1-93b9-4a2c18ed1f83', u'rel': u'self'}", "{u'href': u'http://10.0.2.15/hosts/08fb3f81-d88e-46a1-93b9-4a2c18ed1f83', u'rel': u'bookmark'}"] |
-| kernel_version   | 4.10.0-28-generic                                                                                                                                                                                   |
-| labels           | {}                                                                                                                                                                                                  |
-| cpus             | 1                                                                                                                                                                                                   |
-| mem_total        | 3949                                                                                                                                                                                                |
-| total_containers | 0                                                                                                                                                                                                  |
-| os_type          | linux                                                                                                                                                                                               |
-| os               | Ubuntu 16.04.3 LTS                                                                                                                                                                                  |
-| architecture     | x86_64                                                                                                                                                                                              |
-+------------ ------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+  
-```
+[PRE7]
 
 我们可以看到`zun-compute`服务正在运行。当前设置只安装了一个计算服务；您也可以安装多节点 Zun 设置。请参考[`github.com/openstack/zun/blob/master/doc/source/contributor/quickstart.rst`](https://github.com/openstack/zun/blob/master/doc/source/contributor/quickstart.rst) 获取更多详细信息。
 
@@ -293,177 +234,39 @@ $ zun host-show galvin
 
 我们现在将在 Zun 中创建一个容器。但在此之前，让我们检查一下 Docker 的状态：
 
-```
-$ sudo docker ps -a
-CONTAINER ID        IMAGE                                                 COMMAND                  CREATED              STATUS                          PORTS               NAMES  
-```
+[PRE8]
 
 我们可以看到现在没有容器存在。现在，让我们创建容器：
 
-```
-$ zun create --name test cirros ping -c 4 8.8.8.8
-+-------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Property          | Value                                                                                                                                                                                                         |
-+-------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| addresses         |                                                                                                                                                                                                               |
-| links             | ["{u'href': u'http://10.0.2.15/v1/containers/f78e778a-ecbd-42d3-bc77-ac50334c8e57', u'rel': u'self'}", "{u'href': u'http://10.0.2.15/containers/f78e778a-ecbd-42d3-bc77-ac50334c8e57', u'rel': u'bookmark'}"] |
-| image             | cirros                                                                                                                                                                                                        |
-| labels            | {}                                                                                                                                                                                                            |
-| networks          |                                                                                                                                                                                                               |
-| security_groups   | None                                                                                                                                                                                                          |
-| image_pull_policy | None                                                                                                                                                                                                          |
-| uuid              | f78e778a-ecbd-42d3-bc77-ac50334c8e57                                                                                                                                                                          |
-| hostname          | None                                                                                                                                                                                                          |
-| environment       | {}                                                                                                                                                                                                            |
-| memory            | None                                                                                                                                                                                                          |
-| status            | Creating                                                                                                                                                                                                      |
-| workdir           | None                                                                                                                                                                                                          |
-| auto_remove       | False                                                                                                                                                                                                         |
-| status_detail     | None                                                                                                                                                                                                          |
-| host              | None                                                                                                                                                                                                          |
-| image_driver      | None                                                                                                                                                                                                          |
-| task_state        | None                                                                                                                                                                                                          |
-| status_reason     | None                                                                                                                                                                                                          |
-| name              | test                                                                                                                                                                                                          |
-| restart_policy    | None                                                                                                                                                                                                          |
-| ports             | None                                                                                                                                                                                                          |
-| command           | "ping" "-c" "4" "8.8.8.8"                                                                                                                                                                                     |
-| runtime           | None                                                                                                                                                                                                          |
-| cpu               | None                                                                                                                                                                                                          |
-| interactive       | False                                                                                                                                                                                                         |
-+-------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+  
-```
+[PRE9]
 
 现在，让我们查看 Zun 列表以检查容器状态：
 
-```
-stack@galvin:~/devstack$ zun list
-+--------------------------------------+------+--------+----------+---------------+-----------+-------+
-| uuid                                 | name | image  | status   | task_state    | addresses | ports |
-+--------------------------------------+------+--------+----------+---------------+-----------+-------+
-| f78e778a-ecbd-42d3-bc77-ac50334c8e57 | test | cirros | Creating | image_pulling |           | []    |
-+--------------------------------------+------+--------+----------+---------------+-----------+-------+
-```
+[PRE10]
 
 我们可以看到容器处于创建状态。让我们也在 Docker 中检查一下容器：
 
-```
-$ sudo docker ps -a
-CONTAINER ID        IMAGE                                                    COMMAND                  CREATED             STATUS                       PORTS               NAMES
-cbd2c94d6273        cirros:latest                                            "ping -c 4 8.8.8.8"      38 seconds ago      Created                                          zun-f78e778a-ecbd-42d3-bc77-ac50334c8e57  
-```
+[PRE11]
 
 现在，让我们启动容器并查看日志：
 
-```
-$ zun start test
-Request to start container test has been accepted.
-
-$ zun logs test
-PING 8.8.8.8 (8.8.8.8): 56 data bytes
-64 bytes from 8.8.8.8: seq=0 ttl=40 time=25.513 ms
-64 bytes from 8.8.8.8: seq=1 ttl=40 time=25.348 ms
-64 bytes from 8.8.8.8: seq=2 ttl=40 time=25.226 ms
-64 bytes from 8.8.8.8: seq=3 ttl=40 time=25.275 ms
-
---- 8.8.8.8 ping statistics ---
-4 packets transmitted, 4 packets received, 0% packet loss
-round-trip min/avg/max = 25.226/25.340/25.513 ms  
-```
+[PRE12]
 
 让我们对容器进行一些高级操作。我们现在将使用 Zun 创建一个交互式容器：
 
-```
-$ zun run -i --name new ubuntu /bin/bash
-+-------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Property          | Value                                                                                                                                                                                                         |
-+-------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| addresses         |                                                                                                                                                                                                               |
-| links             | ["{u'href': u'http://10.0.2.15/v1/containers/dd6764ee-7e86-4cf8-bae8-b27d6d1b3225', u'rel': u'self'}", "{u'href': u'http://10.0.2.15/containers/dd6764ee-7e86-4cf8-bae8-b27d6d1b3225', u'rel': u'bookmark'}"] |
-| image             | ubuntu                                                                                                                                                                                                        |
-| labels            | {}                                                                                                                                                                                                            |
-| networks          |                                                                                                                                                                                                               |
-| security_groups   | None                                                                                                                                                                                                          |
-| image_pull_policy | None                                                                                                                                                                                                          |
-| uuid              | dd6764ee-7e86-4cf8-bae8-b27d6d1b3225                                                                                                                                                                          |
-| hostname          | None                                                                                                                                                                                                          |
-| environment       | {}                                                                                                                                                                                                            |
-| memory            | None                                                                                                                                                                                                          |
-| status            | Creating                                                                                                                                                                                                      |
-| workdir           | None                                                                                                                                                                                                          |
-| auto_remove       | False                                                                                                                                                                                                         |
-| status_detail     | None                                                                                                                                                                                                          |
-| host              | None                                                                                                                                                                                                          |
-| image_driver      | None                                                                                                                                                                                                          |
-| task_state        | None                                                                                                                                                                                                          |
-| status_reason     | None                                                                                                                                                                                                          |
-| name              | new                                                                                                                                                                                                           |
-| restart_policy    | None                                                                                                                                                                                                          |
-| ports             | None                                                                                                                                                                                                          |
-| command           | "/bin/bash"                                                                                                                                                                                                   |
-| runtime           | None                                                                                                                                                                                                          |
-| cpu               | None                                                                                                                                                                                                          |
-| interactive       | True                                                                                                                                                                                                          |
-+-------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-Waiting for container start
-Waiting for container start
-Waiting for container start
-Waiting for container start
-Waiting for container start
-Waiting for container start
-Waiting for container start
-Waiting for container start
-Waiting for container start
-Waiting for container start
-connected to dd6764ee-7e86-4cf8-bae8-b27d6d1b3225, press Enter to continue
-type ~. to disconnect
-root@81142e581b10:/# 
-root@81142e581b10:/# ls
-bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
-root@81142e581b10:/# exit
-exit  
-```
+[PRE13]
 
 现在，让我们删除容器：
 
-```
-$ zun delete test
-Request to delete container test has been accepted.
-
-$ zun list
-+--------------------------------------+------+--------+---------+------------+--------------------------+-------+
-| uuid                                 | name | image  | status  | task_state | addresses                | ports |
-+--------------------------------------+------+--------+---------+------------+--------------------------+-------+
-| dd6764ee-7e86-4cf8-bae8-b27d6d1b3225 | new  | ubuntu | Stopped | None       | 172.24.4.11, 2001:db8::d | []    |
-+--------------------------------------+------+--------+---------+------------+--------------------------+-------+  
-```
+[PRE14]
 
 我们现在将查看一些命令，以了解在 Zun 中如何管理镜像。下载一个 Ubuntu 镜像：
 
-```
-$ zun pull ubuntu
-+----------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Property | Value                                                                                                                                                                                                 |
-+----------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| uuid     | 9b34875a-50e1-400c-a74b-028b253b35a4                                                                                                                                                                  |
-| links    | ["{u'href': u'http://10.0.2.15/v1/images/9b34875a-50e1-400c-a74b-028b253b35a4', u'rel': u'self'}", "{u'href': u'http://10.0.2.15/images/9b34875a-50e1-400c-a74b-028b253b35a4', u'rel': u'bookmark'}"] |
-| repo     | ubuntu                                                                                                                                                                                                |
-| image_id | None                                                                                                                                                                                                  |
-| tag      | latest                                                                                                                                                                                                |
-| size     | None                                                                                                                                                                                                  |
-+----------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+  
-```
+[PRE15]
 
 现在让我们看一下 Zun 中的镜像列表：
 
-```
-stack@galvin:~/devstack$ zun image-list
-+--------------------------------------+----------+--------+--------+------+
-| uuid                                 | image_id | repo   | tag    | size |
-+--------------------------------------+----------+--------+--------+------+
-| 9b34875a-50e1-400c-a74b-028b253b35a4 | None     | ubuntu | latest | None |
-+--------------------------------------+----------+--------+--------+------+  
-```
+[PRE16]
 
 # 总结
 

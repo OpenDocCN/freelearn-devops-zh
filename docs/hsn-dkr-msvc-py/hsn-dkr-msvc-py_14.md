@@ -22,40 +22,17 @@
 
 要安装集群，您需要构建每个单独的微服务：
 
-```py
-$ cd Chapter10/microservices/
-$ cd frontend
-$ docker-compose build
-...
-$ cd thoughts_backend
-$ docker-compose build
-...
-$ cd users_backend
-$ docker-compose build
-...
-```
+[PRE0]
 
 本章中的微服务与之前介绍的相同，但它们增加了额外的日志和指标配置。
 
 现在，我们需要创建示例命名空间，并使用`Chapter10/kubernetes`子目录中的`find`配置启动 Kubernetes 集群：
 
-```py
-$ cd Chapter10/kubernetes
-$ kubectl create namespace example
-$ kubectl apply --recursive -f .
-...
-```
+[PRE1]
 
 要能够访问不同的服务，您需要更新您的`/etc/hosts`文件，以便包含以下代码行：
 
-```py
-127.0.0.1 thoughts.example.local
-127.0.0.1 users.example.local
-127.0.0.1 frontend.example.local
-127.0.0.1 syslog.example.local
-127.0.0.1 prometheus.example.local
-127.0.0.1 grafana.example.local
-```
+[PRE2]
 
 有了这些，您将能够访问本章的日志和指标。
 
@@ -97,12 +74,7 @@ $ kubectl apply --recursive -f .
 
 在 Web 服务环境中，大多数日志将作为对 Web 请求的响应的一部分生成。这意味着请求将到达系统，被处理，并返回一个值。沿途将生成多个日志。请记住，在负载下的系统中，多个请求将同时发生，因此多个请求的日志也将同时生成。例如，注意第二个日志来自不同的 IP：
 
-```py
-Aug 15 00:15:15.100 10.1.0.90 INFO app: REQUEST GET /endpoint
-Aug 15 00:15:15.153 10.1.0.92 INFO api: REQUEST GET /api/endpoint
-Aug 15 00:15:15.175 10.1.0.90 INFO app: RESPONSE TIME 4 ms
-Aug 15 00:15:15.210 10.1.0.90 INFO app: RESPONSE STATUS 200
-```
+[PRE3]
 
 常见的请求 ID 可以添加到所有与单个请求相关的日志中。我们将在本章后面看到如何做到这一点。
 
@@ -176,36 +148,17 @@ Aug 15 00:15:15.210 10.1.0.90 INFO app: RESPONSE STATUS 200
 
 Dockerfile 安装了`rsyslog`并复制了其配置文件：
 
-```py
-FROM alpine:3.9
-
-RUN apk add --update rsyslog
-
-COPY rsyslog.conf /etc/rsyslog.d/rsyslog.conf
-```
+[PRE4]
 
 配置文件主要是在端口`5140`启动服务器，并将接收到的文件存储在`/var/log/syslog`中：
 
-```py
-# Start a UDP listen port at 5140
-module(load="imudp")
-input(type="imudp" port="5140")
-...
-# Store the received files in /var/log/syslog, and enable rotation
-$outchannel log_rotation,/var/log/syslog, 5000000,/bin/rm /var/log/syslog
-```
+[PRE5]
 
 通过日志轮换，我们设置了`/var/log/syslog`文件的大小限制，以防止其无限增长。
 
 我们可以使用通常的`docker-compose`命令构建容器：
 
-```py
-$ docker-compose build
-Building rsyslog
-...
-Successfully built 560bf048c48a
-Successfully tagged rsyslog:latest
-```
+[PRE6]
 
 这将创建一个 pod、一个服务和一个 Ingress 的组合，就像我们对其他微服务所做的那样，以收集日志并允许从浏览器进行外部访问。
 
@@ -221,11 +174,7 @@ Successfully tagged rsyslog:latest
 
 `log-volume`创建了一个空目录，该目录在两个容器之间共享：
 
-```py
-  volumes:
-  - emptyDir: {}
-    name: log-volume
-```
+[PRE7]
 
 这允许容器在存储信息的同时进行通信。`syslog`容器将向其中写入，而前端容器将从其中读取。
 
@@ -233,24 +182,7 @@ Successfully tagged rsyslog:latest
 
 `syslog`容器启动了一个`rsyslogd`进程：
 
-```py
-spec:
-  containers:
-  - name: syslog
-    command:
-      - rsyslogd
-      - -n
-      - -f
-      - /etc/rsyslog.d/rsyslog.conf
-    image: rsyslog:latest
-    imagePullPolicy: Never
-    ports:
-      - containerPort: 5140
-        protocol: UDP
-    volumeMounts:
-      - mountPath: /var/log
-        name: log-volume
-```
+[PRE8]
 
 `rsyslogd -n -f /etc/rsyslog.d/rsyslog.conf`命令使用我们之前描述的配置文件启动服务器。`-n`参数将进程保持在前台，从而保持容器运行。
 
@@ -260,23 +192,7 @@ spec:
 
 前端容器是从官方容器镜像启动的：
 
-```py
-  - name: frontrail
-    args:
-    - --ui-highlight
-    - /var/log/syslog
-    - -n
-    - "1000"
-    image: mthenw/frontail:4.6.0
-    imagePullPolicy: Always
-    ports:
-    - containerPort: 9001
-      protocol: TCP
-    resources: {}
-    volumeMounts:
-    - mountPath: /var/log
-      name: log-volume
-```
+[PRE9]
 
 我们使用`frontrail /var/log/syslog`命令启动它，指定端口`9001`（这是我们用来访问`frontrail`的端口），并挂载`/var/log`，就像我们用`syslog`容器一样，以共享日志文件。
 
@@ -288,37 +204,11 @@ YAML 文件位于 GitHub 上（[`github.com/PacktPublishing/Hands-On-Docker-for-
 
 服务非常简单；唯一的特殊之处在于它有两个端口 - 一个 TCP 端口和一个 UDP 端口 - 每个端口连接到不同的容器：
 
-```py
-spec:
-  ports:
-  - name: fronttail
-    port: 9001
-    protocol: TCP
-    targetPort: 9001
-  - name: syslog
-    port: 5140
-    protocol: UDP
-    targetPort: 5140
-```
+[PRE10]
 
 Ingress 只暴露了前端端口，这意味着我们可以通过浏览器访问它。请记住，DNS 需要添加到您的`/etc/host`文件中，就像本章开头所描述的那样：
 
-```py
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: syslog-ingress
-  namespace: example
-spec:
-  rules:
-  - host: syslog.example.local
-    http:
-      paths:
-      - backend:
-          serviceName: syslog
-          servicePort: 9001
-        path: /
-```
+[PRE11]
 
 在浏览器中输入`http://syslog.example.local`将允许您访问前端界面：
 
@@ -338,10 +228,7 @@ spec:
 
 打开`uwsgi.ini`配置文件（[`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter10/microservices/thoughts_backend/docker/app/uwsgi.ini`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter10/microservices/thoughts_backend/docker/app/uwsgi.ini)）。您将看到以下行：
 
-```py
-# Log to the logger container
-logger = rsyslog:syslog:5140,thoughts_backend
-```
+[PRE12]
 
 这将以`rsyslog`格式发送日志到端口`5140`的`syslog`服务。我们还添加了*facility*，这是日志来源的地方。这将为来自此服务的所有日志添加字符串，有助于排序和过滤。每个`uwsgi.ini`文件应该有自己的 facility 以帮助过滤。
 
@@ -353,15 +240,7 @@ uWSGI 自动记录很有趣，但我们还需要为自定义跟踪设置自己�
 
 Flask 自动为应用程序配置了一个记录器。我们需要以以下方式添加日志，如`api_namespace.py`文件中所示（[`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter10/microservices/thoughts_backend/ThoughtsBackend/thoughts_backend/api_namespace.py#L102`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter10/microservices/thoughts_backend/ThoughtsBackend/thoughts_backend/api_namespace.py#L102)）：
 
-```py
-from flask import current_app as app
-
-...
-if search_param:
-    param = f'%{search_param}%'
-    app.logger.info(f'Searching with params {param}')
-    query = (query.filter(ThoughtModel.text.ilike(param)))
-```
+[PRE13]
 
 `app.logger`可以调用`.debug`、`.info`、`.warning`或`.error`来生成日志。请注意，可以通过导入`current_app`来检索`app`。
 
@@ -371,30 +250,7 @@ if search_param:
 
 第一级别的日志记录通过默认的`dictConfig`变量。这个变量由 Flask 自动定义，并允许我们按照 Python 文档中定义的方式配置日志（[`docs.python.org/3.7/library/logging.config.html`](https://docs.python.org/3.7/library/logging.config.html)）。您可以在`app.py`文件中查看日志的定义：
 
-```py
-from logging.config import dictConfig
-
-dictConfig({
-    'version': 1,
-    'formatters': {
-        'default': {
-            'format': '[%(asctime)s] %(levelname)s in 
-                        %(module)s: %(message)s',
-        }
-    },
-    'handlers': {
-        'wsgi': {
-            'class': 'logging.StreamHandler',
-            'stream': 'ext://flask.logging.wsgi_errors_stream',
-            'formatter': 'default'
-        }
-    },
-    'root': {
-        'level': 'INFO',
-        'handlers': ['wsgi']
-    }
-})
-```
+[PRE14]
 
 `dictConfig`字典有三个主要级别：
 
@@ -432,39 +288,13 @@ Python 日志模块具有许多有趣的功能。查看 Python 文档以获取�
 
 1.  首先，我们将生成一个格式化程序，以便在生成日志时附加`request_id`，使其在生成日志时可用：
 
-```py
-class RequestFormatter(logging.Formatter):
-    ''' Inject the HTTP_X_REQUEST_ID to format logs '''
-
-    def format(self, record):
-        record.request_id = 'NA'
-
-        if has_request_context():
-            record.request_id = request.environ.get("HTTP_X_REQUEST_ID")
-
-        return super().format(record)
-```
+[PRE15]
 
 如您所见，`HTTP_X_REQUEST_ID`头在`request.environ`变量中可用。
 
 1.  稍后，在`create_app`中，我们将设置附加到`application`记录器的处理程序：
 
-```py
-# Enable RequestId
-application.config['REQUEST_ID_UNIQUE_VALUE_PREFIX'] = ''
-RequestID(application)
-
-if not script:
-    # For scripts, it should not connect to Syslog
-    handler = logging.handlers.SysLogHandler(('syslog', 5140))
-    req_format = ('[%(asctime)s] %(levelname)s [%(request_id)s] '
-                    %(module)s: %(message)s')
-    handler.setFormatter(RequestFormatter(req_format))
-    handler.setLevel(logging.INFO)
-    application.logger.addHandler(handler)
-    # Do not propagate to avoid log duplication
-    application.logger.propagate = False
-```
+[PRE16]
 
 只有在脚本外运行时才设置处理程序。`SysLogHandler`包含在 Python 中。之后，我们设置格式，其中包括`request_id`。格式化程序使用我们之前定义的`RequestFormatter`。
 
@@ -478,16 +308,7 @@ if not script:
 
 从`app.py`文件中，我们将定义`logging_before`函数：
 
-```py
-from flask import current_app, g
-
-def logging_before():
-    msg = 'REQUEST {REQUEST_METHOD} {REQUEST_URI}'.format(**request.environ)
-    current_app.logger.info(msg)
-
-    # Store the start time for the request
-    g.start_time = time()
-```
+[PRE17]
 
 这将创建一个带有单词`REQUEST`和每个请求的两个基本部分（方法和 URI）的日志，这些部分来自`request.environ`。然后，它们将添加到应用程序记录器的`INFO`日志中。
 
@@ -497,34 +318,13 @@ def logging_before():
 
 还有相应的`logging_after`函数。它在请求结束时收集时间并计算毫秒数的差异：
 
-```py
-def logging_after(response):
-    # Get total time in milliseconds
-    total_time = time() - g.start_time
-    time_in_ms = int(total_time * 1000)
-    msg = f'RESPONSE TIME {time_in_ms} ms'
-    current_app.logger.info(msg)
-
-    msg = f'RESPONSE STATUS {response.status_code.value}'
-    current_app.logger.info(msg)
-
-    # Store metrics
-    ...
-
-    return response
-```
+[PRE18]
 
 这将使我们能够检测到需要更长时间的请求，并将其存储在指标中，我们将在下一节中看到。
 
 然后，在`create_app`函数中启用了这些功能：
 
-```py
-def create_app(script=False):
-    ...
-    application = Flask(__name__)
-    application.before_request(logging_before)
-    application.after_request(logging_after)
-```
+[PRE19]
 
 每次生成请求时都会创建一组日志。
 
@@ -582,33 +382,7 @@ def create_app(script=False):
 
 如果我们运行 `Chapter10` 中可用的 Thoughts Backend 代码的测试，我们将看到由于此原因而出现错误。请注意，日志将显示在失败的测试中。
 
-```py
-$ docker-compose run test
-...
-___ ERROR at setup of test_get_non_existing_thought ___
--------- Captured log setup ---------
-INFO flask.app:app.py:46 REQUEST POST /api/me/thoughts/
-INFO flask.app:token_validation.py:66 Header successfully validated
-ERROR flask.app:app.py:1761 Exception on /api/me/thoughts/ [POST]
-Traceback (most recent call last):
- File "/opt/venv/lib/python3.6/site-packages/flask/app.py", line 1813, in full_dispatch_request
- rv = self.dispatch_request()
- File "/opt/venv/lib/python3.6/site-packages/flask/app.py", line 1799, in dispatch_request
- return self.view_functionsrule.endpoint
- File "/opt/venv/lib/python3.6/site-packages/flask_restplus/api.py", line 325, in wrapper
- resp = resource(*args, **kwargs)
- File "/opt/venv/lib/python3.6/site-packages/flask/views.py", line 88, in view
- return self.dispatch_request(*args, **kwargs)
- File "/opt/venv/lib/python3.6/site-packages/flask_restplus/resource.py", line 44, in dispatch_request
- resp = meth(*args, **kwargs)
- File "/opt/venv/lib/python3.6/site-packages/flask_restplus/marshalling.py", line 136, in wrapper
- resp = f(*args, **kwargs)
- File "/opt/code/thoughts_backend/api_namespace.py", line 80, in post
- raise Exception('Unexpected error!')
-Exception: Unexpected error!
-INFO flask.app:app.py:57 RESPONSE TIME 3 ms
-INFO flask.app:app.py:60 RESPONSE STATUS 500 
-```
+[PRE20]
 
 一旦在单元测试中重现了错误，修复它通常会很简单。添加一个单元测试来捕获触发错误的条件，然后修复它。新的单元测试将检测每次自动构建中是否重新引入了错误。
 
@@ -698,16 +472,7 @@ Prometheus 服务器定期拉取信息。这种操作方法非常轻量级，因
 
 `metrics`对象没有设置应用程序，然后在`created_app`函数中实例化：
 
-```py
-from prometheus_flask_exporter import PrometheusMetrics
-
-metrics = PrometheusMetrics(app=None)
-
-def create_app(script=False):
-    ...
-    # Initialise metrics
-    metrics.init_app(application)
-```
+[PRE21]
 
 这将生成`/metrics`服务端点中的一个端点，即`http://thoughts.example.local/metrics`，它以 Prometheus 格式返回数据。Prometheus 格式是纯文本，如下截图所示：
 
@@ -723,23 +488,7 @@ def create_app(script=False):
 
 此代码创建了`Counter`和`Histogram`：
 
-```py
-from prometheus_client import Histogram, Counter
-
-METRIC_REQUESTS = Counter('requests', 'Requests',
-                          ['endpoint', 'method', 'status_code'])
-METRIC_REQ_TIME = Histogram('req_time', 'Req time in ms',
-                            ['endpoint', 'method', 'status_code']) 
-
-def logging_after(response):
-    ...
-    # Store metrics
-    endpoint = request.endpoint
-    method = request.method.lower()
-    status_code = response.status_code
-    METRIC_REQUESTS.labels(endpoint, method, status_code).inc()
-    METRIC_REQ_TIME.labels(endpoint, method, status_code).observe(time_in_ms)
-```
+[PRE22]
 
 在这里，我们创建了两个指标：一个名为`requests`的计数器和一个名为`req_time`的直方图。直方图是 Prometheus 对具有特定值的度量和事件的实现，例如请求时间（在我们的情况下）。
 
@@ -767,21 +516,7 @@ def logging_after(response):
 
 `ConfigMap`允许我们定义一个文件：
 
-```py
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: prometheus-config
-  namespace: example
-data:
-  prometheus.yaml: |
-    scrape_configs:
-    - job_name: 'example'
-
-      static_configs:
-        - targets: ['thoughts-service', 'users-service', 
-                    'frontend-service']
-```
+[PRE23]
 
 请注意`prometheus.yaml`文件是在`|`符号之后生成的。这是一个最小的 Prometheus 配置，从`thoughts-service`、`users-service`和`frontend-service`服务器中抓取。正如我们从前面的章节中所知，这些名称访问服务，并将连接到提供应用程序的 pod。它们将自动搜索`/metrics`路径。
 
@@ -793,22 +528,7 @@ data:
 
 部署将从`prom/prometheus`中的公共 Prometheus 镜像创建一个容器，如下所示：
 
-```py
-spec:
-  containers:
-  - name: prometheus
-    image: prom/prometheus
-    volumeMounts:
-    - mountPath: /etc/prometheus/prometheus.yml
-      subPath: prometheus.yaml
-      name: volume-config
-    ports:
-    - containerPort: 9090
-    volumes:
-    - name: volume-config
-      configMap:
-        name: prometheus-config
-```
+[PRE24]
 
 它还将`ConfigMap`挂载为卷，然后作为文件挂载到`/etc/prometheus/prometheus.yml`中。这将使用该配置启动 Prometheus 服务器。容器打开端口`9090`，这是 Prometheus 的默认端口。
 
@@ -834,78 +554,19 @@ spec:
 
 出于与之前解释的相同原因，我们不会显示 Ingress 和 service。部署很简单，但我们挂载了两个卷而不是一个，如下面的代码所示：
 
-```py
-spec:
-  containers:
-    - name: grafana
-      image: grafana/grafana
-      volumeMounts:
-        - mountPath: /etc/grafana/provisioning
-                     /datasources/prometheus.yaml
-          subPath: prometheus.yaml
-          name: volume-config
-        - mountPath: /etc/grafana/provisioning/dashboards
-          name: volume-dashboard
-      ports:
-        - containerPort: 3000
-  volumes:
-    - name: volume-config
-      configMap:
-        name: grafana-config
-    - name: volume-dashboard
-      configMap:
-        name: grafana-dashboard
-```
+[PRE25]
 
 `volume-config`卷共享一个配置 Grafana 的单个文件。`volume-dashboard`卷添加了一个仪表板。后者挂载了一个包含两个文件的目录。这两个挂载点都在 Grafana 期望的配置文件的默认位置。
 
 `volume-config`卷设置了 Grafana 将接收数据以绘制的数据源的位置：
 
-```py
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-config
-  namespace: example
-data:
-  prometheus.yaml: |
-      apiVersion: 1
-
-      datasources:
-      - name: Prometheus
-        type: prometheus
-        url: http://prometheus-service
-        access: proxy
-        isDefault: true
-```
+[PRE26]
 
 数据来自`http://prometheus-service`，指向我们之前配置的 Prometheus 服务。
 
 `volume-dashboard`定义了两个文件，`dashboard.yaml`和`dashboard.json`：
 
-```py
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-dashboard
-  namespace: example
-data:
-  dashboard.yaml: |
-    apiVersion: 1
-
-    providers:
-    - name: 'Example'
-      orgId: 1
-      folder: ''
-      type: file
-      editable: true
-      options:
-        path: /etc/grafana/provisioning/dashboards
-  dashboard.json: |-
-    <JSON FILE>
-```
+[PRE27]
 
 `dashboard.yaml`是一个简单的文件，指向我们可以找到描述系统可用仪表板的 JSON 文件的目录。我们指向相同的目录以挂载所有内容到单个卷。
 
@@ -945,28 +606,19 @@ Grafana UI 通过自动完成查询来帮助我们，这使我们可以轻松搜
 
 要获得值在一段时间内变化的速率，需要使用`rate`：
 
-```py
-rate(flask_http_request_duration_seconds_count[5m])
-```
+[PRE28]
 
 这将生成每秒的请求率，平均使用`5`分钟的移动窗口。速率可以进一步使用`sum`和`by`进行聚合：
 
-```py
-sum(rate(flask_http_request_duration_seconds_count[5m])) by (path)
-```
+[PRE29]
 
 要计算时间，可以使用`avg`。您还可以按多个标签进行分组：
 
-```py
-avg(rate(flask_http_request_duration_seconds_bucket[5m])) by (method, path)
-```
+[PRE30]
 
 但是，您也可以设置分位数，就像我们在图表中可以做的那样。我们乘以 100 以获得以毫秒为单位的时间，而不是秒，并按`method`和`path`进行分组。现在，`le`是一个特殊的标签，会自动创建并将数据分成多个桶。`histogram_quantile`函数使用这个来计算分位数：
 
-```py
-histogram_quantile(0.95, sum(rate(flask_http_request_duration_seconds_bucket[5m])) by (method, path, le)) * 1000
-
-```
+[PRE31]
 
 可以对指标进行过滤，以便仅显示特定的标签。它们还可以用于不同的功能，例如除法，乘法等。
 

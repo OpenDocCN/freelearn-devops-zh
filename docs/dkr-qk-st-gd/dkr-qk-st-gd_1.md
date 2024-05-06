@@ -62,11 +62,7 @@ CentOS 上的 Docker CE 需要一个维护的 CentOS 7 版本。虽然安装可�
 
 首先，我们需要安装一些必需的软件包。打开终端窗口，输入以下命令：
 
-```
-# installing required packages sudo yum install -y yum-utils \
- device-mapper-persistent-data \
- lvm2
-```
+[PRE0]
 
 这将确保我们在系统上安装了`yum-config-manager`实用程序和设备映射器存储驱动程序。如下截图所示：
 
@@ -78,38 +74,23 @@ CentOS 上的 Docker CE 需要一个维护的 CentOS 7 版本。虽然安装可�
 
 输入以下命令设置稳定的存储库：
 
-```
-# adding the docker-ce repo sudo yum-config-manager \
- --add-repo \
- https://download.docker.com/linux/centos/docker-ce.repo
-```
+[PRE1]
 
 如果你想使用边缘版本，可以使用以下命令启用它：
 
-```
-# enable edge releases sudo yum-config-manager --enable docker-ce-edge
-```
+[PRE2]
 
 同样，你可以使用这个命令禁用对边缘版本的访问：
 
-```
-# disable edge releases sudo yum-config-manager --disable docker-ce-edge
-```
+[PRE3]
 
 现在开始有趣的部分...我们将安装 Docker CE。要这样做，请输入以下命令：
 
-```
-# install docker sudo yum -y install docker-ce 
-```
+[PRE4]
 
 如果出现关于需要安装`container-selinux`的错误，请使用以下命令进行安装，然后重试：
 
-```
-# install container-selinux sudo yum -y --enablerepo=rhui-REGION-rhel-server-extras \
-   install container-selinux
-
-sudo yum -y install docker-ce
-```
+[PRE5]
 
 就是这样！安装 Docker CE 比你想象的要容易得多，对吧？
 
@@ -117,9 +98,7 @@ sudo yum -y install docker-ce
 
 这个命令验证了我们安装了 Docker CE，并显示了刚刚安装的 Docker 的版本。输入以下命令：
 
-```
-# validate install with version command docker --version
-```
+[PRE6]
 
 在撰写本文时，最新版本的 Docker CE 是 18.03.1：
 
@@ -127,9 +106,7 @@ sudo yum -y install docker-ce
 
 我们还有一个关键的步骤。虽然 Docker CE 已安装，但 Docker 守护程序尚未启动。要启动它，我们需要发出以下命令：
 
-```
-# start docker deamon sudo systemctl start docker
-```
+[PRE7]
 
 它应该悄悄地启动，看起来像这样：
 
@@ -139,9 +116,7 @@ sudo yum -y install docker-ce
 
 让我们发出以下命令来运行 hello-world 容器：
 
-```
-# run a test container sudo docker run hello-world
-```
+[PRE8]
 
 如果一切顺利，你会看到类似以下的内容：
 
@@ -157,22 +132,15 @@ sudo yum -y install docker-ce
 
 单击要下载的 Docker CE 版本，并在提示时告诉浏览器保存文件。接下来，发出`yum install`命令，提供已下载的 RPM 文件的路径和文件名。您的命令应该类似于这样：
 
-```
-# install the docker rpm sudo yum install ~/Downloads/docker-ce-18.03.1.ce-1.el7.centos.x86_64.rpm
-```
+[PRE9]
 
 您需要启动 Docker 守护程序。您将在存储库部分使用前面的命令：
 
-```
-# start docker sudo systemctl start docker
-```
+[PRE10]
 
 而且，正如我们之前学到的，您可以使用以下命令验证安装的功能：
 
-```
-# validate the install and functionality docker --version
-sudo docker run hello-world
-```
+[PRE11]
 
 虽然这种方法可能看起来更简单、更容易执行，但它不太理想，因为它更多地是一个手动过程，特别是在更新 Docker CE 版本时。您必须再次浏览下载页面，找到更新版本，下载它，然后执行`yum install`。使用之前描述的 Docker 存储库方法，升级只需发出`yum upgrade`命令。现在让我们再看一种在您的 CentOS 工作站上安装 Docker CE 的方法。
 
@@ -184,10 +152,7 @@ sudo docker run hello-world
 
 运行最新的边缘版本的命令如下：
 
-```
-# download and run the install script curl -fsSL get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-```
+[PRE12]
 
 执行脚本将产生以下输出：
 
@@ -195,9 +160,7 @@ sudo sh get-docker.sh
 
 docker 组已经由脚本为您创建，但由于 CentOS 是以 RPM 为中心，您仍需要自己启动 Docker 服务：
 
-```
-# start docker sudo systemctl start docker
-```
+[PRE13]
 
 如果这是一个基于 Debian 的系统，Docker 服务将会被脚本自动启动。
 
@@ -211,35 +174,23 @@ docker 组已经由脚本为您创建，但由于 CentOS 是以 RPM 为中心，
 
 通过以下命令轻松将当前用户添加到 docker 组：
 
-```
-# add the current user to the docker group sudo usermod -aG docker $USER
-```
+[PRE14]
 
 您需要注销并重新登录以更新您帐户的组成员资格，但一旦您这样做了，您应该可以执行任何 Docker 命令而不使用 sudo。
 
 可以通过在不使用 sudo 的情况下运行 hello-world 容器来验证：
 
-```
-# test that sudo is not needed docker run hello-world
-```
+[PRE15]
 
 接下来，您将希望配置系统在系统启动时启动 Docker 服务：
 
-```
-# configure docker to start on boot sudo systemctl enable docker
-```
+[PRE16]
 
 您可能要考虑的另一个后续安装步骤是安装 docker-compose。
 
 这个工具可以成为您的 Docker 工具箱的重要补充，我们将在第七章中讨论其用途，*Docker Stacks*。安装 docker-compose 的命令是：
 
-```
-# install docker compose
-sudo curl -L \
- https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) \
- -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-```
+[PRE17]
 
 恭喜，您的 CentOS 工作站现在已准备好开始开发您的 Docker 镜像并部署您的 Docker 容器。接下来，我们将学习如何在 Ubuntu 工作站上使用 DEB-based 系统安装 Docker。如果您准备好了，请继续阅读。
 
@@ -263,65 +214,41 @@ sudo chmod +x /usr/local/bin/docker-compose
 
 第一步是更新 apt 软件包索引。使用以下命令来执行：
 
-```
-# update apt-get libraries sudo apt-get update
-```
+[PRE18]
 
 现在我们需要安装一些支持软件包：
 
-```
-# install required packages sudo apt-get install \
- apt-transport-https \
- ca-certificates \
- curl \
- software-properties-common
-```
+[PRE19]
 
 接下来，我们需要获取 Docker 的 GPG 密钥：
 
-```
-# get the GPG key for docker curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-   sudo apt-key add -
-```
+[PRE20]
 
 您可以确认已成功添加了 Docker 的 GPG 密钥；它将具有`9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88`的指纹。
 
 您可以通过使用以下命令检查最后八个字符是否与`0EBFCD88`匹配来验证密钥：
 
-```
-# validating the docker GPG key is installed sudo apt-key fingerprint 0EBFCD88
-```
+[PRE21]
 
 最后，我们需要实际设置存储库。我们将专注于我们的示例中的稳定存储库。
 
 如果要安装 Docker CE 的边缘或测试版本，请确保在以下命令中的`stable`单词后添加`edge`或`test`（不要替换`stable`单词）：
 
-```
-# adding the docker repository sudo add-apt-repository \
- "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
- $(lsb_release -cs) \
- stable"
-```
+[PRE22]
 
 现在我们的系统已经设置了正确的存储库来安装 Docker CE，让我们来安装它。
 
 首先确保所有软件包都是最新的，通过发出`apt-get update`命令：
 
-```
-# update apt-get libraries again sudo apt-get update
-```
+[PRE23]
 
 现在我们将实际安装 Docker CE：
 
-```
-# install docker sudo apt-get install docker-ce
-```
+[PRE24]
 
 Docker 已安装。安装后，您可以检查 Docker 版本以确认安装成功：
 
-```
-# validate install with version command docker --version
-```
+[PRE25]
 
 版本命令应该类似于这样：
 
@@ -329,10 +256,7 @@ Docker 已安装。安装后，您可以检查 Docker 版本以确认安装成�
 
 现在，让我们验证 Docker 安装是否按预期工作。为此，我们将使用以下命令运行 hello-world Docker 镜像：
 
-```
-# validating functionality by running a container
-sudo docker run hello-world
-```
+[PRE26]
 
 ![](img/4abbab91-b0ea-4fc9-bf7c-6928739f5e36.png)
 
@@ -366,10 +290,7 @@ sudo docker run hello-world
 
 您将下载的 Docker CE 软件包的路径和文件名作为参数提供给`dpkg`。以下是我用于刚刚下载的软件包的命令：
 
-```
-# installing docker package
-sudo dpkg -i ~/Downloads/docker-ce_18.03.1~ce-0~ubuntu_amd64.deb
-```
+[PRE27]
 
 执行该命令如下：
 
@@ -377,11 +298,7 @@ sudo dpkg -i ~/Downloads/docker-ce_18.03.1~ce-0~ubuntu_amd64.deb
 
 现在 Docker 已安装，让我们使用版本命令来确认成功安装，然后运行 hello-world 容器来验证 Docker 是否按预期工作：
 
-```
-# validating the install and functionality
-docker --version
-sudo docker run hello-world
-```
+[PRE28]
 
 这很好。就像仓库安装一样，您的 docker 组已创建，并且在手动软件包安装中，这两个启动步骤都已为您处理。您不必启动 Docker，也不必配置 Docker 在启动时启动。因此，您已准备好开始创建 Docker 镜像和运行 Docker 容器。
 
@@ -393,16 +310,11 @@ sudo docker run hello-world
 
 使用以下命令安装 curl：
 
-```
-# install curl sudo apt-get install curl
-```
+[PRE29]
 
 现在获取脚本并运行 docker 脚本进行安装：
 
-```
-# download and run the docker install script curl -fsSL get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-```
+[PRE30]
 
 执行脚本将产生以下输出：
 
@@ -420,27 +332,19 @@ sudo sh get-docker.sh
 
 将当前用户添加到 docker 组中很容易通过以下命令完成：
 
-```
-# add the current user to the docker group sudo usermod -aG docker $USER
-```
+[PRE31]
 
 您需要注销并重新登录以更新您帐户的组成员资格，但一旦您这样做了，您就可以执行任何 Docker 命令而不使用 sudo。
 
 这可以通过 hello-world 容器进行验证：
 
-```
-# validate that sudo is no longer needed docker run hello-world
-```
+[PRE32]
 
 您应该考虑的另一个后安装步骤是安装 docker-compose。
 
 这个工具可以成为您的 Docker 工具箱的重要补充，我们将在第七章《Docker Stacks》中讨论其用途。安装 docker-compose 的命令是：
 
-```
-# install docker-compose
-sudo curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-```
+[PRE33]
 
 恭喜，您的 Ubuntu 工作站现在已准备好开始开发 Docker 镜像并部署 Docker 容器。接下来，我们将学习如何在基于 Windows 的工作站上安装 Docker。如果您准备好了，请继续阅读。
 
@@ -470,10 +374,7 @@ Docker 将运行，并且您将看到一个欢迎屏幕，告诉您 Docker 已�
 
 一旦您在 Windows 工作站上运行 Docker，您可以打开 Windows PowerShell 命令窗口并开始使用 Docker。要验证安装是否成功，请打开 PowerShell 窗口并输入版本命令。为了确认 Docker 是否按预期工作，请运行 hello-world Docker 容器：
 
-```
-# validate install and functionality docker --version
-docker run hello-world
-```
+[PRE34]
 
 您的 Windows 10 工作站现在已设置好，可以创建 Docker 镜像并运行 Docker 容器。Docker 也应该配置为在启动时启动，这样当您需要重新启动工作站时，它将自动启动。
 
@@ -503,24 +404,15 @@ Docker CE 的 Windows 安装集成了一个名为 Kitematic 的图形用户界�
 
 如果您曾经使用过命令行完成，您可能会考虑为 PowerShell 安装 DockerCompletion。此工具为 Docker 命令提供了命令行完成。它相当容易安装。您需要设置系统以允许执行已下载的模块。为此，请以管理员身份打开 PowerShell 命令窗口，并发出以下命令：
 
-```
-# allow remote signed scripts to run
-Set-ExecutionPolicy RemoteSigned
-```
+[PRE35]
 
 您现在可以关闭管理员命令窗口，并打开普通用户 PowerShell 命令窗口。要安装`DockerCompletion`模块，请发出以下命令：
 
-```
-# install Docker completion
-Install-Module DockerCompletion -Scope CurrentUser
-```
+[PRE36]
 
 最后，在当前的 PowerShell 窗口中激活模块，请使用以下命令：
 
-```
-# enable Docker completion
-Import-Module DockerCompletion
-```
+[PRE37]
 
 现在您可以为所有 Docker 命令使用命令完成功能。这是一个很好的节省按键的功能！
 
@@ -528,10 +420,7 @@ Import-Module DockerCompletion
 
 您可以使用以下命令轻松编辑您的 PowerShell 配置文件（如果尚未创建，则创建一个新的）：
 
-```
-# update your user profile to enable docker completion for every PowerShell command prompt
-notepad $PROFILE
-```
+[PRE38]
 
 输入`Import-Module DockerCompletion`命令并保存配置文件。现在您的 Docker 命令行完成功能将在所有未来的 PowerShell 会话中激活。
 
@@ -555,10 +444,7 @@ notepad $PROFILE
 
 为了验证我们的安装成功并确认我们的安装功能，我们将发出版本命令，然后运行 Docker 的 hello-world 容器：
 
-```
-# validate install and functionality docker --version
-docker run hello-world
-```
+[PRE39]
 
 您的 macOS 工作站现在已设置好，可以创建 Docker 镜像和运行 Docker 容器。您已经准备好将应用程序容器化了！您可以轻松使用终端窗口进行所有 Docker 工作，但您可能对 Mac 上可用的图形 UI 工具**Kitematic**感兴趣。让我们接下来安装 Kitematic。
 
@@ -584,42 +470,23 @@ docker run hello-world
 
 安装 Homebrew。您的 Mac 上可能已经安装了 Homebrew，但如果没有，现在应该安装它。以下是安装它的命令：
 
-```
-# install homebrew
-/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-```
+[PRE40]
 
 接下来，使用 Homebrew 安装`bash-completion`。以下是命令：
 
-```
-# use homebrew to install bash completion 
-brew install bash-completion
-```
+[PRE41]
 
 安装`bash-completion`会指导你将以下行添加到你的`~/.bash_profile`文件中：
 
-```
-# update the bash profile to enable bash completion for every terminal session 
-[ -f /usr/local/etc/bash_completion ] && . /usr/local/etc/bash_completion
-```
+[PRE42]
 
 现在，创建必要的链接以启用 Docker 命令行补全功能。每个 Docker 工具集都有一个链接。以下是 bash 的链接命令（如果你使用`zsh`，请查看下一个代码块中的链接命令）：
 
-```
-# create links for bash shell
-ln -s /Applications/Docker.app/Contents/Resources/etc/docker.bash-completion $(brew --prefix)/etc/bash_completion.d/docker
-ln -s /Applications/Docker.app/Contents/Resources/etc/docker-machine.bash-completion $(brew --prefix)/etc/bash_completion.d/docker-machine
-ln -s /Applications/Docker.app/Contents/Resources/etc/docker-compose.bash-completion $(brew --prefix)/etc/bash_completion.d/docker-compose
-```
+[PRE43]
 
 请注意，如果你使用的是`zsh`而不是 bash，链接命令是不同的。以下是`zsh`的链接命令：
 
-```
-# create links for zsh shell
-ln -s /Applications/Docker.app/Contents/Resources/etc/docker.zsh-completion /usr/local/share/zsh/site-functions/_docker
-ln -s /Applications/Docker.app/Contents/Resources/etc/docker-machine.zsh-completion /usr/local/share/zsh/site-functions/_docker-machine
-ln -s /Applications/Docker.app/Contents/Resources/etc/docker-compose.zsh-completion /usr/local/share/zsh/site-functions/_docker-compose
-```
+[PRE44]
 
 最后，重新启动你的终端会话——现在你可以使用 Docker 命令补全了！尝试输入`docker`并按两次*Tab*键。
 

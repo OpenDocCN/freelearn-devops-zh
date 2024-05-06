@@ -66,11 +66,7 @@ Dockerfile 是一个用**特定领域语言（DSL）**编写的文件，其中�
 
 现在，在启动守护程序时，您可以使用控制**域** **名** **系统**（**DNS**）配置、存储驱动程序和容器的执行驱动程序的参数来运行它：
 
-```
-**$ export DOCKER_HOST="tcp://0.0.0.0:2375"**
-**$ Docker -d -D -e lxc -s btrfs –-dns 8.8.8.8 –-dns-search example.com**
-
-```
+[PRE0]
 
 ### 注意
 
@@ -83,70 +79,49 @@ Dockerfile 是一个用**特定领域语言（DSL）**编写的文件，其中�
 
 |
 
-```
-**-d**
-
-```
+[PRE1]
 
 | 这以守护程序运行 Docker。 |
 | --- |
 
 |
 
-```
-**-D**
-
-```
+[PRE2]
 
 | 这以调试模式运行 Docker。 |
 | --- |
 
 |
 
-```
-**-e [option]**
-
-```
+[PRE3]
 
 | 这是要使用的执行驱动程序。默认的执行驱动程序是本机，它使用`libcontainer`。 |
 | --- |
 
 |
 
-```
-**-s [option]**
-
-```
+[PRE4]
 
 | 这会强制 Docker 使用不同的存储驱动程序。默认值为""，Docker 使用 AUFS。 |
 | --- |
 
 |
 
-```
-**--dns [option(s)]**
-
-```
+[PRE5]
 
 | 这为所有 Docker 容器设置 DNS 服务器（或服务器）。 |
 | --- |
 
 |
 
-```
-**--dns-search [option(s)]**
-
-```
+[PRE6]
 
 | 这为所有 Docker 容器设置 DNS 搜索域（或域）。 |
 | --- |
 
 |
 
-```
-**-H [option(s)]**
-
-```
+[PRE7]
 
 | 这是要绑定的套接字（或套接字）。可以是一个或多个`tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd`。 |
 | --- |
@@ -155,321 +130,211 @@ Dockerfile 是一个用**特定领域语言（DSL）**编写的文件，其中�
 
 考虑这个命令：
 
-```
-**$ docker -H tcp://0.0.0.0:2375 run -it ubuntu /bin/bash**
-
-```
+[PRE8]
 
 前面的命令与以下命令相同：
 
-```
-**$ DOCKER_HOST="tcp://0.0.0.0:2375" docker run -it ubuntu /bin/bash**
-
-```
+[PRE9]
 
 ## 版本命令
 
 `version`命令打印版本信息：
 
-```
-**$ docker -vDocker version 1.1.1, build bd609d2**
-
-```
+[PRE10]
 
 ## 信息命令
 
 `info`命令打印`docker`守护程序配置的详细信息，例如执行驱动程序、正在使用的存储驱动程序等：
 
-```
-**$ docker info # The author is running it in boot2docker on OSX**
-**Containers: 0**
-**Images: 0**
-**Storage Driver: aufs**
- **Root Dir: /mnt/sda1/var/lib/docker/aufs**
- **Dirs: 0**
-**Execution Driver: native-0.2**
-**Kernel Version: 3.15.3-tinycore64**
-**Debug mode (server): true**
-**Debug mode (client): false**
-**Fds: 10**
-**Goroutines: 10**
-**EventsListeners: 0**
-**Init Path: /usr/local/bin/docker**
-**Sockets: [unix:///var/run/docker.sock tcp://0.0.0.0:2375]**
-
-```
+[PRE11]
 
 ## run 命令
 
 run 命令是我们将经常使用的命令。它用于运行 Docker 容器：
 
-```
-**$ docker run [options] IMAGE [command] [args]**
-
-```
+[PRE12]
 
 | 标志 | 解释 |
 | --- | --- |
 
 |
 
-```
-**-a, --attach=[]**
-
-```
+[PRE13]
 
 | 附加到`stdin`，`stdout`或`stderr`文件（标准输入，输出和错误文件）。 |
 | --- |
 
 |
 
-```
-**-d, --detach**
-
-```
+[PRE14]
 
 | 在后台运行容器。 |
 | --- |
 
 |
 
-```
-**-i, --interactive**
-
-```
+[PRE15]
 
 | 以交互模式运行容器（保持`stdin`文件打开）。 |
 | --- |
 
 |
 
-```
-**-t, --tty**
-
-```
+[PRE16]
 
 | 分配伪`tty`标志（如果要附加到容器的终端，则需要）。 |
 | --- |
 
 |
 
-```
-**-p, --publish=[]**
-
-```
+[PRE17]
 
 | 将容器的端口发布到主机（`ip:hostport:containerport`）。 |
 | --- |
 
 |
 
-```
-**--rm**
-
-```
+[PRE18]
 
 | 退出时自动删除容器（不能与`-d`标志一起使用）。 |
 | --- |
 
 |
 
-```
-**--privileged**
-
-```
+[PRE19]
 
 | 这为该容器提供了额外的特权。 |
 | --- |
 
 |
 
-```
-**-v, --volume=[]**
-
-```
+[PRE20]
 
 | 绑定挂载卷（从主机=>`/host:/container`；从 docker=>`/container`）。 |
 | --- |
 
 |
 
-```
-**--volumes-from=[]**
-
-```
+[PRE21]
 
 | 从指定的容器中挂载卷。 |
 | --- |
 
 |
 
-```
-**-w, --workdir=""**
-
-```
+[PRE22]
 
 | 这是容器内的工作目录。 |
 | --- |
 
 |
 
-```
-**--name=""**
-
-```
+[PRE23]
 
 | 为容器分配一个名称。 |
 | --- |
 
 |
 
-```
-**-h, --hostname=""**
-
-```
+[PRE24]
 
 | 为容器分配一个主机名。 |
 | --- |
 
 |
 
-```
-**-u, --user=""**
-
-```
+[PRE25]
 
 | 这是容器应该运行的用户名或 UID。 |
 | --- |
 
 |
 
-```
-**-e, --env=[]**
-
-```
+[PRE26]
 
 | 设置环境变量。 |
 | --- |
 
 |
 
-```
-**--env-file=[]**
-
-```
+[PRE27]
 
 | 从新的行分隔文件中读取环境变量。 |
 | --- |
 
 |
 
-```
-**--dns=[]**
-
-```
+[PRE28]
 
 | 设置自定义 DNS 服务器。 |
 | --- |
 
 |
 
-```
-**--dns-search=[]**
-
-```
+[PRE29]
 
 | 设置自定义 DNS 搜索域。 |
 | --- |
 
 |
 
-```
-**--link=[]**
-
-```
+[PRE30]
 
 | 添加到另一个容器的链接（`name:alias`）。 |
 | --- |
 
 |
 
-```
-**-c, --cpu-shares=0**
-
-```
+[PRE31]
 
 | 这是此容器的相对 CPU 份额。 |
 | --- |
 
 |
 
-```
-**--cpuset=""**
-
-```
+[PRE32]
 
 | 这些是允许执行的 CPU；从 0 开始。（例如，0 到 3）。 |
 | --- |
 
 |
 
-```
-**-m, --memory=""**
-
-```
+[PRE33]
 
 | 这是此容器的内存限制`(<number><b | k | m | g>`)。 |
 | --- | --- | --- | --- |
 
 |
 
-```
-**--restart=""**
-
-```
+[PRE34]
 
 | （v1.2+）指定容器崩溃时的重启策略。 |
 | --- |
 
 |
 
-```
-**--cap-add=""**
-
-```
+[PRE35]
 
 | （v1.2+）这向容器授予一个功能（参考第四章，“安全最佳实践”）。 |
 | --- |
 
 |
 
-```
-**--cap-drop=""**
-
-```
+[PRE36]
 
 | （v1.2+）这将把一个功能限制到一个容器中（参考第四章，“安全最佳实践”）。 |
 | --- |
 
 |
 
-```
-**--device=""**
-
-```
+[PRE37]
 
 | （v1.2+）这在容器上挂载设备。 |
 | --- |
 
 在运行容器时，重要的是要记住，容器的生命周期与启动容器时运行的命令的生命周期相关联。现在尝试运行这个：
 
-```
-**$ docker run -dt ubuntu ps**
-**b1d037dfcff6b076bde360070d3af0d019269e44929df61c93dfcdfaf29492c9**
-**$ docker attach b1d037**
-**2014/07/16 16:01:29 You cannot attach to a stopped container, start it first**
-
-```
+[PRE38]
 
 发生了什么？当我们运行简单命令`ps`时，容器运行了该命令并退出。因此，我们得到了一个错误。
 
@@ -479,123 +344,55 @@ run 命令是我们将经常使用的命令。它用于运行 Docker 容器：
 
 这里还有一条重要的信息，您不需要为所有需要容器 ID 的命令使用完整的 64 字符 ID。前面的几个字符就足够了。使用与以下代码中显示的相同示例：
 
-```
-**$ docker attach b1d03**
-**2014/07/16 16:09:39 You cannot attach to a stopped container, start it first**
-**$ docker attach b1d0**
-**2014/07/16 16:09:40 You cannot attach to a stopped container, start it first**
-**$ docker attach b1d**
-**2014/07/16 16:09:42 You cannot attach to a stopped container, start it first**
-**$ docker attach b1**
-**2014/07/16 16:09:44 You cannot attach to a stopped container, start it first**
-**$ docker attach b**
-**2014/07/16 16:09:45 Error: No such container: b**
-
-```
+[PRE39]
 
 一个更方便的方法是自己为容器命名：
 
-```
-**$ docker run -dit --name OD-name-example ubuntu /bin/bash**
-**1b21af96c38836df8a809049fb3a040db571cc0cef000a54ebce978c1b5567ea**
-**$ docker attach OD-name-example**
-**root@1b21af96c388:/#**
-
-```
+[PRE40]
 
 `-i`标志是必要的，以便在容器中进行任何交互，`-t`标志是必要的，以创建一个伪终端。
 
 前面的示例还让我们意识到，即使我们退出容器，它仍处于`stopped`状态。也就是说，我们可以重新启动容器，并保留其文件系统层。您可以通过运行以下命令来查看：
 
-```
-**$ docker ps -a**
-**CONTAINER ID IMAGE         COMMAND CREATED    STATUS    NAMES**
-**eb424f5a9d3f ubuntu:latest ps      1 hour ago Exited OD-name-example** 
-
-```
+[PRE41]
 
 虽然这很方便，但很快您的主机磁盘空间可能会耗尽，因为保存了越来越多的容器。因此，如果您要运行一个一次性容器，可以使用`--rm`标志运行它，这将在进程退出时删除容器：
 
-```
-**$ docker run --rm -it --name OD-rm-example ubuntu /bin/bash**
-**root@0fc99b2e35fb:/# exit**
-**exit**
-**$ docker ps -a**
-**CONTAINER ID    IMAGE    COMMAND    CREATED    STATUS   PORTS   NAMES**
-
-```
+[PRE42]
 
 ### 运行服务器
 
 现在，对于我们的下一个示例，我们将尝试运行一个 Web 服务器。选择此示例是因为 Docker 容器最常见的实际用例是运行 Web 应用程序：
 
-```
-**$ docker run -it –-name OD-pythonserver-1 --rm python:2.7 \**
-**python -m SimpleHTTPServer 8000;**
-**Serving HTTP on 0.0.0.0 port 8000**
-
-```
+[PRE43]
 
 现在我们知道问题所在；我们在一个容器中运行了一个服务器，但由于 Docker 动态分配了容器的 IP，这使事情变得困难。但是，我们可以将容器的端口绑定到主机的端口，Docker 会负责转发网络流量。现在让我们再次尝试这个命令，加上`-p`标志：
 
-```
-**$ docker run -p 0.0.0.0:8000:8000 -it --rm –-name OD-pythonserver-2 \ python:2.7 python -m SimpleHTTPServer 8000;**
-**Serving HTTP on 0.0.0.0 port 8000 ...**
-**172.17.42.1 - - [18/Jul/2014 14:25:46] "GET / HTTP/1.1" 200 -**
-
-```
+[PRE44]
 
 现在打开浏览器，转到`http://localhost:8000`。大功告成！
 
 如果您是 OS X 用户，并且意识到无法访问`http://localhost:8000`，那是因为 VirtualBox 尚未配置为响应对 boot2Docker VM 的**网络地址转换**（**NAT**）请求。将以下函数添加到您的别名文件（`bash_profile`或`.bashrc`）将节省很多麻烦：
 
-```
-natboot2docker () { VBoxManage controlvm boot2docker-vm natpf1 \
-   "$1,tcp,127.0.0.1,$2,,$3"; }
-
-removeDockerNat() {
-    VBoxManage modifyvm boot2docker-vm \
-    --natpf1 delete $1;
-}
-```
+[PRE45]
 
 之后，您应该能够使用`$ natboot2docker mypythonserver 8000 8000`命令来访问 Python 服务器。但是请记住，在完成后运行`$ removeDockerDockerNat mypythonserver`命令。否则，当您下次运行 boot2Docker VM 时，您将面临一个错误，它将不允许您获取 IP 地址或`ssh`脚本：
 
-```
-**$ boot2docker ssh**
-**ssh_exchange_identification: Connection closed by remote host**
-**2014/07/19 11:55:09 exit status 255**
-
-```
+[PRE46]
 
 您的浏览器现在显示容器的`/root`路径。如果您想要提供主机的目录怎么办？让我们尝试挂载设备：
 
-```
-**root@eb53f7ec79fd:/# mount -t tmpfs /dev/random /mnt**
-**mount: permission denied**
-
-```
+[PRE47]
 
 正如您所见，`mount`命令不起作用。实际上，除非包括`--privileged`标志，否则大多数潜在危险的内核功能都会被禁用。
 
 但是，除非您知道自己在做什么，否则永远不要使用此标志。Docker 提供了一种更简单的方式来绑定挂载主机卷和使用`-v`和`–volumes`选项绑定挂载主机卷。让我们在我们当前所在的目录中再次尝试这个例子：
 
-```
-**$ docker run -v $(pwd):$(pwd) -p 0.0.0.0:8000:8000 -it –rm \**
-**--name OD-pythonserver-3 python:2.7 python -m SimpleHTTPServer 8000;**
-**Serving HTTP on 0.0.0.0 port 8000 ...**
-**10.0.2.2 - - [18/Jul/2014 14:40:35] "GET / HTTP/1.1" 200 -**
-
-```
+[PRE48]
 
 现在，您已经将您从中运行命令的目录绑定到了容器。但是，当您访问容器时，仍然会得到容器根目录的目录列表。为了提供已绑定到容器的目录，让我们使用`-w`标志将其设置为容器的工作目录（容器化进程运行的目录）：
 
-```
-**$ docker run -v $(pwd):$(pwd) -w $(pwd) -p 0.0.0.0:8000:8000 -it \ --name OD-pythonserver-4 python:2.7 python -m SimpleHTTPServer 8000;**
-**Serving HTTP on 0.0.0.0 port 8000 ...**
-**10.0.2.2 - - [18/Jul/2014 14:51:35] "GET / HTTP/1.1" 200 -**
-
-```
+[PRE49]
 
 ### 注意
 
@@ -617,10 +414,7 @@ Boot2Docker 用户目前还无法利用这一功能，除非您使用了增强�
 
 例如，要在容器中使用网络摄像头，请运行此命令：
 
-```
-**$ docker run --device=/dev/video0:/dev/video0**
-
-```
+[PRE50]
 
 Docker v1.2 还添加了一个`--restart`标志，用于为容器指定重新启动策略。目前有三种重新启动策略：
 
@@ -632,60 +426,33 @@ Docker v1.2 还添加了一个`--restart`标志，用于为容器指定重新启
 
 以下是一个无限重新启动的示例：
 
-```
-**$ docker run --restart=always code.it**
-
-```
+[PRE51]
 
 下一行用于在放弃之前尝试五次：
 
-```
-**$ docker run --restart=on-failure:5 code.it**
-
-```
+[PRE52]
 
 ## search 命令
 
 `search`命令允许我们在公共注册表中搜索 Docker 镜像。让我们搜索与 Python 相关的所有镜像：
 
-```
-**$ docker search python | less**
-
-```
+[PRE53]
 
 ## pull 命令
 
 `pull`命令用于从注册表中拉取镜像或仓库。默认情况下，它们从公共 Docker 注册表中拉取，但如果您运行自己的注册表，也可以从中拉取它们：
 
-```
-**$ docker pull python # pulls repository from Docker Hub**
-**$ docker pull python:2.7 # pulls the image tagged 2.7**
-**$ docker pull <path_to_registry>/<image_or_repository>**
-
-```
+[PRE54]
 
 ## start 命令
 
 我们在讨论`docker run`时看到，容器状态在退出时会被保留，除非明确删除。`docker start`命令用于启动已停止的容器：
 
-```
-**$ docker start [-i] [-a] <container(s)>**
-
-```
+[PRE55]
 
 考虑以下`start`命令的示例：
 
-```
-**$ docker ps -a**
-**CONTAINER ID IMAGE         COMMAND   CREATED STATUS    NAMES**
-**e3c4b6b39cff ubuntu:latest python -m 1h ago  Exited OD-pythonserver-4** 
-**81bb2a92ab0c ubuntu:latest /bin/bash 1h ago  Exited evil_rosalind** 
-**d52fef570d6e ubuntu:latest /bin/bash 1h ago  Exited prickly_morse** 
-**eb424f5a9d3f ubuntu:latest /bin/bash 20h ago Exited OD-name-example**
-**$ docker start -ai OD-pythonserver-4**
-**Serving HTTP on 0.0.0.0 port 8000** 
-
-```
+[PRE56]
 
 选项的含义与`docker run`命令相同。
 
@@ -697,17 +464,7 @@ stop 命令通过发送`SIGTERM`信号然后在宽限期之后发送`SIGKILL`信
 
 `SIGTERM`和`SIGKILL`是 Unix 信号。信号是 Unix、类 Unix 和其他符合 POSIX 的操作系统中使用的一种进程间通信形式。`SIGTERM`信号指示进程终止。`SIGKILL`信号用于强制终止进程。
 
-```
-**docker run -dit --name OD-stop-example ubuntu /bin/bash**
-**$ docker ps**
-**CONTAINER ID IMAGE         COMMAND   CREATED  STATUS    NAMES**
-**679ece6f2a11 ubuntu:latest /bin/bash 5h ago   Up 3s   OD-stop-example**
-**$ docker stop OD-stop-example**
-**OD-stop-example**
-**$ docker ps**
-**CONTAINER ID IMAGE         COMMAND   CREATED  STATUS    NAMES**
-
-```
+[PRE57]
 
 您还可以指定`-t`标志或`--time`标志，允许您设置等待时间。
 
@@ -715,19 +472,7 @@ stop 命令通过发送`SIGTERM`信号然后在宽限期之后发送`SIGKILL`信
 
 `restart`命令重新启动正在运行的容器：
 
-```
-**$ docker run -dit --name OD-restart-example ubuntu /bin/bash**
-**$ sleep 15s # Suspends execution for 15 seconds**
-**$ docker ps**
-**CONTAINER ID IMAGE         COMMAND   STATUS    NAMES**
-**cc5d0ae0b599 ubuntu:latest /bin/bash Up 20s    OD-restart-example**
-
-**$ docker restart OD-restart-example**
-**$ docker ps**
-**CONTAINER ID IMAGE         COMMAND   STATUS    NAMES**
-**cc5d0ae0b599 ubuntu:latest /bin/bash Up 2s    OD-restart-example**
-
-```
+[PRE58]
 
 如果您观察状态，您会注意到容器已经重新启动。
 
@@ -735,33 +480,15 @@ stop 命令通过发送`SIGTERM`信号然后在宽限期之后发送`SIGKILL`信
 
 `rm`命令用于删除 Docker 容器：
 
-```
-**$ Docker ps -a # Lists containers including stopped ones**
-**CONTAINER ID  IMAGE  COMMAND   CREATED  STATUS NAMES**
-**cc5d0ae0b599  ubuntu /bin/bash 6h ago   Exited OD-restart-example** 
-**679ece6f2a11  ubuntu /bin/bash 7h ago   Exited OD-stop-example** 
-**e3c4b6b39cff  ubuntu /bin/bash 9h ago   Exited OD-name-example** 
-
-```
+[PRE59]
 
 在我们的冒险之后，似乎有很多容器剩下。让我们移除其中一个：
 
-```
-**$ dockerDocker rm OD-restart-example**
-**cc5d0ae0b599**
-
-```
+[PRE60]
 
 我们还可以组合两个 Docker 命令。让我们将`docker ps -a -q`命令（打印`docker ps -a`中容器的 ID 参数）和`docker rm`命令结合起来，一次性删除所有容器：
 
-```
-**$ docker rm $(docker ps -a -q)**
-**679ece6f2a11**
-**e3c4b6b39cff**
-**$ docker ps -a**
-**CONTAINER ID    IMAGE    COMMAND     CREATED    STATUS      NAMES**
-
-```
+[PRE61]
 
 首先对`docker ps -a -q`命令进行评估，然后输出由`docker rm`命令使用。
 
@@ -769,80 +496,56 @@ stop 命令通过发送`SIGTERM`信号然后在宽限期之后发送`SIGKILL`信
 
 `ps`命令用于列出容器。它的使用方式如下：
 
-```
-**$ docker ps [option(s)]**
-
-```
+[PRE62]
 
 | 标志 | 解释 |
 | --- | --- |
 
 |
 
-```
-**-a, --all**
-
-```
+[PRE63]
 
 | 这显示所有容器，包括已停止的容器。 |
 | --- |
 
 |
 
-```
-**-q, --quiet**
-
-```
+[PRE64]
 
 | 这仅显示容器 ID 参数。 |
 | --- |
 
 |
 
-```
-**-s, --size**
-
-```
+[PRE65]
 
 | 这打印出容器的大小。 |
 | --- |
 
 |
 
-```
-**-l, --latest**
-
-```
+[PRE66]
 
 | 这只显示最新的容器（包括已停止的容器）。 |
 | --- |
 
 |
 
-```
-**-n=""**
-
-```
+[PRE67]
 
 | 这显示最后*n*个容器（包括已停止的容器）。其默认值为-1。 |
 | --- |
 
 |
 
-```
-**--before=****""**
-
-```
+[PRE68]
 
 | 这显示了在指定 ID 或名称之前创建的容器。它包括已停止的容器。 |
 | --- |
 
 |
 
-```
-**--after=""**
-
-```
+[PRE69]
 
 | 这显示了在指定 ID 或名称之后创建的容器。它包括已停止的容器。 |
 | --- |
@@ -853,17 +556,7 @@ stop 命令通过发送`SIGTERM`信号然后在宽限期之后发送`SIGKILL`信
 
 `logs`命令显示容器的日志：
 
-```
-**Let us look at the logs of the python server we have been running**
-**$ docker logs OD-pythonserver-4**
-**Serving HTTP on 0.0.0.0 port 8000 ...**
-**10.0.2.2 - - [18/Jul/2014 15:06:39] "GET / HTTP/1.1" 200 -**
-**^CTraceback (most recent call last):**
- **File ...**
- **...**
-**KeyboardInterrupt**
-
-```
+[PRE70]
 
 你还可以提供一个`--tail`参数来跟踪容器运行时的输出。
 
@@ -871,74 +564,17 @@ stop 命令通过发送`SIGTERM`信号然后在宽限期之后发送`SIGKILL`信
 
 `inspect`命令允许你获取容器或镜像的详细信息。它将这些详细信息作为 JSON 数组返回：
 
-```
-**$ Docker inspect ubuntu # Running on an image**
-**[{**
- **"Architecture": "amd64",**
- **"Author": "",**
- **"Comment": "",**
- **.......**
- **.......**
- **.......**
- **"DockerVersion": "0.10.0",**
- **"Id": "e54ca5efa2e962582a223ca9810f7f1b62ea9b5c3975d14a5da79d3bf6020f37",**
- **"Os": "linux",**
- **"Parent": "6c37f792ddacad573016e6aea7fc9fb377127b4767ce6104c9f869314a12041e",**
- **"Size": 178365**
-**}]**
-
-```
+[PRE71]
 
 同样，对于一个容器，我们运行以下命令：
 
-```
-**$ Docker inspect OD-pythonserver-4 # Running on a container**
-**[{**
- **"Args": [**
- **"-m",**
- **"SimpleHTTPServer",**
- **"8000"**
- **],**
- **......**
- **......**
- **"Name": "/OD-pythonserver-4",**
- **"NetworkSettings": {**
- **"Bridge": "Docker0",**
- **"Gateway": "172.17.42.1",**
- **"IPAddress": "172.17.0.11",**
- **"IPPrefixLen": 16,**
- **"PortMapping": null,**
- **"Ports": {**
- **"8000/tcp": [**
- **{**
- **"HostIp": "0.0.0.0",**
- **"HostPort": "8000"**
- **}**
- **]**
- **}**
- **},**
- **......**
- **......**
- **"Volumes": {**
- **"/home/Docker": "/home/Docker"**
- **},**
- **"VolumesRW": {**
- **"/home/Docker": true**
- **}**
-**}]**
-
-```
+[PRE72]
 
 Docker inspect 提供了关于容器或镜像的所有低级信息。在上面的例子中，找出容器的 IP 地址和暴露的端口，并向`IP:port`发出请求。你会发现你直接访问了在容器中运行的服务器。
 
 然而，手动查看整个 JSON 数组并不是最佳选择。因此，`inspect`命令提供了一个标志`-f`（或`--follow`标志），允许你使用`Go`模板精确地指定你想要的内容。例如，如果你只想获取容器的 IP 地址，运行以下命令：
 
-```
-**$ docker inspect -f  '{{.NetworkSettings.IPAddress}}' \**
-**OD-pythonserver-4;**
-**172.17.0.11**
-
-```
+[PRE73]
 
 `{{.NetworkSettings.IPAddress}}`是在 JSON 结果上执行的`Go`模板。`Go`模板非常强大，你可以在[`golang.org/pkg/text/template/`](http://golang.org/pkg/text/template/)上列出一些你可以用它们做的事情。
 
@@ -948,18 +584,7 @@ Docker inspect 提供了关于容器或镜像的所有低级信息。在上面�
 
 让我们下载并运行`ghost`博客平台，并查看其中运行的进程：
 
-```
-**$ docker run -d -p 4000:2368 --name OD-ghost dockerfile/ghost**
-**ece88c79b0793b0a49e3d23e2b0b8e75d89c519e5987172951ea8d30d96a2936**
-
-**$ docker top OD-ghost-1**
-**PID                 USER                COMMAND**
-**1162                root                bash /ghost-start**
-**1180                root                npm**
-**1186                root                sh -c node index**
-**1187                root                node index**
-
-```
+[PRE74]
 
 是的！我们只需一条命令就设置了我们自己的`ghost`博客。这带来了另一个微妙的优势，并展示了可能是未来趋势的东西。现在，通过 TCP 端口暴露其服务的每个工具都可以被容器化，并在其自己的沙盒世界中运行。你只需要暴露它的端口并将其绑定到你的主机端口。你不需要担心安装、依赖关系、不兼容性等，卸载将是干净的，因为你只需要停止所有的容器并删除镜像。
 
@@ -979,28 +604,13 @@ Node.js 是一个事件驱动的、异步 I/O 的 Web 框架，它在 Google 的
 
 带有 Node.js 的容器如下：
 
-```
-**$ docker run -dit --name OD-nodejs shykes/nodejs node**
-**8e0da647200efe33a9dd53d45ea38e3af3892b04aa8b7a6e167b3c093e522754**
-
-**$ docker attach OD-nodejs**
-**console.log('Docker rocks!');Docker rocks!**
-
-```
+[PRE75]
 
 ## 杀死命令
 
 `kill`命令会杀死一个容器，并向容器中运行的进程发送`SIGTERM`信号：
 
-```
-**Let us kill the container running the ghost blog.**
-**$ docker kill OD-ghost-1**
-**OD-ghost-1**
-
-**$ docker attach OD-ghost-1 # Verification**
-**2014/07/19 18:12:51 You cannot attach to a stopped container, start it first**
-
-```
+[PRE76]
 
 ## cp 命令
 
@@ -1008,24 +618,15 @@ Node.js 是一个事件驱动的、异步 I/O 的 Web 框架，它在 Google 的
 
 是时候玩一些游戏了。首先，让我们用`/bin/bash`命令运行一个 Ubuntu 容器：
 
-```
-**$ docker run -it –name OD-cp-bell ubuntu /bin/bash**
-
-```
+[PRE77]
 
 现在，在容器内部，让我们创建一个带有特殊名称的文件：
 
-```
-**# touch $(echo -e '\007')**
-
-```
+[PRE78]
 
 `\ 007`字符是 ASCII`BEL`字符，当在终端上打印时会响铃系统。你可能已经猜到我们要做什么了。所以让我们打开一个新的终端，并执行以下命令将这个新创建的文件复制到主机：
 
-```
-**$ docker cp OD-cp-bell:/$(echo -e '\007') $(pwd)**
-
-```
+[PRE79]
 
 ### 提示
 
@@ -1033,10 +634,7 @@ Node.js 是一个事件驱动的、异步 I/O 的 Web 框架，它在 Google 的
 
 所以我们在容器中创建了一个文件名为`BEL`字符的空文件。然后我们将文件复制到主机容器中的当前目录。只剩最后一步了。在执行`docker cp`命令的主机标签中，运行以下命令：
 
-```
-**$ echo ***
-
-```
+[PRE80]
 
 你会听到系统铃声响起！我们本可以从容器中复制任何文件或目录到主机。但玩一些游戏也无妨！
 
@@ -1048,12 +646,7 @@ Node.js 是一个事件驱动的、异步 I/O 的 Web 框架，它在 Google 的
 
 `port`命令查找绑定到容器中公开端口的公共端口：
 
-```
-**$ docker port CONTAINER PRIVATE_PORT**
-**$ docker port OD-ghost 2368**
-**4000**
-
-```
+[PRE81]
 
 Ghost 在`2368`端口运行一个服务器，允许您编写和发布博客文章。在示例中，我们将主机端口绑定到`OD-ghost`容器的端口`2368`。
 
@@ -1069,40 +662,25 @@ Ghost 在`2368`端口运行一个服务器，允许您编写和发布博客文�
 
 +   我们需要为容器指定一个描述性名称，以便我们可以在将来的命令中引用它。在这种情况下，让我们选择应用程序的名称：
 
-```
-**$ docker run -it --name code.it dockerfile/nodejs /bin/bash**
-**[ root@3b0d5a04cdcd:/data ]$ cd /home**
-**[ root@3b0d5a04cdcd:/home ]$**
-
-```
+[PRE82]
 
 一旦您启动了容器，您需要检查应用程序的依赖项是否已经可用。在我们的情况下，除了 Node.js 之外，我们只需要 Git，它已经安装在`dockerfile/nodejs`镜像中。
 
 既然我们的容器已经准备好运行我们的应用程序，剩下的就是获取源代码并进行必要的设置来运行应用程序：
 
-```
-**$ git clone https://github.com/shrikrishnaholla/code.it.git**
-**$ cd code.it && git submodule update --init --recursive**
-
-```
+[PRE83]
 
 这将下载应用程序中使用的插件的源代码。
 
 然后运行以下命令：
 
-```
-**$ npm install**
-
-```
+[PRE84]
 
 现在所有运行应用程序所需的节点模块都已安装。
 
 接下来，运行此命令：
 
-```
-**$ node app.js**
-
-```
+[PRE85]
 
 现在您可以转到`localhost:8000`来使用该应用程序。
 
@@ -1110,62 +688,41 @@ Ghost 在`2368`端口运行一个服务器，允许您编写和发布博客文�
 
 `diff`命令显示容器与其基于的镜像之间的差异。在这个例子中，我们正在运行一个带有`code.it`的容器。在一个单独的标签中，运行此命令：
 
-```
-**$ docker diff code.it**
-**C /home**
-**A /home/code.it**
-**...**
-
-```
+[PRE86]
 
 ## 提交命令
 
 `commit`命令使用容器的文件系统创建一个新的镜像。就像 Git 的`commit`命令一样，您可以设置描述镜像的提交消息：
 
-```
-**$ docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]**
-
-```
+[PRE87]
 
 | 标志 | 解释 |
 | --- | --- |
 
 |
 
-```
-**-p, --pause**
-
-```
+[PRE88]
 
 | 这在提交期间暂停容器（从 v1.1.1+开始可用）。 |
 | --- |
 
 |
 
-```
-**-m, --message=""**
-
-```
+[PRE89]
 
 | 这是提交消息。它可以是对图像功能的描述。 |
 | --- |
 
 |
 
-```
-**-a, --author=""**
-
-```
+[PRE90]
 
 | 这显示了作者的详细信息。 |
 | --- |
 
 例如，让我们使用这个命令来提交我们设置的容器：
 
-```
-**$ docker commit -m "Code.it – A browser based text editor and interpreter" -a "Shrikrishna Holla <s**a@gmail.com>" code.it shrikrishna/code.it:v1**
-
-```
+[PRE91]
 
 ### 提示
 
@@ -1183,62 +740,42 @@ Ghost 在`2368`端口运行一个服务器，允许您编写和发布博客文�
 
 `images`命令列出系统中的所有图像：
 
-```
-**$ docker images [OPTIONS] [NAME]**
-
-```
+[PRE92]
 
 | 标志 | 说明 |
 | --- | --- |
 
 |
 
-```
-**-a, --all**
-
-```
+[PRE93]
 
 | 这显示所有图像，包括中间层。 |
 | --- |
 
 |
 
-```
-**-f, --filter=[]**
-
-```
+[PRE94]
 
 | 这提供过滤值。 |
 | --- |
 
 |
 
-```
-**--no-trunc**
-
-```
+[PRE95]
 
 | 这不会截断输出（显示完整的 ID）。 |
 | --- |
 
 |
 
-```
-**-q, --quiet**
-
-```
+[PRE96]
 
 | 这只显示图像 ID。 |
 | --- |
 
 现在让我们看一下`image`命令的几个用法示例：
 
-```
-**$ docker images**
-**REPOSITORY           TAG   IMAGE ID       CREATED    VIRTUAL SIZE**
-**shrikrishna/code.it  v1    a7cb6737a2f6   6m ago     704.4 MB**
-
-```
+[PRE97]
 
 这列出了所有顶层图像，它们的存储库和标签，以及它们的虚拟大小。
 
@@ -1256,17 +793,11 @@ Docker 图像只是一堆只读文件系统层。然后，像 AUFS 这样的联�
 
 以下命令列出了最近创建的图像：
 
-```
-**$ docker images | head**
-
-```
+[PRE98]
 
 `-f`标志可以给出`key=value`类型的参数。它经常用于获取悬空图像的列表：
 
-```
-**$ docker images -f "dangling=true"**
-
-```
+[PRE99]
 
 这将显示未标记的图像，也就是说，已经提交或构建而没有标记的图像。
 
@@ -1274,49 +805,34 @@ Docker 图像只是一堆只读文件系统层。然后，像 AUFS 这样的联�
 
 `rmi`命令删除图像。删除一个图像也会删除它所依赖的所有底层图像，并在拉取时下载的图像：
 
-```
-**$ docker rmi [OPTION] {IMAGE(s)]**
-
-```
+[PRE100]
 
 | 标志 | 解释 |
 | --- | --- |
 
 |
 
-```
-**-f, --force**
-
-```
+[PRE101]
 
 | 这将强制删除图像（或图像）。 |
 | --- |
 
 |
 
-```
-**--no-prune**
-
-```
+[PRE102]
 
 | 这个命令不会删除未标记的父级。 |
 | --- |
 
 这个命令从你的机器中删除一个图像：
 
-```
-**$ docker rmi test**
-
-```
+[PRE103]
 
 ## 保存命令
 
 `save`命令将图像或存储库保存在一个 tarball 中，并将其流到`stdout`文件，保留有关图像的父层和元数据：
 
-```
-**$ docker save -o codeit.tar code.it**
-
-```
+[PRE104]
 
 `-o`标志允许我们指定一个文件而不是流到`stdout`文件。它用于创建一个备份，然后可以与`docker load`命令一起使用。
 
@@ -1324,10 +840,7 @@ Docker 图像只是一堆只读文件系统层。然后，像 AUFS 这样的联�
 
 `load`命令从 tarball 中加载图像，恢复文件系统层和与图像相关的元数据：
 
-```
-**$ docker load -i codeit.tar**
-
-```
+[PRE105]
 
 `-i`标志允许我们指定一个文件，而不是尝试从`stdin`文件获取流。
 
@@ -1335,10 +848,7 @@ Docker 图像只是一堆只读文件系统层。然后，像 AUFS 这样的联�
 
 `export`命令将容器的文件系统保存为 tarball 并流式传输到`stdout`文件。它会展平文件系统层。换句话说，它会合并所有文件系统层。在此过程中，图像历史的所有元数据都会丢失：
 
-```
-**$ sudo Docker export red_panda > latest.tar**
-
-```
+[PRE106]
 
 在这里，`red_panda`是我其中一个容器的名称。
 
@@ -1346,24 +856,15 @@ Docker 图像只是一堆只读文件系统层。然后，像 AUFS 这样的联�
 
 `import`命令创建一个空的文件系统映像，并将 tarball 的内容导入其中。您可以选择为该图像打标签：
 
-```
-**$ docker import URL|- [REPOSITORY[:TAG]]**
-
-```
+[PRE107]
 
 URL 必须以`http`开头。
 
-```
-**$ docker import http://example.com/test.tar.gz # Sample url**
-
-```
+[PRE108]
 
 如果您想要从本地目录或存档中导入，可以使用-参数从`stdin`文件中获取数据：
 
-```
-**$ cat sample.tgz | docker import – testimage:imported**
-
-```
+[PRE109]
 
 ## 标签命令
 
@@ -1371,17 +872,11 @@ URL 必须以`http`开头。
 
 例如，`python`图像名称表示`python:latest`，即可用的最新版本的 Python，这可能会随时更改。但每当它更新时，旧版本都会用相应的 Python 版本标记。因此，`python:2.7`命令将安装 Python 2.7。因此，`tag`命令可用于表示图像的版本，或用于需要识别不同图像版本的任何其他目的：
 
-```
-**$ docker tag IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]**
-
-```
+[PRE110]
 
 `REGISTRYHOST`命令仅在您使用自己的私有注册表时才需要。同一图像可以有多个标签：
 
-```
-**$ docker tag shrikrishna/code.it:v1 shrikrishna/code.it:latest**
-
-```
+[PRE111]
 
 ### 提示
 
@@ -1389,52 +884,34 @@ URL 必须以`http`开头。
 
 现在，再次运行`docker images`命令将显示相同的图像已被标记为`v1`和`latest`命令：
 
-```
-**$ docker images**
-**REPOSITORY            TAG     IMAGE ID      CREATED     VIRTUAL SIZE**
-**shrikrishna/code.it   v1      a7cb6737a2f6  8 days ago  704.4 MB**
-**shrikrishna/code.it   latest  a7cb6737a2f6  8 days ago  704.4 MB**
-
-```
+[PRE112]
 
 ## 登录命令
 
 `login`命令用于注册或登录到 Docker 注册服务器。如果未指定服务器，默认为[`index.docker.io/v1/`](https://index.docker.io/v1/)。
 
-```
-**$ Docker login [OPTIONS] [SERVER]**
-
-```
+[PRE113]
 
 | 标志 | 解释 |
 | --- | --- |
 
 |
 
-```
-**-e, --email=""**
-
-```
+[PRE114]
 
 | 电子邮件 |
 | --- |
 
 |
 
-```
-**-p, --password=""**
-
-```
+[PRE115]
 
 | 密码 |
 | --- |
 
 |
 
-```
-**-u, --username=""**
-
-```
+[PRE116]
 
 | 用户名 |
 | --- |
@@ -1445,89 +922,52 @@ URL 必须以`http`开头。
 
 `push`命令用于将图像推送到公共图像注册表或私有 Docker 注册表：
 
-```
-**$ docker push NAME[:TAG]**
-
-```
+[PRE117]
 
 ## 历史命令
 
 `history`命令显示图像的历史记录：
 
-```
-**$ docker history shykes/nodejs**
-**IMAGE         CREATED        CREATED BY                      SIZE**
-**6592508b0790  15 months ago  /bin/sh -c wget http://nodejs.  15.07 MB**
-**0a2ff988ae20  15 months ago  /bin/sh -c apt-get install ...  25.49 MB**
-**43c5d81f45de  15 months ago  /bin/sh -c apt-get update       96.48 MB**
-**b750fe79269d  16 months ago  /bin/bash                       77 B**
-**27cf78414709  16 months ago                                  175.3 MB**
-
-```
+[PRE118]
 
 ## 事件命令
 
 一旦启动，`events`命令会实时打印`docker`守护程序处理的所有事件：
 
-```
-**$ docker events [OPTIONS]**
-
-```
+[PRE119]
 
 | 标志 | 解释 |
 | --- | --- |
 
 |
 
-```
-**--since=""**
-
-```
+[PRE120]
 
 | 这显示自 Unix 时间戳以来创建的所有事件。 |
 | --- |
 
 |
 
-```
-**--until=""**
-
-```
+[PRE121]
 
 | 这个流事件直到时间戳。 |
 | --- |
 
 例如，`events`命令的使用如下：
 
-```
-**$ docker events**
-
-```
+[PRE122]
 
 现在，在另一个标签中，运行以下命令：
 
-```
-**$ docker start code.it**
-
-```
+[PRE123]
 
 然后运行以下命令：
 
-```
-**$ docker stop code.it**
-
-```
+[PRE124]
 
 现在回到运行 Docker 事件的标签并查看输出。它将沿着这些线路进行：
 
-```
-**[2014-07-21 21:31:50 +0530 IST] c7f2485863b2c7d0071477e6cb8c8301021ef9036afd4620702a0de08a4b3f7b: (from dockerfile/nodejs:latest) start**
-
-**[2014-07-21 21:31:57 +0530 IST] c7f2485863b2c7d0071477e6cb8c8301021ef9036afd4620702a0de08a4b3f7b: (from dockerfile/nodejs:latest) stop**
-
-**[2014-07-21 21:31:57 +0530 IST] c7f2485863b2c7d0071477e6cb8c8301021ef9036afd4620702a0de08a4b3f7b: (from dockerfile/nodejs:latest) die**
-
-```
+[PRE125]
 
 您可以使用`--since`和`--until`等标志来获取特定时间范围内的事件日志。
 
@@ -1535,69 +975,48 @@ URL 必须以`http`开头。
 
 `wait`命令会阻塞，直到容器停止，然后打印其退出代码：
 
-```
-**$ docker wait CONTAINER(s)**
-
-```
+[PRE126]
 
 ## 构建命令
 
 构建命令从指定路径的源文件构建镜像：
 
-```
-**$ Docker build [OPTIONS] PATH | URL | -**
-
-```
+[PRE127]
 
 | 标志 | 解释 |
 | --- | --- |
 
 |
 
-```
-**-t, --tag=""**
-
-```
+[PRE128]
 
 | 这是要应用于成功时生成的图像的存储库名称（和可选标签）。 |
 | --- |
 
 |
 
-```
-**-q, --quiet**
-
-```
+[PRE129]
 
 | 这会抑制默认情况下冗长的输出。 |
 | --- |
 
 |
 
-```
-**--rm=true**
-
-```
+[PRE130]
 
 | 这会在成功构建后删除中间容器。 |
 | --- |
 
 |
 
-```
-**--force-rm**
-
-```
+[PRE131]
 
 | 这总是在构建失败后删除中间容器。 |
 | --- |
 
 |
 
-```
-**--no-cache**
-
-```
+[PRE132]
 
 | 此命令在构建镜像时不使用缓存。 |
 | --- |
@@ -1628,84 +1047,15 @@ Dockerfile 就像一个 Makefile。它包含了各种配置和命令的指令，
 
 到目前为止，您已经创建了一个目录，并在其中放置了 Dockerfile。现在，在您的终端上，转到该目录并执行`docker build`命令：
 
-```
-**$ docker build -t shrikrishna/code.it:docker Dockerfile .**
-**Sending build context to Docker daemon  2.56 kB**
-**Sending build context to Docker daemon**
-**Step 0 : FROM Dockerfile/nodejs**
- **---> 1535da87b710**
-**Step 1 : MAINTAINER Shrikrishna Holla <s**a@gmail.com>**
- **---> Running in e4be61c08592**
- **---> 4c0eabc44a95**
-**Removing intermediate container e4be61c08592**
-**Step 2 : WORKDIR /home**
- **---> Running in 067e8951cb22**
- **---> 81ead6b62246**
-**Removing intermediate container 067e8951cb22**
-**. . . . .**
-**. . . . .**
-**Step 7 : EXPOSE  8000**
- **---> Running in 201e07ec35d3**
- **---> 1db6830431cd**
-**Removing intermediate container 201e07ec35d3**
-**Step 8 : WORKDIR /home**
- **---> Running in cd128a6f090c**
- **---> ba05b89b9cc1**
-**Removing intermediate container cd128a6f090c**
-**Step 9 : CMD     ["/usr/bin/node", "/home/code.it/app.js"]**
- **---> Running in 6da5d364e3e1**
- **---> 031e9ed9352c**
-**Removing intermediate container 6da5d364e3e1**
-**Successfully built 031e9ed9352c**
-
-```
+[PRE133]
 
 现在，您将能够在 Docker 镜像的输出中查看您新构建的图像
 
-```
-**REPOSITORY          TAG        IMAGE ID     CREATED      VIRTUAL SIZE**
-**shrikrishna/code.it Dockerfile 031e9ed9352c 21 hours ago 1.02 GB**
-
-```
+[PRE134]
 
 要查看缓存的实际效果，请再次运行相同的命令
 
-```
-**$ docker build -t shrikrishna/code.it:dockerfile .**
-**Sending build context to Docker daemon  2.56 kB**
-**Sending build context to Docker daemon**
-**Step 0 : FROM dockerfile/nodejs**
- **---> 1535da87b710**
-**Step 1 : MAINTAINER Shrikrishna Holla <s**a@gmail.com>**
- **---> Using cache**
- **---> 4c0eabc44a95**
-**Step 2 : WORKDIR /home**
- **---> Using cache**
- **---> 81ead6b62246**
-**Step 3 : RUN     git clone https://github.com/shrikrishnaholla/code.it.git**
- **---> Using cache**
- **---> adb4843236d4**
-**Step 4 : WORKDIR code.it**
- **---> Using cache**
- **---> 755d248840bb**
-**Step 5 : RUN     git submodule update --init --recursive**
- **---> Using cache**
- **---> 2204a519efd3**
-**Step 6 : RUN     npm install**
- **---> Using cache**
- **---> 501e028d7945**
-**Step 7 : EXPOSE  8000**
- **---> Using cache**
- **---> 1db6830431cd**
-**Step 8 : WORKDIR /home**
- **---> Using cache**
- **---> ba05b89b9cc1**
-**Step 9 : CMD     ["/usr/bin/node", "/home/code.it/app.js"]**
- **---> Using cache**
- **---> 031e9ed9352c**
-**Successfully built 031e9ed9352c**
-
-```
+[PRE135]
 
 ### 提示
 
@@ -1713,28 +1063,7 @@ Dockerfile 就像一个 Makefile。它包含了各种配置和命令的指令，
 
 使用存储库 URL 构建图像的示例如下：
 
-```
-**$ docker build -t shrikrishna/optimus:git_url \ git://github.com/shrikrishnaholla/optimus**
-**Sending build context to Docker daemon 1.305 MB**
-**Sending build context to Docker daemon**
-**Step 0 : FROM        dockerfile/nodejs**
- **---> 1535da87b710**
-**Step 1 : MAINTAINER  Shrikrishna Holla**
- **---> Running in d2aae3dba68c**
- **---> 0e8636eac25b**
-**Removing intermediate container d2aae3dba68c**
-**Step 2 : RUN         git clone https://github.com/pesos/optimus.git /home/optimus**
- **---> Running in 0b46e254e90a**
-**. . . . .**
-**. . . . .**
-**. . . . .**
-**Step 5 : CMD         ["/usr/local/bin/npm", "start"]**
- **---> Running in 0e01c71faa0b**
- **---> 0f0dd3deae65**
-**Removing intermediate container 0e01c71faa0b**
-**Successfully built 0f0dd3deae65**
-
-```
+[PRE136]
 
 # Dockerfile
 
@@ -1744,11 +1073,7 @@ Dockerfile 就像一个 Makefile。它包含了各种配置和命令的指令，
 
 Dockerfile 以这种格式包含指令：
 
-```
-**# Comment**
-**INSTRUCTION arguments**
-
-```
+[PRE137]
 
 任何以`#`开头的行将被视为注释。如果`#`符号出现在其他地方，它将被视为参数的一部分。指令不区分大小写，尽管按照惯例，指令应该大写以便与参数区分开。
 
@@ -1758,10 +1083,7 @@ Dockerfile 以这种格式包含指令：
 
 `FROM`指令设置了后续指令的基础镜像。有效的 Dockerfile 的第一行非注释行将是一个`FROM`指令：
 
-```
-**FROM <image>:<tag>**
-
-```
+[PRE138]
 
 镜像可以是任何有效的本地或公共镜像。如果在本地找不到，`Docker build`命令将尝试从公共注册表中拉取。这里`tag`命令是可选的。如果没有给出，将假定为`latest`命令。如果给出了不正确的`tag`命令，将返回错误。
 
@@ -1769,10 +1091,7 @@ Dockerfile 以这种格式包含指令：
 
 `MAINTAINER`指令允许您为生成的镜像设置作者：
 
-```
-**MAINTAINER <name>**
-
-```
+[PRE139]
 
 ## `RUN`指令
 
@@ -1818,27 +1137,15 @@ Dockerfile 以这种格式包含指令：
 
 例如，让我们编写一个`Dockerfile`，将`Star Wars`的输出带到您的终端：
 
-```
-**FROM ubuntu:14.04**
-**MAINTAINER shrikrishna**
-**RUN apt-get -y install telnet**
-**CMD ["/usr/bin/telnet", "towel.blinkenlights.nl"]**
-
-```
+[PRE140]
 
 将其保存在名为`star_wars`的文件夹中，并在此位置打开您的终端。然后运行此命令：
 
-```
-**$ docker build -t starwars .**
-
-```
+[PRE141]
 
 现在您可以使用以下命令运行它：
 
-```
-**$ docker run -it starwars** 
-
-```
+[PRE142]
 
 以下截图显示了`starwars`的输出：
 
@@ -1870,27 +1177,15 @@ Dockerfile 以这种格式包含指令：
 
 `cowsay`是一个生成带有消息的牛的 ASCII 图片的程序。它还可以使用其他动物的预制图片生成图片，比如 Tux 企鹅，Linux 吉祥物。
 
-```
-**FROM ubuntu:14.04**
-**RUN apt-get -y install cowsay**
-**ENTRYPOINT ["/usr/games/cowsay"]**
-**CMD ["Docker is so awesomoooooooo!"]**
-
-```
+[PRE143]
 
 将其保存为名为`Dockerfile`的文件，放在名为`cowsay`的文件夹中。然后通过终端，进入该目录，并运行以下命令：
 
-```
-**$ docker build -t cowsay .**
-
-```
+[PRE144]
 
 构建完镜像后，运行以下命令：
 
-```
-**$ docker run cowsay**
-
-```
+[PRE145]
 
 以下截图显示了前面命令的输出：
 
@@ -1906,10 +1201,7 @@ Dockerfile 以这种格式包含指令：
 
 `WORKDIR`指令为接下来的`RUN`，`CMD`和`ENTRYPOINT` Dockerfile 命令设置工作目录：
 
-```
-**WORKDIR /path/to/working/directory**
-
-```
+[PRE146]
 
 此指令可以在同一个 Dockerfile 中多次使用。如果提供了相对路径，则`WORKDIR`指令将相对于先前的`WORKDIR`指令的路径。
 
@@ -1917,10 +1209,7 @@ Dockerfile 以这种格式包含指令：
 
 `EXPOSE`指令通知 Docker 在启动容器时要公开某个端口：
 
-```
-**EXPOSE port1 port2 …**
-
-```
+[PRE147]
 
 即使在暴露端口之后，在启动容器时，仍然需要使用`-p`标志来提供端口映射给`Docker run`。这个指令在链接容器时很有用，我们将在第三章中看到*链接容器*。
 
@@ -1928,10 +1217,7 @@ Dockerfile 以这种格式包含指令：
 
 ENV 命令用于设置环境变量：
 
-```
-**ENV <key> <value>**
-
-```
+[PRE148]
 
 这将把`<key>`环境变量设置为`<value>`。这个值将传递给所有未来的`RUN`指令。这相当于在命令前加上`<key>=<value>`。
 
@@ -1941,33 +1227,21 @@ ENV 命令用于设置环境变量：
 
 USER 指令设置在运行镜像和任何后续`RUN`指令时要使用的用户名或 UID：
 
-```
-**USER xyz**
-
-```
+[PRE149]
 
 ## VOLUME 指令
 
 `VOLUME`指令将创建一个具有给定名称的挂载点，并将其标记为保存来自主机或其他容器的外部挂载卷：
 
-```
-**VOLUME [path]**
-
-```
+[PRE150]
 
 以下是`VOLUME`指令的示例：
 
-```
-**VOLUME ["/data"]**
-
-```
+[PRE151]
 
 以下是此指令的另一个示例：
 
-```
-**VOLUME /var/log**
-
-```
+[PRE152]
 
 两种格式都可以接受。
 
@@ -1975,10 +1249,7 @@ USER 指令设置在运行镜像和任何后续`RUN`指令时要使用的用户�
 
 `ADD`指令用于将文件复制到镜像中：
 
-```
-**ADD <src> <dest>**
-
-```
+[PRE153]
 
 `ADD`指令将文件从`<src>`复制到`<dest>`的路径中。
 
@@ -2012,10 +1283,7 @@ USER 指令设置在运行镜像和任何后续`RUN`指令时要使用的用户�
 
 COPY 指令将文件复制到镜像中：
 
-```
-**COPY <src> <dest>**
-
-```
+[PRE154]
 
 `COPY`指令类似于`ADD`指令。不同之处在于`COPY`指令不允许超出上下文的任何文件。因此，如果您通过`stdin`文件或 URL（指向源代码存储库的 URL）流式传输 Dockerfile，则无法使用`COPY`指令。
 
@@ -2023,10 +1291,7 @@ COPY 指令将文件复制到镜像中：
 
 `ONBUILD`指令将触发器添加到镜像中，当镜像用作另一个构建的基础镜像时，将执行该触发器。
 
-```
-**ONBUILD [INSTRUCTION]**
-
-```
+[PRE155]
 
 当源应用程序涉及需要在使用之前编译的生成器时，这是有用的。除了`FROM`，`MAINTAINER`和`ONBUILD`指令之外的任何构建指令都可以注册。
 
@@ -2042,31 +1307,15 @@ COPY 指令将文件复制到镜像中：
 
 让我们把`cowsay`带回来！这是一个带有`ONBUILD`指令的 Dockerfile：
 
-```
-**FROM ubuntu:14.04**
-**RUN apt-get -y install cowsay**
-**RUN apt-get -y install fortune**
-**ENTRYPOINT ["/usr/games/cowsay"]**
-**CMD ["Docker is so awesomoooooooo!"]**
-**ONBUILD RUN /usr/games/fortune | /usr/games/cowsay**
-
-```
+[PRE156]
 
 现在将这个文件保存在一个名为`OnBuild`的文件夹中，打开该文件夹中的终端，并运行这个命令：
 
-```
-**$ Docker build -t shrikrishna/onbuild .**
-
-```
+[PRE157]
 
 我们需要编写另一个基于这个镜像的 Dockerfile。让我们写一个：
 
-```
-**FROM shrikrishna/onbuild**
-**RUN  apt-get moo**
-**CMD ['/usr/bin/apt-get', 'moo']**
-
-```
+[PRE158]
 
 ### 注意
 
@@ -2074,65 +1323,11 @@ COPY 指令将文件复制到镜像中：
 
 构建这个镜像现在将执行我们之前给出的`ONBUILD`指令：
 
-```
-**$ docker build -t shrikrishna/apt-moo apt-moo/**
-**Sending build context to Docker daemon  2.56 kB**
-**Sending build context to Docker daemon**
-**Step 0 : FROM shrikrishna/onbuild**
-**# Executing 1 build triggers**
-**Step onbuild-0 : RUN /usr/games/fortune | /usr/games/cowsay**
- **---> Running in 887592730f3d**
- **________________________________**
-**/ It was all so different before \**
-**\ everything changed.            /**
- **--------------------------------**
- **\   ^__^**
- **\  (oo)\_______**
- **(__)\       )\/\**
- **||----w |**
- **||     ||**
- **---> df01e4ca1dc7**
- **---> df01e4ca1dc7**
-**Removing intermediate container 887592730f3d**
-**Step 1 : RUN  apt-get moo**
- **---> Running in fc596cb91c2a**
- **(__)**
- **(oo)**
- **/------\/**
- **/ |    ||**
- ***  /\---/\**
- **~~   ~~**
-**..."Have you mooed today?"...**
- **---> 623cd16a51a7**
-**Removing intermediate container fc596cb91c2a**
-**Step 2 : CMD ['/usr/bin/apt-get', 'moo']**
- **---> Running in 22aa0b415af4**
- **---> 7e03264fbb76**
-**Removing intermediate container 22aa0b415af4**
-**Successfully built 7e03264fbb76**
-
-```
+[PRE159]
 
 现在让我们利用我们新获得的知识来为我们之前通过手动满足容器中的依赖关系并提交构建的`code.it`应用程序编写一个 Dockerfile。Dockerfile 看起来会像这样：
 
-```
-**# Version 1.0**
-**FROM dockerfile/nodejs**
-**MAINTAINER Shrikrishna Holla <s**a@gmail.com>**
-
-**WORKDIR /home**
-**RUN     git clone \ https://github.com/shrikrishnaholla/code.it.git**
-
-**WORKDIR code.it**
-**RUN     git submodule update --init --recursive**
-**RUN     npm install**
-
-**EXPOSE  8000**
-
-**WORKDIR /home**
-**CMD     ["/usr/bin/node", "/home/code.it/app.js"]**
-
-```
+[PRE160]
 
 创建一个名为`code.it`的文件夹，并将这个内容保存为一个名为`Dockerfile`的文件。
 

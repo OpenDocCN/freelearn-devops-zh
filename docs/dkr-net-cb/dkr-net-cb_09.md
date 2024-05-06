@@ -44,15 +44,11 @@ Docker 提供了两种不同的渠道，您可以在其中预览未发布的代�
 
 +   要安装实验版，请运行此命令：
 
-```
-curl -sSL https://experimental.docker.com/ | sh
-```
+[PRE0]
 
 +   要安装测试版或候选发布版，请运行此命令：
 
-```
-curl -sSL https://test.docker.com/ | sh
-```
+[PRE1]
 
 ### 注意
 
@@ -60,58 +56,21 @@ curl -sSL https://test.docker.com/ | sh
 
 如前所述，这些脚本的使用应该在当前未安装 Docker 的机器上进行。安装后，您可以通过检查`docker info`的输出来验证是否安装了适当的版本。例如，在安装实验版本时，您可以在输出中看到实验标志已设置：
 
-```
-user@docker-test:~$ sudo docker info
-Containers: 0
- Running: 0
- Paused: 0
- Stopped: 0
-Images: 0
-**Server Version: 1.12.2**
-…<Additional output removed for brevity>…
-**Experimental: true**
-Insecure Registries:
- 127.0.0.0/8
-user@docker-test:~$
-```
+[PRE2]
 
 在测试或 RC 版本中，您将看到类似的输出；但是，在 Docker info 的输出中不会列出实验变量：
 
-```
-user@docker-test:~$ sudo docker info
-Containers: 0
- Running: 0
- Paused: 0
- Stopped: 0
-Images: 0
-**Server Version: 1.12.2-rc3**
-…<Additional output removed for brevity>…
-Insecure Registries:
- 127.0.0.0/8
-user@docker-test:~$
-```
+[PRE3]
 
 通过脚本安装后，您会发现 Docker 已安装并运行，就好像您通过操作系统的默认软件包管理器安装了 Docker 一样。虽然脚本应该在安装的最后提示您，但建议将您的用户帐户添加到 Docker 组中。这样可以避免您在使用 Docker CLI 命令时需要提升权限使用`sudo`。要将您的用户帐户添加到 Docker 组中，请使用以下命令：
 
-```
-user@docker-test:~$ sudo usermod -aG docker <your username>
-```
+[PRE4]
 
 确保您注销并重新登录以使设置生效。
 
 请记住，这些脚本也可以用于更新任一渠道的最新版本。在这些情况下，脚本仍会提示您有关在现有 Docker 安装上安装的可能性，但它将提供措辞以指示您可以忽略该消息：
 
-```
-user@docker-test:~$ **curl -sSL https://test.docker.com/ | sh**
-Warning: the "docker" command appears to already exist on this system.
-
-If you already have Docker installed, this script can cause trouble, which is why we're displaying this warning and provide the opportunity to cancel the installation.
-
-**If you installed the current Docker package using this script and are using it again to update Docker, you can safely ignore this message.**
-
-You may press Ctrl+C now to abort this script.
-+ sleep 20
-```
+[PRE5]
 
 虽然这不是获取测试和实验代码的唯一方法，但肯定是最简单的方法。您也可以下载预构建的二进制文件或自行构建二进制文件。有关如何执行这两种操作的信息可在 Docker 的 GitHub 页面上找到：[`github.com/docker/docker/tree/master/experimental`](https://github.com/docker/docker/tree/master/experimental)。
 
@@ -129,33 +88,11 @@ You may press Ctrl+C now to abort this script.
 
 +   `net1.lab.lab`
 
-```
-auto eth0
-iface eth0 inet static
-        address 172.16.10.2
-        netmask 255.255.255.0
-        gateway 172.16.10.1
-        dns-nameservers 10.20.30.13
-        dns-search lab.lab
-
-auto eth1
-iface eth1 inet manual
-```
+[PRE6]
 
 +   `net2.lab.lab`
 
-```
-auto eth0
-iface eth0 inet static
-        address 172.16.10.3
-        netmask 255.255.255.0
-        gateway 172.16.10.1
-        dns-nameservers 10.20.30.13
-        dns-search lab.lab
-
-auto eth1
-iface eth1 inet manual
-```
+[PRE7]
 
 ### 注意
 
@@ -167,54 +104,23 @@ MacVLAN 代表一种完全不同的接口配置方式，与我们到目前为止
 
 配置 MacVLAN 类型接口的方式与 Linux 网络接口上的所有其他类型非常相似。使用`ip`命令行工具，我们可以使用`link`子命令来定义接口：
 
-```
-user@net1:~$ sudo ip link add macvlan1 link eth0 type macvlan 
-```
+[PRE8]
 
 这个语法应该对你来说很熟悉，因为我们在书的第一章中定义了多种不同的接口类型。创建后，下一步是为其配置 IP 地址。这也是通过`ip`命令完成的：
 
-```
-user@net1:~$ sudo ip address add 172.16.10.5/24 dev macvlan1
-
-```
+[PRE9]
 
 最后，我们需要确保启动接口。
 
-```
-user@net1:~$ sudo ip link set dev macvlan1 up
-```
+[PRE10]
 
 接口现在已经启动，我们可以使用`ip addr show`命令来检查配置：
 
-```
-user@net1:~$ ip addr show
-1: …<loopback interface configuration removed for brevity>…
-2: **eth0**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
-    link/ether 00:0c:29:2d:dd:79 brd ff:ff:ff:ff:ff:ff
-    inet **172.16.10.2/24** brd 172.16.10.255 scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::20c:29ff:fe2d:dd79/64 scope link
-       valid_lft forever preferred_lft forever
-3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
-    link/ether 00:0c:29:2d:dd:83 brd ff:ff:ff:ff:ff:ff
-    inet6 fe80::20c:29ff:fe2d:dd83/64 scope link
-       valid_lft forever preferred_lft forever
-4: **macvlan1@eth0**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN group default
-    link/ether da:aa:c0:18:55:4a brd ff:ff:ff:ff:ff:ff
-    inet **172.16.10.5/24** scope global macvlan1
-       valid_lft forever preferred_lft forever
-    inet6 fe80::d8aa:c0ff:fe18:554a/64 scope link
-       valid_lft forever preferred_lft forever
-user@net1:~$
-```
+[PRE11]
 
 现在我们已经配置了接口，有几个有趣的地方需要指出。首先，MacVLAN 接口的名称使得很容易识别接口的父接口。回想一下，我们提到每个 MacVLAN 接口都必须与一个父接口关联。在这种情况下，我们可以通过查看 MacVLAN 接口名称中`macvlan1@`后面列出的名称来知道这个 MacVLAN 接口的父接口是`eth0`。其次，分配给 MacVLAN 接口的 IP 地址与父接口（`eth0`）处于相同的子网中。这是有意为之，以允许外部连接。让我们在同一个父接口上定义第二个 MacVLAN 接口，以演示允许的连接性：
 
-```
-user@net1:~$ sudo ip link add macvlan2 link eth0 type macvlan
-user@net1:~$ sudo ip address add 172.16.10.6/24 dev macvlan2
-user@net1:~$ sudo ip link set dev macvlan2 up
-```
+[PRE12]
 
 我们的网络拓扑如下：
 
@@ -222,38 +128,13 @@ user@net1:~$ sudo ip link set dev macvlan2 up
 
 我们有两个 MacVLAN 接口绑定到 net1 的`eth0`接口。如果我们尝试从外部子网访问任一接口，连接性应该如预期般工作：
 
-```
-**user@test_server:~$** ip addr show dev **eth0** |grep inet
-    inet **10.20.30.13/24** brd 10.20.30.255 scope global eth0
-**user@test_server:~$ ping 172.16.10.5 -c 2**
-PING 172.16.10.5 (172.16.10.5) 56(84) bytes of data.
-**64 bytes from 172.16.10.5: icmp_seq=1 ttl=63 time=0.423 ms**
-**64 bytes from 172.16.10.5: icmp_seq=2 ttl=63 time=0.458 ms**
---- 172.16.10.5 ping statistics ---
-2 packets transmitted, 2 received, 0% packet loss, time 1000ms
-rtt min/avg/max/mdev = 0.423/0.440/0.458/0.027 ms
-**user@test_server:~$ ping 172.16.10.6 -c 2**
-PING 172.16.10.6 (172.16.10.6) 56(84) bytes of data.
-**64 bytes from 172.16.10.6: icmp_seq=1 ttl=63 time=0.510 ms**
-**64 bytes from 172.16.10.6: icmp_seq=2 ttl=63 time=0.532 ms**
---- 172.16.10.6 ping statistics ---
-2 packets transmitted, 2 received, 0% packet loss, time 1000ms
-rtt min/avg/max/mdev = 0.510/0.521/0.532/0.011 ms
-```
+[PRE13]
 
 在前面的输出中，我尝试从`net1`主机的子网外部的测试服务器上到达`172.16.10.5`和`172.16.10.6`。在这两种情况下，我们都能够到达 MacVLAN 接口的 IP 地址，这意味着路由正在按预期工作。这就是为什么我们给 MacVLAN 接口分配了服务器`eth0`接口现有子网内的 IP 地址。由于多层交换机知道`172.16.10.0/24`位于 VLAN 10 之外，它只需为 VLAN 10 上的新 IP 地址发出 ARP 请求，以获取它们的 MAC 地址。Linux 主机已经有一个指向允许返回流量到达测试服务器的交换机的默认路由。然而，这绝不是 MacVLAN 接口的要求。我本可以轻松选择另一个 IP 子网用于接口，但那将阻止外部路由的固有工作。
 
 另一个需要指出的地方是父接口不需要有关联的 IP 地址。例如，让我们通过在主机`net1`上建立两个更多的 MacVLAN 接口来扩展拓扑。一个在主机`net1`上，另一个在主机`net2`上：
 
-```
-user@net1:~$ sudo ip link add macvlan3 link eth1 type macvlan
-user@net1:~$ sudo ip address add 192.168.10.5/24 dev macvlan3
-user@net1:~$ sudo ip link set dev macvlan3 up
-
-user@net2:~$ sudo ip link add macvlan4 link eth1 type macvlan
-user@net2:~$ sudo ip address add 192.168.10.6/24 dev macvlan4
-user@net2:~$ sudo ip link set dev macvlan4 up
-```
+[PRE14]
 
 我们的拓扑如下：
 
@@ -261,50 +142,21 @@ user@net2:~$ sudo ip link set dev macvlan4 up
 
 尽管在物理接口上没有定义 IP 地址，但主机现在将`192.168.10.0/24`网络视为已定义，并认为该网络是本地连接的：
 
-```
-user@net1:~$ ip route
-default via 172.16.10.1 dev eth0
-172.16.10.0/24 dev eth0  proto kernel  scope link  src 172.16.10.2
-172.16.10.0/24 dev macvlan1  proto kernel  scope link  src 172.16.10.5
-172.16.10.0/24 dev macvlan2  proto kernel  scope link  src 172.16.10.6
-**192.168.10.0/24 dev macvlan3  proto kernel  scope link  src 192.168.10.5**
-user@net1:~$
-```
+[PRE15]
 
 这意味着两个主机可以直接通过它们在该子网上的关联 IP 地址相互到达：
 
-```
-user@**net1**:~$ ping **192.168.10.6** -c 2
-PING 192.168.10.6 (192.168.10.6) 56(84) bytes of data.
-**64 bytes from 192.168.10.6: icmp_seq=1 ttl=64 time=0.405 ms**
-**64 bytes from 192.168.10.6: icmp_seq=2 ttl=64 time=0.432 ms**
---- 192.168.10.6 ping statistics ---
-2 packets transmitted, 2 received, 0% packet loss, time 1000ms
-rtt min/avg/max/mdev = 0.405/0.418/0.432/0.024 ms
-user@net1:~$
-```
+[PRE16]
 
 此时，您可能会想知道为什么要使用 MacVLAN 接口类型。从外观上看，它似乎与创建逻辑子接口没有太大区别。真正的区别在于接口的构建方式。通常，子接口都使用相同的父接口的 MAC 地址。您可能已经注意到在先前的输出和图表中，MacVLAN 接口具有与其关联的父接口不同的 MAC 地址。我们也可以在上游多层交换机（网关）上验证这一点：
 
-```
-switch# show ip arp vlan 10
-Protocol  Address          Age (min)  Hardware Addr   Type   Interface
-**Internet  172.16.10.6             8   a2b1.0cd4.4e73  ARPA   Vlan10**
-**Internet  172.16.10.5             8   4e19.f07f.33e0  ARPA   Vlan10**
-**Internet  172.16.10.2             0   000c.292d.dd79  ARPA   Vlan10**
-Internet  172.16.10.3            62   000c.2959.caca  ARPA   Vlan10
-Internet  172.16.10.1             -   0021.d7c5.f245  ARPA   Vlan10
-```
+[PRE17]
 
 ### 注意
 
 在测试中，您可能会发现 Linux 主机对于配置中的每个 IP 地址都呈现相同的 MAC 地址。根据您运行的操作系统，您可能需要更改以下内核参数，以防止主机呈现相同的 MAC 地址：
 
-```
-echo 1 | sudo tee /proc/sys/net/ipv4/conf/all/arp_ignore
-echo 2 | sudo tee /proc/sys/net/ipv4/conf/all/arp_announce
-echo 2 | sudo tee /proc/sys/net/ipv4/conf/all/rp_filter
-```
+[PRE18]
 
 请记住，以这种方式应用这些设置不会在重新启动后持久存在。
 
@@ -312,13 +164,7 @@ echo 2 | sudo tee /proc/sys/net/ipv4/conf/all/rp_filter
 
 由于父接口负责多个 MAC 地址，它需要处于混杂模式。当选择为父接口时，主机应自动将接口置于混杂模式。您可以通过检查 ip 链接详细信息来验证：
 
-```
-user@net2:~$ ip -d link
-…<output removed for brevity>…
-2: **eth1**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
-    link/ether 00:0c:29:59:ca:d4 brd ff:ff:ff:ff:ff:ff **promiscuity 1**
-…<output removed for brevity>…
-```
+[PRE19]
 
 ### 注意
 
@@ -328,51 +174,27 @@ user@net2:~$ ip -d link
 
 让我们首先删除所有现有的 MacVLAN 接口：
 
-```
-user@net1:~$ sudo ip link del macvlan1
-user@net1:~$ sudo ip link del macvlan2
-user@net1:~$ sudo ip link del macvlan3
-user@net2:~$ sudo ip link del macvlan4
-```
+[PRE20]
 
 就像我们在第一章中所做的那样，*Linux 网络构造*，我们可以创建一个接口，然后将其移入一个命名空间。我们首先创建命名空间：
 
-```
-user@net1:~$ sudo ip netns add namespace1
-```
+[PRE21]
 
 然后，我们创建 MacVLAN 接口：
 
-```
-user@net1:~$ sudo ip link add macvlan1 link eth0 type macvlan
-```
+[PRE22]
 
 接下来，我们将接口移入新创建的网络命名空间：
 
-```
-user@net1:~$ sudo ip link set macvlan1 netns namespace1
-```
+[PRE23]
 
 最后，从命名空间内部，我们为其分配一个 IP 地址并将其启动：
 
-```
-user@net1:~$ sudo ip netns exec namespace1 ip address \
-add 172.16.10.5/24 dev macvlan1
-user@net1:~$ sudo ip netns exec namespace1 ip link set \
-dev macvlan1 up
-```
+[PRE24]
 
 让我们也在第二个命名空间中创建一个第二个接口，用于测试目的：
 
-```
-user@net1:~$ sudo ip netns add namespace2
-user@net1:~$ sudo ip link add macvlan2 link eth0 type macvlan
-user@net1:~$ sudo ip link set macvlan2 netns namespace2
-user@net1:~$ sudo ip netns exec namespace2 ip address \
-add 172.16.10.6/24 dev macvlan2
-user@net1:~$ sudo ip netns exec namespace2 ip link set \
-dev macvlan2 up
-```
+[PRE25]
 
 ### 注意
 
@@ -386,54 +208,19 @@ dev macvlan2 up
 
 此时，您应该注意到外部主机无法再 ping 通所有 IP 地址。相反，您只能到达`172.16.10.2`的`eth0` IP 地址。原因很简单。正如您所记得的，命名空间类似于**虚拟路由和转发**（**VRF**），并且有自己的路由表。如果您检查一下两个命名空间的路由表，您会发现它们都没有默认路由：
 
-```
-user@net1:~$ sudo ip netns exec **namespace1** ip route
-**172.16.10.0/24 dev macvlan1  proto kernel  scope link  src 172.16.10.5**
-user@net1:~$ sudo ip netns exec **namespace2** ip route
-**172.16.10.0/24 dev macvlan2  proto kernel  scope link  src 172.16.10.6**
-user@net1:~$
-```
+[PRE26]
 
 为了使这些接口在网络外可达，我们需要为每个命名空间指定一个默认路由，指向该子网上的网关（`172.16.10.1`）。同样，这是将 MacVLAN 接口 addressing 在与父接口相同的子网中的好处。路由已经存在于物理网络上。添加路由并重新测试：
 
-```
-user@net1:~$ sudo ip netns exec namespace1 ip route \
-add 0.0.0.0/0 via 172.16.10.1
-user@net1:~$ sudo ip netns exec namespace2 ip route \
-add 0.0.0.0/0 via 172.16.10.1
-```
+[PRE27]
 
 从外部测试主机（为简洁起见删除了一些输出）：
 
-```
-**user@test_server:~$** ping 172.16.10.2 -c 2
-PING 172.16.10.2 (172.16.10.2) 56(84) bytes of data.
-**64 bytes from 172.16.10.2: icmp_seq=1 ttl=63 time=0.459 ms**
-**64 bytes from 172.16.10.2: icmp_seq=2 ttl=63 time=0.441 ms**
-**user@test_server:~$** ping 172.16.10.5 -c 2
-PING 172.16.10.5 (172.16.10.5) 56(84) bytes of data.
-**64 bytes from 172.16.10.5: icmp_seq=1 ttl=63 time=0.521 ms**
-**64 bytes from 172.16.10.5: icmp_seq=2 ttl=63 time=0.528 ms**
-**user@test_server:~$** ping 172.16.10.6 -c 2
-PING 172.16.10.6 (172.16.10.6) 56(84) bytes of data.
-**64 bytes from 172.16.10.6: icmp_seq=1 ttl=63 time=0.524 ms**
-**64 bytes from 172.16.10.6: icmp_seq=2 ttl=63 time=0.551 ms**
-
-```
+[PRE28]
 
 因此，虽然外部连接似乎按预期工作，但请注意，这些接口都无法相互通信：
 
-```
-user@net1:~$ sudo ip netns exec **namespace2** ping **172.16.10.5**
-PING 172.16.10.5 (172.16.10.5) 56(84) bytes of data.
---- 172.16.10.5 ping statistics ---
-5 packets transmitted, 0 received, **100% packet loss**, time 0ms
-user@net1:~$ sudo ip netns exec **namespace2** ping **172.16.10.2** 
-PING 172.16.10.2 (172.16.10.2) 56(84) bytes of data.
---- 172.16.10.2 ping statistics ---
-5 packets transmitted, 0 received, **100% packet loss**, time 0ms
-user@net1:~$
-```
+[PRE29]
 
 这似乎很奇怪，因为它们都共享相同的父接口。问题在于 MacVLAN 接口的配置方式。MacVLAN 接口类型支持四种不同的模式：
 
@@ -447,67 +234,23 @@ user@net1:~$
 
 如果不知道在哪里查找，很难分辨出来，我们的 MacVLAN 接口碰巧是 VEPA 类型，这恰好是默认值。我们可以通过向`ip`命令传递详细信息（`-d`）标志来查看这一点：
 
-```
-user@net1:~$ sudo ip netns exec namespace1 ip -d link show
-1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN mode DEFAULT group default
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00 promiscuity 0
-20: **macvlan1@if2**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default
-    link/ether 36:90:37:f6:08:cc brd ff:ff:ff:ff:ff:ff promiscuity 0
- **macvlan  mode vepa**
-user@net1:~$
-```
+[PRE30]
 
 在我们的情况下，VEPA 模式阻止了两个命名空间接口直接通信。更常见的是，MacVLAN 接口被定义为类型`bridge`，以允许在同一父接口上的接口之间进行通信。然而，即使在这种模式下，子接口也不被允许直接与直接分配给父接口的 IP 地址（在本例中为`172.16.10.2`）进行通信。这应该是一个单独的段落。
 
-```
-user@net1:~$ sudo ip netns del namespace1
-user@net1:~$ sudo ip netns del namespace2
-```
+[PRE31]
 
 现在我们可以重新创建两个接口，为每个 MacVLAN 接口指定`bridge`模式：
 
-```
-user@net1:~$ sudo ip netns add namespace1
-user@net1:~$ sudo ip link add macvlan1 link eth0 type \
-macvlan **mode bridge**
-user@net1:~$ sudo ip link set macvlan1 netns namespace1
-user@net1:~$ sudo ip netns exec namespace1 ip address \
-add 172.16.10.5/24 dev macvlan1
-user@net1:~$ sudo ip netns exec namespace1 ip link set \
-dev macvlan1 up
-
-user@net1:~$ sudo ip netns add namespace2
-user@net1:~$ sudo ip link add macvlan2 link eth0 type \
-macvlan **mode bridge**
-user@net1:~$ sudo ip link set macvlan2 netns namespace2
-user@net1:~$ sudo ip netns exec namespace2 sudo ip address \
-add 172.16.10.6/24 dev macvlan2
-user@net1:~$ sudo ip netns exec namespace2 ip link set \
-dev macvlan2 up
-```
+[PRE32]
 
 在指定了`bridge`模式之后，我们可以验证这两个接口可以直接互连：
 
-```
-user@net1:~$ sudo ip netns exec **namespace1 ping 172.16.10.6 -c 2**
-PING 172.16.10.6 (172.16.10.6) 56(84) bytes of data.
-**64 bytes from 172.16.10.6: icmp_seq=1 ttl=64 time=0.041 ms**
-**64 bytes from 172.16.10.6: icmp_seq=2 ttl=64 time=0.030 ms**
---- 172.16.10.6 ping statistics ---
-2 packets transmitted, 2 received, 0% packet loss, time 999ms
-rtt min/avg/max/mdev = 0.030/0.035/0.041/0.008 ms
-user@net1:~$
-```
+[PRE33]
 
 然而，我们也注意到我们仍然无法到达在父接口（`eth0`）上定义的主机 IP 地址：
 
-```
-user@net1:~$ sudo ip netns exec **namespace1 ping 172.16.10.2 -c 2**
-PING 172.16.10.2 (172.16.10.2) 56(84) bytes of data.
---- 172.16.10.2 ping statistics ---
-2 packets transmitted, 0 received, **100% packet loss**, time 1008ms
-user@net1:~$
-```
+[PRE34]
 
 # 使用 Docker MacVLAN 网络驱动程序
 
@@ -541,56 +284,13 @@ user@net1:~$
 
 考虑到我们当前的实验室拓扑，我们可以在每个主机上定义网络如下：
 
-```
-user@docker1:~$ docker network create -d macvlan \
---subnet 10.10.10.0/24 --ip-range 10.10.10.0/25 \
---gateway=10.10.10.1 --aux-address docker1=10.10.10.101 \
---aux-address docker2=10.10.10.102 -o parent=eth0 macvlan_net
-
-user@docker2:~$ docker network create -d macvlan \
---subnet 10.10.10.0/24 --ip-range 10.10.10.128/25 \
---gateway=10.10.10.1 --aux-address docker1=10.10.10.101 \
---aux-address docker2=10.10.10.102 -o parent=eth0 macvlan_net
-```
+[PRE35]
 
 使用这种配置，网络上的每个主机将使用可用子网的一半，本例中为`/25`。由于 Docker 的 IPAM 自动为我们保留网关 IP 地址，因此无需通过将其定义为辅助地址来阻止其分配。但是，由于 Docker 主机接口本身确实位于此范围内，我们确实需要使用辅助地址来保留这些地址。
 
 现在，我们可以在每个主机上定义容器，并验证它们是否可以彼此通信：
 
-```
-user@docker1:~$ docker run -d --name=web1 \
---net=macvlan_net jonlangemak/web_server_1
-user@docker1:~$ **docker exec web1 ip addr**
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-7: **eth0@if2**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN
-    link/ether 02:42:0a:0a:0a:02 brd ff:ff:ff:ff:ff:ff
-    inet **10.10.10.2/24** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:aff:fe0a:a02/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker1:~$
-user@docker2:~$ docker run -d --name=web2 \
---net=macvlan_net jonlangemak/web_server_2
-user@docker2:~$ **docker exec web2 ip addr**
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN qlen 1
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-       valid_lft forever preferred_lft forever
-    inet6 ::1/128 scope host
-       valid_lft forever preferred_lft forever
-4: **eth0@if2**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN
-    link/ether 02:42:0a:0a:0a:80 brd ff:ff:ff:ff:ff:ff
-    inet **10.10.10.128/24** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:aff:fe0a:a80/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker2:~$
-```
+[PRE36]
 
 请注意，在容器运行时不需要发布端口。由于容器此时具有唯一可路由的 IP 地址，因此不需要进行端口发布。任何容器都可以在其自己的唯一 IP 地址上提供任何服务。
 
@@ -604,46 +304,15 @@ user@docker2:~$
 
 从一个生活在子网之外的外部测试主机，我们可以验证每个容器服务都可以通过容器的 IP 地址访问到：
 
-```
-user@test_server:~$ **curl http://10.10.10.2**
-<body>
-  <html>
-    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #1 - Running on port 80**</span>
-    </h1>
-</body>
-  </html>
-user@test_server:~$ **curl http://10.10.10.128**
-<body>
-  <html>
-    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #2 - Running on port 80**</span>
-    </h1>
-</body>
-  </html>
-[root@tools ~]#
-```
+[PRE37]
 
 但是，您会注意到连接到 MacVLAN 网络的容器尽管位于同一接口上，但无法从本地主机访问：
 
-```
-user@docker1:~$ **ping 10.10.10.2**
-PING 10.10.10.2 (10.10.10.2) 56(84) bytes of data.
-From 10.10.10.101 icmp_seq=1 **Destination Host Unreachable**
---- 10.10.10.2 ping statistics ---
-5 packets transmitted, 0 received, +1 errors, **100% packet loss**, time 0ms
-user@docker1:~$
-```
+[PRE38]
 
 Docker 当前的实现仅支持 MacVLAN 桥接模式。我们可以通过检查容器内接口的详细信息来验证 MacVLAN 接口的操作模式：
 
-```
-user@docker1:~$ docker exec web1 ip -d link show
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-5: **eth0@if2**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN
-    link/ether 02:42:0a:0a:0a:02 brd ff:ff:ff:ff:ff:ff
- **macvlan  mode bridge**
-user@docker1:~$
-```
+[PRE39]
 
 # 理解 IPVLAN 接口
 
@@ -663,15 +332,7 @@ IPVLAN 是 MacVLAN 的一种替代方案。IPVLAN 有两种模式。第一种是
 
 我们可以创建与 MacVLAN 配方中相同的接口，以显示接口地址是使用相同的 MAC 地址创建的：
 
-```
-user@net1:~$ sudo ip link add ipvlan1 link eth0  **type ipvlan mode l2**
-user@net1:~$ sudo ip address add 172.16.10.5/24 dev ipvlan1
-user@net1:~$ sudo ip link set dev ipvlan1 up
-
-user@net1:~$ sudo ip link add ipvlan2 link eth0 **type ipvlan mode l2**
-user@net1:~$ sudo ip address add 172.16.10.6/24 dev ipvlan2
-user@net1:~$ sudo ip link set dev ipvlan2 up
-```
+[PRE40]
 
 请注意，配置中唯一的区别是我们将类型指定为 IPVLAN，模式指定为 L2。在 IPVLAN 的情况下，默认模式是 L3，因此我们需要指定 L2 以使接口以这种方式运行。由于 IPVLAN 接口继承了父接口的 MAC 地址，我们的拓扑应该是这样的：
 
@@ -679,33 +340,11 @@ user@net1:~$ sudo ip link set dev ipvlan2 up
 
 我们可以通过检查接口本身来证明这一点：
 
-```
-user@net1:~$ ip -d link
-…<loopback interface removed for brevity>…
-2: **eth0**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
-    link/ether **00:0c:29:2d:dd:79** brd ff:ff:ff:ff:ff:ff promiscuity 1 addrgenmode eui64
-3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
-    link/ether 00:0c:29:2d:dd:83 brd ff:ff:ff:ff:ff:ff promiscuity 0 addrgenmode eui64
-28: **ipvlan1@eth0**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default
-    link/ether **00:0c:29:2d:dd:79** brd ff:ff:ff:ff:ff:ff promiscuity 0
-    **ipvlan  mode l2** addrgenmode eui64
-29: **ipvlan2@eth0**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default
-    link/ether **00:0c:29:2d:dd:79** brd ff:ff:ff:ff:ff:ff promiscuity 0
-    **ipvlan  mode l2** addrgenmode eui64
-user@net1:~$
-```
+[PRE41]
 
 如果我们从本地子网外部向这些 IP 发起流量，我们可以通过检查上游网关的 ARP 表来验证每个 IP 报告相同的 MAC 地址：
 
-```
-switch#show ip arp vlan 10
-Protocol  Address          Age (min)  Hardware Addr   Type   Interface
-**Internet  172.16.10.6             0   000c.292d.dd79  ARPA   Vlan30**
-**Internet  172.16.10.5             0   000c.292d.dd79  ARPA   Vlan30**
-**Internet  172.16.10.2           111   000c.292d.dd79  ARPA   Vlan30**
-Internet  172.16.10.3           110   000c.2959.caca  ARPA   Vlan30
-Internet  172.16.10.1             -   0021.d7c5.f245  ARPA   Vlan30
-```
+[PRE42]
 
 虽然我们在这里不会展示一个例子，但是 IPVLAN 接口在 L2 模式下也像我们在最近几个配方中看到的 MacVLAN 接口类型一样具有命名空间感知能力。唯一的区别在于接口 MAC 地址，就像我们在前面的代码中看到的那样。与父接口无法与子接口通信以及反之的相同限制也适用。
 
@@ -715,35 +354,7 @@ Internet  172.16.10.1             -   0021.d7c5.f245  ARPA   Vlan30
 
 在上图中，您可以看到我在我们的两个实验主机上创建了四个独立的命名空间。我还创建了四个独立的 IPVLAN 接口，将它们映射到不同的命名空间，并为它们分配了各自独特的 IP 地址。由于这些是 IPVLAN 接口，您会注意到所有 IPVLAN 接口共享父接口的 MAC 地址。为了构建这个拓扑，我在每个相应的主机上使用了以下配置：
 
-```
-user@net1:~$ sudo ip link del dev ipvlan1
-user@net1:~$ sudo ip link del dev ipvlan2
-user@net1:~$ sudo ip netns add namespace1
-user@net1:~$ sudo ip netns add namespace2
-user@net1:~$ sudo ip link add ipvlan1 link eth0 type ipvlan mode l3
-user@net1:~$ sudo ip link add ipvlan2 link eth0 type ipvlan mode l3
-user@net1:~$ sudo ip link set ipvlan1 netns namespace1
-user@net1:~$ sudo ip link set ipvlan2 netns namespace2
-user@net1:~$ sudo ip netns exec namespace1 ip address \
-add 10.10.20.10/24 dev ipvlan1
-user@net1:~$ sudo ip netns exec namespace1 ip link set dev ipvlan1 up
-user@net1:~$ sudo ip netns exec namespace2 sudo ip address \
-add 10.10.30.10/24 dev ipvlan2
-user@net1:~$ sudo ip netns exec namespace2 ip link set dev ipvlan2 up
-
-user@net2:~$ sudo ip netns add namespace3
-user@net2:~$ sudo ip netns add namespace4
-user@net2:~$ sudo ip link add ipvlan3 link eth0 type ipvlan mode l3
-user@net2:~$ sudo ip link add ipvlan4 link eth0 type ipvlan mode l3
-user@net2:~$ sudo ip link set ipvlan3 netns namespace3
-user@net2:~$ sudo ip link set ipvlan4 netns namespace4
-user@net2:~$ sudo ip netns exec namespace3 ip address \
-add 10.10.40.10/24 dev ipvlan3
-user@net2:~$ sudo ip netns exec namespace3 ip link set dev ipvlan3 up
-user@net2:~$ sudo ip netns exec namespace4 sudo ip address \
-add 10.10.40.11/24 dev ipvlan4
-user@net2:~$ sudo ip netns exec namespace4 ip link set dev ipvlan4 up
-```
+[PRE43]
 
 一旦配置完成，您会注意到唯一可以相互通信的接口是主机`net2`上的那些接口（`10.10.40.10`和`10.10.40.11`）。让我们逻辑地看一下这个拓扑，以理解其中的原因：
 
@@ -751,64 +362,19 @@ user@net2:~$ sudo ip netns exec namespace4 ip link set dev ipvlan4 up
 
 从逻辑上看，它开始看起来像一个路由网络。你会注意到所有分配的 IP 地址都是唯一的，没有重叠。正如我之前提到的，IPVLAN L3 模式就像一个路由器。从概念上看，你可以把父接口看作是那个路由器。如果我们从三层的角度来看，只有命名空间 3 和 4 中的接口可以通信，因为它们在同一个广播域中。其他命名空间需要通过网关进行路由才能相互通信。让我们检查一下所有命名空间的路由表，看看情况如何：
 
-```
-user@net1:~$ sudo ip netns exec **namespace1** ip route
-**10.10.20.0/24** dev ipvlan1  proto kernel  scope link  src 10.10.20.10
-user@net1:~$ sudo ip netns exec **namespace2** ip route
-**10.10.30.0/24** dev ipvlan2  proto kernel  scope link  src 10.10.30.10
-user@net2:~$ sudo ip netns exec **namespace3** ip route
-**10.10.40.0/24** dev ipvlan3  proto kernel  scope link  src 10.10.40.10
-user@net2:~$ sudo ip netns exec **namespace4** ip route
-**10.10.40.0/24** dev ipvlan4  proto kernel  scope link  src 10.10.40.11
-```
+[PRE44]
 
 如预期的那样，每个命名空间只知道本地网络。因此，为了让这些接口进行通信，它们至少需要一个默认路由。这就是事情变得有点有趣的地方。IPVLAN 接口不允许广播或组播流量。这意味着如果我们将接口的网关定义为上游交换机，它永远也无法到达，因为它无法进行 ARP。然而，由于父接口就像一种路由器，我们可以让命名空间使用 IPVLAN 接口本身作为网关。我们可以通过以下方式添加默认路由来实现这一点：
 
-```
-user@net1:~$ sudo ip netns exec namespace1 ip route add \
-default dev ipvlan1
-user@net1:~$ sudo ip netns exec namespace2 ip route add \
-default dev ipvlan2
-user@net2:~$ sudo ip netns exec namespace3 ip route add \
-default dev ipvlan3
-user@net2:~$ sudo ip netns exec namespace4 ip route add \
-default dev ipvlan4
-```
+[PRE45]
 
 在添加这些路由之后，你还需要在每台 Linux 主机上添加路由，告诉它们如何到达这些远程子网。由于这个示例中的两台主机是二层相邻的，最好在主机本身进行这些操作。虽然你也可以依赖默认路由，并在上游网络设备上配置这些路由，但这并不理想。你实际上会在网关上的同一个 L3 接口上进行路由，这不是一个很好的网络设计实践。如果主机不是二层相邻的，那么在多层交换机上添加路由就是必需的。
 
-```
-user@net1:~$ sudo ip route add 10.10.40.0/24 via 172.16.10.3
-user@net2:~$ sudo ip route add 10.10.20.0/24 via 172.16.10.2
-user@net2:~$ sudo ip route add 10.10.30.0/24 via 172.16.10.2
-```
+[PRE46]
 
 在安装了所有路由之后，你应该能够从任何一个命名空间到达所有其他命名空间。
 
-```
-user@net1:~$ **sudo ip netns exec namespace1 ping 10.10.30.10 -c 2**
-PING 10.10.30.10 (10.10.30.10) 56(84) bytes of data.
-**64 bytes from 10.10.30.10: icmp_seq=1 ttl=64 time=0.047 ms**
-**64 bytes from 10.10.30.10: icmp_seq=2 ttl=64 time=0.033 ms**
---- 10.10.30.10 ping statistics ---
-2 packets transmitted, 2 received, 0% packet loss, time 999ms
-rtt min/avg/max/mdev = 0.033/0.040/0.047/0.007 ms
-user@net1:~$ **sudo ip netns exec namespace1 ping 10.10.40.10 -c 2**
-PING 10.10.40.10 (10.10.40.10) 56(84) bytes of data.
-**64 bytes from 10.10.40.10: icmp_seq=1 ttl=64 time=0.258 ms**
-**64 bytes from 10.10.40.10: icmp_seq=2 ttl=64 time=0.366 ms**
---- 10.10.40.10 ping statistics ---
-2 packets transmitted, 2 received, +3 duplicates, 0% packet loss, time 1001ms
-rtt min/avg/max/mdev = 0.258/0.307/0.366/0.042 ms
-user@net1:~$ **sudo ip netns exec namespace1 ping 10.10.40.11 -c 2**
-PING 10.10.40.11 (10.10.40.11) 56(84) bytes of data.
-**64 bytes from 10.10.40.11: icmp_seq=1 ttl=64 time=0.246 ms**
-**64 bytes from 10.10.40.11: icmp_seq=2 ttl=64 time=0.366 ms**
---- 10.10.40.11 ping statistics ---
-2 packets transmitted, 2 received, +3 duplicates, 0% packet loss, time 1001ms
-rtt min/avg/max/mdev = 0.246/0.293/0.366/0.046 ms
-user@net1:~$ s
-```
+[PRE47]
 
 正如你所看到的，IPVLAN L3 模式与我们到目前为止所见到的不同。与 MacVLAN 或 IPVLAN L2 不同，你需要告诉网络如何到达这些新接口。
 
@@ -828,14 +394,7 @@ user@net1:~$ s
 
 一旦您的主机运行了实验性代码，请通过查看`docker info`的输出来验证您是否处于正确的版本：
 
-```
-user@docker1:~$ docker info
-…<Additional output removed for brevity>…
-**Server Version: 1.12.2**
-…<Additional output removed for brevity>…
-**Experimental: true**
-user@docker1:~$
-```
+[PRE48]
 
 在撰写本文时，您需要在 Docker 的实验版本上才能使用 IPVLAN 驱动程序。
 
@@ -853,27 +412,11 @@ Docker IPVLAN 网络驱动程序提供了层 2 和层 3 操作模式。由于 IP
 
 您会注意到，许多前面的观点与适用于 Docker MacVLAN 驱动程序的观点相似。一个重要的区别在于，我们不希望使用与父接口相同的网络。在我们的示例中，我们将在主机`docker1`上使用子网`10.10.20.0/24`，在主机`docker3`上使用子网`10.10.30.0/24`。现在让我们在每台主机上定义网络：
 
-```
-user@docker1:~$ docker network  create -d ipvlan -o parent=eth0 \
---subnet=10.10.20.0/24 -o ipvlan_mode=l3 ipvlan_net
-16a6ed2b8d2bdffad04be17e53e498cc48b71ca0bdaed03a565542ba1214bc37
-
-user@docker3:~$ docker network  create -d ipvlan -o parent=eth0 \
---subnet=10.10.30.0/24 -o ipvlan_mode=l3 ipvlan_net
-6ad00282883a83d1f715b0f725ae9115cbd11034ec59347524bebb4b673ac8a2
-```
+[PRE49]
 
 创建后，我们可以在每个使用 IPVLAN 网络的主机上启动一个容器：
 
-```
-user@docker1:~$ docker run -d --name=web1 --net=ipvlan_net \
-jonlangemak/web_server_1
-93b6be9e83ee2b1eaef26abd2fb4c653a87a75cea4b9cd6bf26376057d77f00f
-
-user@docker3:~$ docker run -d --name=web2 --net=ipvlan_net \
-jonlangemak/web_server_2
-89b8b453849d12346b9694bb50e8376f30c2befe4db8836a0fd6e3950f57595c
-```
+[PRE50]
 
 您会注意到，我们再次不需要处理发布端口。容器被分配了一个完全可路由的 IP 地址，并且可以在该 IP 上提供任何服务。分配给容器的 IP 地址将来自指定的子网。在这种情况下，我们的拓扑结构如下：
 
@@ -881,51 +424,19 @@ jonlangemak/web_server_2
 
 一旦运行起来，您会注意到容器没有任何连接。这是因为网络不知道如何到达每个 IPVLAN 网络。为了使其工作，我们需要告诉上游网络设备如何到达每个子网。为此，我们将在多层交换机上添加以下路由：
 
-```
-ip route 10.10.20.0 255.255.255.0 10.10.10.101
-ip route 10.10.30.0 255.255.255.0 192.168.50.101
-```
+[PRE51]
 
 一旦建立了这种路由，我们就能够路由到远程容器并访问它们提供的任何服务：
 
-```
-user@docker1:~$ **docker exec web1 curl -s http://10.10.30.2**
-<body>
-  <html>
-    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #2 - Running on port 80**</span>
-    </h1>
-</body>
-  </html>
-user@docker1:~$
-```
+[PRE52]
 
 您会注意到，在这种模式下，容器还可以访问主机接口：
 
-```
-user@docker1:~$ **docker exec -it web1 ping 10.10.10.101 -c 2**
-PING 10.10.10.101 (10.10.10.101): 48 data bytes
-**56 bytes from 10.10.10.101: icmp_seq=0 ttl=63 time=0.232 ms**
-**56 bytes from 10.10.10.101: icmp_seq=1 ttl=63 time=0.321 ms**
---- 10.10.10.101 ping statistics ---
-2 packets transmitted, 2 packets received, 0% packet loss
-round-trip min/avg/max/stddev = 0.232/0.277/0.321/0.045 ms
-user@docker1:~$
-```
+[PRE53]
 
 虽然这样可以工作，但重要的是要知道这是通过遍历父接口到多层交换机然后再返回来实现的。如果我们尝试在相反的方向进行 ping，上游交换机（网关）会生成 ICMP 重定向。
 
-```
-user@docker1:~$ ping 10.10.20.2 -c 2
-PING 10.10.20.2 (10.10.20.2) 56(84) bytes of data.
-From **10.10.10.1**: icmp_seq=1 **Redirect Host(New nexthop: 10.10.10.101)**
-64 bytes from 10.10.20.2: icmp_seq=1 ttl=64 time=0.270 ms
-From **10.10.10.1**: icmp_seq=2 **Redirect Host(New nexthop: 10.10.10.101)**
-64 bytes from 10.10.20.2: icmp_seq=2 ttl=64 time=0.368 ms
---- 10.10.20.2 ping statistics ---
-2 packets transmitted, 2 received, 0% packet loss, time 1000ms
-rtt min/avg/max/mdev = 0.270/0.319/0.368/0.049 ms
-user@docker1:~$
-```
+[PRE54]
 
 因此，虽然主机到容器的连接是有效的，但如果您需要主机与本地容器通信，则这不是最佳模型。
 
@@ -957,81 +468,21 @@ MacVLAN 和 IPVLAN 网络驱动程序带来的一个有趣特性是能够提供�
 
 这个功能已经存在很长时间了，Linux 系统管理员可能熟悉用于创建 VLAN 标记子接口的手动过程。有趣的是，Docker 现在可以为您管理这一切。例如，我们可以创建两个不同的 MacVLAN 网络：
 
-```
-user@docker1:~$ docker network create -d macvlan **-o parent=eth1.19 \**
- --subnet=10.10.90.0/24 --gateway=10.10.90.1 vlan19
-8f545359f4ca19ee7349f301e5af2c84d959e936a5b54526b8692d0842a94378
-
-user@docker1:~$ docker network create -d macvlan **-o parent=eth1.20 \**
---subnet=192.168.20.0/24 --gateway=192.168.20.1 vlan20
-df45e517a6f499d589cfedabe7d4a4ef5a80ed9c88693f255f8ceb91fe0bbb0f
-user@docker1:~$
-```
+[PRE55]
 
 接口的定义与任何其他 MacVLAN 接口一样。不同的是，我们在父接口名称上指定了`.19`和`.20`。在接口名称后面指定带有数字的点是定义子接口的常见语法。如果我们查看主机网络接口，我们应该会看到两个新接口的添加：
 
-```
-user@docker1:~$ ip -d link show
-…<Additional output removed for brevity>…
-5: **eth1.19@eth1**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default
-    link/ether 00:0c:29:50:b8:d6 brd ff:ff:ff:ff:ff:ff promiscuity 0
- **vlan protocol 802.1Q id 19** <REORDER_HDR> addrgenmode eui64
-6: **eth1.20@eth1**: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default
-    link/ether 00:0c:29:50:b8:d6 brd ff:ff:ff:ff:ff:ff promiscuity 0
-    **vlan protocol 802.1Q id 20** <REORDER_HDR> addrgenmode eui64
-user@docker1:~$
-```
+[PRE56]
 
 从这个输出中我们可以看出，这些都是 MacVLAN 或 IPVLAN 接口，其父接口恰好是物理接口`eth1`。
 
 如果我们在这两个网络上启动容器，我们会发现它们最终会进入基于我们指定的网络的 VLAN 19 或 VLAN 20 中：
 
-```
-user@docker1:~$ **docker run --net=vlan19 --name=web1 -d \**
-**jonlangemak/web_server_1**
-7f54eec28098eb6e589c8d9601784671b9988b767ebec5791540e1a476ea5345
-user@docker1:~$
-user@docker1:~$ **docker run --net=vlan20 --name=web2 -d \**
-**jonlangemak/web_server_2**
-a895165c46343873fa11bebc355a7826ef02d2f24809727fb4038a14dd5e7d4a
-user@docker1:~$
-user@docker1:~$ **docker exec web1 ip addr show dev eth0**
-7: eth0@if5: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN
-    link/ether 02:42:0a:0a:5a:02 brd ff:ff:ff:ff:ff:ff
-    inet **10.10.90.2/24** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:aff:fe0a:5a02/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker1:~$
-user@docker1:~$ **docker exec web2 ip addr show dev eth0**
-8: eth0@if6: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UNKNOWN
-    link/ether 02:42:c0:a8:14:02 brd ff:ff:ff:ff:ff:ff
-    inet **192.168.20.2/24** scope global eth0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::42:c0ff:fea8:1402/64 scope link
-       valid_lft forever preferred_lft forever
-user@docker1:~$
-```
+[PRE57]
 
 如果我们尝试向它们的网关发送流量，我们会发现两者都是可达的：
 
-```
-user@docker1:~$ **docker exec -it web1 ping 10.10.90.1 -c 2**
-PING 10.10.90.1 (10.10.90.1): 48 data bytes
-**56 bytes from 10.10.90.1: icmp_seq=0 ttl=255 time=0.654 ms**
-**56 bytes from 10.10.90.1: icmp_seq=1 ttl=255 time=0.847 ms**
---- 10.10.90.1 ping statistics ---
-2 packets transmitted, 2 packets received, 0% packet loss
-round-trip min/avg/max/stddev = 0.654/0.750/0.847/0.097 ms
-user@docker1:~$ **docker exec -it web2 ping 192.168.20.1 -c 2**
-PING 192.168.20.1 (192.168.20.1): 48 data bytes
-**56 bytes from 192.168.20.1: icmp_seq=0 ttl=255 time=0.703 ms**
-**56 bytes from 192.168.20.1: icmp_seq=1 ttl=255 time=0.814 ms**
---- 192.168.20.1 ping statistics ---
-2 packets transmitted, 2 packets received, 0% packet loss
-round-trip min/avg/max/stddev = 0.703/0.758/0.814/0.056 ms
-user@docker1:~$
-```
+[PRE58]
 
 如果我们捕获服务器发送的帧，甚至能够在第 2 层标头中看到 dot1q（VLAN）标记：
 

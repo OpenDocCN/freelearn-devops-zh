@@ -308,9 +308,7 @@ DCT 实现*客户端*签名和验证操作，这意味着 Docker 客户端执行
 
 - DCT 是通过 DOCKER_CONTENT_TRUST 环境变量打开和关闭的。将其设置为“1”将在当前会话中打开 DCT。将其设置为任何其他值将关闭它。以下示例将在基于 Linux 的 Docker 主机上打开它。
 
-```
-$ `export` `DOCKER_CONTENT_TRUST``=``1` 
-```
+[PRE0]
 
 - 未来的 docker push 命令将自动在推送操作中签署镜像。同样，只有签署的镜像才能使用 pull、build 和 run 命令。
 
@@ -320,61 +318,17 @@ $ `export` `DOCKER_CONTENT_TRUST``=``1`
 
 1.  - 给镜像打标记，这样它就可以推送到您想要的仓库。我将把它推送到我个人 Docker Hub 帐户命名空间内的一个新仓库。
 
-```
- $ docker image tag alpine:latest nigelpoulton/dockerbook:v1 
-```
+[PRE1]
 
 - 登录到 Docker Hub（或其他注册表），这样您就可以在下一步中推送镜像。
 
-```
- $ docker login
- Login with your Docker ID to push and pull images from Docker Hub.
- Username: nigelpoulton
- Password:
- Login Succeeded 
-```
+[PRE2]
 
 - 推送新标记的镜像。
 
-- ```
-     $ docker image push nigelpoulton/dockerbook:v1
-     The push refers to a repository [docker.io/nigelpoulton/dockerbook]
-     cd7100a72410: Mounted from library/alpine
-     v1: digest: sha256:8c03...acbc size: 528
-     Signing and pushing trust metadata
-     <Snip>
-     Enter passphrase for new root key with ID 865e4ec:
-     Repeat passphrase for new root key with ID 865e4ec:
-     Enter passphrase for new repository key with ID bd0d97d:
-     Repeat passphrase for new repository key with ID bd0d97d:
-     Finished initializing "docker.io/nigelpoulton/sign"
-     Successfully signed "docker.io/nigelpoulton/sign":v1 
-    `````
+- [PRE3]``
 
-```With DCT enabled, the image was automatically signed as part of the push operation.
-
-Two sets of keys were created as part of the signing operation:
-
-*   Root key
-*   Repository key
-
-By default, both are stored below a hidden folder in your home directory called `docker`. On Linux this is `~/.docker/trust`.
-
-The **root key** is the master key (of sorts). It’s used to create and sign new repository keys, and should be kept safe. This means you should protect it with a strong passphrase, and you should store it offline in a secure place when not in use. If it gets compromised, you’ll be in world of pain! You would normally only have one per person, or may be even one per team or organization, and you’ll normally only use it to create new repository keys.
-
-The **repository key**, also known as the *tagging key* is a per-repository key that is used to sign tagged images pushed to a particular repository. As such, you’ll have one per repository. It’s quite a bit easier to recover from a loss of this key, but you should still protect it with a strong passphrase and keep it safe.
-
-Each time you push an image to a **new repository**, you’ll create a new repository tagging key. You need your **root key** to do this, so you’ll need to enter the root key’s passphrase. Subsequent pushes to the same repository will only require you to enter the passphrase for the repository tagging key.
-
-There’s another key called the `timestamp key`. This gets stored in the remote repository and is used in more advanced use-cases to ensure things like *freshness*.
-
-Let’s have a look at pulling images with DCT enabled.
-
-Perform the following commands from the same Docker host that has DCT enabled.
-
-Pull an unsigned image.
-
-```
+[PRE4]
 
 - docker image pull nigelpoulton/dockerbook:unsigned
 
@@ -382,130 +336,17 @@ Pull an unsigned image.
 
 - notary.docker.io 没有 docker.io/nigelpoulton/dockerbook 的信任数据
 
-```
-
- `> **Note:** Sometimes the error message will be `No trust data for unsigned`.
-
-See how Docker has refused to download the image because it is not signed.
-
-You’ll get similar errors if you try to build new images or run new containers from unsigned images. Let’s test it.
-
-Pull the unsigned image by using the `--disable-content-trust` flag to override DCT.
-
-```
+[PRE5]
 
 - docker image pull --disable-content-trust nigelpoulton/dockerbook:unsigned
 
-```
-
- `The `--disable-content-trust` flag overrides DCT on a per-command basis. Use it wisely.
-
-Now try and run a container from the unsigned image.
-
-```
+[PRE6]
 
 - docker 容器运行-d --rm nigelpoulton/dockerbook:unsigned
 
 - docker：未签名的没有信任数据。
 
-```
-
- `This proves that Docker Content Trust enforces policy on `push`, `pull` and `run` operations. Try a `build` to see it work there as well.
-
-Docker UCP also supports DCT, allowing you to set a UCP-wide signing policy.
-
-To enable DCT across an entire UCP, expand the `Admin` drop-down and click `Admin Settings`. Select the `Docker Content Trust` option and tick the `Run Only Signed Images` tickbox. This will enforce a signing policy across the entire cluster that will only allow you to deploy services using signed images.
-
-The default configuration will allow any image signed by a valid UCP user. You can optionally configure a list of teams that are authorized to sign images.
-
-That’s the basics of Docker Content Trust. Let’s move on to configuring and using Docker Trusted Registry (DTR).
-
-#### Configuring Docker Trusted Registry (DTR)
-
-In the previous chapter we installed DTR, plugged it in to a shared storage backend, and configured HA. We also learned that UCP and DTR share a common single-sign-on sub-system. But there’s a few other important things you should configure. Let’s take a look.
-
-Most of the DTR configuration settings are located on the `Settings` page of the DTR web UI.
-
-From the `General` tab you can configure:
-
-*   Automatic update settings
-*   Licensing
-*   Load balancer address
-*   Certificates
-*   Single-sign-on
-
-The `TLS Settings` under `Domains & proxies` allows you to change the certificates used by UCP. By default, DTR uses self-signed certificates, but you can use this page to configure the use of custom certificates.
-
-The `Storage` tab lets you configure the backend used for **image storage**. We saw this in the previous chapter when we configured a shared Amazon S3 backend so that we could configure DTR HA. Other storage options include object storage services from other cloud providers, as well as volumes and NFS shares.
-
-The `Security` tab is where you enable and disable *Image Scanning* — binary-level scans that identify known vulnerabilities in images. When you enable *image scanning*, you have the option of updating the vulnerability database *online* or *offline*. Online will automatically sync the database over the internet, whereas the offline method is for DTR instances that do not have internet access and need to update the database manually.
-
-See the *Security in Docker* chapter for more information on Image Scanning.
-
-Last but not least, the `Garbage Collection` tab lets you configure when DTR will perform garbage collection on image layers that are no longer referenced in the Registry. By default, unreferenced layers are not garbage collected, resulting in large amounts of wasted disk space. If you enable garbage collection, layers that are no longer referenced by an image will be deleted, but layers that are referenced by at least one image manifest will not.
-
-See the chapter on Images for more information about how image manifests reference image layers.
-
-Now that we know how to configure DTR, let’s use it!
-
-#### Using Docker Trusted Registry
-
-Docker Trusted Registry is a secure on-premises registry that you configure and manage yourself. It’s integrated into UCP for smooth out-of-the-box experience.
-
-In this section, we’ll look at how to push and pull images from it, and we’ll learn how to inspect and manage repositories using the DTR web UI.
-
-##### Log in to the DTR UI and create a repo and permissions
-
-Let’s log in to DTR and create a new repository that members of the `technology/devs` team can push and pull images from.
-
-Log on to DTR. The DTR URL can be found in the UCP web UI under `Admin` > `Admin Settings` > `Docker Trusted Registry`. Remember that the DTR web UI is accessible over HTTPS on TCP port 443.
-
-Create a new organization and team, and add a user to it. The example will create an organization called `technology`, a team called `devs`, and add the `nigelpoulton` user to it. You can substitute these values in your environment.
-
-1.  Click `Organizations` in the left navigation pane.
-2.  Click `New organization` and call it `technology`.
-3.  Select the new `technology` organization and click the `+` button next to `TEAMS` as shown in Figure 17.11.![Figure 17.11](img/figure17-11.png)
-
-    Figure 17.11
-
-4.  With the `devs` team selected, add an existing user.
-
-    The example will add the `nigelpoulton` user. Your user will be different in your environment.
-
-The organization and team changes you have made in DTR will be reflected in UCP. This is because they share the same accounts database.
-
-Let’s create a new repository and add the `technology/devs` team with read/write permission.
-
-Perform all of the following in the DTR web UI.
-
-1.  If you aren’t already, navigate to `Organizations` > `technology` > `devs`.
-2.  Select the `Repositories` tab and create a new repository.
-3.  Configure the repository as follows.
-
-    Make it a **New** repository called **test** under the **technology** organization. Make it **public**, enable **scan on push** and assign **read/write** permissions. Figure 17.12 shows a screenshot of how it should look.
-
-    ![Figure 17.12 Creating a new DTR image repo](img/figure17-12.png)
-
-    Figure 17.12 Creating a new DTR image repo
-
-4.  Save changes.
-
-Congratulations! You have an image repo on DTR called `<dtr-url>/technology`, and members of the `technology/devs` team have read/write access, meaning they can `push` and `pull` from it.
-
-##### Push an image to the DTR repo
-
-In this step we’ll push a new image to the repo you just created. To do this, we’ll complete the following steps:
-
-1.  Pull an image and re-tag it.
-2.  Configure a client to use a certificate bundle.
-3.  Push the re-tagged image to the DTR repo.
-4.  Verify the operation in the DTR web UI.
-
-Let’s pull an image and tag it so that it can be pushed to the DTR repo.
-
-It doesn’t matter what image you pull. The example uses the `alpine:latest` image because it’s small.
-
-```
+[PRE7]
 
 - docker pull alpine:latest
 
@@ -517,41 +358,15 @@ It doesn’t matter what image you pull. The example uses the `alpine:latest` im
 
 - 状态：已下载更新的镜像 alpine:latest
 
-```
-
- `In order to push an image to a specific repo, you need to tag the image with the name of the repo. The example DTR repo has a fully qualified name of `dtr.mydns.com/technology/test`. This is made by combining the DNS name of the DTR and the name of the repo. Yours will be different.
-
-Tag the image so it can be pushed to the DTR repo.
-
-```
+[PRE8]
 
 - docker image tag alpine:latest dtr.mydns.com/technology/test:v1
 
-```
-
- `The next job is to configure a Docker client to authenticate as a user in the group that has read/write permission to the repository. The high-level process is to create a certificate bundle for the user and configure a Docker client to use those certificates.
-
-1.  Login to UCP as admin, or a user that has read/write permission to the DTR repo.
-2.  Navigate to the desired user account and create a `client bundle`.
-3.  Copy the bundle file to the Docker client you want to configure.
-4.  Login to the Docker client and perform the following commands from the client.
-5.  Unzip the bundle and run the appropriate shell script to configure your environment.
-
-The following will work on Mac and Linux.
-
-```
+[PRE9]
 
 - 执行“$（<env.sh）”。
 
-```
-
-`*   Run a `docker version` command to verify the environment has been configured and the certificates are being used.
-
-    As long as the `Server` section of the output shows the `Version` as `ucp/x.x.x` it is working. This is because the shell script configured the Docker client to talk to a remote daemon on a UCP manager. It also configured the Docker client to sign all commands with the certificates.` 
-
- `The next job is to log in to DTR. The DTR URL and username will be different in your environment.
-
-```
+[PRE10]
 
 - docker login dtr.mydns.com
 
@@ -561,11 +376,7 @@ The following will work on Mac and Linux.
 
 - 登录成功
 
-```
-
- `You are now ready to push the re-tagged image to DTR.
-
-```
+[PRE11]
 
 - docker image push dtr.mydns.com/technology/test:v1
 
@@ -575,197 +386,4 @@ The following will work on Mac and Linux.
 
 - v1：摘要：sha256:8c03...acbc 大小：528
 
-- ```
-
- `The push looks successful, but let’s verify the operation in the DTR web UI.
-
-1.  If you aren’t already, login to the DTR web UI.
-2.  Click `Repositories` in the left navigation pane.
-3.  Click `View Details` for the `technology/test` repository.
-4.  Click the `IMAGES` tab.
-
-Figure 17.13 shows what the image looks like in the DTR repo. We can see that the image is a Linux-based image and that it has 3 major vulnerabilities. We know about the vulnerabilities because we configured the repository to scan all newly-pushed images.
-
-![Figure 17.13](img/figure17-13.png)
-
-Figure 17.13
-
-Congratulations. You’ve successfully pushed an image to a new repository on DTR.
-
-You can select the checkbox to the left of the image and delete it. Be certain before doing this, as the operation cannot be undone.
-
-#### Image promotions
-
-DTR has a couple other interesting features:
-
-*   Image promotions
-*   Immutable repos
-
-Image promotions let you build policy-based automated pipelines that promote images through a set of repositories in the same DTR.
-
-As an example, you might have developers pushing images to a repository called `base`. But you don’t want them to be able to push images straight to production in case they contain vulnerabilities. To help with situations like this, DTR allows you to assign a policy to the `base` repo, that will scan all pushed images, and promote them to another repo based on the results of the scan. If the scan highlights issues, the policy can *promote* the image to a quarantined repo, whereas if the scan results are clean, it can promote it to a QA or prod repo. You can even re-tag the image as it passes through the pipeline.
-
-Let’s see it in action.
-
-The example that we’ll walk through has a single DTR with 3 image repos:
-
-*   `base`
-*   `good`
-*   `bad`
-
-The `good` and `bad` repos are empty, but the `base` repo has two images in it, shown in Figure 17.14.
-
-![Figure 17.14](img/figure17-14.png)
-
-Figure 17.14
-
-As we can see, both images have been scanned, `v1` is clean and has no known vulnerabilities, but `v2` has 3 majors.
-
-We’ll create two policies on the `base` repo so that images with a clean bill-of-health are promoted to the `good` repo, and images with known vulnerabilities are promoted to the `bad` repo.
-
-Perform all of the following actions on the `base` repo.
-
-1.  Click the `Policies` tab and make sure that `Is source` is selected.
-2.  Click `New promotion policy`.
-3.  Under “PROMOTE TO TARGET IF…” select `All Vulnerabilities` and create a policy for `equals 0`.![](img/figure17-15.png)
-
-    This will create a policy that acts on all images with zero vulnerabilities.
-
-    Don’t forget to click `Add` before moving to the next step.
-
-4.  Select the `TARGET REPOSITORY` as `technology/good` and hit `Save & Apply`.
-
-    Clicking `Save` will apply the policy to the repo and enforce it for all new images pushed the repo, but it will not affect images already in the repo. `Save & Apply` will do the same, **but also for images already in the repo**.
-
-    If you click `Save & Apply`, the policy will immediately evaluate all images in the repo and promote those that are clean. This means the `v1` image will be promoted to the `technology/good` repo.
-
-5.  Inspect the `technology/good` repo.
-
-    As you can see in Figure 17.16, the `v1` image has been promoted and is showing in the UI as `PROMOTED`.
-
-    ![Figure 17.16](img/figure17-16.png)
-
-    Figure 17.16
-
-The promotion policy is working. Let’s create another one to *promote* images that do have vulnerabilities to the `technology/bad` repo.
-
-Perform all of the following from the `technology/base` repo.
-
-1.  Create another new promotion policy.
-2.  Create a policy criteria for All Vulnerabilities > 0 and click `Add`.![Figure 17.17](img/figure17-17.png)
-
-    Figure 17.17
-
-3.  Add the target repo as `technology/bad`, and add “-dirty” to the `TAG NAME IN TARGET` box so that it is now “%n-dirty”. This last bit will re-tag the image as part of the promotion.
-4.  Click `Save & Apply`.
-5.  Check the `technology/bad` repo to confirm that the policy is enforcing and the `v2` image has been promoted and re-tagged.![Figure 17.18](img/figure17-18.png)
-
-    Figure 17.18
-
-Now that images are being promoted to the `technology/good` repo if they have no vulnerabilities, it might be a good idea to make the repo immutable. This will prevent images from being overwritten and deleted.
-
-1.  Navigate to the `technology/good` repo and click the `Settings` tab.
-2.  Set `IMMUTABILITY` to `On` and click `Save`.
-3.  Try and delete the image.
-
-    You’ll get the following error.
-
-    ![](img/figure17-19.png)
-
-Time for one last feature!
-
-#### HTTP Routing Mesh (HRM)
-
-Docker Swarm features a layer-4 routing mesh called the Swarm Routing Mesh. This exposes Swarm services on all nodes in the cluster and balances incoming traffic across service replicas. The end results is a moderately even balance of traffic to all service replicas. However, it has no application intelligence. For example, it cannot route based on data at layer 7 in the HTTP headers. To overcome this, UCP implements a layer-7 routing mesh called the HTTP Routing Mesh, or HRM for short. This builds on top of the Swarm Routing Mesh.
-
-The HRM allows multiple Swarm services to be published on the same Swarm-wide port, with ingress traffic being routed to the right service based on hostname data stored in the HTTP headers of incoming requests.
-
-Figure 17.20 shows a simple two-service example.
-
-![Figure 17.20](img/figure17-20.png)
-
-Figure 17.20
-
-In the picture, the laptop client is making an HTTP request to `mustang.internal` on TCP port 80\. The UCP cluster has two services that are both listening on port 80\. The `mustang` service is published on port 80 and configured to receive traffic intended for the `mustang.internal` hostname. The `camero` service is also published on port 80, but is configured to receive traffic coming in to `camero.internal`.
-
-There is a third service called HRM that maintains the mapping between hostnames and UCP services. It is the HRM that receives incoming traffic on port 80, inspects the HTTP headers and makes the decision of which service to route it to.
-
-Let’s walk through an example, then explain a bit more detail when we’re done.
-
-We’ll build the example shown in Figure 17.20\. The process will be as follows: Enable the HRM on port 80\. Deploy a *service* called “mustang” using the `nigelpoulton/dockerbook:mustang` image and create a hostname route for the mustang service so that requests to “mustang.internal” get routed to it. Deploy a second service called “camero” based on the `nigelpoulton/dockerbook:camero` image and create a hostname route for this one that maps it to requests for “camero.internal”.
-
-You can use publicly resolvable DNS names such as mustang.mycompany.com, all that is required is that you have name resolution configured so that requests to those addresses resolve to the load balancer in front of your UCP cluster. IF you don’t have a load balancer, you can point traffic to the IP of any node in the cluster.
-
-Let’s see it.
-
-1.  If you aren’t already, log on to the UCP web UI.
-2.  Navigate to `Admin` > `Admin Settings` > `Routing Mesh`.
-3.  Tick the `Enable Routing Mesh` tickbox and make sure that the `HTTP Port` is configured to `80`.
-4.  Click `Save`.
-
-That’s the UCP cluster configured to use the HRM. Behind the scenes this has deployed a new *system service* called `ucp-hrm`, and a new overlay network called `ucp-hrm`.
-
-If you inspect the `ucp-hrm` system service, you’ll see that it’s publishing port `80` in *ingress mode*. This means the `ucp-hrm` is deployed on the cluster and bound to port `80` on all nodes in the cluster. This means **all traffic** coming into the cluster on port 80 will be handled by this service. When the `mustang` and `camero` services are deployed, the `ucp-hrm` service will be updated with hostname mappings so that it knows how to route traffic to those services.
-
-Now that the HRM is deployed, it’s time to deploy our services.
-
-1.  Select `Services` in the left navigation pane and click `Create Service`.
-2.  Deploy the “mustang” service as follows:
-    *   **Details/Name:** mustang
-    *   **Details/Image:** nigelpoulton/dockerbook:mustang
-    *   **Network/Ports/Publish Port:** Click the option to `Publish Port +`
-    *   **Network/Ports/Internal Port:** 8080
-    *   **Network/Ports/Add Hostname Based Routes:** Click on the option to add a hostname based route
-    *   **Network/Ports/External Scheme:** Http://
-    *   **Network/Ports/Routing Mesh Host:** mustang.internal
-    *   **Network/Ports/Networks:** Make sure that the service is attached to the `ucp-hrm` network
-3.  Click `Create` to deploy the service.
-4.  Deploy the “camero” service.
-
-    Deploy this service with the same settings as the “mustang” service, but with the following differences:
-
-    *   **Details/Name:** camero
-    *   **Details/Image:** nigelpoulton/dockerbook:camero
-    *   **Network/Ports/Routing Mesh Host:** camero.internal
-5.  Click `Create`.
-
-It’ll take a few seconds for each service to deploy, but when they’re done, you’ll be able to point a web browser at `mustang.internal` and reach the mustang service, and `camero.internal` and reach the camero service.
-
-> **Note:** You will obviously need name resolution configured so that `mustang.internal` and `camero.internal` resolve to your UCP cluster. This can be to a load balancer sitting in front of your cluster forwarding traffic to the cluster on port 80, or you’re in a lab without a load balancer, it can be a simple local `hosts` file resolving the DNS names to the IP address of a cluster node.
-
-Figure 17.21 shows the mustang service being reached via `mustang.internal`.
-
-![Figure 17.21](img/figure17-21.png)
-
-Figure 17.21
-
-Let’s remind ourselves of how this works.
-
-The HTTP Routing Mesh is a Docker UCP feature that builds on top of the transport layer Swarm Routing Mesh. Specifically, the HRM adds application layer intelligence in the form of hostname rules.
-
-Enabling the HRM deploys a new UCP *system service* called `ucp-hrm`. This service is published *swarm-wide* on port 80 and 8443\. This means that all traffic arriving at the cluster on either of those ports will be sent to the `ucp-hrm` service. This puts the `ucp-hrm` service in a position to receive, inspect, and route all traffic entering the cluster on those ports.
-
-We then deployed two *user services*. As part of deploying each service, we created a hostname mapping that was added to the `ucp-hrm` service. The “mustang” service created a mapping so that it would receive all traffic arriving on the cluster on port 80 with “mustang.internal” in the HTTP header. The “camero” service did the same thing for traffic arriving on port 80 with “camero.internal” in the HTTP header. This resulted in the `ucp-hrm` service having two entries effectively saying the following:
-
-*   All traffic arriving on port 80 for “mustang.internal” gets sent to the “mustang” service.
-*   All traffic arriving on port 80 for “camero.internal” gets sent to the “camero” service.
-
-Let’s show Figure 17.20 again.
-
-![Figure 17.20](img/figure17-20.png)
-
-Figure 17.20
-
-Hopefully this should be clear now!
-
-### Chapter Summary
-
-UCP and DTR join forces to provide a great suit of features that are valuable to most enterprise organizations.
-
-Strong role-based access control is a fundamental part of UCP, with the ability be extremely granular with permissions – down to individual API operations. Integration with Active Directory and other corporate LDAP solutions is also supported.
-
-Docker Content Trust (DCT) brings cryptographic guarantees to image-based operations. These include `push`, `pull`, `build`, and `run`. When DCT is enabled, all images pushed to remote repos are signed, and all images pulled are verified. This gives you cryptographic certainty that the image you get is the one you asked for. UCP can be configured to enforce a cluster-wide policy requiring all images to be signed.
-
-DTR can be configured to use self-signed certificates, or certificates from trusted 3rd-party CAs. You can configure it to perform binary-level image scans that identify known vulnerabilities. And you can configure policies to automate the promotion of images through your build pipelines.
-
-Finally, we looked at the HTTP Routing mesh that performs application layer routing based on hostnames in HTTP headers.````````````
+- [PRE12][PRE13]

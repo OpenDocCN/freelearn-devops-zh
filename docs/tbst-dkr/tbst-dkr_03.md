@@ -46,10 +46,7 @@
 
 Docker Registry 可以从您的 Docker Hub 帐户或直接从终端进行搜索，如下所示：
 
-```
-**$ sudo docker search centos**
-
-```
+[PRE0]
 
 可以对搜索条件应用标志来过滤星级评分、自动构建等图像。要使用来自注册表的官方`centos`镜像，请从终端执行：
 
@@ -93,24 +90,15 @@ Docker Registry 可以从您的 Docker Hub 帐户或直接从终端进行搜索�
 
 稍后我们将深入讨论如何创建良好的 Dockerfile，以及分层和自动化的镜像构建。现在，我们只想创建我们自己的新基础镜像，只是象征性地通过创建 Dockerfile 的过程和位置。为了简单起见，我们只是从我们想要构建新镜像的基础镜像中调用：
 
-```
-FROM cloudconsulted/ubuntu-dockerbase:latest 
-
-```
+[PRE1]
 
 保存并关闭这个 Dockerfile。现在我们在本地构建我们的新镜像：
 
-```
-**$ sudo docker build -t mynew-ubuntu**
-
-```
+[PRE2]
 
 让我们检查一下确保我们的新镜像已列出：
 
-```
-**$ sudo docker images**
-
-```
+[PRE3]
 
 注意我们的**IMAGE ID**为**mynew-ubuntu**，因为我们很快会需要它：
 
@@ -120,26 +108,17 @@ FROM cloudconsulted/ubuntu-dockerbase:latest
 
 接下来，返回到终端，这样我们就可以标记我们的新镜像以推送到我们的`<namespace>`下的新 Docker Hub 仓库：
 
-```
-**$ sudo docker tag 1d4bf9f2c9c0 cloudconsulted/mynew-ubuntu:latest**
-
-```
+[PRE4]
 
 确保我们的新镜像在我们的镜像列表中正确标记为`<namespace><repository>`：
 
-```
-**$ sudo docker images**
-
-```
+[PRE5]
 
 此外，我们将找到我们新创建的标记为推送到我们的 Docker Hub 仓库的镜像。
 
 现在，让我们将镜像推送到我们的 Docker Hub 仓库：
 
-```
-**$ sudo docker push cloudconsulted/mynew-ubuntu**
-
-```
+[PRE6]
 
 然后，检查我们的新镜像是否在 Hub 上：
 
@@ -159,16 +138,7 @@ FROM cloudconsulted/ubuntu-dockerbase:latest
 
 通过使用可用工具（例如**supermin**（Fedora 系统）或**debootstrap**（Debian 系统）），这个过程甚至可以进一步简化。例如，使用这些工具，构建 Ubuntu 基础镜像的过程可以简单如下：
 
-```
-$ sudo debootstrap raring raring > /dev/null 
-$ sudo tar -c raring -c . |  docker import - raring a29c15f1bf7a 
-$ sudo docker run raring cat /etc/lsb-release 
-DISTRIB_ID=Ubuntu 
-DISTRIB_RELEASE=14.04 
-DISTRIB_CODENAME=raring 
-DISTRIB_DESCRIPTION="Ubuntu 14.04" 
-
-```
+[PRE7]
 
 ## 构建分层镜像
 
@@ -216,12 +186,7 @@ Docker 镜像中的附加层根据 Dockerfile 中定义的指令进行填充。D
 
 **常见结构**
 
-```
-FROM <image> 
-FROM <image>:<tag> 
-FROM <image>@<digest> 
-
-```
+[PRE8]
 
 `<tag>` 和 `<digest>` 是可选的；如果您不指定它们，它默认为 `latest`。
 
@@ -229,11 +194,7 @@ FROM <image>@<digest>
 
 在这里，我们定义要用于容器的基本镜像：
 
-```
-# Image for container base 
-FROM ubuntu 
-
-```
+[PRE9]
 
 **维护者**
 
@@ -241,20 +202,13 @@ FROM ubuntu
 
 **常见结构**
 
-```
-MAINTAINER <name><email> 
-
-```
+[PRE10]
 
 **我们的 Joomla 镜像的示例 Dockerfile**
 
 在这里，我们为此容器和镜像定义了作者：
 
-```
-# Add name of image author 
-MAINTAINER John Wooten <jwooten@cloudconsulted.com> 
-
-```
+[PRE11]
 
 **ENV**
 
@@ -262,24 +216,15 @@ MAINTAINER John Wooten <jwooten@cloudconsulted.com>
 
 **常见结构**
 
-```
-ENV <key> <value> 
-
-```
+[PRE12]
 
 上述代码设置了一个环境变量`<key>`为`<value>`。
 
-```
-ENV <key1>=<value1> <key2>=<value2> 
-
-```
+[PRE13]
 
 上述指令设置了两个环境变量。使用`=`符号在环境变量的键和值之间，并用空格分隔两个环境键值来定义多个环境变量：
 
-```
-ENV key1="env value with space" 
-
-```
+[PRE14]
 
 对于具有空格值的环境变量，请使用引号。
 
@@ -297,12 +242,7 @@ ENV key1="env value with space"
 
 在这里，我们为 Joomla 和 Docker 镜像设置环境变量，而不使用交互式终端：
 
-```
-# Set the environment variables 
-ENV DEBIAN_FRONTEND noninteractive 
-ENV JOOMLA_VERSION 3.4.1 
-
-```
+[PRE15]
 
 **RUN**
 
@@ -310,27 +250,17 @@ ENV JOOMLA_VERSION 3.4.1
 
 **常见结构**
 
-```
-RUN <command> 
-
-```
+[PRE16]
 
 `<command>`在 shell 中执行-`/bin/sh -c` shell 形式。
 
-```
-RUN ["executable", "parameter1", "parameter2"] 
-
-```
+[PRE17]
 
 在这种特殊形式中，您可以在可执行形式中指定`可执行文件`和`参数`。确保在命令中传递可执行文件的绝对路径。这对于基础镜像没有`/bin/sh`的情况很有用。您可以指定一个可执行文件，它可以是基础镜像中的唯一可执行文件，并在其上构建层。
 
 如果您不想使用`/bin/sh` shell，这也很有用。考虑一下：
 
-```
-RUN ["/bin/bash", "-c", "echo True!"] 
-RUN <command1>;<command2> 
-
-```
+[PRE18]
 
 实际上，这是一个特殊形式的示例，您可以在其中指定多个由`;`分隔的命令。`RUN`指令一起执行这些命令，并为所有指定的命令构建一个单独的层。
 
@@ -338,21 +268,7 @@ RUN <command1>;<command2>
 
 在这里，我们更新软件包管理器并安装所需的依赖项：
 
-```
-# Update package manager and install required dependencies 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \ 
-    mysql-server \ 
-    apache2 \ 
-    php5 \ 
-    php5-imap \ 
-    php5-mcrypt \ 
-    php5-gd \ 
-    php5-curl \ 
-    php5-apcu \ 
-    php5-mysqlnd \ 
-    supervisor 
-
-```
+[PRE19]
 
 请注意，我们特意这样写，以便将新软件包作为它们自己的 apt-get install 行添加，遵循初始安装命令。
 
@@ -366,11 +282,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
 
 安装了我们所有必要的依赖项来运行我们的服务后，我们应该整理一下，以获得一个更干净的 Docker 镜像：
 
-```
-# Clean up any files used by apt-get 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* 
-
-```
+[PRE20]
 
 **ADD**
 
@@ -378,37 +290,23 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 **常见结构**
 
-```
-ADD  <source_file>  <destination_directory> 
-
-```
+[PRE21]
 
 这里的`<source_file>`的路径是相对于构建上下文的。另外，`<destination_directory>`的路径可以是绝对的，也可以是相对于`WORKDIR`的：
 
-```
-ADD  <file1> <file2> <file3> <destination_directory> 
-
-```
+[PRE22]
 
 多个文件，例如`<file1>`，`<file2>`和`<file3>`，被复制到`<destination_directory>`中。请注意，这些源文件的路径应该相对于构建上下文，如下所示：
 
-```
-ADD <source_directory> <destination_directory> 
-
-```
+[PRE23]
 
 `<source_directory>`的内容与文件系统元数据一起复制到`<destination_directory>`中；目录本身不会被复制：
 
-```
-ADD text_* /text_files
-```
+[PRE24]
 
 在构建上下文目录中以`text_`开头的所有文件都会被复制到容器镜像中的`/text_files`目录中：
 
-```
-ADD ["filename with space",...,  "<dest>"] 
-
-```
+[PRE25]
 
 文件名中带有空格的情况可以在引号中指定；在这种情况下，需要使用 JSON 数组来指定 ADD 指令。
 
@@ -430,22 +328,7 @@ ADD ["filename with space",...,  "<dest>"]
 
 在这里，我们将`joomla`下载到 Apache web 根目录：
 
-```
-# Download joomla and put it default apache web root 
-ADD https://github.com/joomla/joomla-cms/releases/download/$JOOMLA_VERSION/Joomla_$JOOMLA_VERSION-Stable-Full_Package.tar.gz /tmp/joomla/ 
-RUN tar -zxvf /tmp/joomla/Joomla_$JOOMLA_VERSION-Stable-Full_Package.tar.gz -C /tmp/joomla/ 
-RUN rm -rf /var/www/html/* 
-RUN cp -r /tmp/joomla/* /var/www/html/ 
-
-# Put default htaccess in place 
-RUN mv /var/www/html/htaccess.txt /var/www/html/.htaccess 
-
-RUN chown -R www-data:www-data /var/www 
-
-# Expose HTTP and MySQL 
-EXPOSE 80 3306 
-
-```
+[PRE26]
 
 **COPY**
 
@@ -465,65 +348,17 @@ EXPOSE 80 3306
 
 在这里，我们设置 Apache 以启动：
 
-```
-# Use supervisord to start apache / mysql 
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf 
-CMD ["/usr/bin/supervisord", "-n"] 
-
-```
+[PRE27]
 
 以下是我们完成的 Joomla Dockerfile 的内容：
 
-```
-FROM ubuntu 
-MAINTAINER John Wooten <jwooten@cloudconsulted.com> 
-
-ENV DEBIAN_FRONTEND noninteractive 
-ENV JOOMLA_VERSION 3.4.1 
-
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \ 
-    mysql-server \ 
-    apache2 \ 
-    php5 \ 
-    php5-imap \ 
-    php5-mcrypt \ 
-    php5-gd \ 
-    php5-curl \ 
-    php5-apcu \ 
-    php5-mysqlnd \ 
-    supervisor 
-
-# Clean up any files used by apt-get 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* 
-
-# Download joomla and put it default apache web root 
-ADD https://github.com/joomla/joomla-cms/releases/download/$JOOMLA_VERSION/Joomla_$JOOMLA_VERSION-Stable-Full_Package.tar.gz /tmp/joomla/ 
-RUN tar -zxvf /tmp/joomla/Joomla_$JOOMLA_VERSION-Stable-Full_Package.tar.gz -C /tmp/joomla/ 
-RUN rm -rf /var/www/html/* 
-RUN cp -r /tmp/joomla/* /var/www/html/ 
-
-# Put default htaccess in place 
-RUN mv /var/www/html/htaccess.txt /var/www/html/.htaccess 
-
-RUN chown -R www-data:www-data /var/www 
-
-# Expose HTTP and MySQL 
-EXPOSE 80 3306 
-
-# Use supervisord to start apache / mysql 
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf 
-CMD ["/usr/bin/supervisord", "-n"] 
-
-```
+[PRE28]
 
 其他常见的 Dockerfile 命令如下：**ENTRYPOINT**
 
 `ENTRYPOINT`允许您配置将作为可执行文件运行的容器。根据 Docker 的文档，我们将使用提供的示例；以下将启动`nginx`，并使用其默认内容，在端口`80`上进行侦听：
 
-```
-docker run -i -t --rm -p 80:80 nginx 
-
-```
+[PRE29]
 
 `docker run <image>`的命令行参数将在可执行形式的`ENTRYPOINT`中的所有元素之后追加，并将覆盖使用`CMD`指定的所有元素。这允许将参数传递给入口点，即`docker run <image> -d`将向入口点传递`-d`参数。您可以使用`docker run --entrypoint`标志覆盖`ENTRYPOINT`指令。
 
@@ -533,33 +368,19 @@ docker run -i -t --rm -p 80:80 nginx
 
 图像的标签是键值对。以下是在 Dockerfile 中使用`LABEL`的示例：
 
-```
-LABEL <key>=<value>  <key>=<value>  <key>=<value> 
-
-```
+[PRE30]
 
 此指令将向图像添加三个标签。还要注意，它将创建一个新层，因为所有标签都是在单个`LABEL`指令中添加的：
 
-```
-LABEL  "key"="value with spaces" 
-
-```
+[PRE31]
 
 如果标签值中有空格，请在标签中使用引号：
 
-```
-LABEL LongDescription="This label value extends over new \ 
-line." 
-
-```
+[PRE32]
 
 如果标签的值很长，请使用反斜杠将标签值扩展到新行。
 
-```
-LABEL key1=value1 
-LABEL key2=value2 
-
-```
+[PRE33]
 
 可以通过**行尾**（**EOL**）分隔它们来定义图像的多个标签。请注意，在这种情况下，将为两个不同的`LABEL`指令创建两个图像层。
 
@@ -581,27 +402,15 @@ LABEL key2=value2
 
 以下是使用`WORKDIR`指令的示例：
 
-```
-WORKDIR /opt/myapp 
-
-```
+[PRE34]
 
 前面的指令将`/opt/myapp`指定为后续指令的工作目录，如下所示：
 
-```
-WORKDIR /opt/ 
-WORKDIR myapp 
-RUN pwd 
-
-```
+[PRE35]
 
 前面的指令两次定义了工作目录。请注意，第二个`WORKDIR`将相对于第一个`WORKDIR`。`pwd`命令的结果将是`/opt/myapp`：
 
-```
-ENV SOURCEDIR /opt/src 
-WORKDIR $SOURCEDIR/myapp 
-
-```
+[PRE36]
 
 工作目录可以解析之前定义的环境变量。在这个例子中，`WORKDIR`指令可以评估`SOURCEDIR`环境变量，结果的工作目录将是`/opt/src/myapp`。
 
@@ -611,10 +420,7 @@ WORKDIR $SOURCEDIR/myapp
 
 以下指令为镜像和容器设置了用户`myappuser`：
 
-```
-USER myappuser 
-
-```
+[PRE37]
 
 关于`USER`指令的注意事项：
 
@@ -642,50 +448,31 @@ USER myappuser
 
 首先确保我们知道我们正在运行的 Docker、Go 和 Git 的版本：
 
-```
-**$ sudo docker version**
-
-```
+[PRE38]
 
 ## Docker 信息
 
 此外，我们还应该了解我们的主机操作系统和内核版本，以及存储、执行和日志记录驱动程序。了解这些东西可以帮助我们从*自上而下*的角度进行故障排除：
 
-```
-**$ sudo docker info**
-
-```
+[PRE39]
 
 ## Debian / Ubuntu 的故障排除说明
 
 通过`$ sudo docker info`命令，您可能会收到以下警告中的一个或两个：
 
-```
-**WARNING: No memory limit support 
-WARNING: No swap limit support**
-
-```
+[PRE40]
 
 您需要添加以下命令行参数到内核中，以启用内存和交换空间记账：
 
-```
-**cgroup_enable=memory swapaccount=1**
-
-```
+[PRE41]
 
 对于这些 Debian 或 Ubuntu 系统，如果使用默认的 GRUB 引导加载程序，则可以通过编辑`/etc/default/grub`并扩展`GRUB_CMDLINE_LINUX`来添加这些参数。找到以下行：
 
-```
-GRUB_CMDLINE_LINUX="" 
-
-```
+[PRE42]
 
 然后，用以下内容替换它：
 
-```
-GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1" 
-
-```
+[PRE43]
 
 然后，运行`update-grub`并重新启动主机。
 
@@ -693,17 +480,11 @@ GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
 
 我们还需要确保容器实例实际上已经在本地安装了您的镜像。SSH 进入 docker 主机并执行`docker images`命令。您应该看到您的 docker 镜像列在其中，如下所示：
 
-```
-**$ sudo docker images**
-
-```
+[PRE44]
 
 *如果我的镜像没有出现怎么办？*检查代理日志，并确保您的容器实例能够通过 curl 访问您的 docker 注册表并打印出可用的标签：
 
-```
-**curl [need to add in path to registry!]**
-
-```
+[PRE45]
 
 ### 注意
 
@@ -715,10 +496,7 @@ GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
 
 让我们看一下以下示例：
 
-```
-**$ sudo docker run -it [need to add in path to registry/latest bin!]**
-
-```
+[PRE46]
 
 ### 注意
 
@@ -726,10 +504,7 @@ GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
 
 *如果我的镜像无法运行？*检查是否有任何正在运行的容器。如果预期的容器没有在主机上运行，可能会有阻止它启动的问题：
 
-```
-**$ sudo docker ps**
-
-```
+[PRE47]
 
 当容器启动失败时，它不会记录任何内容。容器启动过程的日志输出位于主机上的`/var/log/containers`中。在这里，您会找到遵循`<service>_start_errors.log`命名约定的文件。在这些日志中，您会找到我们的`RUN`命令生成的任何输出，并且这是故障排除的推荐起点，以了解为什么您的容器启动失败。
 
@@ -757,49 +532,19 @@ GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"
 
 考虑以下 Dockerfile 作为示例：
 
-```
-FROM centos 
-RUN echo 'trouble' > /tmp/trouble.txt 
-RUN echo 'shoot' >> /tmp/shoot.txt 
-
-```
+[PRE48]
 
 如果我们从这个 Dockerfile 构建：
 
-```
-**$ docker build -force-rm -t so26220957 .**
-
-```
+[PRE49]
 
 我们将获得类似以下的输出：
 
-```
-**Sending build context to Docker daemon 3.584 kB 
-Sending build context to Docker daemon 
-Step 0 : FROM ubuntu 
-   ---> b750fe79269d 
-Step 1 : RUN echo 'trouble' > /tmp/trouble.txt 
-   ---> Running in d37d756f6e55 
-   ---> de1d48805de2 
-Removing intermediate container d37d756f6e55 
-Step 2 : RUN echo 'bar' >> /tmp/shoot.txt 
-Removing intermediate container a180fdacd268 
-Successfully built 40fd00ee38e1**
-
-```
+[PRE50]
 
 然后，我们可以使用前面的图像层 ID 从`b750fe79269d`、`de1d48805de2`和`40fd00ee38e1`开始新的容器：
 
-```
-**$ docker run -rm b750fe79269d cat /tmp/trouble.txt 
-cat: /tmp/trouble.txt No such file or directory 
-$ docker run -rm de1d48805de2 cat /tmp/trouble.txt 
-trouble 
-$ docker run -rm 40fd00ee38e1 cat /tmp/trouble.txt 
-trouble 
-shoot**
-
-```
+[PRE51]
 
 ### 注意
 
@@ -807,55 +552,27 @@ shoot**
 
 *如果我的容器构建失败会发生什么？*由于构建失败时不会创建任何映像，我们将无法获得容器的哈希 ID。相反，我们可以记录前一层的 ID，并使用该 ID 运行一个带有该 ID 的 shell 的容器：
 
-```
-**$ sudo docker run --rm -it <id_last_working_layer> bash -il**
-
-```
+[PRE52]
 
 进入容器后，执行失败的命令以重现问题，修复命令并进行测试，最后使用修复后的命令更新 Dockerfile。
 
 您可能还想启动一个 shell 并浏览文件系统，尝试命令等等：
 
-```
-**$ docker run -rm -it de1d48805de2 bash -il 
-root@ecd3ab97cad4:/# ls -l /tmp 
-total 4 
--rw-r-r-- 1 root root 4 Jul 3 12:14 trouble.txt 
-root@ecd3ab97cad4:/# cat /tmp/trouble.txt 
-trouble 
-root@ecd3ab97cad4:/#**
-
-```
+[PRE53]
 
 ## 其他示例
 
 最后一个示例是注释掉以下 Dockerfile 中的内容，包括有问题的行。然后我们可以手动运行容器和 docker 命令，并以正常方式查看日志。在这个 Dockerfile 示例中：
 
-```
-RUN trouble 
-RUN shoot 
-RUN debug 
-
-```
+[PRE54]
 
 此外，如果失败是在射击，那么注释如下：
 
-```
-RUN trouble 
-# RUN shoot 
-# RUN debug 
-
-```
+[PRE55]
 
 然后，构建和运行：
 
-```
-**$ docker build -t trouble . 
-$ docker run -it trouble bash 
-container# shoot 
-...grep logs...**
-
-```
+[PRE56]
 
 ## 检查失败的容器进程
 
@@ -863,26 +580,17 @@ container# shoot
 
 运行以下命令来检查失败或不再运行的容器，并注意`CONTAINER ID`以检查特定容器的配置：
 
-```
-**$ sudo docker ps -a**
-
-```
+[PRE57]
 
 注意容器的**状态**。如果您的任何容器的**状态**显示除`0`之外的退出代码，可能存在容器配置的问题。举个例子，一个错误的命令会导致退出代码为`127`。有了这些信息，您可以调试任务定义`CMD`字段。
 
 虽然有些有限，但我们可以进一步检查容器以获取额外的故障排除细节：
 
-```
-$ **sudo docker inspect <containerId>**
-
-```
+[PRE58]
 
 最后，让我们也分析一下容器的应用程序日志。容器启动失败的错误消息将在这里输出：
 
-```
-**$ sudo docker logs <containerId>**
-
-```
+[PRE59]
 
 ## 其他潜在有用的资源
 
@@ -918,10 +626,7 @@ Sysdig 提供有关 CPU 使用、I/O、日志、网络、性能、安全和系�
 
 通过以 root 或`sudo`执行以下命令，可以在一步中完成`sysdig`的安装：
 
-```
-**curl -s https://s3.amazonaws.com/download.draios.com/stable/install-sysdig | sudo bash**
-
-```
+[PRE60]
 
 ### 注意
 
@@ -945,35 +650,15 @@ Sysdig 提供有关 CPU 使用、I/O、日志、网络、性能、安全和系�
 
 使用`topprocs_cpu`凿子的示例，我们可以应用过滤器：
 
-```
-**$ sudo sysdig -pc -c topprocs_cpu container.name=zany_torvalds**
-
-```
+[PRE61]
 
 这些是示例结果：
 
-```
-**CPU%          Process       container.name   
------------------------------------------- 
-02.49%        bash          zany_torvalds 
-37.06%        curl          zany_torvalds 
-0.82%         sleep         zany_torvalds**
-
-```
+[PRE62]
 
 与使用`$ sudo docker top`（以及类似）不同，我们可以确定我们想要查看进程的确切容器；例如，以下示例仅显示来自`wordpress`容器的进程：
 
-```
-**$ sudo sysdig -pc -c topprocs_cpu container.name contains wordpress 
-
-CPU%           Process         container.name   
--------------------------------------------------- 
-5.38%          apache2         wordpress3 
-4.37%          apache2         wordpress2 
-6.89%          apache2         wordpress4 
-7.96%          apache2         wordpress1**
-
-```
+[PRE63]
 
 **其他有用的 Sysdig 凿子和语法**
 
@@ -1007,62 +692,27 @@ CPU%           Process         container.name
 
 执行以下命令安装 PHPUnit：
 
-```
-**[# install composer to a specific directory 
-curl -sS https://getcomposer.org/installer | php -- --install-dir=bin 
-# use composer to install phpunit 
-composer global require "phpunit/phpunit=4.1.*"]**
-
-```
+[PRE64]
 
 PHPUnit 也可以通过执行以下命令进行安装：
 
-```
-**[# install phpunit 
-wget https://phar.phpunit.de/phpunit.phar 
-chmod +x phpunit.phar 
-mv phpunit.phar /usr/local/bin/phpunit 
-# might also need to put the phpunit executable placed here? test this: 
-cp /usr/local/bin/phpunit /usr/bin/phpunit]**
-
-```
+[PRE65]
 
 现在，让我们用`phpunit`运行我们的单元测试：
 
-```
-# discover and run any tests within the source code 
-RUN phpunit 
-
-```
+[PRE66]
 
 我们还需要确保将我们的单元测试`COPY`到镜像内的资产中：
 
-```
-# copy unit tests to assets 
-COPY test /root/test 
-
-```
+[PRE67]
 
 最后，让我们做一些清理工作。为了确保我们的生产代码不能依赖（无论是意外还是其他原因）测试代码，一旦单元测试完成，我们应该删除那些测试文件：
 
-```
-# clean up test files 
-RUN rm -rf test 
-
-```
+[PRE68]
 
 我们对 Dockerfile 的总更新包括：
 
-```
-wget https://phar.phpunit.de/phpunit.phar 
-chmod +x phpunit.phar 
-mv phpunit.phar /usr/local/bin/phpunit 
-
-RUN phpunit   
-COPY test /root/test 
-RUN rm -rf test 
-
-```
+[PRE69]
 
 现在，我们有一个脚本化的 Dockerfile，每次构建此镜像时，都将完全测试我们的 Joomla 代码、Apache、MySQL 和 PHP 依赖项，作为构建过程的一个文字部分。结果是一个经过测试的、可重现的生产环境！
 

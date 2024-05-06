@@ -108,32 +108,15 @@ Docker 网络由以下网络组件和服务提供支持。
 
 如前一节所述，容器使用网络命名空间。当创建第一个容器时，为容器创建了一个新的网络命名空间。在容器和 Linux 桥之间创建了一个 vEthernet 链接。从容器的`eth0`发送的流量通过 vEthernet 接口到达桥，然后进行切换。以下代码可用于显示 Linux 桥的列表：
 
-```
-**# show linux bridges**
-**$ sudo brctl show**
-
-```
+[PRE0]
 
 输出将类似于以下所示，具有桥名称和其映射到的容器上的`veth`接口：
 
-```
-**bridge name      bridge id        STP enabled    interfaces**
-**docker0      8000.56847afe9799        no         veth44cb727**
- **veth98c3700**
-
-```
+[PRE1]
 
 容器如何连接到外部世界？主机上的`iptables nat`表用于伪装所有外部连接，如下所示：
 
-```
-**$ sudo iptables -t nat -L –n**
-**...**
-**Chain POSTROUTING (policy ACCEPT) target prot opt**
-**source destination MASQUERADE all -- 172.17.0.0/16**
-**!172.17.0.0/16**
-**...**
-
-```
+[PRE2]
 
 如何从外部世界访问容器？端口映射再次使用主机上的`iptables nat`选项完成。
 
@@ -153,39 +136,22 @@ OVS 使用隧道机制，如 GRE、VXLAN 或 STT 来创建虚拟覆盖，而不�
 
 在单个主机内，UNIX IPC 机制，特别是 UNIX 域套接字或管道，也可以用于容器之间的通信：
 
-```
-**$  docker run  --name c1 –v /var/run/foo:/var/run/foo –d –I –t base /bin/bash** 
-**$  docker run  --name c2 –v /var/run/foo:/var/run/foo –d –I –t base /bin/bash**
-
-```
+[PRE3]
 
 `c1`和`c2`上的应用程序可以通过以下 Unix 套接字地址进行通信：
 
-```
-**struct  sockaddr_un address;**
-**address.sun_family = AF_UNIX;**
-**snprintf(address.sun_path, UNIX_PATH_MAX, "/var/run/foo/bar" );**
-
-```
+[PRE4]
 
 | C1: Server.c | C2: Client.c |
 | --- | --- |
 
 |
 
-```
-bind(socket_fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un));
-listen(socket_fd, 5);
-while((connection_fd = accept(socket_fd, (struct sockaddr *) &address, &address_length)) > -1)
-nbytes = read(connection_fd, buffer, 256);
-```
+[PRE5]
 
 |
 
-```
-connect(socket_fd, (struct sockaddr *) &address, sizeof(struct sockaddr_un));
-write(socket_fd, buffer, nbytes);
-```
+[PRE6]
 
 |
 
@@ -195,14 +161,7 @@ write(socket_fd, buffer, nbytes);
 
 除了环境变量`env`之外，Docker 还将源容器的主机条目添加到`/etc/hosts`文件中。以下是主机文件的示例：
 
-```
-**$ docker run -t -i --name c2 --rm --link c1:c1alias training/webapp /bin/bash**
-**root@<container_id>:/opt/webapp# cat /etc/hosts**
-**172.17.0.1  aed84ee21bde**
-**...**
-**172.17.0.2  c1alaias 6e5cdeb2d300 c1**
-
-```
+[PRE7]
 
 有两个条目：
 
@@ -222,24 +181,11 @@ write(socket_fd, buffer, nbytes);
 
 从外部看，它看起来像这样：
 
-```
-**# start the database**
-**$  sudo docker run -dp 3306:3306 --name todomvcdb \**
-**-v /data/mysql:/var/lib/mysql cpswan/todomvc.mysql** 
-
-**# start the app server**
-**$  sudo docker run -dp 4567:4567 --name todomvcapp \** 
-**--link todomvcdb:db cpswan/todomvc.sinatra** 
-
-```
+[PRE8]
 
 在内部，它看起来像这样：
 
-```
-**$  dburl = ''mysql://root:pa55Word@'' + \ ENV[''DB_PORT_3306_TCP_ADDR''] + ''/todomvc''**
-**$  DataMapper.setup(:default, dburl)**
-
-```
+[PRE9]
 
 # Docker 网络的新特性是什么？
 

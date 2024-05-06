@@ -54,11 +54,7 @@ Ubuntu 从 Ubuntu 12.04 开始支持 Docker。请记住，您仍然需要 64 位
 
 Docker 作为一个软件包在 Ubuntu Trusty 版本的软件存储库中以`docker.io`的名称可用：
 
-```
-**$ sudo apt-get update**
-**$ sudo apt-get -y install docker.io**
-
-```
+[PRE0]
 
 就是这样！您现在已经在系统上安装了 Docker。但是，由于命令已更名为`docker.io`，您将不得不使用`docker.io`而不是`docker`来运行所有 Docker 命令。
 
@@ -66,48 +62,29 @@ Docker 作为一个软件包在 Ubuntu Trusty 版本的软件存储库中以`doc
 
 该软件包的名称为`docker.io`，因为它与另一个名为`docker`的 KDE3/GNOME2 软件包冲突。如果您更愿意以`docker`运行命令，可以创建一个符号链接到`/usr/local/bin`目录。第二个命令将自动完成规则添加到 bash：
 
-```
-$ sudo ln -s /usr/bin/docker.io /usr/local/bin/docker
-$ sudo sed -i '$acomplete -F _docker docker' \> /etc/bash_completion.d/docker.io
-```
+[PRE1]
 
 ### 在 Ubuntu Precise 12.04 LTS 中安装 Docker
 
 Ubuntu 12.04 带有较旧的内核（3.2），与 Docker 的一些依赖项不兼容。因此，我们需要升级它：
 
-```
-**$ sudo apt-get update**
-**$ sudo apt-get -y install linux-image-generic-lts-raring linux-headers-generic-lts-raring**
-**$ sudo reboot**
-
-```
+[PRE2]
 
 我们刚刚安装的内核内置了 AUFS，这也是 Docker 的要求。
 
 现在让我们结束安装：
 
-```
-**$ curl -s https://get.docker.io/ubuntu/ | sudo sh**
-
-```
+[PRE3]
 
 这是一个用于简单安装的`curl`脚本。查看此脚本的各个部分将帮助我们更好地理解该过程：
 
 1.  首先，脚本检查我们的**高级** **软件包** **工具**（**APT**）系统是否能处理`https` URL，并在无法处理时安装`apt-transport-https`：
 
-```
-**# Check that HTTPS transport is available to APT**
-**if [ ! -e /usr/lib/apt/methods/https ]; then  apt-get update  apt-get install -y apt-transport-https**
-**fi**
-
-```
+[PRE4]
 
 1.  然后它将 Docker 存储库添加到我们的本地密钥链中：
 
-```
-**$ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9**
-
-```
+[PRE5]
 
 ### 提示
 
@@ -115,13 +92,7 @@ Ubuntu 12.04 带有较旧的内核（3.2），与 Docker 的一些依赖项不�
 
 1.  最后，它将 Docker 存储库添加到 APT 源列表中，并更新并安装`lxc-docker`软件包：
 
-```
-**$ sudo sh -c "echo deb https://get.docker.io/ubuntu docker main\**
-**> /etc/apt/sources.list.d/docker.list"**
-**$ sudo apt-get update**
-**$ sudo apt-get install lxc-docker**
-
-```
+[PRE6]
 
 ### 注意
 
@@ -149,12 +120,7 @@ Docker 依赖于 Linux 内核，因此我们需要在虚拟机中运行 Linux，
 
 或者，要运行 Boot2Docker，您也可以使用终端命令`boot2docker`。
 
-```
-**$ boot2docker init # First run**
-**$ boot2docker start**
-**$ export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375**
-
-```
+[PRE7]
 
 您只需要运行`boot2docker init`一次。它会要求您输入 SSH 密钥密码。随后，`boot2docker ssh`将使用此密码来验证 SSH 访问。
 
@@ -164,134 +130,57 @@ Docker 依赖于 Linux 内核，因此我们需要在虚拟机中运行 Linux，
 
 ### 注意
 
-Bash 允许您通过在 ```` or `$()`. These will be evaluated first and the result will be substituted in the outer commands.
-
-If you are the kind that loves to poke around, the Boot2Docker default user is `docker` and the password is `tcuser`.
-
-The boot2Docker management tool provides several commands:
-
-``` 中包含子命令来插入命令
+Bash 允许您通过在 [PRE8] 中包含子命令来插入命令
 
 **$ boot2docker**
 
 Usage: boot2docker [<options>] {help|init|up|ssh|save|down|poweroff|reset|restart|config|status|info|ip|delete|download|version} [<args>]
 
-```
-
-When using boot2Docker, the `DOCKER_HOST` environment variable has to be available in the terminal session for Docker commands to work. So, if you are getting the `Post http:///var/run/docker.sock/v1.12/containers/create: dial unix /var/run/docker.sock: no such file or directory` error, it means that the environment variable is not assigned. It is easy to forget to set this environment variable when you open a new terminal. For OSX users, to make things easy, add the following line to your `.bashrc` or `.bash_profile` shells:
-
-```
+[PRE9]
 
 **alias setdockerhost='export DOCKER_HOST=tcp://$(boot2docker ip 2>/dev/null):2375'**
 
-```
-
-Now, whenever you open a new terminal or get the above error, just run the following command:
-
-```
+[PRE10]
 
 **$ setdockerhost**
 
-```
-
-![Mac OSX and Windows](img/4787_01_02_revised.jpg)
-
-This image shows how the terminal screen will look like when you have logged into the Boot2Docker VM.
-
-### Upgrading Boot2Docker
-
-1.  Download the latest release of the Boot2Docker Installer for OSX from [`boot2docker.io/`](http://boot2docker.io/).
-2.  Run the installer, which will update VirtualBox and the Boot2Docker management tool.
-
-To upgrade your existing virtual machine, open a terminal and run the following commands:
-
-```
+[PRE11]
 
 **$ boot2docker stop**
 
 **$ boot2docker download**
 
-```
-
-# OpenStack
-
-**OpenStack** is a piece of free and open source software that allows you to set up a cloud. It is primarily used to deploy public and private **Infrastructure** **as** **a** **Service** (**IaaS**) solutions. It consists of a pool of interrelated projects for the different components of a cloud setup such as compute schedulers, keychain managers, network managers, storage managers, dashboards, and so on.
-
-Docker can act as a hypervisor driver for OpenStack Nova Compute. Docker support for OpenStack was introduced with the **Havana** release.
-
-But... how?
-
-Nova's Docker driver embeds a tiny HTTP server that talks to the Docker Engine's internal **Representational** **State** **Transfer** (**REST**) API (you will learn more on this later) through a **UNIX** **TCP** socket.
-
-Docker has its own image repository system called Docker-Registry, which can be embedded into Glance (OpenStack's image repository) to push and pull Docker images. Docker-Registry can be run either as a `docker` container or in a standalone mode.
-
-## Installation with DevStack
-
-If you are just setting up OpenStack and taking up the DevStack route, configuring the setup to use Docker is pretty easy.
-
-Before running the DevStack route's `stack.sh` script, configure the **virtual** **driver** option in the `localrc` file to use Docker:
-
-```
+[PRE12]
 
 **VIRT_DRIVER=docker**
 
-```
-
-Then run the Docker installation script from the `devstack` directory. The `socat` utility is needed for this script (usually installed by the `stack.sh` script). If you don't have the `socat` utility installed, run the following:
-
-```
+[PRE13]
 
 **$ apt-get install socat**
 
 **$ ./tools/docker/install_docker.sh**
 
-```
-
-Finally, run the `stack.sh` script from the `devstack` directory:
-
-```
+[PRE14]
 
 **$ ./stack.sh**
 
-```
-
-## Installing Docker for OpenStack manually
-
-Docker can also be installed manually if you already have OpenStack set up or in case the DevStack method doesn't work out:
-
-1.  Firstly, install Docker according to one of the Docker installation procedures.
-
-If you are co-locating the `docker` registry alongside the Glance service, run the following command:
-
-```
+[PRE15]
 
 **$ sudo yum -y install docker-registry**
 
-```
-
-In the `/etc/sysconfig/docker-registry` folder, set the `REGISTRY_PORT` and `SETTINGS_FLAVOR` registries as follows:
-
-```
+[PRE16]
 
 **$ export SETTINGS_FLAVOR=openstack**
 
 **$ export REGISTRY_PORT=5042**
 
-```
-
-In the `docker` registry file, you will also need to specify the OpenStack authentication variables. The following commands accomplish this:
-
-```
+[PRE17]
 
 **$ source /root/keystonerc_admin**
 
 **$ export OS_GLANCE_URL=http://localhost:9292**
 
-```
-
-By default, `/etc/docker-registry.yml` sets the local or alternate `storage_path` path for the openstack configuration under `/tmp`. You may want to alter the path to a more permanent location:
-
-```
+[PRE18]
 
 **openstack:**
 
@@ -301,81 +190,41 @@ By default, `/etc/docker-registry.yml` sets the local or alternate `storage_path
 
 **storage_path: /var/lib/docker-registry**
 
-```
-
-2.  In order for **Nova** to communicate with Docker over its local socket, add `nova` to the `docker` group and restart the `compute` service to pick up the change:
-
-```
+[PRE19]
 
 **$ usermod -G docker nova**
 
 **$ service openstack-nova-compute restart**
 
-```
-
-3.  Start Redis (used by the Docker Registry), if it wasn't started already:
-
-```
+[PRE20]
 
 **$ sudo service redis start**
 
 **$ sudo chkconfig redis on**
 
-```
-
-4.  Finally, start the registry:
-
-```
+[PRE21]
 
 **$ sudo service docker-registry start**
 
 **$ sudo chkconfig docker-registry on**
 
-```
-
-## Nova configuration
-
-Nova needs to be configured to use the `virt` Docker driver.
-
-Edit the `/etc/nova/nova.conf` configuration file according to the following options:
-
-```
+[PRE22]
 
 **[DEFAULT]**
 
 **compute_driver = docker.DockerDriver**
 
-```
-
-Alternatively, if you want to use your own Docker-Registry, which listens on a port different than 5042, you can override the following option:
-
-```
+[PRE23]
 
 **docker_registry_default_port = 5042**
 
-```
-
-## Glance configuration
-
-Glance needs to be configured to support the Docker container format. Just add Docker to the list of container formats in the Glance configuration file:
-
-```
+[PRE24]
 
 **[DEFAULT]**
 
 **container_formats = ami,ari,aki,bare,ovf,docker**
 
-```
-
-### Tip
-
-Leave the default formats in order to not break an existing glance installation.
-
-## Docker-OpenStack flow
-
-Once you configured Nova to use the `docker` driver, the flow is the same as that in any other driver:
-
-```
+[PRE25]
 
 **$ docker search hipache**
 
@@ -385,11 +234,7 @@ Once you configured Nova to use the `docker` driver, the flow is the same as tha
 
 **samalba/hipache                  https://github.com/dotcloud/hipache**
 
-```
-
-Then tag the image with the Docker-Registry location and push it:
-
-```
+[PRE26]
 
 **$ docker pull samalba/hipache**
 
@@ -397,11 +242,7 @@ Then tag the image with the Docker-Registry location and push it:
 
 **$ docker push localhost:5042/hipache**
 
-```
-
-The push refers to a repository:
-
-```
+[PRE27]
 
 **[localhost:5042/hipache] (len: 1)**
 
@@ -411,112 +252,41 @@ The push refers to a repository:
 
 **Push 100% complete**
 
-```
-
-In this case, the Docker-Registry (running in a docker container with a port mapped on 5042) will push the images to Glance. From there, Nova can reach them and you can verify the images with the Glance **Command**-**Line** **Interface** (**CLI**):
-
-```
+[PRE28]
 
 **$ glance image-list**
 
-```
-
-### Note
-
-Only images with a docker container format will be bootable. The image basically contains a tarball of the container filesystem.
-
-You can boot instances with the `nova` `boot` command:
-
-```
+[PRE29]
 
 **$ nova boot --image "docker-busybox:latest" --flavor m1.tiny test**
 
-```
-
-### Tip
-
-The command used will be the one configured in the image. Each container image can have a command configured for the run. The driver does not override this command.
-
-Once the instance is booted, it will be listed in `nova` `list`:
-
-```
+[PRE30]
 
 **$ nova list**
 
-```
-
-You can also see the corresponding container in Docker:
-
-```
+[PRE31]
 
 **$ docker ps**
 
-```
-
-# Inception: Build Docker in Docker
-
-Though installing from standard repositories is easier, they usually contain older versions, which means that you might miss critical updates or features. The best way to remain updated is to regularly get the latest version from the public `GitHub` repository. Traditionally, building software from a source has been painful and done only by people who actually work on the project. This is not so with Docker. From Docker 0.6, it has been possible to build Docker in Docker. This means that upgrading Docker is as simple as building a new version in Docker itself and replacing the binary. Let's see how this is done.
-
-## Dependencies
-
-You need to have the following tools installed in a 64-bit Linux machine (VM or bare-metal) to build Docker:
-
-*   **Git**
-*   **Make**
-
-**Git** is a free and open source distributed version control system designed to handle everything from small to very large projects with speed and efficiency. It is used here to clone the Docker public source code repository. Check out [git-scm.org](http://git-scm.org) for more details.
-
-The `make` utility is a software engineering tool used to manage and maintain computer programs. **Make** provides most help when the program consists of many component files. A `Makefile` file is used here to kick off the Docker containers in a repeatable and consistent way.
-
-## Building Docker from source
-
-To build Docker in Docker, we will first fetch the source code and then run a few `make` commands that will, in the end, create a `docker` binary, which will replace the current binary in the Docker installation path.
-
-Run the following command in your terminal:
-
-```
+[PRE32]
 
 **$ git clone https://git@github.com/dotcloud/docker**
 
-```
-
-This command clones the official Docker source code repository from the `Github` repository into a directory named `docker`:
-
-```
+[PRE33]
 
 **$ cd docker**
 
 **$ sudo make build**
 
-```
-
-This will prepare the development environment and install all the dependencies required to create the binary. This might take some time on the first run, so you can go and have a cup of coffee.
-
-### Tip
-
-If you encounter any errors that you find difficult to debug, you can always go to `#docker` on freenode IRC. The developers and the Docker community are very helpful.
-
-Now we are ready to compile that binary:
-
-```
+[PRE34]
 
 **$ sudo make binary**
 
-```
-
-This will compile a binary and place it in the `./bundles/<version>-dev/binary/` directory. And voila! You have a fresh version of Docker ready.
-
-Before replacing your existing binary though, run the tests:
-
-```
+[PRE35]
 
 **$ sudo make test**
 
-```
-
-If the tests pass, then it is safe to replace your current binary with the one you've just compiled. Stop the `docker` service, create a backup of the existing binary, and then copy the freshly baked binary in its place:
-
-```
+[PRE36]
 
 **$ sudo service docker stop**
 
@@ -528,27 +298,11 @@ If the tests pass, then it is safe to replace your current binary with the one y
 
 **$ sudo service docker start**
 
-```
-
-Congratulations! You now have the up-to-date version of Docker running.
-
-### Tip
-
-OSX and Windows users can follow the same procedures as SSH in the boot2Docker VM.
-
-# Verifying Installation
-
-To verify that your installation is successful, run the following command in your terminal console:
-
-```
+[PRE37]
 
 **$ docker run -i -t ubuntu echo Hello World!**
 
-```
-
-The `docker` `run` command starts a container with the `ubuntu` base image. Since this is the first time you are starting an `ubuntu` container, the output of the container will be something like this:
-
-```
+[PRE38]
 
 无法找到本地镜像'ubuntu'
 
@@ -568,29 +322,7 @@ d7ac5e4f1812：下载完成
 
 你好，世界！
 
-```
-
-When you issue the `docker` `run` `ubuntu` command, Docker looks for the `ubuntu` image locally, and it's not found, it will download the `ubuntu` image from the public `docker` registry. You will also see it say **Pulling** **dependent layers**.
-
-This means that it is downloading filesystem layers. By default, Docker uses AUFS, a layered copy-on-write filesystem, which means that the container image's filesystem is a culmination of multiple read-only filesystem layers. And these layers are shared between running containers. If you initiate an action that will write to this filesystem, it will create a new layer that will be the difference of the underlying layers and the new data. Sharing of common layers means that only the first container will take up a considerable amount of memory and subsequent containers will take up an insignificant amount of memory as they will be sharing the read-only layers. This means that you can run hundreds of containers even on a relatively low-powered laptop.
-
-![Verifying Installation](img/4787_01_03.jpg)
-
-Once the image has been completely downloaded, it will start the container and echo `Hello` `World!` in your console. This is another salient feature of the Docker containers. Every container is associated with a command and it should run that command. Remember that the Docker containers are unlike VMs in that they do not virtualize the entire operating system. Each `docker` container accepts only a single command and runs it in a sandboxed process that lives in an isolated environment.
-
-# Useful tips
-
-The following are two useful tips that might save you a lot of trouble later on. The first shows how to give the docker client non-root access, and the second shows how to configure the Ubuntu firewall rules to enable forwarding network traffic.
-
-### Note
-
-You do not need to follow these if you are using Boot2Docker.
-
-## Giving non-root access
-
-Create a group called `docker` and add your user to that group to avoid having to add the `sudo` prefix to every `docker` command. The reason you need to run a `docker` command with the `sudo` prefix by default is that the `docker` daemon needs to run with `root` privileges, but the docker client (the commands you run) doesn't. So, by creating a `docker` group, you can run all the client commands without using the `sudo` prefix, whereas the daemon runs with the `root` privileges:
-
-```
+[PRE39]
 
 $ sudo groupadd docker # 添加 docker 组
 
@@ -598,15 +330,7 @@ $ sudo gpasswd -a $(whoami) docker # 将当前用户添加到组中
 
 $ sudo service docker restart
 
-```
-
-You might need to log out and log in again for the changes to take effect.
-
-## UFW settings
-
-Docker uses a bridge to manage network in the container. **Uncomplicated** **Firewall** (**UFW**) is the default firewall tool in Ubuntu. It drops all forwarding traffic. You will need to enable forwarding like this:
-
-```
+[PRE40]
 
 $ sudo vim /etc/default/ufw
 
@@ -618,19 +342,11 @@ $ sudo vim /etc/default/ufw
 
 DEFAULT_FORWARD_POLICY="ACCEPT"
 
-```
-
-Reload the firewall by running the following command:
-
-```
+[PRE41]
 
 $ sudo ufw reload
 
-```
-
-Alternatively, if you want to be able to reach your containers from other hosts, then you should enable incoming connections on the docker port (`default` `2375`):
-
-```
+[PRE42]
 
 $ sudo ufw allow 2375/tcp
 

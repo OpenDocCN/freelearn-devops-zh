@@ -96,9 +96,7 @@ Splunk 的另一个重要特性是，它包括由 Splunk 和其他第三方提�
 
 要运行我们的 Splunk 容器，我们将从 Docker Hub 拉取官方镜像，然后运行类似以下的命令：
 
-```
-docker run --rm -d -p <port:port> -e "SPLUNK_START_ARGS=--accept-license" -e "SPLUNK_PASSWORD=<admin-password>" splunk/splunk:latest
-```
+[PRE0]
 
 正如您从前面的命令中所看到的，我们需要暴露所需的相关端口，以便访问安装的不同部分。您还会注意到，我们需要指定两个环境变量作为运行容器的一部分。第一个是`SPLUNK_START_ARGS`，我们将其设置为`--accept-license`，这是您在安装 Splunk 时通常会接受的许可证。其次，我们需要为`SPLUNK_PASSWORD`环境变量提供一个值。这是管理员帐户使用的密码，也是您首次登录 Splunk 时将使用的帐户。
 
@@ -114,36 +112,25 @@ docker run --rm -d -p <port:port> -e "SPLUNK_START_ARGS=--accept-license" -e "SP
 
 1.  创建一个名为`chapter14`的新目录：
 
-```
-mkdir chapter14; cd chapter14/
-```
+[PRE1]
 
 1.  使用`docker pull`命令从 Docker Hub 拉取由 Splunk 创建的最新支持的镜像。仓库简单地列为`splunk/splunk`：
 
-```
-docker pull splunk/splunk:latest
-```
+[PRE2]
 
 1.  使用`docker run`命令在您的系统上运行 Splunk 镜像。使用`--rm`选项确保容器在被杀死时完全被移除，使用`-d`选项将容器作为守护进程在系统后台运行，使用`-p`选项在主机上暴露端口`8000`，以便您可以在 Web 浏览器上查看应用程序。最后，使用`-e`选项在启动容器时向系统提供环境变量：
 
-```
-docker run --rm -d -p 8000:8000 -e "SPLUNK_START_ARGS=--accept-license" -e "SPLUNK_PASSWORD=changeme" --name splunk splunk/splunk:latest
-```
+[PRE3]
 
 在上述命令中，您正在为 Web 界面暴露端口`8000`，使用一个环境变量接受 Splunk 许可，并将管理密码设置为`changeme`。该命令还以`-d`作为守护进程在后台运行。
 
 1.  Splunk 将需要 1 到 2 分钟来启动。使用`docker logs`命令来查看应用程序的进展情况：
 
-```
-docker logs splunk
-```
+[PRE4]
 
 当您看到类似以下内容的行显示`Ansible playbook complete`时，您应该准备好登录了：
 
-```
-…
-Ansible playbook complete, will begin streaming 
-```
+[PRE5]
 
 1.  输入 URL `http://0.0.0.0:8000` 来访问我们的 Splunk 安装的 Web 界面。您应该会看到类似以下的内容。要登录，请使用`admin`作为用户名，并使用在运行镜像时设置的`SPLUNK_PASSWORD`环境变量作为密码。在这种情况下，您将使用`changeme`：![图 14.1：Splunk Web 登录页面](img/B15021_14_01.jpg)
 
@@ -167,21 +154,15 @@ Ansible playbook complete, will begin streaming
 
 1.  您可以开始对我们的 Splunk 配置进行更改，但如果容器因某种原因停止运行，所有更改都将丢失。相反，创建一个目录，您可以在其中存储所有 Splunk 环境所需的相关配置信息。使用以下命令停止当前正在运行的 Splunk 服务器：
 
-```
-docker kill splunk
-```
+[PRE6]
 
 1.  创建一个可以挂载到 Splunk 主机上的目录。为此目的命名为`testSplunk`：
 
-```
-mkdir -p ${PWD}/testsplunk
-```
+[PRE7]
 
 1.  再次运行 Splunk 容器，这次使用`-v`选项将您在上一步创建的目录挂载到容器上的`/opt/splunk/etc`目录。暴露额外的端口`9997`，以便稍后将数据转发到我们的 Splunk 安装中。
 
-```
-docker run --rm -d -p 8000:8000 -p 9997:9997 -e 'SPLUNK_START_ARGS=--accept-license' -e 'SPLUNK_PASSWORD=changeme' -v ${PWD}/testsplunk:/opt/splunk/etc/ --name splunk splunk/splunk
-```
+[PRE8]
 
 1.  一旦 Splunk 再次启动，以管理员帐户重新登录到 Splunk Web 界面。
 
@@ -197,16 +178,11 @@ docker run --rm -d -p 8000:8000 -p 9997:9997 -e 'SPLUNK_START_ARGS=--accept-lice
 
 1.  为了确保您现在将这些数据保存在您的挂载目录中，请返回到您的终端，查看新用户是否存储在您的挂载目录中。只需使用以下命令列出`testsplunk/users`目录中的目录：
 
-```
-ls testsplunk/users/
-```
+[PRE9]
 
 您应该看到已为您在上一步中创建的新帐户设置了一个目录；在这种情况下是`vincesesto`：
 
-```
-admin        splunk-system-user        users.ini
-users.ini.default        vincesesto
-```
+[PRE10]
 
 1.  现在是时候开始向在您的系统上运行的 Splunk 实例发送数据了。在开始从正在运行的 Docker 容器中收集数据之前，在您的运行系统上安装一个转发器，并从那里开始转发日志。要访问特定于您系统的转发器，请转到以下网址并下载特定于您操作系统的转发器：[`www.splunk.com/en_us/download/universal-forwarder.html`](https://www.splunk.com/en_us/download/universal-forwarder.html)。
 
@@ -216,56 +192,35 @@ users.ini.default        vincesesto
 
 1.  转发器通常会自动启动。通过访问终端并使用`cd`命令切换到系统安装目录，验证转发器是否正在运行。对于 Splunk 转发器，二进制和应用程序文件将位于`/opt/splunkforwarder/bin/`目录中：
 
-```
-cd /opt/Splunkforwarder/bin/
-```
+[PRE11]
 
 1.  在`bin`目录中，通过运行`./splunk status`命令来检查转发器的状态，如下所示：
 
-```
-./splunk status
-```
+[PRE12]
 
 如果它正在运行，您应该看到类似于以下输出：
 
-```
-splunkd is running (PID: 2076).
-splunk helpers are running (PIDs: 2078).
-```
+[PRE13]
 
 1.  如果转发器在安装时没有启动，请使用以下命令从`bin`目录运行带有`start`选项的转发器：
 
-```
-./splunk start
-```
+[PRE14]
 
 提供的输出将显示 Splunk 守护程序和服务的启动。它还将显示正在系统上运行的服务的进程 ID（PID）：
 
-```
-splunkd is running (PID: 2076).
-splunk helpers are running (PIDs: 2078).
-Splunk> Be an IT superhero. Go home early.
-...
-Starting splunk server daemon (splunkd)...Done
-```
+[PRE15]
 
 1.  您需要让 Splunk 转发器知道它需要发送数据的位置。在本练习的*步骤 8*中，我们确保运行了具有端口`9997`的 Splunk 容器，以便出于这个特定的原因暴露。使用`./splunk`命令告诉转发器将数据发送到我们运行在 IP 地址`0.0.0.0`端口`9997`上的 Splunk 容器，使用我们 Splunk 实例的管理员用户名和密码：
 
-```
-./splunk add forward-server 0.0.0.0:9997 -auth admin:changeme
-```
+[PRE16]
 
 该命令应返回类似以下的输出：
 
-```
-Added forwarding to: 0.0.0.0:9997.
-```
+[PRE17]
 
 1.  最后，为了完成 Splunk 转发器的设置，指定一些日志文件转发到我们的 Splunk 容器。使用转发器上的`./splunk`命令监视我们系统的`/var/log`目录中的文件，并将它们发送到 Splunk 容器进行索引，以便我们可以开始查看它们：
 
-```
-./splunk add monitor /var/log/
-```
+[PRE18]
 
 1.  几分钟后，如果一切正常，您应该有一些日志事件可以在 Splunk 容器上查看。返回到您的网络浏览器，输入以下 URL 以打开 Splunk 搜索页面：`http://0.0.0.0:8000/en-US/app/search/search`。
 
@@ -327,24 +282,11 @@ Splunk 的 web 界面默认在端口`8000`上运行，但如果您在同一端�
 
 然后需要包括进一步的`--log-opt`选项，以确保日志被正确转发。第一个是`splunk-url`，这是您的系统当前托管的 URL。由于我们没有设置 DNS，我们可以简单地使用托管 Splunk 实例的 IP 地址，以及端口`8088`。第二个是`splunk-token`。这是在创建 HTTP 事件收集器时由 Splunk 分配的令牌：
 
-```
-docker run --log-driver=splunk \
---log-opt splunk-url=<splunk-url>:8088 \
---log-opt splunk-token=<event-collector-token> \
-<docker-image>
-```
+[PRE19]
 
 您可以将 Splunk 日志驱动程序的详细信息添加到您的 Docker 配置文件中。在这里，您需要将以下详细信息添加到`/etc/docker`配置文件中的`daemon.json`文件中。只有当您将 Splunk 作为单独的应用程序而不是系统上的 Docker 实例时，这才能起作用。由于我们已将 Splunk 实例设置为 Docker 容器，因此此选项将不起作用。这是因为 Docker 守护程序将需要重新启动并连接到配置中列出的`splunk-url`。当然，在没有运行 Docker 守护程序的情况下，`splunk-url`将永远不可用。
 
-```
-{
-  "log-driver": "splunk",
-  "log-opts": {
-    "splunk-token": "<splunk-token>",
-    "splunk-url": "<splunk-url>::8088"
-  }
-}
-```
+[PRE20]
 
 在接下来的练习中，我们将扩展我们的 Splunk 安装，打开特定于我们的`HTTP 事件收集器`的端口，我们也将创建它。然后，我们将开始将日志从我们的容器发送到 Splunk，准备开始查看它们。
 
@@ -354,13 +296,7 @@ docker run --log-driver=splunk \
 
 1.  再次启动 Splunk 镜像，这次将端口`8088`暴露给所有我们的 Docker 容器，以将它们的日志推送到其中：
 
-```
-docker run --rm -d -p 8000:8000 -p 9997:9997 -p 8088:8088 \
- -e 'SPLUNK_START_ARGS=--accept-license' \
- -e 'SPLUNK_PASSWORD=changeme' \
- -v ${PWD}/testsplunk:/opt/splunk/etc/ \
- --name splunk splunk/splunk:latest
-```
+[PRE21]
 
 1.  等待 Splunk 再次启动，并使用管理员账户重新登录 web 界面。
 
@@ -382,22 +318,11 @@ docker run --rm -d -p 8000:8000 -p 9997:9997 -p 8088:8088 \
 
 1.  使用`hello-world` Docker 镜像，确保您可以将数据发送到 Splunk。在这种情况下，作为您的`docker run`命令的一部分，添加四个额外的命令行选项。指定`--log-driver`为`splunk`。将日志选项指定为我们系统的`splunk-url`，包括端口`8088`，`splunk-token`（您在上一步中创建的），最后，将`splunk-=insecureipverify`状态指定为`true`。这个最后的选项将限制在设置 Splunk 安装时所需的工作，这样您就不需要组织将与我们的 Splunk 服务器一起使用的 SSL 证书：
 
-```
-docker run --log-driver=splunk \
---log-opt splunk-url=http://127.0.0.1:8088 \
---log-opt splunk-token=5c051cdb-b1c6-482f-973f-2a8de0d92ed8 \
---log-opt splunk-insecureskipverify=true \
-hello-world
-```
+[PRE22]
 
 命令应返回类似以下的输出：
 
-```
-Hello from Docker!
-This message shows that your installation appears to be 
-working correctly.
-…
-```
+[PRE23]
 
 1.  返回到 Splunk Web 界面，点击“开始搜索”按钮。如果您已经从上一个屏幕中移开，请转到 Splunk 搜索页面，网址为`http://0.0.0.0:8000/en-US/app/search/search`。在搜索查询框中，输入`source="http:Docker Logs"`，如下截图所示。如果一切顺利，您还应该看到`hello-world`镜像提供的数据条目：![图 14.14：开始使用 Splunk 收集 docker 日志](img/B15021_14_14.jpg)
 
@@ -405,37 +330,19 @@ working correctly.
 
 1.  上一步已经表明，Splunk 安装现在能够收集 Docker 日志数据，但您需要创建一个新的卷来存储您的索引数据，以便在停止 Splunk 运行时不被销毁。回到您的终端并杀死运行中的`splunk`容器：
 
-```
-docker kill splunk
-```
+[PRE24]
 
 1.  在创建原始`testsplunk`目录的同一目录中，创建一个新目录，以便我们可以挂载我们的 Splunk 索引数据。在这种情况下，将其命名为`testsplunkindex`：
 
-```
-mkdir testsplunkindex
-```
+[PRE25]
 
 1.  从您的工作目录开始，再次启动 Splunk 镜像。挂载您刚刚创建的新目录，以存储您的索引数据：
 
-```
-docker run --rm -d -p 8000:8000 -p 9997:9997 -p 8088:8088 \
- -e 'SPLUNK_START_ARGS=--accept-license' \
- -e 'SPLUNK_PASSWORD=changeme' \
- -v ${PWD}/testsplunk:/opt/splunk/etc/ \
- -v ${PWD}/testsplunkindex:/opt/splunk/var/ \
- --name splunk splunk/splunk:latest
-```
+[PRE26]
 
 1.  使用`random-logger` Docker 镜像在您的系统中生成一些日志。在以下命令中，有一个额外的`tag`日志选项。这意味着每个生成并发送到 Splunk 的日志事件也将包含此标签作为元数据，这可以帮助您在 Splunk 中搜索数据时进行搜索。通过使用`{{.Name}}`和`{{.FullID}}`选项，这些细节将被自动添加，就像容器名称和 ID 号在创建容器时将被添加为您的标签一样：
 
-```
-docker run --rm -d --log-driver=splunk \
---log-opt splunk-url=http://127.0.0.1:8088 \
---log-opt splunk-token=5c051cdb-b1c6-482f-973f-2a8de0d92ed8 \
---log-opt splunk-insecureskipverify=true \
---log-opt tag="{{.Name}}/{{.FullID}}" \
---name log-generator chentex/random-logger:latest
-```
+[PRE27]
 
 注意
 
@@ -445,9 +352,7 @@ docker run --rm -d --log-driver=splunk \
 
 1.  一旦这个运行起来，回到 web 界面上的 Splunk 搜索页面，在这种情况下，包括你在上一步创建的标签。以下查询将确保只有`log-generator`镜像提供的新数据将显示在我们的 Splunk 输出中：
 
-```
-source="http:docker logs" AND "log-generator/"
-```
+[PRE28]
 
 您的 Splunk 搜索应该会产生类似以下的结果。在这里，您可以看到由`log-generator`镜像生成的日志。您可以看到它在随机时间记录，并且每个条目现在都带有容器的名称和实例 ID 作为标签：
 
@@ -511,9 +416,7 @@ Splunk 在输入查询时还提供了方便的提示。一旦您掌握了基础�
 
 1.  您将被带到一个新页面，其中将呈现您最近正在搜索的`httpevent`源类型的示例数据。首先，您需要选择一个示例事件。选择与此处列出的类似的第一行。点击屏幕顶部的“下一步”按钮，以继续下一步：
 
-```
-{"line":"2020-02-19T03:58:12+0000 ERROR something happened in this execution.","source":"stdout","tag":"log-generator/3eae26b23d667bb12295aaccbdf919c9370ffa50da9e401d0940365db6605e3"}
-```
+[PRE29]
 
 1.  然后，您将被要求选择要使用的提取字段的方法。如果您正在处理具有明确分隔符的文件，例如`.SSV`文件，请使用“分隔符”方法。但在这种情况下，您将使用“正则表达式”方法。点击“正则表达式”，然后点击“下一步”按钮：![图 14.20：字段提取方法](img/B15021_14_20.jpg)
 

@@ -150,24 +150,17 @@ Docker 是一个容器管理系统，可以帮助我们更轻松地以更简单�
 
 正如前面提到的，这是我们将要看到的三个系统中最直接的安装。要安装 Docker，只需在终端会话中运行以下命令：
 
-```
-$ curl -sSL https://get.docker.com/ | sh
-$ sudo systemctl start docker
-```
+[PRE0]
 
 您还将被要求将当前用户添加到 Docker 组中。要执行此操作，请运行以下命令，并确保您用自己的用户名替换用户名：
 
-```
-$ sudo usermod -aG docker username
-```
+[PRE1]
 
 这些命令将从 Docker 自己那里下载、安装和配置最新版本的 Docker。在撰写本文时，官方安装脚本安装的 Linux 操作系统版本为 18.06。
 
 运行以下命令应该确认 Docker 已安装并正在运行：
 
-```
-$ docker version
-```
+[PRE2]
 
 您应该看到类似以下输出：
 
@@ -177,28 +170,15 @@ $ docker version
 
 为了确保我们在以后的章节中准备好使用这些工具，我们现在应该安装它们。第一个工具是**Docker Machine**。要安装这个工具，我们首先需要获取最新的版本号。您可以通过访问项目的 GitHub 页面的发布部分[`github.com/docker/machine/releases/`](https://github.com/docker/machine/releases/)找到这个版本。撰写本文时，版本为 0.15.0——在安装时，请使用以下代码块中的命令更新版本号为最新版本。
 
-```
-$ MACHINEVERSION=0.15.0
-$ curl -L https://github.com/docker/machine/releases/download/v$MACHINEVERSION/docker-machine-$(uname -s)-$(uname -m) >/tmp/docker-machine
-$ chmod +x /tmp/docker-machine
-$ sudo mv /tmp/docker-machine /usr/local/bin/docker-machine
-```
+[PRE3]
 
 要下载并安装下一个和最终的工具**Docker Compose**，请运行以下命令，再次检查您是否通过访问[`github.com/docker/compose/releases/`](https://github.com/docker/compose/releases/)页面运行最新版本：
 
-```
-$ COMPOSEVERSION=1.22.0
-$ curl -L https://github.com/docker/compose/releases/download/$COMPOSEVERSION/docker-compose-`uname -s`-`uname -m` >/tmp/docker-compose
-$ chmod +x /tmp/docker-compose
-$ sudo mv /tmp/docker-compose /usr/local/bin/docker-compose
-```
+[PRE4]
 
 安装完成后，您应该能够运行以下两个命令来确认软件的版本是否正确：
 
-```
-$ docker-machine version
-$ docker-compose version
-```
+[PRE5]
 
 # 在 macOS 上安装 Docker
 
@@ -220,9 +200,7 @@ $ docker-compose version
 
 您还可以打开终端窗口。运行以下命令，就像我们在 Linux 安装中所做的那样：
 
-```
-$ docker version
-```
+[PRE6]
 
 你应该看到类似以下终端输出的内容：
 
@@ -230,10 +208,7 @@ $ docker version
 
 您还可以运行以下命令来检查与 Docker Engine 一起安装的 Docker Compose 和 Docker Machine 的版本：
 
-```
-$ docker-compose version
-$ docker-machine version 
-```
+[PRE7]
 
 # 在 Windows 10 专业版上安装 Docker
 
@@ -255,9 +230,7 @@ Docker for Windows 有此要求是因为它依赖于 Hyper-V。Hyper-V 是 Windo
 
 打开 PowerShell 窗口并输入以下命令：
 
-```
-$ docker version
-```
+[PRE8]
 
 这也应该显示与 Mac 和 Linux 版本类似的输出：
 
@@ -265,10 +238,7 @@ $ docker version
 
 同样，您也可以运行以下命令来检查与 Docker Engine 一起安装的 Docker Compose 和 Docker Machine 的版本：
 
-```
-$ docker-compose version
-$ docker-machine version
-```
+[PRE9]
 
 同样，您应该看到与 macOS 和 Linux 版本类似的输出。正如您可能已经开始了解的那样，一旦安装了这些软件包，它们的使用方式将会非常相似。这将在本章后面更详细地介绍。
 
@@ -276,9 +246,7 @@ $ docker-machine version
 
 如果您在 Mac 或 Windows 上运行的操作系统版本不够新，那么您将需要使用 Docker Toolbox。考虑运行以下命令后打印的输出：
 
-```
-$ docker version
-```
+[PRE10]
 
 到目前为止，我们已经执行的三个安装都显示了两个不同的版本，一个客户端和一个服务器。可以预料的是，Linux 版本显示客户端和服务器的架构都是 Linux；然而，您可能会注意到 Mac 版本显示客户端正在运行 Darwin，这是苹果的类 Unix 内核，而 Windows 版本显示 Windows。但两个服务器都显示架构为 Linux，这是怎么回事呢？
 
@@ -302,21 +270,15 @@ Docker 已经将他们的命令行客户端重构为更合乎逻辑的命令组�
 
 我们将首先看一下一个最有用的命令，不仅在 Docker 中，而且在您使用的任何命令行实用程序中都是如此——`help`命令。它的运行方式很简单，就像这样：
 
-```
-$ docker help
-```
+[PRE11]
 
 这个命令将给你一个完整的 Docker 命令列表，以及每个命令的简要描述。要获取特定命令的更多帮助，可以运行以下命令：
 
-```
-$ docker <COMMAND> --help
-```
+[PRE12]
 
 接下来，让我们运行`hello-world`容器。要做到这一点，只需运行以下命令：
 
-```
-$ docker container run hello-world
-```
+[PRE13]
 
 无论您在哪个主机上运行 Docker，Linux、macOS 和 Windows 都会发生同样的事情。Docker 将下载`hello-world`容器镜像，然后执行它，一旦执行完毕，容器将被停止。
 
@@ -326,10 +288,7 @@ $ docker container run hello-world
 
 让我们尝试一些更有冒险精神的事情——通过运行以下两个命令来下载并运行一个 nginx 容器：
 
-```
-$ docker image pull nginx
-$ docker container run -d --name nginx-test -p 8080:80 nginx
-```
+[PRE14]
 
 这两个命令中的第一个下载了 nginx 容器镜像，第二个命令在后台启动了一个名为`nginx-test`的容器，使用我们拉取的`nginx`镜像。它还将主机机器上的端口`8080`映射到容器上的端口`80`，使其可以通过我们本地浏览器访问`http://localhost:8080/`。
 
@@ -347,10 +306,7 @@ macOS 上的结果如下：
 
 在接下来的三章中，我们将更详细地查看使用 Docker 命令行客户端。现在，让我们停止并删除我们的`nginx-test`容器，运行以下命令：
 
-```
-$ docker container stop nginx-test
-$ docker container rm nginx-test
-```
+[PRE15]
 
 正如你所看到的，在我们安装了 Docker 的三个主机上运行一个简单的 nginx 容器的体验是完全相同的。我相信你可以想象，在没有像 Docker 这样的东西的情况下，在这三个平台上实现这一点是一种挑战，并且在每个平台上的体验也是非常不同的。传统上，这一直是本地开发环境差异的原因之一。
 

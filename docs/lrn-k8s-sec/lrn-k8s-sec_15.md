@@ -80,18 +80,11 @@ Docker 引擎暴露在互联网上，而且没有进行身份验证和授权配�
 
 为了演示每个工具检测加密挖矿，我们模拟一个受害者`nginx` pod：
 
-```
-$ kubectl get pods -n insecure-nginx
-NAME                              READY   STATUS    RESTARTS   AGE
-insecure-nginx-8455b6d49c-z6wb9   1/1     Running   0          163m
-```
+[PRE0]
 
 在`nginx` pod 内部，有一个矿工二进制文件位于`/tmp`目录中：
 
-```
-root@insecure-nginx-8455b6d49c-z6wb9:/# ls /tmp
-minerd2  perg
-```
+[PRE1]
 
 `minerd2`是挖矿二进制文件。我们可以假设`minerd2`要么被种子化在镜像中，要么从命令和控制服务器下载。首先，让我们看看监控 CPU 使用率如何帮助检测加密挖矿活动。
 
@@ -123,74 +116,29 @@ CPU 使用率从平均率`0.07`上升到约`2.4`。无论在幕后发生了什�
 
 在 Falco 的默认规则中，有一个规则用于检测对已知矿工池的出站连接。让我们更仔细地看看这个规则。首先，有一个用于挖矿端口和挖矿域的预定义列表([`github.com/falcosecurity/falco/blob/master/rules/falco_rules.yaml#L2590`](https://github.com/falcosecurity/falco/blob/master/rules/falco_rules.yaml#L2590))：
 
-```
-- list: miner_ports
-  items: [
-        25, 3333, 3334, 3335, 3336, 3357, 4444,
-        5555, 5556, 5588, 5730, 6099, 6666, 7777,
-        7778, 8000, 8001, 8008, 8080, 8118, 8333,
-        8888, 8899, 9332, 9999, 14433, 14444,
-        45560, 45700
-    ]
-- list: miner_domains
-  items: [
-      "Asia1.ethpool.org","ca.minexmr.com", "monero.crypto-pool.fr",
-      ...
-      "xmr-jp1.nanopool.org","xmr-us-east1.nanopool.org",
-      "xmr-us-west1.nanopool.org","xmr.crypto-pool.fr",
-      "xmr.pool.minergate.com"
-      ]
-```
+[PRE2]
 
 然后，有一个预定义的网络连接宏用于前述矿工端口和矿工域：
 
-```
-- macro: minerpool_other
-  condition: (fd.sport in (miner_ports) and fd.sip.name in (miner_domains))
-```
+[PRE3]
 
 除了`minerpool_other`宏之外，还有两个分别用于 HTTP 和 HTTPS 连接的其他宏—`minerpool_http`和`minerpool_https`—它们都结合起来得到主要的检测逻辑：
 
-```
-- macro: net_miner_pool
-  condition: (evt.type in (sendto, sendmsg) and evt.dir=< and (fd.net != "127.0.0.0/8" and not fd.snet in (rfc_1918_addresses)) and ((minerpool_http) or (minerpool_https) or (minerpool_other)))
-```
+[PRE4]
 
 然后，`net_miner_pool`宏由`检测出站连接到常见矿工池端口`规则使用，以检测出站连接到矿工域：
 
-```
-# The rule is disabled by default.
-# Note: Falco will send DNS requests to resolve miner pool domains which may trigger alerts in your environment.
-- rule: Detect outbound connections to common miner pool ports
-  desc: Miners typically connect to miner pools on common ports.
-  condition: net_miner_pool and not trusted_images_query_miner_domain_dns
-  enabled: true
-  output: Outbound connection to IP/Port flagged by cryptoioc.ch (command=%proc.cmdline port=%fd.rport ip=%fd.rip container=%container.info image=%container.image.repository)
-  priority: CRITICAL
-  tags: [network, mitre_execution]
-```
+[PRE5]
 
 如果有一个正在运行并与列表中定义的矿工域进行通信的加密挖矿进程，警报将被触发，如下所示：
 
-```
-19:46:37.939287649: Critical Outbound connection to IP/Port flagged by cryptoioc.ch (command=minerd2 -a cryptonight -o stratum+tcp://monero.crypto-pool.fr:3333 -u 49TfoHGd6apXxNQTSHrMBq891vH6JiHmZHbz5Vx36nLRbz6WgcJunTtgcxno G6snKFeGhAJB5LjyAEnvhBgCs5MtEgML3LU -p x port=37110 ip=100.97.244.198 container=k8s.ns=insecure-nginx k8s.pod=insecure-nginx-8455b6d49c-z6wb9 container=07dce07d5100 image=kaizheh/victim) k8s.ns=insecure-nginx k8s.pod=insecure-nginx-8455b6d49c-z6wb9 container=07dce07d5100 k8s.ns=insecure-nginx k8s.pod=insecure-nginx-8455b6d49c-z6wb9 container=07dce07d5100
-```
+[PRE6]
 
 `检测出站连接到常见矿工池端口`规则很简单。如果这个规则生成了一个警报，你应该把它作为高优先级处理。规则的限制也很明显；您将不得不保持挖矿域和挖矿端口的更新。如果有新的挖矿域可用或者使用了新的挖矿服务器端口，并且它们没有添加到 Falco 列表中，那么规则将无法检测到加密挖矿活动。请注意，该规则默认情况下是禁用的。由于 Falco 需要发送 DNS 请求来解析矿工池域名，这些 DNS 请求将被一些云提供商警报。一个副作用是，像 Cilium 的 Hubble 这样的开源工具可以帮助监控网络流量。
 
 另一种方法是使用白名单方法。如果您知道微服务的出站连接中的目标端口或 IP 块，您可以创建 Falco 规则来警报不在白名单上的任何出站连接的目标 IP 或端口。以下是一个例子：
 
-```
-- list: trusted_server_addresses
-  items: [...]
-- list: trusted_server_ports
-  items: [...]
-- rule: Detect anomalous outbound connections 
-  desc: Detect anomalous outbound connections
-  condition: (evt.type in (sendto, sendmsg) and container and evt.dir=< and (fd.net != "127.0.0.0/8" and not fd.snet in (trusted_server_addresses) or not fd.sport in (trusted_server_ports))) 
-  output: Outbound connection to anomalous IP/Port(command=%proc.cmdline port=%fd.rport ip=%fd.rip container=%container.info image=%container.image.repository)
-  priority: CRITICAL
-```
+[PRE7]
 
 上述规则将警报任何对`trusted_server_ports`或`trusted_server_addresses`之外的 IP 地址或端口的出站连接。鉴于攻击发生在特斯拉，Falco 将警报存在异常连接，即使 IP 地址看起来正常。接下来，让我们看另一个 Falco 规则，根据命令行中的模式来检测潜在的加密挖矿活动。
 
@@ -200,20 +148,11 @@ Stratum 挖矿协议是与挖矿服务器进行通信的挖矿过程中最常见
 
 在 Falco 的默认规则中，有一个规则是基于命令行中的关键字来检测加密二进制文件的执行：
 
-```
-- rule: Detect crypto miners using the Stratum protocol
-  desc: Miners typically specify the mining pool to connect to with a URI that begins with 'stratum+tcp'
-  condition: spawned_process and proc.cmdline contains "stratum+tcp"
-  output: Possible miner running (command=%proc.cmdline container=%container.info image=%container.image.repository)
-  priority: CRITICAL
-  tags: [process, mitre_execution]
-```
+[PRE8]
 
 如果 Falco 检测到任何使用`stratum+tcp`启动的进程并且在进程的命令行中指定了，那么`检测使用 Stratum 协议的加密矿工`规则将引发警报。输出如下：
 
-```
-19:46:37.779784798: Critical Possible miner running (command=minerd2 -a cryptonight -o stratum+tcp://monero.crypto-pool.fr:3333 -u 49TfoHGd6apXxNQTSHrMBq891vH6JiHmZHbz5Vx36 nLRbz6WgcJunTtgcxnoG6snKFeGhAJB5LjyAEnvhBgCs5MtEgML3LU -p x container=k8s.ns=insecure-nginx k8s.pod=insecure-nginx-8455b6d49c-z6wb9 container=07dce07d5100 image=kaizheh/victim) k8s.ns=insecure-nginx k8s.pod=insecure-nginx-8455b6d49c-z6wb9 container=07dce07d5100 k8s.ns=insecure-nginx k8s.pod=insecure-nginx-8455b6d49c-z6wb9 container=07dce07d5100
-```
+[PRE9]
 
 执行的`minerd2 -a cryptonight -o stratum+tcp://monero.crypto-pool.fr:3333 -u 49TfoHGd6apXxNQTSHrMBq891vH6JiHmZHbz5Vx36nLRbz6Wgc JunTtgcxnoG6snKFeGhAJB5LjyAEnvhBgCs5MtEgML3LU -p x`命令行包含了`stratum+tcp`关键字。这就是为什么会触发警报。
 
@@ -221,16 +160,7 @@ Stratum 挖矿协议是与挖矿服务器进行通信的挖矿过程中最常见
 
 上述规则使用了黑名单方法。另一种方法是使用白名单方法，如果您知道将在微服务中运行的进程。您可以定义一个 Falco 规则，当启动任何不在信任列表上的进程时引发警报。以下是一个示例：
 
-```
-- list: trusted_nginx_processes
-  items: ["nginx"]
-- rule: Detect Anomalous Process Launched in Nginx Container
-  desc: Anomalous process launched inside container.
-  condition: spawned_process and container and not proc.name in (trusted_nginx_processes) and image.repository.name="nginx"
-  output: Anomalous process running in Nginx container (command=%proc.cmdline container=%container.info image=%container.image.repository)
-  priority: CRITICAL
-  tags: [process]
-```
+[PRE10]
 
 上述规则将警报任何在`nginx`容器中启动的异常进程，其中包括加密挖矿进程。最后，让我们看看图像扫描工具如何通过与恶意软件源集成来帮助检测加密挖矿二进制文件的存在。
 
@@ -238,53 +168,15 @@ Stratum 挖矿协议是与挖矿服务器进行通信的挖矿过程中最常见
 
 加密挖矿二进制文件有时可以被识别为恶意软件。与传统的反病毒软件一样，我们也可以检查运行中的二进制文件的哈希值与恶意软件源的匹配情况。借助图像扫描工具，比如 Anchore，我们可以获取文件的哈希值：
 
-```
-root@anchore-cli:/# anchore-cli --json image content kaizheh/victim:nginx files | jq '.content | .[] | select(.filename=="/tmp/minerd2")'
-{
-  "filename": "/tmp/minerd2",
-  "gid": 0,
-  "linkdest": null,
-  "mode": "00755",
-  "sha256": "e86db6abf96f5851ee476eeb8c847cd73aebd0bd903827a362 c07389d71bc728",
-  "size": 183048,
-  "type": "file",
-  "uid": 0
-}
-```
+[PRE11]
 
 `/tmp/minerd2`文件的哈希值为`e86db6abf96f5851ee476eeb8c847cd73aebd0bd903827a362c07389d71bc728`。然后，我们可以将哈希值与 VirusTotal 进行比对，VirusTotal 提供恶意软件信息源服务：
 
-```
-$ curl -H "Content-Type: application/json" "https://www.virustotal.com/vtapi/v2/file/report?apikey=$VIRUS_FEEDS_API_KEY&resource=e86db6abf96f5851ee476eeb8c847cd73aebd0bd903827a 362c07389d71bc728" | jq .
-```
+[PRE12]
 
 `$VIRUS_FEEDS_API_KEY`是您访问 VirusTotal API 服务的 API 密钥，然后提供以下报告：
 
-```
-{
-  "scans": {
-    "Fortinet": {
-      "detected": true,
-      "version": "6.2.142.0",
-      "result": "Riskware/CoinMiner",
-      "update": "20200413"
-    },
-    ...
-    "Antiy-AVL": {
-      "detected": true,
-      "version": "3.0.0.1",
-      "result": "RiskWare[RiskTool]/Linux.BitCoinMiner.a",
-      "update": "20200413"
-    },
-  },
-  ...
-  "resource": "e86db6abf96f5851ee476eeb8c847cd73aebd0bd903827a362c07389d71bc 728",
-  "scan_date": "2020-04-13 18:22:56",
-  "total": 60,
-  "positives": 25,
-  "sha256": "e86db6abf96f5851ee476eeb8c847cd73aebd0bd903827a362c07389d71bc 728",
- }
-```
+[PRE13]
 
 VirusTotal 报告显示，`/tmp/minerd2`已被 25 个不同的信息源报告为恶意软件，如 Fortinet 和 Antiy AVL。通过在 CI/CD 流水线中集成图像扫描工具和恶意软件信息源服务，您可以帮助在开发生命周期的早期阶段检测恶意软件。然而，这种单一方法的缺点是，如果挖矿二进制文件从命令和控制服务器下载到运行的 Pod 中，您将错过加密挖矿攻击。另一个限制是，如果信息源服务器没有关于加密二进制文件的任何信息，您肯定会错过它。
 

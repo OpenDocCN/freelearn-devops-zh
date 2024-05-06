@@ -40,48 +40,11 @@
 
 在本书中，您将找到许多文本样式，用于区分不同类型的信息。以下是一些这些样式的示例及其含义的解释。文本中的代码单词、数据库表名、文件夹名、文件名、文件扩展名、路径名、虚拟 URL、用户输入和 Twitter 句柄显示如下：“当您运行`docker build`命令时，Dockerfile 用于创建图像。”代码块设置如下：
 
-```
-{
-
-"apiVersion": "v1",
-
-"kind": "Pod",
-
-"metadata":{
-
-"name": ”rest_service”,
-
-"labels": {
-
-"name": "rest_service"
-
-}
-
-},
-
-"spec": {
-
-"containers": [{
-
-"name": "rest_service",
-
-"image": "rest_service",
-
-"ports": [{"containerPort": 8080}],
-
-}]
-
-}
-
-}
-```
+[PRE0]
 
 任何命令行输入或输出都以以下方式编写：
 
-```
-docker rm $(docker ps -a -q -f status=exited)
-
-```
+[PRE1]
 
 **新术语**和**重要单词**以粗体显示。屏幕上看到的单词，例如菜单或对话框中的单词，会在文本中出现，如：“点击“暂时跳过”将使您在不登录 Docker Hub 的情况下转到图像列表。”
 

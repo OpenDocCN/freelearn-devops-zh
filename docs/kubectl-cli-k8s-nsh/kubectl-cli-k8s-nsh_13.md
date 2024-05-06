@@ -58,21 +58,15 @@ Helm CLI 可以使用以下命令在不同操作系统上安装：
 
 +   在 macOS 上的安装如下进行：
 
-```
-$ brew install helm
-```
+[PRE0]
 
 +   在 Windows 上安装使用以下命令进行：
 
-```
-$ choco install kubernetes-helm
-```
+[PRE1]
 
 +   在 Linux 上安装如下进行：
 
-```
-$ https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-```
+[PRE2]
 
 您可以使用`helm –h`获取所有可用的 Helm CLI 命令。让我们列出最常用的命令以及它们的描述：
 
@@ -178,14 +172,7 @@ Helm 模板的上述代码片段是一个 Kubernetes 服务资源，允许我们
 
 将 ChartCenter 设置为中央 Helm 存储库也非常容易，如下所示：
 
-```
-$ helm repo add center**https://repo.chartcenter.io**
-"center" has been added to your repositories
-$ helm repo update
-Hang tight while we grab the latest from your chart repositories...
-...Successfully got an update from the "center" chart repository
-Update Complete. Happy Helming!
-```
+[PRE3]
 
 上述命令添加了`center`图表存储库，并使用其内容更新了 Helm 本地缓存。
 
@@ -209,15 +196,11 @@ Update Complete. Happy Helming!
 
 首先，让我们创建一个`password-values.yaml`文件来存储 PostgreSQL 密码：
 
-```
-$ echo "postgresqlPassword: SomeVerySecurePassword" > password-values.yaml
-```
+[PRE4]
 
 然后使用以下命令进行安装：
 
-```
-$ helm upgrade –i postgresql center/bitnami/postgresql --version=9.2.1 -f password-values.yaml
-```
+[PRE5]
 
 上述命令的输出显示在以下截图中：
 
@@ -233,9 +216,7 @@ $ helm upgrade –i postgresql center/bitnami/postgresql --version=9.2.1 -f pass
 
 使用以下命令检查使用该图表安装了什么：
 
-```
-$ kubectl get all
-```
+[PRE6]
 
 上述命令的输出显示在以下截图中：
 
@@ -247,9 +228,7 @@ $ kubectl get all
 
 让我们通过运行以下命令检查所有秘钥是否正确创建：
 
-```
-$ kubectl get secret
-```
+[PRE7]
 
 上述命令的输出如下截图所示：
 
@@ -261,9 +240,7 @@ $ kubectl get secret
 
 现在，让我们通过运行以下命令检查当前命名空间中的 Helm 发布：
 
-```
-$ helm ls
-```
+[PRE8]
 
 上述命令的输出如下截图所示：
 
@@ -289,9 +266,7 @@ $ helm ls
 
 让我们通过以下命令获取并运行升级：
 
-```
-$ helm upgrade –i postgresql center/bitnami/postgresql --version=9.3.2 -f password-values.yaml
-```
+[PRE9]
 
 上述命令的输出如下截图所示：
 
@@ -305,9 +280,7 @@ $ helm upgrade –i postgresql center/bitnami/postgresql --version=9.3.2 -f pass
 
 让我们通过运行以下命令再次检查秘钥：
 
-```
-$ kubectl get secrets
-```
+[PRE10]
 
 上述命令的输出显示在以下截图中：
 
@@ -335,9 +308,7 @@ Helm 发布包含图表中的所有 Kubernetes 模板，这使得跟踪它们（
 
 要运行`helm rollback`命令，我们首先需要知道要回滚到的发布修订版本，我们可以使用以下命令找到它：
 
-```
-$ helm history postgresql
-```
+[PRE11]
 
 上述命令的输出显示在以下截图中：
 
@@ -349,9 +320,7 @@ $ helm history postgresql
 
 因此，我们要将`postgresql`回滚到修订版本`1`：
 
-```
-$ helm rollback postgresql 1
-```
+[PRE12]
 
 上述命令的输出显示在以下截图中：
 
@@ -369,44 +338,13 @@ $ helm rollback postgresql 1
 
 因此，让我们通过运行以下命令来检查它：
 
-```
-$ helm template postgresql center/bitnami/postgresql --version=9.3.2 -f password-values.yaml
-```
+[PRE13]
 
 前面的命令将在屏幕上打印所有模板。当然，您也可以将其输出到文件中。
 
 由于输出非常长，我们不打印所有内容，而只打印部分 Kubernetes 清单：
 
-```
----
-# Source: postgresql/templates/secrets.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: postgresql
-...
----
-# Source: postgresql/templates/svc-headless.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgresql-headless
-...
----
-# Source: postgresql/templates/svc.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgresql
-...
----
-# Source: postgresql/templates/statefulset.yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: postgresql-postgresql
-...
-```
+[PRE14]
 
 前面的输出显示了所有属于`postgresql`图表的资源。资源使用`---`分隔。
 
@@ -416,9 +354,7 @@ metadata:
 
 完整命令的示例如下：
 
-```
-$ helm template postgresql center/bitnami/postgresql --version=9.3.2 -f password-values.yaml --dry-run --debug
-```
+[PRE15]
 
 我们已经学会了一些在安装或升级 Helm 发布之前使用的方便的 Helm 命令。
 
@@ -432,9 +368,7 @@ $ helm template postgresql center/bitnami/postgresql --version=9.3.2 -f password
 
 现在让我们通过运行以下命令来检查创建图表有多容易：
 
-```
-$ helm create nginx
-```
+[PRE16]
 
 前面命令的输出显示在以下屏幕截图中：
 
@@ -450,9 +384,7 @@ $ helm create nginx
 
 现在让我们通过运行以下命令来安装图表：
 
-```
-$ helm install nginx nginx
-```
+[PRE17]
 
 上述命令的输出显示在以下截图中：
 
@@ -462,25 +394,19 @@ $ helm install nginx nginx
 
 在上述截图中，我们运行了`helm install nginx nginx`。该命令使用以下基本语法：
 
-```
-helm install <RELEASE NAME> <CHART NAME>
-```
+[PRE18]
 
 在这里，`<CHART NAME>`是本地文件夹，因此请注意您可以使用相同的命令从远程 Helm 存储库和本地文件夹安装图表。
 
 我们使用的下一个命令如下：
 
-```
-kubectl get all -l "app.kubernetes.io/name=nginx" 
-```
+[PRE19]
 
 该命令帮助我们展示了图表默认部署的资源。
 
 正如我们之前提到的`helm test`命令，让我们来看看该命令的功能：
 
-```
-$ helm test nginx
-```
+[PRE20]
 
 上述命令的输出显示在以下截图中：
 
@@ -492,9 +418,7 @@ $ helm test nginx
 
 接下来，让我们检查`test-connection.yaml`文件的内容：
 
-```
-$ cat nginx/templates/tests/test-connection.yaml
-```
+[PRE21]
 
 上述命令的输出显示在以下截图中：
 
@@ -514,9 +438,7 @@ $ cat nginx/templates/tests/test-connection.yaml
 
 让我们`lint`我们创建的`nginx`图表：
 
-```
-$ helm lint nginx
-```
+[PRE22]
 
 上一个命令的输出如下截图所示：
 
@@ -544,9 +466,7 @@ Helm 也可以通过插件进行扩展。插件对于扩展 Helm CLI 中没有�
 
 让我们看看安装 Helm 插件有多容易：
 
-```
-$ helm plugin list
-```
+[PRE23]
 
 上一个命令的输出如下截图所示：
 
@@ -558,9 +478,7 @@ $ helm plugin list
 
 让我们来检查插件列表：
 
-```
-$ helm plugin list
-```
+[PRE24]
 
 上一个命令的输出如下截图所示：
 
@@ -574,9 +492,7 @@ $ helm plugin list
 
 让我们再安装一个：
 
-```
-$ helm plugin install https://github.com/instrumenta/helm-kubeval
-```
+[PRE25]
 
 上述命令的输出如下截图所示：
 
@@ -588,9 +504,7 @@ $ helm plugin install https://github.com/instrumenta/helm-kubeval
 
 让我们验证之前使用`helm create`创建的`nginx`图表：
 
-```
-$ helm kubeval nginx
-```
+[PRE26]
 
 上述命令的输出如下截图所示：
 

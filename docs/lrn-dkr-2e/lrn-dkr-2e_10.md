@@ -34,41 +34,29 @@
 
 首先，我们想学习如何删除悬空镜像。根据 Docker 的说法，悬空镜像是与任何已标记镜像没有关联的层。这样的镜像层对我们来说肯定是无用的，并且可能会很快地填满我们的磁盘——最好定期将它们删除。以下是命令：
 
-```
-$ docker image prune -f
-```
+[PRE0]
 
 请注意，我已经向`prune`命令添加了`-f`参数。这是为了防止 CLI 询问我们是否真的要删除那些多余的层。
 
 停止的容器也会浪费宝贵的资源。如果您确定不再需要这些容器，那么您应该使用以下命令逐个删除它们：
 
-```
-$ docker container rm <container-id>
-```
+[PRE1]
 
 或者，您可以使用以下命令批量删除它们：
 
-```
-$ docker container prune --force
-```
+[PRE2]
 
 值得再次提到的是，除了`<container-id>`，我们还可以使用`<container-name>`来标识容器。
 
 未使用的 Docker 卷也可能很快填满磁盘空间。在开发或 CI 环境中，特别是在创建大量临时卷的情况下，妥善处理您的卷是一个好习惯。但是我必须警告您，Docker 卷是用来存储数据的。通常，这些数据的生存周期必须比容器的生命周期长。这在生产或类似生产环境中尤其如此，那里的数据通常是至关重要的。因此，在使用以下命令清理 Docker 主机上的卷时，请务必百分之百确定自己在做什么：
 
-```
-$ docker volume prune
-WARNING! This will remove all local volumes not used by at least one container.
-Are you sure you want to continue? [y/N]
-```
+[PRE3]
 
 我建议不要使用`-f`（或`--force`）标志的这个命令。这是一个危险的终端操作，最好给自己第二次机会来重新考虑您的行动。没有这个标志，CLI 会输出您在上面看到的警告。您必须通过输入`y`并按下*Enter*键来明确确认。
 
 在生产或类似生产系统中，您应该避免使用上述命令，而是使用以下命令逐个删除不需要的卷：
 
-```
-$ docker volume rm <volume-name>
-```
+[PRE4]
 
 我还应该提到有一个命令可以清理 Docker 网络。但由于我们尚未正式介绍网络，我将把这个推迟到[第十章]，*单主机网络*。
 
@@ -82,18 +70,7 @@ $ docker volume rm <volume-name>
 
 假设我们有以下脚本，名为`pipeline.sh`，自动化构建、测试和推送 Docker 镜像：
 
-```
-#! /bin/bash
-# *** Sample script to build, test and push containerized Node.js applications ***
-# build the Docker image
-docker image build -t $HUB_USER/$REPOSITORY:$TAG .
-# Run all unit tests
-docker container run $HUB_USER/$REPOSITORY:$TAG npm test
-# Login to Docker Hub
-docker login -u $HUB_USER -p $HUB_PWD
-# Push the image to Docker Hub
-docker image push $HUB_USER/$REPOSITORY:$TAG
-```
+[PRE5]
 
 请注意，我们正在使用四个环境变量：`$HUB_USER`和`$HUB_PWD`是 Docker Hub 的凭据，`$REPOSITORY`和`$TAG`是我们要构建的 Docker 镜像的名称和标签。最终，我们将不得不在`docker run`命令中传递这些环境变量的值。
 
@@ -101,48 +78,25 @@ docker image push $HUB_USER/$REPOSITORY:$TAG
 
 1.  首先，创建一个`builder`文件夹并导航到它：
 
-```
-$ mkdir builder && cd builder
-```
+[PRE6]
 
 1.  在这个文件夹里，创建一个看起来像这样的`Dockerfile`：
 
-```
-FROM alpine:latest
-RUN apk update && apk add docker
-WORKDIR /usr/src/app
-COPY . .
-CMD ./pipeline.sh
-```
+[PRE7]
 
 1.  现在在`builder`文件夹中创建一个`pipeline.sh`文件，并将我们在前面文件中呈现的流水线脚本添加为内容。
 
 1.  保存并使文件可执行：
 
-```
-$ chmod +x ./pipeline.sh
-```
+[PRE8]
 
 1.  构建镜像很简单：
 
-```
-$ docker image build -t builder .
-```
+[PRE9]
 
 我们现在准备使用一个真实的 Node.js 应用程序来尝试`builder`，例如我们在`ch08/sample-app`文件夹中定义的示例应用程序。确保您用 Docker Hub 的自己的凭据替换`<user>`和`<password>`：
 
-```
-$ cd ~/fod/ch08/sample-app
-$ docker container run --rm \
- --name builder \
- -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "$PWD":/usr/src/app \
- -e HUB_USER=<user> \
- -e HUB_PWD=<password>@j \
- -e REPOSITORY=ch08-sample-app \
- -e TAG=1.0 \
- builder
-```
+[PRE10]
 
 请注意，在上述命令中，我们使用`-v /var/run/docker.sock:/var/run/docker.sock`将 Docker 套接字挂载到容器中。如果一切顺利，您应该已经为示例应用程序构建了一个容器镜像，测试应该已经运行，并且镜像应该已经推送到 Docker Hub。这只是许多用例中的一个，其中能够绑定挂载 Docker 套接字非常有用。
 
@@ -158,18 +112,11 @@ friism/jenkins**`
 
 有时您是否希望您的终端窗口是无限宽的，因为像`docker container ps`这样的 Docker 命令的输出会在每个项目上跨越多行？不用担心，因为您可以根据自己的喜好自定义输出。几乎所有产生输出的命令都有一个`--format`参数，它接受一个所谓的 Go 模板作为参数。如果您想知道为什么是 Go 模板，那是因为 Docker 的大部分代码都是用这种流行的低级语言编写的。让我们看一个例子。假设我们只想显示`docker container ps`命令输出的容器名称、镜像名称和容器状态，用制表符分隔。格式将如下所示：
 
-```
-$ docker container ps -a \
---format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
-```
+[PRE11]
 
 请注意，`format`字符串是区分大小写的。还要注意添加`-a`参数以包括已停止的容器在输出中。示例输出可能如下所示：
 
-```
-NAMES              IMAGE            STATUS
-elated_haslett     alpine           Up 2 seconds
-brave_chebyshev    hello-world      Exited (0) 3 minutes ago
-```
+[PRE12]
 
 这绝对比未格式化的输出更好，即使在窄窄的终端窗口上也是如此，未格式化的输出会在多行上随意散开。
 
@@ -177,17 +124,11 @@ brave_chebyshev    hello-world      Exited (0) 3 minutes ago
 
 与我们在上一节中所做的内容类似，通过美化 Docker 命令的输出，我们也可以筛选输出内容。支持许多过滤器。请在 Docker 在线文档中找到每个命令的完整列表。过滤器的格式很简单，是`--filter <key>=<value>`的类型。如果我们需要结合多个过滤器，我们可以结合多个这些语句。让我们以`docker image ls`命令为例，因为我在我的工作站上有很多镜像：
 
-```
-$ docker image ls --filter dangling=false --filter "reference=*/*/*:latest"
-```
+[PRE13]
 
 前面的过滤器只输出不悬空的镜像，也就是真实的镜像，其完全限定名称的形式为`<registry>/<user|org><repository>:<tag>`，并且标签等于`latest`。我的机器上的输出如下：
 
-```
-REPOSITORY                                  TAG     IMAGE ID      CREATED   SIZE
-docker.bintray.io/jfrog/artifactory-cpp-ce  latest  092f11699785  9 months  ago 900MB
-docker.bintray.io/jfrog/artifactory-oss     latest  a8a8901c0230  9 months  ago 897MB
-```
+[PRE14]
 
 在展示了如何美化和筛选 Docker CLI 生成的输出之后，现在是时候再次谈论构建 Docker 镜像以及如何优化这个过程了。
 
@@ -195,26 +136,13 @@ docker.bintray.io/jfrog/artifactory-oss     latest  a8a8901c0230  9 months  ago 
 
 许多 Docker 初学者在编写他们的第一个`Dockerfile`时会犯以下错误：
 
-```
-FROM node:12.10-alpine
-WORKDIR /usr/src/app
-COPY . .
-RUN npm install
-CMD npm start
-```
+[PRE15]
 
 你能发现这个典型的 Node.js 应用程序的`Dockerfile`中的薄弱点吗？在第四章中，*创建和管理容器镜像*，我们已经学到镜像由一系列层组成。`Dockerfile`中的每一行（逻辑上）都创建一个层，除了带有`CMD`和/或`ENTRYPOINT`关键字的行。我们还学到 Docker 构建器会尽力缓存层，并在后续构建之间重用它们。但是缓存只使用在第一个更改的层之前出现的缓存层。所有后续层都需要重新构建。也就是说，`Dockerfile`的前面结构破坏了镜像层缓存！
 
 为什么？嗯，从经验上来说，你肯定知道在一个典型的具有许多外部依赖的 Node.js 应用程序中，`npm install` 可能是一个非常昂贵的操作。执行此命令可能需要几秒钟到几分钟。也就是说，每当源文件之一发生变化，我们知道在开发过程中这经常发生，`Dockerfile` 中的第 3 行会导致相应的镜像层发生变化。因此，Docker 构建器无法重用缓存中的此层，也无法重用由 `RUN npm install` 创建的随后的层。代码的任何微小变化都会导致完全重新运行 `npm install`。这是可以避免的。包含外部依赖列表的 `package.json` 文件很少改变。有了所有这些信息，让我们修复 `Dockerfile`：
 
-```
-FROM node:12.10-alpine
-WORKDIR /usr/src/app
-COPY package.json ./
-RUN npm install
-COPY . .
-CMD npm start
-```
+[PRE16]
 
 这一次，在第 3 行，我们只将 `package.json` 文件复制到容器中，这个文件很少改变。因此，随后的 `npm install` 命令也需要同样很少地执行。第 5 行的 `COPY` 命令是一个非常快速的操作，因此在一些代码改变后重新构建镜像只需要重新构建这最后一层。构建时间减少到几乎只有一小部分秒数。
 
@@ -224,18 +152,11 @@ CMD npm start
 
 容器的一个很棒的特性，除了封装应用程序进程外，还可以限制单个容器可以消耗的资源。这包括 CPU 和内存消耗。让我们来看看如何限制内存（RAM）的使用：
 
-```
-$ docker container run --rm -it \
-    --name stress-test \
- --memory 512M \
- ubuntu:19.04 /bin/bash
-```
+[PRE17]
 
 一旦进入容器，安装 `stress` 工具，我们将用它来模拟内存压力：
 
-```
-/# apt-get update && apt-get install -y stress
-```
+[PRE18]
 
 打开另一个终端窗口并执行 `docker stats` 命令。你应该会看到类似这样的东西：
 
@@ -245,9 +166,7 @@ docker stats 显示了一个资源受限的容器
 
 观察 `MEM USAGE` 和 `LIMIT`。目前，容器只使用了 `1.87MiB` 的内存，限制为 `512MB`。后者对应我们为这个容器配置的内容。现在，让我们使用 `stress` 来模拟四个尝试以 `256MB` 为块的工作进程。在容器内运行此命令以执行：
 
-```
-/# stress -m 4
-```
+[PRE19]
 
 在运行 Docker stats 的终端中，观察 `MEM USAGE` 的值如何接近但从未超过 `LIMIT`。这正是我们从 Docker 期望的行为。Docker 使用 Linux `cgroups` 来强制执行这些限制。
 
@@ -259,23 +178,11 @@ docker stats 显示了一个资源受限的容器
 
 为了保护您的应用免受恶意黑客攻击，通常建议将容器的文件系统或部分文件系统定义为只读。这对于无状态服务来说是最有意义的。假设您在作为分布式、关键任务应用的一部分运行的容器中有一个计费服务。您可以按以下方式运行计费服务：
 
-```
-$ docker container run -d --rm \
- --name billing \
- --read-only \
- acme/billing:2.0
-```
+[PRE20]
 
 `--read-only`标志将容器的文件系统挂载为只读。如果黑客成功进入您的计费容器并试图恶意更改应用程序，比如用一个受损的二进制文件替换其中一个，那么这个操作将失败。我们可以通过以下命令轻松演示：
 
-```
-$ docker container run --tty -d \
-    --name billing \
-    --read-only \
-    alpine /bin/sh 
-$ docker container exec -it billing \
- sh -c 'echo "You are doomed!" > ./sample.txt' sh: can't create ./sample.txt: Read-only file system
-```
+[PRE21]
 
 第一个命令以只读文件系统运行容器，第二个命令尝试在该容器中执行另一个进程，该进程应该向文件系统写入一些东西——在这种情况下是一个简单的文本文件。这会失败，正如我们在前面的输出中看到的，出现了错误消息`只读文件系统`。
 
@@ -287,76 +194,37 @@ $ docker container exec -it billing \
 
 再次，让我们通过一个例子来说明我们的意思。假设我们有一个包含绝密内容的文件。我们希望在我们的基于 Unix 的系统上使用`chmod`工具来保护这个文件，以便只有具有 root 权限的用户才能访问它。假设我以`dev`主机上的`gabriel`身份登录，因此我的提示符是`gabriel@dev $`。我可以使用`sudo su`来冒充超级用户。不过我必须输入超级用户密码：
 
-```
-gabriel@dev $ sudo su
-Password: <root password>
-root@dev $
-```
+[PRE22]
 
 现在，作为`root`用户，我可以创建一个名为`top-secret.txt`的文件并保护它：
 
-```
-root@dev $ echo "You should not see this." > top-secret.txt
-root@dev $ chmod 600 ./top-secret.txt
-root@dev $ exit
-gabriel@dev $
-```
+[PRE23]
 
 如果我尝试以`gabriel`的身份访问文件，会发生以下情况：
 
-```
-gabriel@dev $ cat ./top-secret.txt
-cat: ./top-secret.txt: Permission denied
-```
+[PRE24]
 
 我得到了`Permission denied`，这正是我们想要的。除了`root`之外，没有其他用户可以访问这个文件。现在，让我们构建一个包含这个受保护文件的 Docker 镜像，当从中创建一个容器时，尝试输出它的内容。`Dockerfile`可能是这样的：
 
-```
-FROM ubuntu:latest
-COPY ./top-secret.txt /secrets/
-# simulate use of restricted file
-CMD cat /secrets/top-secret.txt
-```
+[PRE25]
 
 我们可以使用以下命令从该 Dockerfile 构建一个镜像（以`root`身份！）：
 
-```
-gabriel@dev $ sudo su
-Password: <root password>
-root@dev $ docker image build -t demo-image .
-root@dev $ exit
-gabriel@dev $
-```
+[PRE26]
 
 然后，从该镜像运行一个容器，我们得到：
 
-```
-gabriel@dev $ docker container run demo-image You should not see this.
-```
+[PRE27]
 
 好的，尽管我在主机上冒充`gabriel`用户并在该用户账户下运行容器，但容器内运行的应用程序自动以`root`身份运行，因此可以完全访问受保护的资源。这很糟糕，所以让我们来修复它！我们不再使用默认设置，而是在容器内定义一个显式用户。修改后的`Dockerfile`如下：
 
-```
-FROM ubuntu:latest
-RUN groupadd -g 3000 demo-group |
- && useradd -r -u 4000 -g demo-group demo-user
-USER demo-user
-COPY ./top-secret.txt /secrets/
-# simulate use of restricted file
-CMD cat /secrets/top-secret.txt
-```
+[PRE28]
 
 我们使用`groupadd`工具来定义一个新的组，`demo-group`，ID 为`3000`。然后，我们使用`useradd`工具向这个组添加一个新用户，`demo-user`。用户在容器内的 ID 为`4000`。最后，通过`USER demo-user`语句，我们声明所有后续操作应该以`demo-user`身份执行。
 
 重新构建镜像——再次以`root`身份——然后尝试从中运行一个容器：
 
-```
-gabriel@dev $ sudo su
-Password: <root password>
-root@dev $ docker image build -t demo-image .
-root@dev $ exit
-gabriel@dev $ docker container run demo-image cat: /secrets/top-secret.txt: Permission denied
-```
+[PRE29]
 
 正如您在最后一行所看到的，容器内运行的应用程序以受限权限运行，无法访问需要 root 级别访问权限的资源。顺便问一下，如果我以`root`身份运行容器会发生什么？试一试吧！
 
@@ -372,9 +240,7 @@ gabriel@dev $ docker container run demo-image cat: /secrets/top-secret.txt: Perm
 
 1.  一旦您的虚拟机准备就绪，就可以通过 SSH 登录。执行此操作的命令应该类似于这样：
 
-```
-$ ssh gnschenker@40.115.4.249
-```
+[PRE30]
 
 要获得访问权限，您可能需要首先为虚拟机打开`22`端口以进行入口。
 
@@ -384,24 +250,13 @@ $ ssh gnschenker@40.115.4.249
 
 1.  特别注意，不要忘记使用以下命令将您的用户（在我的情况下是`gnschenker`）添加到 VM 上的`docker`组中：
 
-```
-$ sudo usermod -aG docker <user-name>
-```
+[PRE31]
 
 通过这样做，您可以避免不断使用`sudo`执行所有 Docker 命令。您需要注销并登录到 VM 以使此更改生效。
 
 1.  现在，我们准备在 VM 上的容器中运行**Shell in a Box**（[`github.com/shellinabox/shellinabox`](https://github.com/shellinabox/shellinabox)）。有很多人将 Shell in a Box 容器化。我们使用的是 Docker 镜像，`sspreitzer/shellinabox`。在撰写本文时，这是 Docker Hub 上迄今为止最受欢迎的版本。使用以下命令，我们将以用户`gnschenker`、密码`top-secret`、启用用户的`sudo`和自签名证书运行应用程序：
 
-```
-$ docker container run --rm \
-    --name shellinabox \
- -p 4200:4200 \
-    -e SIAB_USER=gnschenker \
- -e SIAB_PASSWORD=top-secret \
- -e SIAB_SUDO=true \
- -v `pwd`/dev:/usr/src/dev \
- sspreitzer/shellinabox:latest
-```
+[PRE32]
 
 请注意，最初我们建议以交互模式运行容器，以便您可以跟踪发生的情况。一旦您更熟悉该服务，考虑使用`-d`标志在后台运行它。还要注意，我们将主机的`~/dev`文件夹挂载到容器内的`/usr/src/dev`文件夹。如果我们想要远程编辑我们从 GitHub 克隆的代码，这将非常有用，例如，克隆到`~/dev`文件夹中。
 
@@ -423,9 +278,7 @@ $ docker container run --rm \
 
 1.  现在，我们可以完全访问，例如，从主机 VM 映射到`/usr/src/dev`的文件和文件夹。例如，我们可以使用`vi`文本编辑器来创建和编辑文件，尽管我们必须首先安装 vi，方法如下：
 
-```
-$ sudo apt-get update && sudo apt-get install -y vim
-```
+[PRE33]
 
 1.  可能性几乎是无穷无尽的。请尝试使用这个设置。例如，使用挂载了 Docker 套接字的 Shell in a Box 容器，安装容器内的 Docker，然后尝试从容器内使用 Docker CLI。这真的很酷，因为你可以在浏览器内完成所有这些操作！
 
@@ -505,21 +358,13 @@ Visual Studio Code 正在准备开发容器
 
 1.  下载并提取最新版本的`code-server`。您可以通过导航到[`github.com/cdr/code-server/releases/latest`](https://github.com/cdr/code-server/releases/latest)来找到 URL。在撰写本文时，它是`1.1156-vsc1.33.1`：
 
-```
-$ VERSION=<version>
-$ wget https://github.com/cdr/code-server/releases/download/${VERSION}/code-server${VERSION}-linux-x64.tar.gz
-$ tar -xvzf code-server${VERSION}-linux-x64.tar.gz
-```
+[PRE34]
 
 确保用您的特定版本替换`<version>`
 
 1.  导航到提取的二进制文件所在的文件夹，使其可执行，并启动它：
 
-```
-$ cd code-server${VERSION}-linux-x64
-$ chmod +x ./code-server
-$ sudo ./code-server -p 4200
-```
+[PRE35]
 
 输出应该类似于这样：
 
@@ -545,21 +390,11 @@ Code Server 的登录页面
 
 1.  让我们在一个容器中运行 Code Server 本身。这应该很容易，不是吗？尝试使用这个命令，将内部端口`8080`映射到主机端口`4200`，并将包含 Code Server 设置和可能包含您的项目的主机文件夹挂载到容器中：
 
-```
-$ docker container run -it \
- -p 4200:8080 \
- -v "${HOME}/.local/share/code-server:/home/coder/.local/share/code-server" \
- -v "$PWD:/home/coder/project" \
- codercom/code-server:v2
-```
+[PRE36]
 
 请注意，前面的命令以不安全模式运行 Code Server，如输出所示：
 
-```
-info Server listening on http://0.0.0.0:8080
-info - No authentication
-info - Not serving HTTPS
-```
+[PRE37]
 
 1.  您现在可以在浏览器中访问`http://<public IP>:4200`中的 Visual Studio Code。请注意 URL 中的`HTTP`而不是`HTTPS`！与在远程 VM 上本地运行 Code Server 时类似，您现在可以在浏览器中使用 Visual Studio Code：
 

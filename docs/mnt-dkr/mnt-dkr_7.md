@@ -28,12 +28,7 @@
 
 要在自己的主机上查看此内容，请使用以下命令启动`chapter05`中的 WordPress 安装：
 
-```
-**cd /monitoring_docker/chapter05/wordpress/**
-**docker-compose up –d**
-**docker logs wordpress_wordpress1_1**
-
-```
+[PRE0]
 
 您可以通过在容器名称之前添加以下标志来扩展`docker logs`命令：
 
@@ -47,17 +42,11 @@
 
 使用我们刚刚启动的 WordPress 安装，尝试运行以下命令：
 
-```
-**docker logs --tail="2" wordpress_wordpress1_1**
-
-```
+[PRE1]
 
 这将显示日志的最后两行，您可以使用以下命令添加时间戳：
 
-```
-**docker logs --tail="2" –timestamps wordpress_wordpress1_1**
-
-```
+[PRE2]
 
 如下终端输出所示，您还可以将命令串联在一起，形成一个非常基本的查询语言：
 
@@ -81,32 +70,11 @@ ELK 堆栈中有许多组件，为了简化事情，我们将使用一个预构�
 
 让我们启动一个新的 vagrant 主机来运行 ELK 堆栈：
 
-```
-**[russ@mac ~]$ cd ~/Documents/Projects/monitoring-docker/vagrant-centos/**
-**[russ@mac ~]$ vagrant up**
-**Bringing machine 'default' up with 'virtualbox' provider...**
-**==> default: Importing base box 'russmckendrick/centos71'...**
-**==> default: Matching MAC address for NAT networking...**
-**==> default: Checking if box 'russmckendrick/centos71' is up to date...**
-
-**.....**
-
-**==> default: => Installing docker-engine ...**
-**==> default: => Configuring vagrant user ...**
-**==> default: => Starting docker-engine ...**
-**==> default: => Installing docker-compose ...**
-**==> default: => Finished installation of Docker**
-**[russ@mac ~]$ vagrant ssh**
-
-```
+[PRE3]
 
 现在，我们有一个干净的主机正在运行，我们可以通过运行以下命令来启动堆栈：
 
-```
-**[vagrant@docker ~]$ cd /monitoring_docker/chapter07/elk/**
-**[vagrant@docker elk]$ docker-compose up -d**
-
-```
+[PRE4]
 
 您可能已经注意到，它不仅仅是下载了一些镜像；发生的事情是：
 
@@ -130,10 +98,7 @@ ELK 堆栈中有许多组件，为了简化事情，我们将使用一个预构�
 
 自 Docker 1.6 以来，您已经能够配置日志驱动程序，这意味着可以启动一个容器，并让它将其`STDOUT`和`STDERR`发送到 Syslog 服务器，在我们的情况下将是 Logstash；然而，这意味着每次启动容器时都必须添加类似以下选项的内容：
 
-```
-**--log-driver=syslog --log-opt syslog-address=tcp://elk_logstash_1:5000** 
-
-```
+[PRE5]
 
 这就是 Logspout 的作用，它被设计用来通过拦截 Docker 进程收集的消息来收集主机上的所有`STDOUT`和`STDERR`消息，然后将它们路由到我们的 Logstash 实例中，以 Elasticsearch 理解的格式。
 
@@ -169,40 +134,11 @@ ELK 堆栈中有许多组件，为了简化事情，我们将使用一个预构�
 
 在屏幕截图中，您将看到我最近启动了 WordPress 堆栈，并且我们一直在整本书中使用它，使用以下命令：
 
-```
-**[vagrant@docker elk]$ cd /monitoring_docker/chapter05/wordpress/**
-**[vagrant@docker wordpress]$ docker-compose up –d**
-
-```
+[PRE6]
 
 为了让您了解正在记录的内容，这里是从 Elasticseach 获取的运行 WordPress 安装脚本的原始 JSON：
 
-```
-{
-  "_index": "logstash-2015.10.11",
-  "_type": "logs",
-  "_id": "AVBW8ewRnBVdqUV1XVOj",
-  "_score": null,
-  "_source": {
-    "message": "172.17.0.11 - - [11/Oct/2015:12:48:26 +0000] \"POST /wp-admin/install.php?step=1 HTTP/1.1\" 200 2472 \"http://192.168.33.10/wp-admin/install.php\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11) AppleWebKit/601.1.56 (KHTML, like Gecko) Version/9.0 Safari/601.1.56\"",
-    "docker.name": "/wordpress_wordpress1_1",
-    "docker.id": "0ba42876867f738b9da0b9e3adbb1f0f8044b7385ce9b3a8a3b9ec60d9f5436c",
-    "docker.image": "wordpress",
-    "docker.hostname": "0ba42876867f",
-    "@version": "1",
-    "@timestamp": "2015-10-11T12:48:26.641Z",
-    "host": "172.17.0.4"
-  },
-  "fields": {
-    "@timestamp": [
-      1444567706641
-    ]
-  },
-  "sort": [
-    1444567706641
-  ]
-}
-```
+[PRE7]
 
 从这里，您可以开始使用自由文本搜索框，并构建一些相当复杂的查询，以深入了解容器的`STDOUT`和`STDERR`日志。
 
@@ -238,12 +174,7 @@ ELK 堆栈中有许多组件，为了简化事情，我们将使用一个预构�
 
 你必须在**选择集**部分为你的日志集命名。现在你可以选择使用来自[`github.com/logentries/docker-logentries`](https://github.com/logentries/docker-logentries)的 Docker 文件来本地构建你自己的容器：
 
-```
-**git clone https://github.com/logentries/docker-logentries.git**
-**cd docker-logentries**
-**docker build -t docker-logentries .**
-
-```
+[PRE8]
 
 运行上述命令后，你会得到以下输出：
 
@@ -251,17 +182,11 @@ ELK 堆栈中有许多组件，为了简化事情，我们将使用一个预构�
 
 在启动容器之前，你需要通过点击**生成日志令牌**来生成日志集的访问令牌。一旦你拥有了这个令牌，你可以使用以下命令启动本地构建的容器（用你刚生成的令牌替换原来的令牌）：
 
-```
-**docker run -d -v /var/run/docker.sock:/var/run/docker.sock docker-logentries -t wn5AYlh-jRhgn3shc-jW14y3yO-T09WsF7d -j**
-
-```
+[PRE9]
 
 你可以通过运行以下命令直接从 Docker hub 下载镜像：
 
-```
-**docker run -d -v /var/run/docker.sock:/var/run/docker.sock logentries/docker-logentries -t wn5AYlh-jRhgn3shc-jW14y3yO-T09WsF7d –j**
-
-```
+[PRE10]
 
 值得指出的是，Log Entries 自动生成的指令会在前台启动容器，而不是像前面的指令那样在启动后与容器分离。
 

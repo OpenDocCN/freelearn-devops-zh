@@ -102,11 +102,7 @@ Docker 支持使用可插拔架构的多种不同的图形驱动程序。首选�
 
 1.  运行容器的命令应该如下所示：
 
-```
-$ docker container run -it \
-    --name sample \
-    alpine:3.10 /bin/sh
-```
+[PRE0]
 
 上述命令基于`alpine:3.10`镜像运行一个容器。
 
@@ -114,22 +110,13 @@ $ docker container run -it \
 
 在运行上述命令的终端窗口中，您应该看到类似于这样的内容：
 
-```
-Unable to find image 'alpine:3.10' locally
-3.10: Pulling from library/alpine
-921b31ab772b: Pull complete
-Digest: sha256:ca1c944a4f8486a153024d9965aafbe24f5723c1d5c02f4964c045a16d19dc54
-Status: Downloaded newer image for alpine:3.10
-/ #
-```
+[PRE1]
 
 默认情况下，`alpine`容器没有安装`ping`工具。假设我们想要创建一个新的自定义镜像，其中安装了`ping`。
 
 1.  在容器内部，我们可以运行以下命令：
 
-```
-/ # apk update && apk add iputils
-```
+[PRE2]
 
 这使用`apk` Alpine 软件包管理器来安装`iputils`库，其中包括`ping`。上述命令的输出应该大致如下：
 
@@ -143,76 +130,37 @@ Status: Downloaded newer image for alpine:3.10
 
 如果我们现在使用`ls -a` Docker 容器列出所有容器，我们可以看到我们的示例容器的状态为`Exited`，但仍然存在于系统中，如下面的代码块所示：
 
-```
-$ docker container ls -a | grep sample
-040fdfe889a6 alpine:3.10 "/bin/sh" 8 minutes ago Exited (0) 4 seconds ago
-```
+[PRE3]
 
 1.  如果我们想要查看容器相对于基本镜像的变化，我们可以使用`docker container diff`命令，如下所示：
 
-```
-$ docker container diff sample
-```
+[PRE4]
 
 输出应该呈现出容器文件系统上的所有修改列表，如下所示：
 
-```
-C /usr
-C /usr/sbin
-A /usr/sbin/getcap
-A /usr/sbin/ipg
-A /usr/sbin/tftpd
-A /usr/sbin/ninfod
-A /usr/sbin/rdisc
-A /usr/sbin/rarpd
-A /usr/sbin/tracepath
-...
-A /var/cache/apk/APKINDEX.d8b2a6f4.tar.gz
-A /var/cache/apk/APKINDEX.00740ba1.tar.gz
-C /bin
-C /bin/ping
-C /bin/ping6
-A /bin/traceroute6
-C /lib
-C /lib/apk
-C /lib/apk/db
-C /lib/apk/db/scripts.tar
-C /lib/apk/db/triggers
-C /lib/apk/db/installed
-```
+[PRE5]
 
 我们已经缩短了上述输出以便更好地阅读。在列表中，`A`代表*添加*，`C`代表*更改*。如果有任何已删除的文件，那么它们将以**`D`**为前缀。
 
 1.  现在，我们可以使用`docker container commit`命令来保存我们的修改并从中创建一个新的镜像，如下所示：
 
-```
-$ docker container commit sample my-alpine
-sha256:44bca4141130ee8702e8e8efd1beb3cf4fe5aadb62a0c69a6995afd49c2e7419
-```
+[PRE6]
 
 通过上述命令，我们指定了新镜像将被称为`my-alpine`。上述命令生成的输出对应于新生成的镜像的 ID。
 
 1.  我们可以通过列出系统上的所有镜像来验证这一点，如下所示：
 
-```
-$ docker image ls
-```
+[PRE7]
 
 我们可以看到这个图像 ID（缩短）如下：
 
-```
-REPOSITORY   TAG      IMAGE ID       CREATED              SIZE
-my-alpine    latest   44bca4141130   About a minute ago   7.34MB
-...
-```
+[PRE8]
 
 我们可以看到名为`my-alpine`的图像具有预期的 ID`44bca4141130`，并自动分配了`latest`标签。这是因为我们没有明确定义标签。在这种情况下，Docker 总是默认为`latest`标签。
 
 1.  如果我们想要查看我们的自定义图像是如何构建的，我们可以使用`history`命令如下：
 
-```
-$ docker image history my-alpine
-```
+[PRE9]
 
 这将打印出我们的图像包含的层的列表，如下所示：
 
@@ -232,14 +180,7 @@ $ docker image history my-alpine
 
 让我们看一个示例`Dockerfile`，如下所示：
 
-```
-FROM python:2.7
-RUN mkdir -p /app
-WORKDIR /app
-COPY ./requirements.txt /app/
-RUN pip install -r requirements.txt
-CMD ["python", "main.py"]
-```
+[PRE10]
 
 这是一个`Dockerfile`，用于容器化 Python 2.7 应用程序。正如我们所看到的，文件有六行，每行以关键字开头，如`FROM`、`RUN`或`COPY`。习惯上将关键字写成大写，但这不是必须的。
 
@@ -255,9 +196,7 @@ CMD ["python", "main.py"]
 
 每个`Dockerfile`都以`FROM`关键字开始。通过它，我们定义了要从哪个基础镜像开始构建我们的自定义镜像。例如，如果我们想从 CentOS 7 开始构建，我们会在`Dockerfile`中有以下行：
 
-```
-FROM centos:7
-```
+[PRE11]
 
 在 Docker Hub 上，有所有主要 Linux 发行版的精选或官方镜像，以及所有重要的开发框架或语言，比如 Python、Node.js、Ruby、Go 等等。根据我们的需求，我们应该选择最合适的基础镜像。
 
@@ -265,9 +204,7 @@ FROM centos:7
 
 如果我们真的想从头开始，我们也可以使用以下语句：
 
-```
-FROM scratch
-```
+[PRE12]
 
 这在构建超小型镜像的情况下非常有用，比如只包含一个二进制文件的情况：实际的静态链接可执行文件，比如`Hello-World`。`scratch`镜像实际上是一个空的基础镜像。
 
@@ -277,42 +214,23 @@ FROM scratch
 
 下一个重要的关键字是`RUN`。`RUN`的参数是任何有效的 Linux 命令，比如以下内容：
 
-```
-RUN yum install -y wget
-```
+[PRE13]
 
 前面的命令使用`yum` CentOS 包管理器来在运行的容器中安装`wget`包。这假设我们的基础镜像是 CentOS 或 Red Hat Enterprise Linux（RHEL）。如果我们的基础镜像是 Ubuntu，那么命令会类似于以下内容：
 
-```
-RUN apt-get update && apt-get install -y wget
-```
+[PRE14]
 
 这是因为 Ubuntu 使用`apt-get`作为包管理器。同样，我们可以定义一行`RUN`命令，如下所示：
 
-```
-RUN mkdir -p /app && cd /app
-```
+[PRE15]
 
 我们也可以这样做：
 
-```
-RUN tar -xJC /usr/src/python --strip-components=1 -f python.tar.xz
-```
+[PRE16]
 
 在这里，前者在容器中创建了一个`/app`文件夹并导航到它，后者将一个文件解压到指定位置。完全可以，甚至建议你使用多于一行的物理行来格式化 Linux 命令，比如这样：
 
-```
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
- ca-certificates \
- libexpat1 \
- libffi6 \
- libgdbm3 \
- libreadline7 \
- libsqlite3-0 \
- libssl1.1 \
- && rm -rf /var/lib/apt/lists/*
-```
+[PRE17]
 
 如果我们使用多行，需要在行尾加上反斜杠（`\`）来指示 shell 命令在下一行继续。
 
@@ -326,13 +244,7 @@ RUN apt-get update \
 
 让我们看一些如何使用这两个关键字的示例，如下所示：
 
-```
-COPY . /app
-COPY ./web /app/web
-COPY sample.txt /data/my-sample.txt
-ADD sample.tar /app/bin/
-ADD http://example.com/sample.txt /data/
-```
+[PRE18]
 
 在上述代码的前几行中，适用以下内容：
 
@@ -348,15 +260,11 @@ ADD http://example.com/sample.txt /data/
 
 源路径中允许使用通配符。 例如，以下语句将所有以`sample`开头的文件复制到镜像内的`mydir`文件夹中：
 
-```
-COPY ./sample* /mydir/
-```
+[PRE19]
 
 从安全角度来看，重要的是要知道，默认情况下，镜像内的所有文件和文件夹都将具有`0`的**用户 ID**（**UID**）和**组 ID**（**GID**）。 好处是，对于`ADD`和`COPY`，我们可以使用可选的`--chown`标志更改镜像内文件的所有权，如下所示：
 
-```
-ADD --chown=11:22 ./data/web* /app/data/
-```
+[PRE20]
 
 前面的语句将复制所有以`web`开头的文件并将它们放入镜像中的`/app/data`文件夹，并同时为这些文件分配用户`11`和组`22`。
 
@@ -366,23 +274,15 @@ ADD --chown=11:22 ./data/web* /app/data/
 
 `WORKDIR`关键字定义了在从我们的自定义镜像运行容器时使用的工作目录或上下文。 因此，如果我想将上下文设置为镜像内的`/app/bin`文件夹，则我的`Dockerfile`中的表达式必须如下所示：
 
-```
-WORKDIR /app/bin
-```
+[PRE21]
 
 在前一行之后发生的所有活动都将使用此目录作为工作目录。 非常重要的一点是要注意，`Dockerfile`中以下两个片段不同：
 
-```
-RUN cd /app/bin
-RUN touch sample.txt
-```
+[PRE22]
 
 将前面的代码与以下代码进行比较：
 
-```
-WORKDIR /app/bin
-RUN touch sample.txt
-```
+[PRE23]
 
 前者将在图像文件系统的根目录中创建文件，而后者将在`/app/bin`文件夹中的预期位置创建文件。只有`WORKDIR`关键字设置了图像层之间的上下文。`cd`命令本身不会跨层持久存在。
 
@@ -394,78 +294,51 @@ RUN touch sample.txt
 
 为了更好地理解如何使用这两个关键字，让我们分析一下典型的 Linux 命令或表达式是什么样的。让我们以`ping`实用程序为例，如下所示：
 
-```
-$ ping -c 3 8.8.8.8
-```
+[PRE24]
 
 在上述表达式中，`ping`是命令，`-c 3 8.8.8.8`是这个命令的参数。让我们再看一个表达式：
 
-```
-$ wget -O - http://example.com/downloads/script.sh
-```
+[PRE25]
 
 同样，在上述表达式中，`wget`是命令，`-O - http://example.com/downloads/script.sh`是参数。
 
 现在我们已经处理了这个问题，我们可以回到`CMD`和`ENTRYPOINT`。`ENTRYPOINT`用于定义表达式的命令，而`CMD`用于定义命令的参数。因此，使用 Alpine 作为基础镜像并在容器中定义`ping`作为要运行的进程的`Dockerfile`可能如下所示：
 
-```
-FROM alpine:3.10
-ENTRYPOINT ["ping"]
-CMD ["-c","3","8.8.8.8"]
-```
+[PRE26]
 
 对于`ENTRYPOINT`和`CMD`，值被格式化为一个字符串的 JSON 数组，其中各个项对应于表达式的标记，这些标记由空格分隔。这是定义`CMD`和`ENTRYPOINT`的首选方式。它也被称为*exec*形式。
 
 另外，也可以使用所谓的 shell 形式，如下所示：
 
-```
-CMD command param1 param2
-```
+[PRE27]
 
 现在我们可以从上述`Dockerfile`构建一个名为`pinger`的镜像，如下所示：
 
-```
-$ docker image build -t pinger .
-```
+[PRE28]
 
 然后，我们可以从我们刚刚创建的`pinger`镜像中运行一个容器，就像这样：
 
-```
-$ docker container run --rm -it pinger
-PING 8.8.8.8 (8.8.8.8): 56 data bytes
-64 bytes from 8.8.8.8: seq=0 ttl=37 time=19.298 ms
-64 bytes from 8.8.8.8: seq=1 ttl=37 time=27.890 ms
-64 bytes from 8.8.8.8: seq=2 ttl=37 time=30.702 ms
-```
+[PRE29]
 
 这样做的美妙之处在于，我现在可以通过在`docker container run`表达式的末尾添加新值来覆盖我在`Dockerfile`中定义的`CMD`部分（记住，它是`["-c", "3","8.8.8.8"]`），就像这样：
 
-```
-$ docker container run --rm -it pinger -w 5 127.0.0.1
-```
+[PRE30]
 
 这将导致容器现在对环回进行 ping 操作，持续 5 秒。
 
 如果我们想要覆盖`Dockerfile`中定义的`ENTRYPOINT`，我们需要在`docker container run`表达式中使用`--entrypoint`参数。假设我们想要在容器中执行 shell 而不是`ping`命令。我们可以通过使用以下命令来实现：
 
-```
-$ docker container run --rm -it --entrypoint /bin/sh pinger
-```
+[PRE31]
 
 我们随后将发现自己在容器内部。键入`exit`离开容器。
 
 正如我已经提到的，我们不一定要遵循最佳实践，并通过`ENTRYPOINT`定义命令和通过`CMD`定义参数；相反，我们可以将整个表达式作为`CMD`的值输入，它将起作用，如下面的代码块所示：
 
-```
-FROM alpine:3.10
-CMD wget -O - http://www.google.com
-```
+[PRE32]
 
 在这里，我甚至使用了 shell 形式来定义`CMD`。但是在`ENTRYPOINT`未定义的情况下会发生什么？如果您未定义`ENTRYPOINT`，那么它将具有默认值`/bin/sh -c`，并且`CMD`的任何值都将作为字符串传递给 shell 命令。因此，前面的定义将导致输入以下代码来运行容器内的进程：
 
-```
-/bin/sh -c "wget -O - http://www.google.com"
-```
+[PRE33]
 
 因此，`/bin/sh`是在容器内运行的主要进程，并且它将启动一个新的子进程来运行`wget`实用程序。
 
@@ -473,16 +346,7 @@ CMD wget -O - http://www.google.com
 
 我们已经讨论了 Dockerfile 中常用的最重要的关键字。让我们看一个现实的，有些复杂的`Dockerfile`的例子。感兴趣的读者可能会注意到，它看起来与我们在本章中呈现的第一个`Dockerfile`非常相似。以下是内容：
 
-```
-FROM node:12.5-stretch
-RUN mkdir -p /app
-WORKDIR /app
-COPY package.json /app/
-RUN npm install
-COPY . /app
-ENTRYPOINT ["npm"]
-CMD ["start"]
-```
+[PRE34]
 
 好了，这里发生了什么？显然，这是一个用于构建 Node.js 应用程序的`Dockerfile`；我们可以从使用`node:12.5-stretch`基础镜像这一事实推断出来。然后，第二行是一个指令，在镜像的文件系统中创建一个/app 文件夹。第三行定义了镜像中的工作目录或上下文为这个新的/app 文件夹。然后，在第四行，我们将一个`package.json`文件复制到镜像内的/app 文件夹中。之后，在第五行，我们在容器内执行`npm install`命令；请记住，我们的上下文是/app 文件夹，因此 npm 会在那里找到我们在第四行复制的 package.json 文件。
 
@@ -496,102 +360,49 @@ CMD ["start"]
 
 1.  在你的主目录中，创建一个名为`fod`（代表 Docker 基础知识）的文件夹，其中包含一个名为`ch04`的子文件夹，并导航到这个文件夹，就像这样：
 
-```
-$ mkdir -p ~/fod/ch04 && cd ~/fod/ch04
-```
+[PRE35]
 
 1.  在上述文件夹中，创建一个`sample1`子文件夹并导航到它，就像这样：
 
-```
-$ mkdir sample1 && cd sample1
-```
+[PRE36]
 
 1.  使用你喜欢的编辑器在这个示例文件夹中创建一个名为`Dockerfile`的文件，并包含以下内容：
 
-```
-FROM centos:7
-RUN yum install -y wget
-```
+[PRE37]
 
 4. 保存文件并退出编辑器。
 
 5. 回到终端窗口，我们现在可以使用上述`Dockerfile`作为清单或构建计划构建一个新的容器镜像，就像这样：
 
-```
-$ docker image build -t my-centos .
-```
+[PRE38]
 
 请注意，上述命令末尾有一个句点。这个命令意味着 Docker 构建器正在使用当前目录中存在的`Dockerfile`创建一个名为`my-centos`的新镜像。这里，命令末尾的句点代表*当前目录*。我们也可以将上述命令写成如下形式，结果是一样的：
 
-```
-$ docker image build -t my-centos -f Dockerfile .
-```
+[PRE39]
 
 但是我们可以省略`-f`参数，因为构建器假设`Dockerfile`的确切名称为`Dockerfile`。只有当我们的`Dockerfile`具有不同的名称或不位于当前目录时，我们才需要`-f`参数。
 
 上述命令给出了这个（缩短的）输出：
 
-```
-Sending build context to Docker daemon 2.048kB
-Step 1/2 : FROM centos:7
-7: Pulling from library/centos
-af4b0a2388c6: Pull complete
-Digest: sha256:2671f7a3eea36ce43609e9fe7435ade83094291055f1c96d9d1d1d7c0b986a5d
-Status: Downloaded newer image for centos:7
----> ff426288ea90
-Step 2/2 : RUN yum install -y wget
----> Running in bb726903820c
-Loaded plugins: fastestmirror, ovl
-Determining fastest mirrors
-* base: mirror.dal10.us.leaseweb.net
-* extras: repos-tx.psychz.net
-* updates: pubmirrors.dal.corespace.com
-Resolving Dependencies
---> Running transaction check
----> Package wget.x86_64 0:1.14-15.el7_4.1 will be installed
-...
-Installed:
-  wget.x86_64 0:1.14-15.el7_4.1
-Complete!
-Removing intermediate container bb726903820c
----> bc070cc81b87
-Successfully built bc070cc81b87
-Successfully tagged my-centos:latest
-```
+[PRE40]
 
 让我们分析这个输出，如下所示：
 
 1.  首先，我们有以下一行：
 
-```
-Sending build context to Docker daemon 2.048kB
-```
+[PRE41]
 
 构建器的第一件事是打包当前构建上下文中的文件，排除了`.dockerignore`文件中提到的文件和文件夹（如果存在），然后将生成的`.tar`文件发送给`Docker 守护程序`。
 
 1.  接下来，我们有以下几行：
 
-```
-Step 1/2 : FROM centos:7
-7: Pulling from library/centos
-af4b0a2388c6: Pull complete
-Digest: sha256:2671f7a...
-Status: Downloaded newer image for centos:7
----> ff426288ea90
-```
+[PRE42]
 
 构建器的第一行告诉我们当前正在执行`Dockerfile`的哪个步骤。在这里，我们的`Dockerfile`中只有两个语句，我们正在执行第*2*步中的*步骤 1*。我们还可以看到该部分的内容是什么。在这里，它是基础镜像的声明，我们要在其上构建自定义镜像。然后构建器会从 Docker Hub 拉取这个镜像，如果本地缓存中没有的话。前面代码片段的最后一行指示了构建器分配给刚构建的镜像层的 ID。
 
 1.  现在，继续下一步。我将它比前面的部分更加简短，以便集中在关键部分上：
 
-```
-Step 2/2 : RUN yum install -y wget
----> Running in bb726903820c
-...
-...
-Removing intermediate container bb726903820c
----> bc070cc81b87
-```
+[PRE43]
 
 在这里，第一行再次告诉我们，我们正在*步骤 2*中的*步骤 2*。它还向我们显示了`Dockerfile`中的相应条目。在第二行，我们可以看到`Running in bb726903820c`，这告诉我们构建器已创建了一个 ID 为`bb726903820c`的容器，在其中执行了`RUN`命令。
 
@@ -599,10 +410,7 @@ Removing intermediate container bb726903820c
 
 1.  在输出的最后，我们遇到以下两行：
 
-```
-Successfully built bc070cc81b87
-Successfully tagged my-centos:latest
-```
+[PRE44]
 
 这告诉我们，生成的自定义镜像已被赋予 ID`bc070cc81b87`，并且已被标记为名称`my-centos:latest`。
 
@@ -618,80 +426,39 @@ Successfully tagged my-centos:latest
 
 为了演示为什么具有多个构建步骤的`Dockerfile`是有用的，让我们制作一个示例`Dockerfile`。让我们以 C 语言编写的“Hello World”应用程序为例。以下是`hello.c`文件中的代码：
 
-```
-#include <stdio.h>
-int main (void)
-{
-    printf ("Hello, world!\n");
-    return 0;
-}
-```
+[PRE45]
 
 跟着来体验多步构建的优势：
 
 1.  要将此应用程序容器化，我们首先编写一个带有以下内容的`Dockerfile`：
 
-```
-FROM alpine:3.7
-RUN apk update &&
-apk add --update alpine-sdk
-RUN mkdir /app
-WORKDIR /app
-COPY . /app
-RUN mkdir bin
-RUN gcc -Wall hello.c -o bin/hello
-CMD /app/bin/hello
-```
+[PRE46]
 
 1.  接下来，让我们构建这个图像：
 
-```
-$ docker image build -t hello-world .
-```
+[PRE47]
 
 这给我们带来了相当长的输出，因为构建器必须安装 Alpine 软件开发工具包（SDK），其中包含我们需要构建应用程序的 C++编译器等工具。
 
 1.  构建完成后，我们可以列出图像并查看其大小，如下所示：
 
-```
-$ docker image ls | grep hello-world
-hello-world   latest   e9b...   2 minutes ago   176MB
-```
+[PRE48]
 
 生成的图像大小为 176 MB，太大了。最后，它只是一个“Hello World”应用程序。它如此之大的原因是图像不仅包含“Hello World”二进制文件，还包含从源代码编译和链接应用程序所需的所有工具。但是当在生产环境中运行应用程序时，这确实是不可取的。理想情况下，我们只希望图像中有生成的二进制文件，而不是整个 SDK。
 
 正是因为这个原因，我们应该将 Dockerfiles 定义为多阶段。我们有一些阶段用于构建最终的构件，然后有一个最终阶段，在这个阶段我们使用最小必要的基础镜像，并将构件复制到其中。这样可以得到非常小的 Docker 镜像。看一下这个修改后的`Dockerfile`：
 
-```
-FROM alpine:3.7 AS build
-RUN apk update && \
-    apk add --update alpine-sdk
-RUN mkdir /app
-WORKDIR /app
-COPY . /app
-RUN mkdir bin
-RUN gcc hello.c -o bin/hello
-
-FROM alpine:3.7
-COPY --from=build /app/bin/hello /app/hello
-CMD /app/hello
-```
+[PRE49]
 
 在这里，我们有第一个阶段使用`build`别名来编译应用程序，然后第二个阶段使用相同的`alpine:3.7`基础镜像，但不安装 SDK，只是使用`--from`参数将二进制文件从`build`阶段复制到最终镜像中：
 
 1.  让我们再次构建镜像，如下所示：
 
-```
-$ docker image build -t hello-world-small .
-```
+[PRE50]
 
 1.  当我们比较镜像的大小时，得到以下输出：
 
-```
-$ docker image ls | grep hello-world
-hello-world-small  latest   f98...   20 seconds ago   4.16MB
-hello-world        latest   469...   10 minutes ago   176MB
-```
+[PRE51]
 
 我们已经成功将大小从 176MB 减小到 4MB。这是大小减小了 40 倍。较小的镜像有许多优点，比如对黑客来说攻击面积更小，内存和磁盘消耗更少，相应容器的启动时间更快，以及从 Docker Hub 等注册表下载镜像所需的带宽减少。
 
@@ -705,26 +472,11 @@ hello-world        latest   469...   10 minutes ago   176MB
 
 当我们重新构建之前构建过的镜像时，只有发生了变化的层才会被重新构建，但如果需要重新构建一个层，所有后续的层也需要重新构建。这一点非常重要。考虑以下例子：
 
-```
-FROM node:9.4
-RUN mkdir -p /app
-WORKIR /app
-COPY . /app
-RUN npm install
-CMD ["npm", "start"]
-```
+[PRE52]
 
 在这个例子中，`Dockerfile`的第五行上的`npm install`命令通常需要最长的时间。经典的 Node.js 应用程序有许多外部依赖项，这些依赖项都会在这一步骤中下载和安装。这可能需要几分钟才能完成。因此，我们希望避免在重建图像时每次运行`npm install`，但是开发人员在应用程序开发过程中经常更改其源代码。这意味着第四行的`COPY`命令的结果每次都会更改，因此必须重新构建该图层。但正如我们之前讨论的，这也意味着所有后续的图层都必须重新构建，而在这种情况下，包括`npm install`命令。为了避免这种情况，我们可以稍微修改`Dockerfile`，并采用以下方式：
 
-```
-FROM node:9.4
-RUN mkdir -p /app
-WORKIR /app
-COPY package.json /app/
-RUN npm install
-COPY . /app
-CMD ["npm", "start"]
-```
+[PRE53]
 
 我们在这里所做的是，在第四行，我们只复制了`npm install`命令需要的单个文件，即`package.json`文件。在典型的开发过程中，这个文件很少更改。因此，`npm install`命令也只有在`package.json`文件更改时才需要执行。所有其余经常更改的内容都是在`npm install`命令之后添加到图像中的。
 
@@ -732,19 +484,11 @@ CMD ["npm", "start"]
 
 但是我们如何保持图层数量较少呢？请记住，在`Dockerfile`中，每一行以`FROM`、`COPY`或`RUN`等关键字开头的命令都会创建一个新的图层。减少图层数量的最简单方法是将多个单独的`RUN`命令合并为一个。例如，假设我们在`Dockerfile`中有以下内容：
 
-```
-RUN apt-get update
-RUN apt-get install -y ca-certificates
-RUN rm -rf /var/lib/apt/lists/*
-```
+[PRE54]
 
 我们可以将这些内容合并为一个单一的连接表达式，如下所示：
 
-```
-RUN apt-get update \
-    && apt-get install -y ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-```
+[PRE55]
 
 前者将在生成的图像中生成三个图层，而后者只创建一个单一的图层。
 
@@ -760,17 +504,13 @@ RUN apt-get update \
 
 创建新容器图像的第三种方法是通过从文件导入或加载它。容器图像只不过是一个 tarball。为了证明这一点，我们可以使用`docker image save`命令将现有图像导出为 tarball，就像这样：
 
-```
-$ docker image save -o ./backup/my-alpine.tar my-alpine
-```
+[PRE56]
 
 上述命令将我们之前构建的`my-alpine`图像导出到名为`./backup/my-alpine.tar`的文件中。
 
 另一方面，如果我们有一个现有的 tarball 并希望将其导入为图像到我们的系统中，我们可以使用`docker image load`命令，如下所示：
 
-```
-$ docker image load -i ./backup/my-alpine.tar 
-```
+[PRE57]
 
 在下一节中，我们将讨论如何为现有的传统应用程序创建 Docker 图像，并在容器中运行它们，并从中获利。
 
@@ -838,18 +578,13 @@ $ docker image load -i ./backup/my-alpine.tar
 
 在这一步中，我们确保所有构建应用程序所需的源文件和其他工件都是图像的一部分。在这里，我们主要使用`Dockerfile`的两个关键字：`COPY`和`ADD`。最初，图像中的源结构应该与主机上的完全相同，以避免任何构建问题。理想情况下，您将有一个单独的`COPY`命令，将主机上的根项目文件夹全部复制到图像中。然后，相应的`Dockerfile`片段可能看起来就像这样简单：
 
-```
-WORKDIR /app
-COPY . .
-```
+[PRE58]
 
 不要忘记还要提供一个位于项目根文件夹中的`.dockerignore`文件，其中列出了项目根文件夹中不应成为构建上下文一部分的所有文件和（子）文件夹。
 
 如前所述，您还可以使用`ADD`关键字将不位于构建上下文中但可以通过 URI 访问的源代码和其他工件下载到 Docker 图像中，如下所示：
 
-```
-ADD http://example.com/foobar ./ 
-```
+[PRE59]
 
 这将在图像的工作文件夹中创建一个`foobar`文件夹，并从 URI 中复制所有内容。
 
@@ -857,43 +592,29 @@ ADD http://example.com/foobar ./
 
 在这一步中，我们确保创建组成我们可执行的遗留应用程序的最终工件。通常，这是一个 JAR 或 WAR 文件，有或没有一些附属的 JAR 文件。`Dockerfile`的这部分应该完全模仿您在将应用程序容器化之前传统用于构建应用程序的方式。因此，如果使用 Maven 作为构建自动化工具，`Dockerfile`的相应片段可能看起来就像这样简单：
 
-```
-RUN mvn --clean install
-```
+[PRE60]
 
 在这一步中，我们可能还想列出应用程序使用的环境变量，并提供合理的默认值。但是永远不要为提供给应用程序的秘密环境变量提供默认值，比如数据库连接字符串！使用`ENV`关键字来定义你的变量，就像这样：
 
-```
-ENV foo=bar
-ENV baz=123
-```
+[PRE61]
 
 还要声明应用程序正在侦听的所有端口，并且需要通过`EXPOSE`关键字从容器外部访问，就像这样：
 
-```
-EXPOSE 5000
-EXPOSE 15672/tcp
-```
+[PRE62]
 
 # 定义启动命令
 
 通常，Java 应用程序是通过诸如`java -jar <主应用程序 jar>`这样的命令启动的，如果它是一个独立的应用程序。如果是 WAR 文件，那么启动命令可能看起来有点不同。因此，我们可以定义`ENTRYPOINT`或`CMD`来使用这个命令。因此，我们的`Dockerfile`中的最终语句可能是这样的：
 
-```
-ENTRYPOINT java -jar pet-shop.war
-```
+[PRE63]
 
 然而，通常情况下这太过简单，我们需要执行一些预运行任务。在这种情况下，我们可以编写一个包含需要执行以准备环境并运行应用程序的一系列命令的脚本文件。这样的文件通常被称为`docker-entrypoint.sh`，但你可以自由地命名它。确保文件是可执行的—例如，使用以下命令：
 
-```
-chmod +x ./docker-entrypoint.sh
-```
+[PRE64]
 
 `Dockerfile`的最后一行将如下所示：
 
-```
-ENTRYPOINT ./docker-entrypoint.sh
-```
+[PRE65]
 
 现在你已经得到了如何将传统应用程序容器化的提示，是时候进行总结并问自己：*真的值得花这么大的努力吗？*
 
@@ -919,15 +640,11 @@ ENTRYPOINT ./docker-entrypoint.sh
 
 每个图像都有一个所谓的*标签*。标签通常用于对图像进行版本控制，但它的作用远不止于版本号。如果在使用图像时没有明确指定标签，那么 Docker 会自动假定我们指的是`latest`标签。这在从 Docker Hub 拉取图像时很重要，就像下面的例子一样：
 
-```
-$ docker image pull alpine
-```
+[PRE66]
 
 上述命令将从 Docker Hub 拉取`alpine:latest`图像。如果我们想要明确指定一个标签，可以这样做：
 
-```
-$ docker image pull alpine:3.5
-```
+[PRE67]
 
 现在将拉取已标记为`3.5`的`alpine`图像。
 
@@ -937,9 +654,7 @@ $ docker image pull alpine:3.5
 
 现在，是时候稍微扩大一下视野，了解图像的命名空间是如何工作的了。定义图像最通用的方式是通过其完全限定名称，如下所示：
 
-```
-<registry URL>/<User or Org>/<name>:<tag>
-```
+[PRE68]
 
 让我们更详细地看一下：
 
@@ -965,9 +680,7 @@ $ docker image pull alpine:3.5
 
 让我们看一个例子，如下：
 
-```
-https://registry.acme.com/engineering/web-app:1.0
-```
+[PRE69]
 
 在这里，我们有一个带有版本`1.0`标签的`web-app`镜像，属于`https://registry.acme.com`上的`engineering`组织的私有注册表。
 
@@ -1009,29 +722,19 @@ Docker 赞助一个团队，他们的任务是审查并发布 Docker Hub 上公�
 
 1.  假设我想将 Alpine 的最新版本推送到我的帐户并给它打上`1.0`的标签。我可以通过以下方式做到这一点：
 
-```
-$ docker image tag alpine:latest gnschenker/alpine:1.0
-```
+[PRE70]
 
 1.  现在，为了能够推送图像，我必须登录到我的帐户，如下所示：
 
-```
-$ docker login -u gnschenker -p <my secret password>
-```
+[PRE71]
 
 1.  成功登录后，我可以像这样推送图像：
 
-```
-$ docker image push gnschenker/alpine:1.0
-```
+[PRE72]
 
 我将在终端中看到类似于这样的内容：
 
-```
-The push refers to repository [docker.io/gnschenker/alpine]
-04a094fe844e: Mounted from library/alpine
-1.0: digest: sha256:5cb04fce... size: 528
-```
+[PRE73]
 
 对于我们推送到 Docker Hub 的每个图像，我们会自动创建一个存储库。存储库可以是私有的或公共的。每个人都可以从公共存储库中拉取图像。从私有存储库中，只有在登录到注册表并配置了必要的权限后，才能拉取图像。
 

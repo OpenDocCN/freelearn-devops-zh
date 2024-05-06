@@ -76,10 +76,7 @@
 
 您刚刚了解了创建 Docker swarm 集群时启用和设置的所有令人难以置信的功能。现在我将向您展示设置 Docker swarm 集群所需的所有步骤。准备好了吗？以下是它们：
 
-```
-# Set up your Docker swarm cluster
-docker swarm init
-```
+[PRE0]
 
 什么？等等？剩下的在哪里？没有。没有遗漏任何内容。在上一节描述的所有设置和功能都可以通过一个简单的命令实现。通过单个的`swarm init`命令，集群被创建，节点从单实例节点转变为 swarm 模式节点，节点被分配为管理者角色并被选举为集群的领导者，集群存储被创建，节点成为集群的证书颁发机构并为自己分配一个包含加密 ID 的新证书，为管理者创建一个新的加密加入令牌，为工作节点创建另一个令牌，依此类推。这就是简化的复杂性。
 
@@ -113,21 +110,13 @@ swarm 命令组成了另一个 Docker 管理组。以下是 swarm 管理命令�
 
 当您在第一个节点上运行`swarm init`命令初始化 swarm 时，执行的功能之一是创建唯一的加密加入令牌，一个加入额外的管理节点，一个加入工作节点。使用`join-token`命令，您可以获取这两个加入令牌。实际上，使用`join-token`命令将为您提供指定角色的完整加入命令。角色参数是必需的。以下是命令的示例：
 
-```
-# Get the join token for adding managers
-docker swarm join-token manager
-# Get the join token for adding workers
-docker swarm join-token worker
-```
+[PRE1]
 
 以下是它的样子：
 
 ![](img/2f9b447e-3447-40f2-8449-5f4d754a4182.png)
 
-```
-# Rotate the worker join token
-docker swarm join-token --rotate worker
-```
+[PRE2]
 
 请注意，这不会使已使用旧的、现在无效的加入令牌的现有工作节点失效。它们仍然是 swarm 的一部分，并且不受加入令牌更改的影响。只有您希望加入 swarm 的新节点需要使用新令牌。
 
@@ -135,10 +124,7 @@ docker swarm join-token --rotate worker
 
 您已经在前面的 *docker swarm join-token* 部分看到了 join 命令的使用。join 命令与加密的 join token 结合使用，用于将 Docker 节点添加到 swarm 中。除了第一个节点之外，所有节点都将使用 join 命令加入到 swarm 中（第一个节点当然使用 "init" 命令）。join 命令有一些参数，其中最重要的是 `--token` 参数。这是必需的 join token，可通过 `join-token` 命令获取。以下是一个示例：
 
-```
-# Join this node to an existing swarm
-docker swarm join --token SWMTKN-1-3ovu7fbnqfqlw66csvvfw5xgljl26mdv0dudcdssjdcltk2sen-a830tv7e8bajxu1k5dc0045zn 192.168.159.156:2377
-```
+[PRE3]
 
 您会注意到，此命令不需要角色。这是因为 token 本身与其创建的角色相关联。当您执行 join 时，输出会提供一个信息消息，告诉您节点加入的角色是管理节点还是工作节点。如果您无意中使用了管理节点 token 加入工作节点，或反之，您可以使用 `leave` 命令将节点从 swarm 中移除，然后使用实际所需角色的 token，重新将节点加入到 swarm。
 
@@ -146,12 +132,7 @@ docker swarm join --token SWMTKN-1-3ovu7fbnqfqlw66csvvfw5xgljl26mdv0dudcdssjdclt
 
 当您想要查看 swarm 的当前证书或需要旋转当前的 swarm 证书时，可以使用 `swarm ca` 命令。要旋转证书，您需要包括 `--rotate` 参数：
 
-```
-# View the current swarm certificate
-docker swarm ca
-# Rotate the swarm certificate
-docker swarm ca --rotate
-```
+[PRE4]
 
 `swarm ca` 命令只能在 swarm 管理节点上成功执行。您可能使用旋转 swarm 证书功能的一个原因是，如果您正在从内部根 CA 切换到外部 CA，或者反之。另一个可能需要旋转 swarm 证书的原因是，如果一个或多个管理节点受到了威胁。在这种情况下，旋转 swarm 证书将阻止所有其他管理节点能够使用旧证书与旋转证书的管理节点或彼此进行通信。旋转证书时，命令将保持活动状态，直到所有 swarm 节点（管理节点和工作节点）都已更新。以下是在一个非常小的集群上旋转证书的示例：
 
@@ -159,10 +140,7 @@ docker swarm ca --rotate
 
 由于命令将保持活动状态，直到所有节点都更新了 TLS 证书和 CA 证书，如果集群中有离线的节点，可能会出现问题。当这是一个潜在的问题时，您可以包括`--detach`参数，命令将启动证书旋转并立即返回会话控制。请注意，当您使用`--detach`可选参数时，您将不会得到有关证书旋转进度、成功或失败的任何状态。您可以使用 node ls 命令查询集群中证书的状态以检查进度。以下是您可以使用的完整命令：
 
-```
-# Query the state of the certificate rotation in a swarm cluster
-docker node ls --format '{{.ID}} {{.Hostname}} {{.Status}} {{.TLSStatus}}'
-```
+[PRE5]
 
 `ca rotate`命令将继续尝试完成，无论是在前台还是在后台（如果分离）。如果在旋转启动时节点离线，然后重新上线，证书旋转将完成。这里有一个示例，`node04`在执行旋转命令时处于离线状态，然后过了一会儿，它重新上线；检查状态发现它成功旋转了：
 
@@ -182,12 +160,7 @@ docker node ls --format '{{.ID}} {{.Hostname}} {{.Status}} {{.TLSStatus}}'
 
 `swarm unlock-key`命令很像`swarm ca`命令。解锁密钥命令可用于检索当前的 Swarm 解锁密钥，或者可以用于将解锁密钥更改为新的：
 
-```
-# Retrieve the current unlock key
-docker swarm unlock-key
-# Rotate to a new unlock key
-docker swarm unlock-key --rotate
-```
+[PRE6]
 
 根据 Swarm 集群的大小，解锁密钥轮换可能需要一段时间才能更新所有管理节点。
 
@@ -199,12 +172,7 @@ docker swarm unlock-key --rotate
 
 在第一个管理节点上通过`docker swarm init`命令初始化集群时，将启用或配置几个 Swarm 集群功能。在集群初始化后，可能会有时候您想要更改哪些功能已启用、已禁用或已配置。要实现这一点，您需要使用`swarm update`命令。例如，您可能想要为 Swarm 集群启用自动锁定功能。或者，您可能想要更改证书有效期。这些都是您可以使用`swarm update`命令执行的更改类型。这样做可能看起来像这样：
 
-```
-# Enable autolock on your swarm cluster
-docker swarm update --autolock=true
-# Adjust certificate expiry to 30 days
-docker swarm update --cert-expiry 720h
-```
+[PRE7]
 
 以下是`swarm update`命令可能影响的设置列表：
 
@@ -254,19 +222,11 @@ Node03 原本是一个管理节点。我不小心将该节点添加为工作者�
 
 默认情况下，所有管理节点实际上也是工作节点。这意味着它们可以并且将运行容器。如果您希望您的管理节点不运行工作负载，您需要更改节点的可用性设置。将其更改为排水将小心地停止标记为排水的管理节点上的任何运行容器，并在其他（非排水）节点上启动这些容器。在排水模式下，不会在节点上启动新的容器工作负载，例如如下所示：
 
-```
-# Set node03's availability to drain
-docker node update --availability drain ubuntu-node03
-```
+[PRE8]
 
 也许有时候您想要或需要改变 swarm 中 docker 节点的角色。您可以将工作节点提升为管理节点，或者将管理节点降级为工作节点。以下是这些活动的一些示例：
 
-```
-# Promote worker nodes 04 and 05 to manager status
-docker node promote ubuntu-node04 ubuntu-node05
-# Demote manager nodes 01 and 02 to worker status
-docker node demote ubuntu-node01 ubuntu-node02
-```
+[PRE9]
 
 # 参考
 
@@ -280,12 +240,7 @@ docker node demote ubuntu-node01 ubuntu-node02
 
 您可能想要做的第一件事情是创建一个新的服务，因此我们将从`service create`命令开始讨论我们的 swarm 服务。以下是`service create`命令的语法和基本示例：
 
-```
-# Syntax for the service create command
-# Usage: docker service create [OPTIONS] IMAGE [COMMAND] [ARG...]
-# Create a service
-docker service create --replicas 1 --name submarine alpine ping google.com
-```
+[PRE10]
 
 好的。让我们分解一下这里显示的`service create`命令示例。首先，你有管理组服务，然后是`create`命令。然后，我们开始进入参数；第一个是`--replicas`。这定义了应同时运行的容器副本数量。接下来是`--name`参数。这个很明显，是我们要创建的服务的名称，在这种情况下是`submarine`。我们将能够在其他服务命令中使用所述名称。在名称参数之后，我们有完全合格的 Docker 镜像名称。在这种情况下，它只是`alpine`。它可以是诸如`alpine:3.8`或`alpine:latest`之类的东西，或者更合格的东西，比如`tenstartups/alpine:latest`。在用于服务的图像名称之后是运行容器时要使用的命令和传递给该命令的参数——分别是`ping`和`google.com`。因此，前面的`service create`命令示例将从`alpine`镜像启动一个单独的容器，该容器将使用`ping`命令和 google.com 参数运行，并将服务命名为`submarine`。看起来是这样的：
 
@@ -293,10 +248,7 @@ docker service create --replicas 1 --name submarine alpine ping google.com
 
 你现在知道了创建 docker 服务的基础知识。但在你过于兴奋之前，`service create`命令还有很多内容要涵盖。事实上，这个命令有很多选项，列出它们将占据本书两页的篇幅。所以，我希望你现在使用`--help`功能并输入以下命令：
 
-```
-# Get help with the service create command
-docker service create --help
-```
+[PRE11]
 
 我知道，对吧？有很多可选参数可以使用。别担心。我不会丢下你不管的。我会给你一些指导，帮助你建立创建服务的坚实基础，然后你可以扩展并尝试一些你在`--help`中看到的其他参数。
 
@@ -306,16 +258,11 @@ docker service create --help
 
 现在让我们继续讨论一些创建参数。你应该还记得第二章中提到的`--publish`参数，你可以在`docker container run`命令上使用，它定义了在 docker 主机上暴露的端口以及主机端口映射到的容器中的端口。它看起来像这样：
 
-```
-# Create a nginx web-server that redirects host traffic from port 8080 to port 80 in the container docker container run --detach --name web-server1 --publish 8080:80 nginx
-```
+[PRE12]
 
 好吧，你需要为一个集群服务使用相同的功能，在他们的智慧中，Docker 使`container run`命令和`service create`命令使用相同的参数：`--publish`。你可以使用我们之前看到的相同的缩写格式，`--publish 8080:80`，或者你可以使用更详细的格式：`--publish published=8080`，`target=80`。这仍然意味着将主机流量从端口`8080`重定向到容器中的端口 80。让我们尝试另一个例子，这次使用`--publish`参数。我们将再次运行`nginx`镜像：
 
-```
-# Create a nginx web-server service using the publish parameter
-docker service create --name web-service --replicas 3 --publish published=8080,target=80 nginx
-```
+[PRE13]
 
 这个例子将创建一个新的服务，运行三个容器副本，使用`nginx`镜像，在容器上暴露端口`80`，在主机上暴露端口`8080`。看一下：
 
@@ -325,42 +272,23 @@ docker service create --name web-service --replicas 3 --publish published=8080,t
 
 让我们回顾一些其他您需要了解和使用的服务命令。一旦您创建了一些服务，您可能想要列出这些服务。这可以通过 `service list` 命令来实现。如下所示：
 
-```
-# List services in the swarm
-# Usage: docker service ls [OPTIONS]
-docker service list
-```
+[PRE14]
 
 一旦您查看了运行中服务的列表，您可能想要了解一个或多个服务的更多详细信息。为了实现这一点，您将使用 `service ps` 命令。看一下：
 
-```
-# List the tasks associated with a service
-# Usage: docker service ps [OPTIONS] SERVICE [SERVICE...]
-docker service ps
-```
+[PRE15]
 
 一旦一个服务已经没有用处，您可能想要终止它。执行此操作的命令是 `service remove` 命令。如下所示：
 
-```
-# Remove one or more services from the swarm
-# Usage: docker service rm SERVICE [SERVICE...]
-docker service remove sleepy_snyder
-```
+[PRE16]
 
 如果您想要删除在集群中运行的所有服务，您可以组合其中一些命令并执行类似以下的命令：
 
-```
-# Remove ALL the services from the swarm
-docker service remove $(docker service list -q)
-```
+[PRE17]
 
 最后，如果您意识到当前配置的副本数量未设置为所需数量，您可以使用`service scale`命令进行调整。以下是您可以这样做的方法：
 
-```
-# Adjust the configured number of replicas for a service
-# Usage: docker service scale SERVICE=REPLICAS [SERVICE=REPLICAS...]
-docker service scale web-service=4
-```
+[PRE18]
 
 ![](img/354cacd5-2139-4ad7-acb7-abb6cc0f00fa.png)
 

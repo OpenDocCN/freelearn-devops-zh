@@ -26,116 +26,17 @@
 
 一个重要因素是知道您是否在使用 TLS，然后根据实际情况调整使用 TLS。重要的是要记住，如今几乎所有的 Docker 工具都启用了 TLS，或者如果它们没有启用，它们似乎正在朝着这个目标努力。您可以使用 Docker Machine `inspect`命令来检查您的 Docker 主机是否使用了 TLS。接下来，我们将查看一个主机，并查看它是否启用了 TLS：
 
-```
-**docker-machine inspect default**
-
-**{**
- **"ConfigVersion": 3,**
- **"Driver": {**
- **"IPAddress": "192.168.99.100",**
- **"MachineName": "default",**
- **"SSHUser": "docker",**
- **"SSHPort": 50858,**
- **"SSHKeyPath": "/Users/scottgallagher/.docker/machine/machines/default/id_rsa",**
- **"StorePath": "/Users/scottgallagher/.docker/machine",**
- **"SwarmMaster": false,**
- **"SwarmHost": "tcp://0.0.0.0:3376",**
- **"SwarmDiscovery": "",**
- **"VBoxManager": {},**
- **"CPU": 1,**
- **"Memory": 2048,**
- **"DiskSize": 204800,**
- **"Boot2DockerURL": "",**
- **"Boot2DockerImportVM": "",**
- **"HostDNSResolver": false,**
- **"HostOnlyCIDR": "192.168.99.1/24",**
- **"HostOnlyNicType": "82540EM",**
- **"HostOnlyPromiscMode": "deny",**
- **"NoShare": false,**
- **"DNSProxy": false,**
- **"NoVTXCheck": false**
- **},**
- **"DriverName": "virtualbox",**
- **"HostOptions": {**
- **"Driver": "",**
- **"Memory": 0,**
- **"Disk": 0,**
- **"EngineOptions": {**
- **"ArbitraryFlags": [],**
- **"Dns": null,**
- **"GraphDir": "",**
- **"Env": [],**
- **"Ipv6": false,**
- **"InsecureRegistry": [],**
- **"Labels": [],**
- **"LogLevel": "",**
- **"StorageDriver": "",**
- **"SelinuxEnabled": false,**
- **"TlsVerify": true,**
- **"RegistryMirror": [],**
- **"InstallURL": "https://get.docker.com"**
- **},**
- **"SwarmOptions": {**
- **"IsSwarm": false,**
- **"Address": "",**
- **"Discovery": "",**
- **"Master": false,**
- **"Host": "tcp://0.0.0.0:3376",**
- **"Image": "swarm:latest",**
- **"Strategy": "spread",**
- **"Heartbeat": 0,**
- **"Overcommit": 0,**
- **"ArbitraryFlags": [],**
- **"Env": null**
- **},**
- **"AuthOptions": {**
- **"CertDir": "/Users/scottgallagher/.docker/machine/certs",**
- **"CaCertPath": "/Users/scottgallagher/.docker/machine/certs/ca.pem",**
- **"CaPrivateKeyPath": "/Users/scottgallagher/.docker/machine/certs/ca-key.pem",**
- **"CaCertRemotePath": "",**
- **"ServerCertPath": "/Users/scottgallagher/.docker/machine/machines/default/server.pem",**
- **"ServerKeyPath": "/Users/scottgallagher/.docker/machine/machines/default/server-key.pem",**
- **"ClientKeyPath": "/Users/scottgallagher/.docker/machine/certs/key.pem",**
- **"ServerCertRemotePath": "",**
- **"ServerKeyRemotePath": "",**
- **"ClientCertPath": "/Users/scottgallagher/.docker/machine/certs/cert.pem",**
- **"ServerCertSANs": [],**
- **"StorePath": "/Users/scottgallagher/.docker/machine/machines/default"**
- **}**
- **},**
- **"Name": "default"**
-**}**
-
-```
+[PRE0]
 
 从前面的输出中，我们可以关注以下行：
 
-```
- **"SwarmHost": "tcp://0.0.0.0:3376",**
-
-```
+[PRE1]
 
 这向我们表明，如果我们正在运行**Swarm**，这个主机将利用安全的`3376`端口。现在，如果你没有使用 Docker Swarm，那么你可以忽略这一行。但是，如果你正在使用 Docker Swarm，那么这一行就很重要。
 
 回过头来，让我们先确定一下 Docker Swarm 是什么。Docker Swarm 是 Docker 内部的原生集群。它有助于将多个 Docker 主机转变为易于管理的单个虚拟主机：
 
-```
- **"AuthOptions": {**
- **"CertDir": "/Users/scottgallagher/.docker/machine/certs",**
- **"CaCertPath": "/Users/scottgallagher/.docker/machine/certs/ca.pem",**
- **"CaPrivateKeyPath": "/Users/scottgallagher/.docker/machine/certs/ca-key.pem",**
- **"CaCertRemotePath": "",**
- **"ServerCertPath": "/Users/scottgallagher/.docker/machine/machines/default/server.pem",**
- **"ServerKeyPath": "/Users/scottgallagher/.docker/machine/machines/default/server-key.pem",**
- **"ClientKeyPath": "/Users/scottgallagher/.docker/machine/certs/key.pem",**
- **"ServerCertRemotePath": "",**
- **"ServerKeyRemotePath": "",**
- **"ClientCertPath": "/Users/scottgallagher/.docker/machine/certs/cert.pem",**
- **"ServerCertSANs": [],**
- **"StorePath": "/Users/scottgallagher/.docker/machine/machines/default"**
- **}**
-
-```
+[PRE2]
 
 这向我们表明这个主机实际上正在使用证书，所以我们知道它正在使用 TLS，但仅凭此如何知道呢？在接下来的部分，我们将看看如何确切地知道它是否正在使用 TLS。
 
@@ -143,12 +44,7 @@ Docker Machine 还有一个选项，可以通过 TLS 运行所有内容。这是
 
 让我们看看如何实现查看我们的 Docker 主机是否使用 TLS 的目标：
 
-```
-**docker-machine ls**
-**NAME      ACTIVE   URL          STATE     URL SWARM   DOCKER   ERRORS**
-**default   *        virtualbox   Running   tcp://192.168.99.100:2376  v1.9.1** 
-
-```
+[PRE3]
 
 这就是我们可以知道它正在使用 TLS 的地方。Docker Machine 主机的不安全端口是`2375`端口，而这个主机使用的是`2376`，这是 Docker Machine 的安全 TLS 端口。因此，这个主机实际上正在使用 TLS 进行通信，这让你放心知道通信是安全的。
 
@@ -156,26 +52,17 @@ Docker Machine 还有一个选项，可以通过 TLS 运行所有内容。这是
 
 关于`docker run`命令，我们主要关注的是允许我们将容器内的所有内容设置为只读的选项。让我们看一个例子，并分解它到底是做什么的：
 
-```
-**$ docker run --name mysql --read-only -v /var/lib/mysql v /tmp --e MYSQL_ROOT_PASSWORD=password -d mysql**
-
-```
+[PRE4]
 
 在这里，我们正在运行一个`mysql`容器，并将整个容器设置为只读，除了`/var/lib/mysql`目录。这意味着容器内唯一可以写入数据的位置是`/var/lib/mysql`目录。容器内的任何其他位置都不允许你在其中写入任何内容。如果你尝试运行以下命令，它会失败：
 
-```
-**$ docker exec mysql touch /opt/filename**
-
-```
+[PRE5]
 
 如果你想控制容器可以写入或不写入的位置，这将非常有帮助。一定要明智地使用它。进行彻底测试，因为当应用程序无法写入某些位置时可能会产生后果。
 
 还记得我们在之前章节中看到的 Docker 卷吗？我们能够将卷设置为只读。类似于之前的`docker run`命令，我们将所有内容设置为只读，除了指定的卷，现在我们可以做相反的操作，将单个卷（或者如果你使用更多的`-v`开关，可以是多个卷）设置为只读。关于卷需要记住的一点是，当你使用一个卷并将其挂载到容器中时，它将作为空卷挂载到容器内的目录顶部，除非你使用`--volumes-from`开关或在事后以其他方式向容器添加数据：
 
-```
-**$ docker run -d -v /opt/uploads:/opt/uploads:/opt/uploads:ro nginx**
-
-```
+[PRE6]
 
 这将在`/opt/uploads`中挂载一个卷，并将其设置为只读。如果你不希望运行的容器写入卷以保持数据或配置文件的完整性，这可能会很有用。
 
@@ -183,17 +70,11 @@ Docker Machine 还有一个选项，可以通过 TLS 运行所有内容。这是
 
 让我们来看看其中一些，并了解它们是如何工作的：
 
-```
-**$ docker run --device=/dev/sdb:/dev/sdc2 -it ubuntu:latest /bin/bash**
-
-```
+[PRE7]
 
 之前的命令将运行最新的 Ubuntu 镜像，并将`/dev/sdb`设备挂载到容器内的`/dev/sdc2`位置：
 
-```
-**$ docker run --device=/dev/sdb:/dev/sdc2:r -it ubuntu:latest /bin/bash**
-
-```
+[PRE8]
 
 这个命令将运行最新的 Ubuntu 镜像，并将`/dev/sdb1`设备挂载到容器内的`/dev/sdc2`位置。然而，这个命令的末尾有一个`:r`标签，指定它是只读的，不能被写入。
 
@@ -211,75 +92,7 @@ Docker Machine 还有一个选项，可以通过 TLS 运行所有内容。这是
 
 使用控制组，您可以限制特定容器获得的 CPU、内存或磁盘 I/O 的数量。如果我们查看`docker run`命令的帮助，让我们突出显示我们可以控制的项目。我们只会突出显示一些对大多数用户特别有用的项目，但请查看它们，看看是否有其他项目适合您的环境，如下所示：
 
-```
-**$ docker run --help** 
-
-**Usage: docker run [OPTIONS] IMAGE [COMMAND] [ARG...]**
-
-**Run a command in a new container**
-
- **-a, --attach=[]                 Attach to STDIN, STDOUT or STDERR**
- **--add-host=[]                   Add a custom host-to-IP mapping (host:ip)**
- **--blkio-weight=0                Block IO (relative weight), between 10 and 1000**
- **--cpu-shares=0                  CPU shares (relative weight)**
- **--cap-add=[]                    Add Linux capabilities**
- **--cap-drop=[]                   Drop Linux capabilities**
- **--cgroup-parent=                Optional parent cgroup for the container**
- **--cidfile=                      Write the container ID to the file**
- **--cpu-period=0                  Limit CPU CFS (Completely Fair Scheduler) period**
- **--cpu-quota=0                   Limit CPU CFS (Completely Fair Scheduler) quota**
- **--cpuset-cpus=                  CPUs in which to allow execution (0-3, 0,1)**
- **--cpuset-mems=                  MEMs in which to allow execution (0-3, 0,1)**
- **-d, --detach=false              Run container in background and print container ID**
- **--device=[]                     Add a host device to the container**
- **--disable-content-trust=true    Skip image verification**
- **--dns=[]                        Set custom DNS servers**
- **--dns-opt=[]                    Set DNS options**
- **--dns-search=[]                 Set custom DNS search domains**
- **-e, --env=[]                    Set environment variables**
- **--entrypoint=                   Overwrite the default ENTRYPOINT of the image**
- **--env-file=[]                   Read in a file of environment variables**
- **--expose=[]                     Expose a port or a range of ports**
- **--group-add=[]                  Add additional groups to join**
- **-h, --hostname=                 Container host name**
- **--help=false                    Print usage**
- **-i, --interactive=false         Keep STDIN open even if not attached**
- **--ipc=                          IPC namespace to use**
- **--kernel-memory=                Kernel memory limit**
- **-l, --label=[]                  Set meta data on a container**
- **--label-file=[]                 Read in a line delimited file of labels**
- **--link=[]                       Add link to another container**
- **--log-driver=                   Logging driver for container**
- **--log-opt=[]                    Log driver options**
- **--lxc-conf=[]                   Add custom lxc options**
- **-m, --memory=                   Memory limit**
- **--mac-address=                  Container MAC address (e.g. 92:d0:c6:0a:29:33)**
- **--memory-reservation=           Memory soft limit**
- **--memory-swap=                  Total memory (memory + swap), '-1' to disable swap**
- **--memory-swappiness=-1          Tuning container memory swappiness (0 to 100)**
- **--name=                         Assign a name to the container**
- **--net=default                   Set the Network for the container**
- **--oom-kill-disable=false        Disable OOM Killer**
- **-P, --publish-all=false         Publish all exposed ports to random ports**
- **-p, --publish=[]                Publish a container's port(s) to the host**
- **--pid=                          PID namespace to use**
- **--privileged=false              Give extended privileges to this container**
- **--read-only=false               Mount the container's root filesystem as read only**
- **--restart=no                    Restart policy to apply when a container exits**
- **--rm=false                      Automatically remove the container when it exits**
- **--security-opt=[]               Security Options**
- **--sig-proxy=true                Proxy received signals to the process**
- **--stop-signal=SIGTERM           Signal to stop a container, SIGTERM by default**
- **-t, --tty=false                 Allocate a pseudo-TTY**
- **-u, --user=                     Username or UID (format: <name|uid>[:<group|gid>])**
- **--ulimit=[]                     Ulimit options**
- **--uts=                          UTS namespace to use**
- **-v, --volume=[]                 Bind mount a volume**
- **--volume-driver=                Optional volume driver for the container**
- **--volumes-from=[]               Mount volumes from the specified container(s)**
- **-w, --workdir=                  Working directory inside the container**
-
-```
+[PRE9]
 
 正如您可以从前面突出显示的部分看到的，这些只是您可以在每个容器基础上控制的一些项目。
 

@@ -34,12 +34,7 @@
 
 图 6.1 显示了镜像和容器之间关系的高层视图。我们使用`docker container run`和`docker service create`命令从单个镜像启动一个或多个容器。但是，一旦您从镜像启动了一个容器，这两个构造就会相互依赖，直到最后一个使用它的容器停止和销毁之前，您不能删除该镜像。尝试删除一个正在使用的镜像而不停止和销毁所有使用它的容器将导致以下错误：
 
-```
-$ docker image rm <image-name>
-Error response from daemon: conflict: unable to remove repository reference `\`
-`"<image-name>"` `(`must force`)` - container <container-id> is using its referenc`\`
-ed image <image-id> 
-```
+[PRE0]
 
 `#### 镜像通常很小
 
@@ -61,10 +56,7 @@ ed image <image-id>
 
 您可以使用以下命令检查您的 Docker 主机是否在其本地存储库中有任何镜像。
 
-```
-$ docker image ls
-REPOSITORY  TAG      IMAGE ID       CREATED         SIZE 
-```
+[PRE1]
 
 将镜像放入 Docker 主机的过程称为*拉取*。因此，如果您想要在 Docker 主机上获取最新的 Ubuntu 镜像，您需要*拉取*它。使用以下命令*拉取*一些镜像，然后检查它们的大小。
 
@@ -72,74 +64,11 @@ REPOSITORY  TAG      IMAGE ID       CREATED         SIZE
 
 Linux 示例：
 
-```
-$ docker image pull ubuntu:latest
-
-latest: Pulling from library/ubuntu
-b6f892c0043b: Pull `complete`
-55010f332b04: Pull `complete`
-2955fb827c94: Pull `complete`
-3deef3fcbd30: Pull `complete`
-cf9722e506aa: Pull `complete`
-Digest: sha256:38245....44463c62a9848133ecb1aa8
-Status: Downloaded newer image `for` ubuntu:latest
-
-$ docker image pull alpine:latest
-
-latest: Pulling from library/alpine
-cfc728c1c558: Pull `complete`
-Digest: sha256:c0537...497c0a7726c88e2bb7584dc96
-Status: Downloaded newer image `for` alpine:latest
-
-$ docker image ls
-
-REPOSITORY   TAG     IMAGE ID        CREATED       SIZE
-ubuntu       latest  ebcd9d4fca80    `3` days ago    118MB
-alpine       latest  02674b9cb179    `8` days ago    `3`.99MB 
-```
+[PRE2]
 
 Windows 示例：
 
-```
-> docker image pull microsoft/powershell:nanoserver
-
-nanoserver: Pulling from microsoft/powershell
-bce2fbc256ea: Pull complete
-58f68fa0ceda: Pull complete
-04083aac0446: Pull complete
-e42e2e34b3c8: Pull complete
-0c10d79c24d4: Pull complete
-715cb214dca4: Pull complete
-a4837c9c9af3: Pull complete
-2c79a32d92ed: Pull complete
-11a9edd5694f: Pull complete
-d223b37dbed9: Pull complete
-aee0b4393afb: Pull complete
-0288d4577536: Pull complete
-8055826c4f25: Pull complete
-Digest: sha256:090fe875...fdd9a8779592ea50c9d4524842
-Status: Downloaded newer image for microsoft/powershell:nanoserver
->
-> docker image pull microsoft/dotnet:latest
-
-latest: Pulling from microsoft/dotnet
-bce2fbc256ea: Already exists
-4a8c367fd46d: Pull complete
-9f49060f1112: Pull complete
-0334ad7e5880: Pull complete
-ea8546db77c6: Pull complete
-710880d5cbd5: Pull complete
-d665d26d9a25: Pull complete
-caa8d44fb0b1: Pull complete
-cfd178ff221e: Pull complete
-Digest: sha256:530343cd483dc3e1...6f0378e24310bd67d2a
-Status: Downloaded newer image for microsoft/dotnet:latest
->
-> docker image ls
-REPOSITORY            TAG         IMAGE ID    CREATED     SIZE
-microsoft/dotnet      latest      831..686d   7 hrs ago   1.65 GB
-microsoft/powershell  nanoserver  d06..5427   8 days ago  1.21 GB 
-```
+[PRE3]
 
 正如你所看到的，刚刚拉取的镜像现在存在于 Docker 主机的本地存储库中。你还可以看到 Windows 镜像要大得多，并且包含了更多的层。
 
@@ -205,19 +134,7 @@ https://hub.docker.com/r/nigelpoulton/pluralsight-docker-ci/
 
 以下示例展示了如何从*官方存储库*中拉取不同的图像：
 
-```
-$ docker image pull mongo:3.3.11
-//This will pull the image tagged as ````3`.3.11```
-//from the official ```mongo``` repository.
-
-$ docker image pull redis:latest
-//This will pull the image tagged as ```latest```
-//from the official ```redis``` repository.
-
-$ docker image pull alpine
-//This will pull the image tagged as ```latest```
-//from the official ```alpine``` repository. 
-```
+[PRE4]`3`.3.11[PRE5]mongo[PRE6]latest[PRE7]redis[PRE8]latest[PRE9]alpine[PRE10]
 
 `关于这些命令的一些要点。
 
@@ -227,12 +144,7 @@ $ docker image pull alpine
 
 从*非官方仓库*中拉取图像本质上是一样的——你只需要在仓库名称前加上一个 Docker Hub 用户名或组织名称。下面的例子展示了如何从一个不可信任的人拥有的 Docker Hub 帐户名为`nigelpoulton`的`tu-demo`仓库中拉取`v2`图像。
 
-```
-$ docker image pull nigelpoulton/tu-demo:v2
-//This will pull the image tagged as ```v2```
-//from the ```tu-demo``` repository within the namespace
-//of my personal Docker Hub account. 
-```
+[PRE11]v2[PRE12]tu-demo[PRE13]
 
 `在我们之前的 Windows 示例中，我们用以下两个命令拉取了一个 PowerShell 和一个.NET 图像：
 
@@ -254,32 +166,7 @@ $ docker image pull nigelpoulton/tu-demo:v2
 
 > **注意：**如果你从中拉取的仓库包含多个架构和平台的图像，比如 Linux **和** Windows，该命令可能会失败。
 
-```
-$ docker image pull -a nigelpoulton/tu-demo
-
-latest: Pulling from nigelpoulton/tu-demo
-237d5fcd25cf: Pull `complete`
-a3ed95caeb02: Pull `complete`
-<Snip>
-Digest: sha256:42e34e546cee61adb1...3a0c5b53f324a9e1c1aae451e9
-v1: Pulling from nigelpoulton/tu-demo
-237d5fcd25cf: Already exists
-a3ed95caeb02: Already exists
-<Snip>
-Digest: sha256:9ccc0c67e5c5eaae4b...624c1d5c80f2c9623cbcc9b59a
-v2: Pulling from nigelpoulton/tu-demo
-237d5fcd25cf: Already exists
-a3ed95caeb02: Already exists
-<Snip>
-Digest: sha256:d3c0d8c9d5719d31b7...9fef58a7e038cf0ef2ba5eb74c
-Status: Downloaded newer image `for` nigelpoulton/tu-demo
-
-$ docker image ls
-REPOSITORY            TAG       IMAGE ID       CREATED    SIZE
-nigelpoulton/tu-demo   v2       6ac21e..bead   `1` yr ago   `211`.6 MB
-nigelpoulton/tu-demo   latest   9b915a..1e29   `1` yr ago   `211`.6 MB
-nigelpoulton/tu-demo   v1       9b915a..1e29   `1` yr ago   `211`.6 MB 
-```
+[PRE14]
 
 关于刚刚发生的一些事情：
 
@@ -295,11 +182,7 @@ Docker 提供了`--filter`标志来过滤由`docker image ls`返回的图像列�
 
 以下示例将仅返回悬空图像。
 
-```
-$ docker image ls --filter `dangling``=``true`
-REPOSITORY    TAG       IMAGE ID       CREATED       SIZE
-<none>        <none>    4fd34165afe0   `7` days ago    `14`.5MB 
-```
+[PRE15]
 
 悬空图像是不再标记的图像，并在列表中显示为`<none>:<none>`。它们出现的常见方式是在构建新图像并使用现有标签对其进行标记时。当这种情况发生时，Docker 将构建新图像，注意到现有图像具有匹配的标签，从现有图像中删除标签，并将标签赋予新图像。例如，您基于`alpine:3.4`构建了一个新图像，并将其标记为`dodge:challenger`。然后，您更新 Dockerfile 以将`alpine:3.4`替换为`alpine:3.5`，并运行完全相同的`docker image build`命令。构建将创建一个新图像，标记为`dodge:challenger`，并从旧图像中删除标签。旧图像将变成悬空图像。
 
@@ -319,36 +202,15 @@ Docker 目前支持以下过滤器：
 
 以下是一个使用`reference`来仅显示标记为“latest”的图像的例子。
 
-```
-$ docker image ls --filter`=``reference``=``"*:latest"`
-REPOSITORY   TAG      IMAGE ID        CREATED        SIZE
-alpine       latest   3fd9065eaf02    `8` days ago     `4`.15MB
-`test`         latest   8426e7efb777    `3` days ago     122MB 
-```
+[PRE16]
 
 `您还可以使用`--format`标志使用 Go 模板格式化输出。例如，以下命令将仅返回 Docker 主机上图像的大小属性。
 
-```
-$ docker image ls --format `"{{.Size}}"`
-`99`.3MB
-111MB
-`82`.6MB
-`88`.8MB
-`4`.15MB
-108MB 
-```
+[PRE17]
 
 `使用以下命令返回所有图像，但仅显示存储库、标签和大小。
 
-```
-$ docker image ls --format `"{{.Repository}}: {{.Tag}}: {{.Size}}"`
-dodge:  challenger: `99`.3MB
-ubuntu: latest:     111MB
-python: `3`.4-alpine: `82`.6MB
-python: `3`.5-alpine: `88`.8MB
-alpine: latest:     `4`.15MB
-nginx:  latest:     108MB 
-```
+[PRE18]
 
 `如果您需要更强大的过滤功能，您可以随时使用操作系统和 shell 提供的工具，如`grep`和`awk`。
 
@@ -358,46 +220,19 @@ nginx:  latest:     108MB
 
 在其最简单的形式中，它搜索包含在“NAME”字段中的特定字符串的所有存储库。例如，以下命令搜索所有在“NAME”字段中包含“nigelpoulton”的存储库。
 
-```
-$ docker search nigelpoulton
-NAME                         DESCRIPTION               STARS   AUTOMATED
-nigelpoulton/pluralsight..   Web app used in...        `8`       `[`OK`]`
-nigelpoulton/tu-demo                                   `7`
-nigelpoulton/k8sbook         Kubernetes Book web app   `1`
-nigelpoulton/web-fe1         Web front end example     `0`
-nigelpoulton/hello-cloud     Quick hello-world image   `0` 
-```
+[PRE19]
 
 “NAME”字段是存储库名称，并包括非官方存储库的 Docker ID 或组织名称。例如，以下命令将列出所有包含名称中包含“alpine”的存储库。
 
-```
-$ docker search alpine
-NAME                   DESCRIPTION          STARS    OFFICIAL    AUTOMATED
-alpine                 A minimal Docker..   `2988`     `[`OK`]`
-mhart/alpine-node      Minimal Node.js..    `332`
-anapsix/alpine-java    Oracle Java `8`...     `270`                  `[`OK`]`
-<Snip> 
-```
+[PRE20]
 
 `注意一下，返回的一些存储库是官方的，一些是非官方的。您可以使用`--filter "is-official=true"`，这样只有官方存储库才会显示。
 
-```
-$ docker search alpine --filter `"is-official=true"`
-NAME                   DESCRIPTION          STARS    OFFICIAL    AUTOMATED
-alpine                 A minimal Docker..   `2988`     `[`OK`]` 
-```
+[PRE21]
 
 `您可以再次执行相同的操作，但这次只显示具有自动构建的存储库。
 
-```
-$ docker search alpine --filter `"is-automated=true"`
-NAME                       DESCRIPTION               OFFICIAL     AUTOMATED
-anapsix/alpine-java        Oracle Java `8` `(`and `7``)`..                `[`OK`]`
-frolvlad/alpine-glibc      Alpine Docker image..                  `[`OK`]`
-kiasaki/alpine-postgres    PostgreSQL docker..                    `[`OK`]`
-zzrot/alpine-caddy         Caddy Server Docker..                  `[`OK`]`
-<Snip> 
-```
+[PRE22]
 
 `关于`docker search`的最后一件事。默认情况下，Docker 只会显示 25 行结果。但是，您可以使用`--limit`标志将其增加到最多 100 行。
 
@@ -413,17 +248,7 @@ Docker 负责堆叠这些层并将它们表示为单个统一的对象。
 
 有几种方法可以查看和检查构成图像的层，我们已经看到其中一种。让我们再次看一下之前`docker image pull ubuntu:latest`命令的输出：
 
-```
-$ docker image pull ubuntu:latest
-latest: Pulling from library/ubuntu
-952132ac251a: Pull `complete`
-82659f8f1b76: Pull `complete`
-c19118ca682d: Pull `complete`
-8296858250fe: Pull `complete`
-24e0251a0e2c: Pull `complete`
-Digest: sha256:f4691c96e6bbaa99d...28ae95a60369c506dd6e6f6ab
-Status: Downloaded newer image `for` ubuntu:latest 
-```
+[PRE23]
 
 `上面输出中以“Pull complete”结尾的每一行代表了被拉取的图像中的一个层。正如我们所看到的，这个图像有 5 个层。图 6.4 以图片形式显示了这一点，显示了层 ID。
 
@@ -433,29 +258,7 @@ Status: Downloaded newer image `for` ubuntu:latest
 
 查看图像的层的另一种方法是使用`docker image inspect`命令检查图像。以下示例检查了相同的`ubuntu:latest`图像。
 
-```
-$ docker image inspect ubuntu:latest
-`[`
-    `{`
-        `"Id"`: `"sha256:bd3d4369ae.......fa2645f5699037d7d8c6b415a10"`,
-        `"RepoTags"`: `[`
-            `"ubuntu:latest"`
-
-        <Snip>
-
-        `"RootFS"`: `{`
-            `"Type"`: `"layers"`,
-            `"Layers"`: `[`
-                `"sha256:c8a75145fc...894129005e461a43875a094b93412"`,
-                `"sha256:c6f2b330b6...7214ed6aac305dd03f70b95cdc610"`,
-                `"sha256:055757a193...3a9565d78962c7f368d5ac5984998"`,
-                `"sha256:4837348061...12695f548406ea77feb5074e195e3"`,
-                `"sha256:0cad5e07ba...4bae4cfc66b376265e16c32a0aae9"`
-            `]`
-        `}`
-    `}`
-`]` 
-```
+[PRE24]
 
 修剪后的输出再次显示了 5 个图层。只是这一次它们使用它们的 SHA256 哈希值显示。然而，两个命令都显示该图像有 5 个图层。
 
@@ -497,35 +300,7 @@ Docker 使用存储驱动程序（较新版本中的快照程序）负责堆叠�
 
 让我们再次看看我们之前使用`docker image pull`命令和`-a`标志来拉取`nigelpoulton/tu-demo`存储库中的所有标记图像。
 
-```
-$ docker image pull -a nigelpoulton/tu-demo
-
-latest: Pulling from nigelpoulton/tu-demo
-237d5fcd25cf: Pull `complete`
-a3ed95caeb02: Pull `complete`
-<Snip>
-Digest: sha256:42e34e546cee61adb100...a0c5b53f324a9e1c1aae451e9
-
-v1: Pulling from nigelpoulton/tu-demo
-237d5fcd25cf: Already exists
-a3ed95caeb02: Already exists
-<Snip>
-Digest: sha256:9ccc0c67e5c5eaae4beb...24c1d5c80f2c9623cbcc9b59a
-
-v2: Pulling from nigelpoulton/tu-demo
-237d5fcd25cf: Already exists
-a3ed95caeb02: Already exists
-<Snip>
-eab5aaac65de: Pull `complete`
-Digest: sha256:d3c0d8c9d5719d31b79c...fef58a7e038cf0ef2ba5eb74c
-Status: Downloaded newer image `for` nigelpoulton/tu-demo
-
-$ docker image ls
-REPOSITORY             TAG      IMAGE ID       CREATED        SIZE
-nigelpoulton/tu-demo   v2       6ac...ead   `4` months ago   `211`.6 MB
-nigelpoulton/tu-demo   latest   9b9...e29   `4` months ago   `211`.6 MB
-nigelpoulton/tu-demo   v1       9b9...e29   `4` months ago   `211`.6 MB 
-```
+[PRE25]
 
 注意以`已存在`结尾的行。
 
@@ -547,18 +322,7 @@ Docker 1.10 引入了一种新的内容可寻址存储模型。作为这种新�
 
 每次拉取镜像时，`docker image pull`命令将包括镜像的摘要作为返回代码的一部分。您还可以通过在`docker image ls`命令中添加`--digests`标志来查看 Docker 主机本地存储库中镜像的摘要。这两者都在以下示例中显示。
 
-```
-$ docker image pull alpine
-Using default tag: latest
-latest: Pulling from library/alpine
-e110a4a17941: Pull `complete`
-Digest: sha256:3dcdb92d7432d56604d...6d99b889d0626de158f73a
-Status: Downloaded newer image `for` alpine:latest
-
-$ docker image ls --digests alpine
-REPOSITORY  TAG     DIGEST              IMAGE ID      CREATED       SIZE
-alpine      latest  sha256:3dcd...f73a  4e38e38c8ce0  `10` weeks ago  `4`.8 MB 
-```
+[PRE26]
 
 `上面的输出显示了`alpine`镜像的摘要为 -
 
@@ -570,19 +334,7 @@ alpine      latest  sha256:3dcd...f73a  4e38e38c8ce0  `10` weeks ago  `4`.8 MB
 
 以下示例从 Docker 主机中删除`alpine:latest`镜像，然后演示如何使用其摘要而不是标签再次拉取它。
 
-```
-$ docker image rm alpine:latest
-Untagged: alpine:latest
-Untagged: alpine@sha256:c0537...7c0a7726c88e2bb7584dc96
-Deleted: sha256:02674b9cb179d...abff0c2bf5ceca5bad72cd9
-Deleted: sha256:e154057080f40...3823bab1be5b86926c6f860
-
-$ docker image pull alpine@sha256:c0537...7c0a7726c88e2bb7584dc96
-sha256:c0537...7726c88e2bb7584dc96: Pulling from library/alpine
-cfc728c1c558: Pull `complete`
-Digest: sha256:c0537ff6a5218...7c0a7726c88e2bb7584dc96
-Status: Downloaded newer image `for` alpine@sha256:c0537...bb7584dc96 
-```
+[PRE27]
 
 #### 关于镜像哈希（摘要）的更多信息
 
@@ -642,43 +394,11 @@ Docker（镜像和注册表规范）现在支持多架构镜像。这意味着�
 
 Linux x64 示例：
 
-```
-$ docker container run --rm golang go version
-
-Unable to find image `'golang:latest'` locally
-latest: Pulling from library/golang
-723254a2c089: Pull `complete`
-<Snip>
-39cd5f38ffb8: Pull `complete`
-Digest: sha256:947826b5b6bc4...
-Status: Downloaded newer image `for` golang:latest
-go version go1.9.2 linux/amd64 
-```
+[PRE28]
 
 `Windows x64 示例：
 
-```
-PS> docker container run --rm golang go version
-
-Using default tag: latest
-latest: Pulling from library/golang
-3889bb8d808b: Pull complete
-8df8e568af76: Pull complete
-9604659e3e8d: Pull complete
-9f4a4a55f0a7: Pull complete
-6d6da81fc3fd: Pull complete
-72f53bd57f2f: Pull complete
-6464e79d41fe: Pull complete
-dca61726a3b4: Pull complete
-9150276e2b90: Pull complete
-cd47365a14fb: Pull complete
-1783777af4bb: Pull complete
-3b8d1834f1d7: Pull complete
-7258d77b22dd: Pull complete
-Digest: sha256:e2be086d86eeb789...e1b2195d6f40edc4
-Status: Downloaded newer image for golang:latest
-go version go1.9.2 windows/amd64 
-```
+[PRE29]
 
 `前面的操作从 Docker Hub 拉取`golang`图像，从中启动一个容器，执行`go version`命令，并输出主机系统的 Go 和 OS/CPU 架构的版本。每个示例的最后一行显示了每个`go version`命令的输出。请注意，这两个示例使用完全相同的命令，但 Linux 示例拉取了`linux/amd64`图像，而 Windows 示例拉取了`windows/amd64`图像。
 
@@ -694,12 +414,7 @@ go version go1.9.2 windows/amd64
 
 使用`docker image rm`命令删除在上一步中拉取的图像。以下示例通过其 ID 删除图像，这可能与您的系统不同。
 
-```
-$ docker image rm 02674b9cb179
-Untagged: alpine@sha256:c0537ff6a5218...c0a7726c88e2bb7584dc96
-Deleted: sha256:02674b9cb179d57...31ba0abff0c2bf5ceca5bad72cd9
-Deleted: sha256:e154057080f4063...2a0d13823bab1be5b86926c6f860 
-```
+[PRE30]
 
 `如果您要删除的图像正在运行的容器中使用，则无法删除它。在尝试再次删除操作之前，请停止并删除任何容器。
 
@@ -707,56 +422,15 @@ Deleted: sha256:e154057080f4063...2a0d13823bab1be5b86926c6f860
 
 如果您在 Windows 系统上执行以下命令，它只能在 PowerShell 终端中工作。它在 CMD 提示符上不起作用。
 
-```
-$ docker image rm `$(`docker image ls -q`)` -f 
-```
+[PRE31]
 
 `要了解这是如何工作的，请下载一些图像，然后运行`docker image ls -q`。
 
-```
-$ docker image pull alpine
-Using default tag: latest
-latest: Pulling from library/alpine
-e110a4a17941: Pull `complete`
-Digest: sha256:3dcdb92d7432d5...3626d99b889d0626de158f73a
-Status: Downloaded newer image `for` alpine:latest
-
-$ docker image pull ubuntu
-Using default tag: latest
-latest: Pulling from library/ubuntu
-952132ac251a: Pull `complete`
-82659f8f1b76: Pull `complete`
-c19118ca682d: Pull `complete`
-8296858250fe: Pull `complete`
-24e0251a0e2c: Pull `complete`
-Digest: sha256:f4691c96e6bba...128ae95a60369c506dd6e6f6ab
-Status: Downloaded newer image `for` ubuntu:latest
-
-$ docker image ls -q
-bd3d4369aebc
-4e38e38c8ce0 
-```
+[PRE32]
 
 `看看`docker image ls -q`如何返回一个只包含系统上本地拉取的所有图像的图像 ID 的列表。将此列表传递给`docker image rm`将删除系统上的所有图像，如下所示。
 
-```
-$ docker image rm `$(`docker image ls -q`)` -f
-Untagged: ubuntu:latest
-Untagged: ubuntu@sha256:f4691c9...2128ae95a60369c506dd6e6f6ab
-Deleted: sha256:bd3d4369aebc494...fa2645f5699037d7d8c6b415a10
-Deleted: sha256:cd10a3b73e247dd...c3a71fcf5b6c2bb28d4f2e5360b
-Deleted: sha256:4d4de39110cd250...28bfe816393d0f2e0dae82c363a
-Deleted: sha256:6a89826eba8d895...cb0d7dba1ef62409f037c6e608b
-Deleted: sha256:33efada9158c32d...195aa12859239d35e7fe9566056
-Deleted: sha256:c8a75145fcc4e1a...4129005e461a43875a094b93412
-Untagged: alpine:latest
-Untagged: alpine@sha256:3dcdb92...313626d99b889d0626de158f73a
-Deleted: sha256:4e38e38c8ce0b8d...6225e13b0bfe8cfa2321aec4bba
-Deleted: sha256:4fe15f8d0ae69e1...eeeeebb265cd2e328e15c6a869f
-
-$ docker image ls
-REPOSITORY     TAG    IMAGE ID    CREATED     SIZE 
-```
+[PRE33]
 
 `让我们提醒自己我们用来处理 Docker 图像的主要命令。`
 

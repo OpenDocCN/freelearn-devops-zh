@@ -122,24 +122,7 @@ CI 加上部署自动化是为服务器应用程序提供服务给客户的理�
 
 以下示例显示了 Nginx（[`www.nginx.com`](https://www.nginx.com)）在 CentOS 7 上使用的库。它表明 Nginx 使用了`OpenSSL`、`POSIX 线程`库、`PCRE`正则表达式库、`zlib`压缩库、`GNU C`库等。因此，Nginx 没有重新实现 SSL 加密、正则表达式等：
 
-```
-$ /usr/bin/ldd /usr/sbin/nginx
- linux-vdso.so.1 =>  (0x00007ffd96d79000)
- libdl.so.2 => /lib64/libdl.so.2 (0x00007fd96d61c000)
- libpthread.so.0 => /lib64/libpthread.so.0   
-  (0x00007fd96d400000)
- libcrypt.so.1 => /lib64/libcrypt.so.1   
-  (0x00007fd96d1c8000)
- libpcre.so.1 => /lib64/libpcre.so.1 (0x00007fd96cf67000)
- libssl.so.10 => /lib64/libssl.so.10 (0x00007fd96ccf9000)
- libcrypto.so.10 => /lib64/libcrypto.so.10   
-  (0x00007fd96c90e000)
- libz.so.1 => /lib64/libz.so.1 (0x00007fd96c6f8000)
- libprofiler.so.0 => /lib64/libprofiler.so.0 
-  (0x00007fd96c4e4000)
- libc.so.6 => /lib64/libc.so.6 (0x00007fd96c122000)
- ...
-```
+[PRE0]
 
 `ldd`命令包含在 CentOS 的`glibc-common`软件包中。
 

@@ -96,37 +96,15 @@ Docker 容器加速并简化了高度分布式应用程序的构建、交付和�
 
 代码块设置如下：
 
-```
-{
-  "name": "api",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC"
-}
-```
+[PRE0]
 
 当我们希望引起您对代码块的特定部分的注意时，相关行或项目将以粗体显示：
 
-```
-ARG BASE_IMAGE_VERSION=12.7-stretch
-FROM node:${BASE_IMAGE_VERSION}
-WORKDIR /app
-COPY packages.json .
-RUN npm install
-COPY . .
-CMD npm start
-```
+[PRE1]
 
 任何命令行输入或输出都是这样写的：
 
-```
-$ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-```
+[PRE2]
 
 **粗体**：表示一个新术语，一个重要的词，或者你在屏幕上看到的词。例如，菜单或对话框中的单词会在文本中以这种方式出现。这是一个例子：“从管理面板中选择系统信息。”
 

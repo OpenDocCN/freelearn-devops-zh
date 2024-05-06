@@ -110,21 +110,7 @@ ECS 容器实例排水是一个功能，允许您优雅地排水您的 ECS 容�
 
 以下示例演示了从**packer-ecs**存储库的根目录运行`make build`命令，这将输出一个新的 AMI ID，用于新创建和发布的镜像。确保您记下这个 AMI ID，因为您稍后在本章中会需要它：
 
-```
-> export AWS_PROFILE=docker-in-aws
-> make build
-packer build packer.json
-amazon-ebs output will be in this color.
-
-==> amazon-ebs: Prevalidating AMI Name: docker-in-aws-ecs 1518934269
-...
-...
-Build 'amazon-ebs' finished.
-
-==> Builds finished. The artifacts of successful builds are:
---> amazon-ebs: AMIs were created:
-us-east-1: ami-77893508
-```
+[PRE0]
 
 运行 Packer 构建
 
@@ -134,27 +120,7 @@ us-east-1: ami-77893508
 
 如果您打开 todobackend-aws 存储库并浏览到`stack.yml`文件中的 CloudFormation 模板，您可以向`ApplicationAutoscaling`资源添加更新策略，如以下示例所示：
 
-```
-...
-...
-Resources:
-  ...
-  ...
-  ApplicationAutoscaling:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    CreationPolicy:
-      ResourceSignal:
-        Count: !Ref ApplicationDesiredCount
-        Timeout: PT15M
-    UpdatePolicy:
- AutoScalingRollingUpdate:
- MinInstancesInService: !Ref ApplicationDesiredCount
- MinSuccessfulInstancesPercent: 100
- WaitOnResourceSignals: "true"
- PauseTime: PT15M
-  ...
-  ...
-```
+[PRE1]
 
 配置 CloudFormation 自动扩展组更新策略
 
@@ -170,31 +136,13 @@ Resources:
 
 然后，使用`aws cloudformation deploy`命令部署您的更改，如下例所示，您的自动扩展组现在将应用更新策略：
 
-```
-> export AWS_PROFILE=docker-in-aws
-> aws cloudformation deploy --template-file stack.yml \
- --stack-name todobackend --parameter-overrides $(cat dev.cfg) \
- --capabilities CAPABILITY_NAMED_IAM
-Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga:
-
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - todobackend
-  ...
-  ...
-```
+[PRE2]
 
 配置 CloudFormation 自动扩展组更新策略
 
 此时，您现在可以更新堆栈以使用您在第一个示例中创建的新 AMI。这需要您首先更新 todobackend-aws 存储库根目录下的`dev.cfg`文件：
 
-```
-ApplicationDesiredCount=1
-ApplicationImageId=ami-77893508
-ApplicationImageTag=5fdbe62
-ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
-VpcId=vpc-f8233a80
-```
+[PRE3]
 
 更新 ECS AMI
 
@@ -230,54 +178,7 @@ ECS 内存预留
 
 以下示例演示了创建生命周期挂钩、生命周期挂钩角色和 SNS 主题：
 
-```
-...
-...
-Resources:
-  ...
-  ...
- LifecycleHook:
- Type: AWS::AutoScaling::LifecycleHook
- Properties:
- RoleARN: !Sub ${LifecycleHookRole.Arn}
- AutoScalingGroupName: !Ref ApplicationAutoscaling
- DefaultResult: CONTINUE
- HeartbeatTimeout: 900
- LifecycleTransition: autoscaling:EC2_INSTANCE_TERMINATING
- NotificationTargetARN: !Ref LifecycleHookTopic
- LifecycleHookRole:
- Type: AWS::IAM::Role
- Properties:
- AssumeRolePolicyDocument:
- Version: "2012-10-17"
- Statement:
- - Action:
- - sts:AssumeRole
- Effect: Allow
- Principal:
- Service: autoscaling.amazonaws.com
- Policies:
-- PolicyName: LifecycleHookPermissions
- PolicyDocument:
- Version: "2012-10-17"
- Statement:
- - Sid: PublishNotifications
- Action: 
- - sns:Publish
- Effect: Allow
- Resource: !Ref LifecycleHookTopic
- LifecycleHookTopic:
- Type: AWS::SNS::Topic
- Properties: {}
-  LifecycleHookSubscription:
-    Type: AWS::SNS::Subscription
-    Properties:
-      Endpoint: !Sub ${LifecycleHookFunction.Arn}
-      Protocol: lambda
-      TopicArn: !Ref LifecycleHookTopic    ...
-    ...
-
-```
+[PRE4]
 
 在 CloudFormation 中创建生命周期挂钩资源
 
@@ -291,105 +192,7 @@ Resources:
 
 让我们首先关注 Lambda 函数本身以及它将需要执行的相关源代码：
 
-```
-...
-...
-Resources: LifecycleHookFunction:
-    Type: AWS::Lambda::Function
-    DependsOn:
-      - LifecycleHookFunctionLogGroup
-    Properties:
-      Role: !Sub ${LifecycleFunctionRole.Arn}
-      FunctionName: !Sub ${AWS::StackName}-lifecycleHooks
-      Description: !Sub ${AWS::StackName} Autoscaling Lifecycle Hook
-      Environment:
-        Variables:
-          ECS_CLUSTER: !Ref ApplicationCluster
-      Code:
-        ZipFile: |
-          import os, time
-          import json
-          import boto3
-          cluster = os.environ['ECS_CLUSTER']
-          # AWS clients
-          ecs = boto3.client('ecs')
-          sns = boto3.client('sns')
-          autoscaling = boto3.client('autoscaling')
-
-          def handler(event, context):
-            print("Received event %s" % event)
-            for r in event.get('Records'):
-              # Parse SNS message
-              message = json.loads(r['Sns']['Message'])
-              transition, hook = message['LifecycleTransition'], message['LifecycleHookName']
-              group, ec2_instance = message['AutoScalingGroupName'], message['EC2InstanceId']
-              if transition != 'autoscaling:EC2_INSTANCE_TERMINATING':
-                print("Ignoring lifecycle transition %s" % transition)
-                return
-              try:
-                # Get ECS container instance ARN
-                ecs_instance_arns = ecs.list_container_instances(
-                  cluster=cluster
-                )['containerInstanceArns']
-                ecs_instances = ecs.describe_container_instances(
-                  cluster=cluster,
-                  containerInstances=ecs_instance_arns
-                )['containerInstances']
-                # Find ECS container instance with same EC2 instance ID in lifecycle hook message
-                ecs_instance_arn = next((
-                  instance['containerInstanceArn'] for instance in ecs_instances
-                  if instance['ec2InstanceId'] == ec2_instance
-                ), None)
-                if ecs_instance_arn is None:
-                  raise ValueError('Could not locate ECS instance')
-                # Drain instance
-                ecs.update_container_instances_state(
-                  cluster=cluster,
-                  containerInstances=[ecs_instance_arn],
-                  status='DRAINING'
-                )
-                # Check task count on instance every 5 seconds
-                count = 1
-                while count > 0 and context.get_remaining_time_in_millis() > 10000:
-                  status = ecs.describe_container_instances(
-                    cluster=cluster,
-                    containerInstances=[ecs_instance_arn],
-                  )['containerInstances'][0]
-                  count = status['runningTasksCount']
-                  print("Sleeping...")
-                  time.sleep(5)
-                if count == 0:
-                  print("All tasks drained - sending CONTINUE signal")
-                  autoscaling.complete_lifecycle_action(
-                    LifecycleHookName=hook,
-                    AutoScalingGroupName=group,
-                    InstanceId=ec2_instance,
-                    LifecycleActionResult='CONTINUE'
-                  )
-                else:
-                  print("Function timed out - republishing SNS message")
-                  sns.publish(TopicArn=r['Sns']['TopicArn'], Message=r['Sns']['Message'])
-              except Exception as e:
-                print("A failure occurred with exception %s" % e)
-                autoscaling.complete_lifecycle_action(
-                  LifecycleHookName=hook,
-                  AutoScalingGroupName=group,
-                  InstanceId=ec2_instance,
-                  LifecycleActionResult='ABANDON'
-                )
-      Runtime: python3.6
-      MemorySize: 128
-      Timeout: 300
-      Handler: index.handler
-  LifecycleHookFunctionLogGroup:
-    Type: AWS::Logs::LogGroup
-    DeletionPolicy: Delete
-    Properties:
-      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-lifecycleHooks
-      RetentionInDays: 7    ...
-    ...
-
-```
+[PRE5]
 
 创建用于处理生命周期钩子的 Lambda 函数
 
@@ -417,67 +220,7 @@ Lambda 函数比我们迄今为止处理的要复杂一些，但如果您有 Pyt
 
 Lambda 函数现在已经就位，最后的配置任务是为 Lambda 函数执行的各种 API 调用和操作添加所需的权限：
 
-```
-...
-...
-Resources: LifecycleHookPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref LifecycleHookFunction
-      Principal: sns.amazonaws.com
-      SourceArn: !Ref LifecycleHookTopic
-  LifecycleFunctionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Action:
-              - sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-      Policies:
-        - PolicyName: LifecycleHookPermissions
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Sid: ListContainerInstances
-                Effect: Allow
-                Action:
-                  - ecs:ListContainerInstances
-                Resource: !Sub ${ApplicationCluster.Arn}
-              - Sid: ManageContainerInstances
-                Effect: Allow
-                Action:
-                  - ecs:DescribeContainerInstances
-                  - ecs:UpdateContainerInstancesState
-                Resource: "*"
-                Condition:
-                  ArnEquals:
-                    ecs:cluster: !Sub ${ApplicationCluster.Arn}
-              - Sid: Publish
-                Effect: Allow
-                Action:
-                  - sns:Publish
-                Resource: !Ref LifecycleHookTopic
-              - Sid: CompleteLifecycleAction
-                Effect: Allow
-                Action:
-                  - autoscaling:CompleteLifecycleAction
-                Resource: !Sub arn:aws:autoscaling:${AWS::Region}:${AWS::AccountId}:autoScalingGroup:*:autoScalingGroupName/${ApplicationAutoscaling}
-              - Sid: ManageLambdaLogs
-                Effect: Allow
-                Action:
-                - logs:CreateLogStream
-                - logs:PutLogEvents
-                Resource: !Sub ${LifecycleHookFunctionLogGroup.Arn}    LifecycleHookFunction:
-      Type: AWS::Lambda::Function
-    ...
-    ...
-
-```
+[PRE6]
 
 为生命周期挂钩 Lambda 函数配置权限
 
@@ -499,13 +242,7 @@ Resources: LifecycleHookPermission:
 
 部署完成后，为了测试生命周期管理是否按预期工作，您可以执行一个简单的更改，强制替换 ECS 集群中当前的 ECS 容器实例，即恢复您在本章前面所做的 AMI 更改：
 
-```
-ApplicationDesiredCount=1
-ApplicationImageId=ami-ec957491
-ApplicationImageTag=5fdbe62
-ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
-VpcId=vpc-f8233a80
-```
+[PRE7]
 
 恢复 ECS AMI
 

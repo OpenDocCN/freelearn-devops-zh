@@ -36,46 +36,11 @@
 
 在启动 WordPress 安装之前，让我们来看看 Docker Compose 文件以及我们正在运行的服务：
 
-```
-version: "3"
-
-services:
- web:
- image: nginx:alpine
- ports:
- - "8080:80"
- volumes:
- - "./wordpress/web:/var/www/html"
- - "./wordpress/nginx.conf:/etc/nginx/conf.d/default.conf"
- depends_on:
- - wordpress
- wordpress:
- image: wordpress:php7.2-fpm-alpine
- volumes:
- - "./wordpress/web:/var/www/html"
- depends_on:
- - mysql
- mysql:
- image: mysql:5
- environment:
- MYSQL_ROOT_PASSWORD: "wordpress"
- MYSQL_USER: "wordpress"
- MYSQL_PASSWORD: "wordpress"
- MYSQL_DATABASE: "wordpress"
- volumes:
- - "./wordpress/mysql:/var/lib/mysql"
- wp:
- image: wordpress:cli-2-php7.2
- volumes:
- - "./wordpress/web:/var/www/html"
- - "./wordpress/export:/export"
-```
+[PRE0]
 
 我们可以使用 PMSIpilot 的`docker-compose-viz`工具来可视化 Docker Compose 文件。要做到这一点，在与`docker-compose.yml`文件相同的文件夹中运行以下命令：
 
-```
-$ docker container run --rm -it --name dcv -v $(pwd):/input pmsipilot/docker-compose-viz render -m image docker-compose.yml
-```
+[PRE1]
 
 这将输出一个名为`docker-compose.png`的文件，您应该会得到类似于这样的东西：
 
@@ -85,31 +50,7 @@ $ docker container run --rm -it --name dcv -v $(pwd):/input pmsipilot/docker-com
 
 第一个被称为`web`。这个服务是四个中唯一暴露给主机网络的服务，并且它充当我们 WordPress 安装的前端。它运行来自[`store.docker.com/images/nginx/`](https://store.docker.com/images/nginx/)的官方 nginx 镜像，并且扮演两个角色。在我们看这些之前，先看一下以下 nginx 配置：
 
-```
-server {
- server_name _;
- listen 80 default_server;
-
- root /var/www/html;
- index index.php index.html;
-
- access_log /dev/stdout;
- error_log /dev/stdout info;
-
- location / {
- try_files $uri $uri/ /index.php?$args;
- }
-
- location ~ .php$ {
- include fastcgi_params;
- fastcgi_pass wordpress:9000;
- fastcgi_index index.php;
- fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
- fastcgi_buffers 16 16k;
- fastcgi_buffer_size 32k;
- }
-}
-```
+[PRE2]
 
 您可以看到，我们正在使用 nginx 从`/var/www/html/`提供除 PHP 之外的所有内容，我们正在使用 nginx 从我们的主机机器挂载，并且所有 PHP 文件的请求都被代理到我们的第二个名为`wordpress`的服务，端口为`9000`。nginx 配置本身被挂载到我们的主机机器上的`/etc/nginx/conf.d/default.conf`。
 
@@ -133,9 +74,7 @@ server {
 
 启动 WordPress，我们只需要运行以下命令来拉取镜像：
 
-```
-$ docker-compose pull
-```
+[PRE3]
 
 这将拉取镜像并启动`web`，`wordpress`和`mysql`服务，以及准备`wp`服务。在服务启动之前，我们的`wordpress`文件夹看起来是这样的：
 
@@ -143,10 +82,7 @@ $ docker-compose pull
 
 正如您所看到的，我们只在其中有`nginx.conf`，这是 Git 存储库的一部分。然后，我们可以使用以下命令启动容器并检查它们的状态：
 
-```
-$ docker-compose up -d
-$ docker-compose ps
-```
+[PRE4]
 
 ![](img/32a9383e-8a5f-446e-a591-56c5824da777.png)
 
@@ -162,14 +98,7 @@ $ docker-compose ps
 
 我们将使用 WP-CLI 而不是使用 GUI 来完成安装。这有两个步骤。第一步是创建一个`wp-config.php`文件。要做到这一点，请运行以下命令：
 
-```
-$ docker-compose run wp core config \
-    --dbname=wordpress \
-    --dbuser=wordpress \
-    --dbpass=wordpress \
-    --dbhost=mysql \
-    --dbprefix=wp_
-```
+[PRE5]
 
 如您将在以下终端输出中看到的，在运行命令之前，我只有`wp-config-sample.php`文件，这是 WordPress 核心附带的。然后，在运行命令后，我有了自己的`wp-config.php`文件：
 
@@ -179,14 +108,7 @@ $ docker-compose run wp core config \
 
 现在我们已经配置了数据库连接详细信息，我们需要配置我们的 WordPress 网站以及创建一个管理员用户并设置密码。要做到这一点，请运行以下命令：
 
-```
-$ docker-compose run wp core install \
- --title="Blog Title" \
- --url="http://localhost:8080" \
- --admin_user="admin" \
- --admin_password="password" \
- --admin_email="email@domain.com"
-```
+[PRE6]
 
 运行此命令将产生有关电子邮件服务的错误；不要担心这条消息，因为这只是一个本地开发环境。我们不太担心电子邮件离开我们的 WordPress 安装：
 
@@ -206,9 +128,7 @@ $ docker-compose run wp core install \
 
 在我们进一步操作之前，让我们先定制一下我们的安装，首先安装并启用 JetPack 插件：
 
-```
-$ docker-compose run wp plugin install jetpack --activate
-```
+[PRE7]
 
 该命令的输出如下：
 
@@ -216,9 +136,7 @@ $ docker-compose run wp plugin install jetpack --activate
 
 然后，安装并启用`sydney`主题：
 
-```
-$ docker-compose run wp theme install sydney --activate
-```
+[PRE8]
 
 该命令的输出如下：
 
@@ -230,9 +148,7 @@ $ docker-compose run wp theme install sydney --activate
 
 在打开 IDE 之前，让我们使用以下命令销毁运行我们 WordPress 安装的容器：
 
-```
-$ docker-compose down 
-```
+[PRE9]
 
 该命令的输出如下：
 
@@ -240,15 +156,11 @@ $ docker-compose down
 
 由于我们整个 WordPress 安装，包括所有文件和数据库，都存储在我们的本地机器上，我们应该能够运行以下命令返回到我们离开的 WordPress 网站：
 
-```
-$ docker-compose up -d
-```
+[PRE10]
 
 一旦确认它按预期运行并正在运行，打开桌面编辑器中的`docker-wordpress`文件夹。我使用 Sublime Text。在编辑器中，打开`wordpress/web/wp-blog-header.php`文件，并在开头的 PHP 语句中添加以下行并保存：
 
-```
-echo "Testing editing in the IDE";
-```
+[PRE11]
 
 文件应该看起来像以下内容：
 
@@ -264,9 +176,7 @@ echo "Testing editing in the IDE";
 
 要做到这一点，运行以下命令：
 
-```
-$ docker-compose run wp db export --add-drop-table /export/wordpress.sql
-```
+[PRE12]
 
 以下终端输出显示了导出以及`wordpress/export`文件夹的内容，最后是 MySQL 转储的前几行：
 
@@ -274,9 +184,7 @@ $ docker-compose run wp db export --add-drop-table /export/wordpress.sql
 
 如果需要的话，比如说，我在开发过程中犯了一个错误，我可以通过运行以下命令回滚到数据库的那个版本：
 
-```
-$ docker-compose run wp db import /export/wordpress.sql
-```
+[PRE13]
 
 命令的输出如下：
 
@@ -312,21 +220,7 @@ $ docker-compose run wp db import /export/wordpress.sql
 
 `cadvisor`是 Google 发布的一个项目。正如您从我们使用的 Docker Hub 用户名在图像中看到的那样，Docker Compose 文件中的服务部分如下所示：
 
-```
- cadvisor:
- image: google/cadvisor:latest
- container_name: cadvisor
- volumes:
- - /:/rootfs:ro
- - /var/run:/var/run:rw
- - /sys:/sys:ro
- - /var/lib/docker/:/var/lib/docker:ro
- restart: unless-stopped
- expose:
- - 8080
- networks:
- - back
-```
+[PRE14]
 
 我们正在挂载我们主机文件系统的各个部分，以便让`cadvisor`访问我们的 Docker 安装，方式与我们在第十一章*，Portainer – A GUI for Docker*中所做的方式相同。这样做的原因是，在我们的情况下，我们将使用`cadvisor`来收集容器的统计信息。虽然它可以作为独立的容器监控服务使用，但我们不希望公开暴露`cadvisor`容器。相反，我们只是让它在后端网络的 Docker Compose 堆栈中对其他容器可用。
 
@@ -336,43 +230,11 @@ $ docker-compose run wp db import /export/wordpress.sql
 
 我们将在一会儿看到这为什么很重要。`cadvisor`端点正在被我们接下来的服务`prometheus`自动抓取。这是大部分繁重工作发生的地方。`prometheus`是由 SoundCloud 编写并开源的监控工具：
 
-```
- prometheus:
- image: prom/prometheus
- container_name: prometheus
- volumes:
- - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
- - prometheus_data:/prometheus
- restart: unless-stopped
- expose:
- - 9090
- depends_on:
- - cadvisor
- networks:
- - back
-```
+[PRE15]
 
 正如您从前面的服务定义中看到的，我们正在挂载一个名为`./prometheus/prometheus.yml`的配置文件，还有一个名为`prometheus_data`的卷。配置文件包含有关我们要抓取的源的信息，正如您从以下配置中看到的那样：
 
-```
-global:
- scrape_interval: 15s 
- evaluation_interval: 15s
- external_labels:
- monitor: 'monitoring'
-
-rule_files:
-
-scrape_configs:
-
- - job_name: 'prometheus'
- static_configs:
- - targets: ['localhost:9090']
-
- - job_name: 'cadvisor'
- static_configs:
- - targets: ['cadvisor:8080']
-```
+[PRE16]
 
 我们指示 Prometheus 每`15`秒从我们的端点抓取数据。端点在`scrape_configs`部分中定义，正如你所看到的，我们在其中定义了`cadvisor`以及 Prometheus 本身。我们创建和挂载`prometheus_data`卷的原因是，Prometheus 将存储我们所有的指标，因此我们需要确保它的安全。
 
@@ -384,43 +246,19 @@ Prometheus 还配备了强大的查询引擎和 API，使其成为这种数据�
 
 Grafana 的 Docker Compose 定义遵循与我们其他服务类似的模式：
 
-```
- grafana:
- image: grafana/grafana
- container_name: grafana
- volumes:
- - grafana_data:/var/lib/grafana
- - ./grafana/provisioning/:/etc/grafana/provisioning/
- env_file:
- - ./grafana/grafana.config
- restart: unless-stopped
- ports:
- - 3000:3000
- depends_on:
- - prometheus
- networks:
- - front
- - back
-```
+[PRE17]
 
 我们使用`grafana_data`卷来存储 Grafana 自己的内部配置数据库，而不是将环境变量存储在 Docker Compose 文件中，我们是从名为`./grafana/grafana.config`的外部文件中加载它们。
 
 变量如下：
 
-```
-GF_SECURITY_ADMIN_USER=admin
-GF_SECURITY_ADMIN_PASSWORD=password
-GF_USERS_ALLOW_SIGN_UP=false
-```
+[PRE18]
 
 正如你所看到的，我们在这里设置了用户名和密码，因此将它们放在外部文件中意味着你可以在不编辑核心 Docker Compose 文件的情况下更改这些值。
 
 现在我们知道了这四个服务各自的角色，让我们启动它们。要做到这一点，只需从`prometheus`文件夹运行以下命令：
 
-```
-$ docker-compose pull
-$ docker-compose up -d 
-```
+[PRE19]
 
 这将创建一个网络和卷，并从 Docker Hub 拉取镜像。然后它将启动这四个服务：
 
@@ -428,9 +266,7 @@ $ docker-compose up -d
 
 你可能会立刻转到 Grafana 仪表板。如果你这样做，你将看不到任何东西，因为 Grafana 需要几分钟来初始化自己。你可以通过查看日志来跟踪它的进度：
 
-```
-$ docker-compose logs -f grafana
-```
+[PRE20]
 
 命令的输出如下：
 
@@ -464,9 +300,7 @@ $ docker-compose logs -f grafana
 
 一旦您完成了对 Prometheus 安装的探索，请不要忘记通过运行以下命令来删除它：
 
-```
-$ docker-compose down --volumes --rmi all
-```
+[PRE21]
 
 这将删除所有容器、卷、镜像和网络。
 
@@ -482,20 +316,11 @@ $ docker-compose down --volumes --rmi all
 
 您可以将 Docker 和 Heroku 结合使用的方法是在 Heroku 平台上创建您的应用程序，然后在您的代码中，您将有类似以下内容的东西：
 
-```
-{
- "name": “Application Name",
- "description": “Application to run code in a Docker container",
- "image": “<docker_image>:<tag>”,
- "addons": [ "heroku-postgresql" ]
-}
-```
+[PRE22]
 
 要退一步，我们首先需要安装插件才能使此功能正常工作。只需运行以下命令：
 
-```
-$ heroku plugins:install heroku-docker
-```
+[PRE23]
 
 现在，如果您想知道您可以或应该从 Docker Hub 使用哪个镜像，Heroku 维护了许多您可以在上述代码中使用的镜像：
 

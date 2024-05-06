@@ -60,25 +60,7 @@ NerdDinner 使用`Web.config`进行配置 - 既用于应用程序配置值（在
 
 为了迎接即将到来的更大变化，我已经更新了本章的代码，使用.NET Core 配置模型来设置所有环境配置，如下所示。之前的文件`appSettings.config`和`connectionStrings.config`已经迁移到新的 JSON 配置样式`appsettings.json`中：
 
-```
-{
-  "Homepage": {
-    "Url": "http://nerd-dinner-hompage"
-  },
-  "ConnectionStrings": {
-    "UsersContext": "Data Source=nerd-dinner-db...",
-    "NerdDinnerContext": "Data Source=nerd-dinner-db..."
-  },
-  "Apis": {    
-    "IpInfoDb": {
-      "Key": ""
-    },
-    "BingMaps": {
-      "Key": ""
-    }      
-  }
-}
-```
+[PRE0]
 
 JSON 格式更易于阅读，因为它包含嵌套对象，您可以将类似的设置分组在一起，我已经在`Apis`对象中这样做了。我可以通过访问当前配置对象的`Apis:BingMaps:Key`键在我的代码中获取 Bing Maps API 密钥。我仍然将配置文件存储在一个单独的目录中，所以我可以使用卷来覆盖整个文件，但我也设置了配置来使用环境变量。这意味着如果设置了一个名为`Apis:BingMaps:Key`的环境变量，那么该变量的值将覆盖 JSON 文件中的值。在我的代码中，我只需引用配置键，而在运行时，.NET Core 会从环境变量或配置文件中获取它。
 
@@ -86,10 +68,7 @@ JSON 格式更易于阅读，因为它包含嵌套对象，您可以将类似的
 
 为了使环境值更安全，Docker 允许您从文件中加载它们，而不是在`docker container run`命令中以纯文本指定它们。将值隔离在文件中意味着文件本身可以被保护，只有管理员和 Docker 服务帐户才能访问它。环境文件是一个简单的文本格式，每个环境变量写成键值对的一行。对于 web 容器，我的环境文件包含了秘密 API 密钥：
 
-```
-Apis:BingMaps:Key=[your-key-here]
-Apis:IpInfoDb:Key=[your-key-here]
-```
+[PRE1]
 
 要运行容器并将文件内容加载为环境变量，您可以使用`--env-file`选项。
 
@@ -99,12 +78,7 @@ Apis:IpInfoDb:Key=[your-key-here]
 
 NerdDinner 网站的新版本在 Docker 中运行的命令是：
 
-```
-docker container run -d -P `
- --name nerd-dinner-web `
- --env-file api-keys.env `
- dockeronwindows/ch05-nerd-dinner-web:2e
-```
+[PRE2]
 
 应用程序需要其他组件才能正确启动。我有一个 PowerShell 脚本，它以正确的顺序和选项启动容器，但到本章结束时，这个脚本将变得笨拙。在下一章中，当我研究 Docker Compose 时，我会解决这个问题。
 
@@ -120,12 +94,7 @@ docker container run -d -P `
 
 在模型项目中，`Dinner`类的原始定义被大量的 EF 和 MVC 代码污染，以捕获验证和存储行为，比如`Description`属性的以下定义：
 
-```
-[Required(ErrorMessage = "Description is required")]
-[StringLength(256, ErrorMessage = "Description may not be longer than 256 characters")]
-[DataType(DataType.MultilineText)]
-public string Description { get; set; }
-```
+[PRE3]
 
 这个类应该是一个简单的 POCO 定义，但是这些属性意味着模型定义不具有可移植性，因为任何消费者也需要引用 EF 和 MVC。为了避免这种情况，在消息项目中，我定义了一个简单的`Dinner`实体，没有任何这些属性，这个类是我用来在消息中发送晚餐信息的。我可以使用`AutoMapper` NuGet 包在`Dinner`类定义之间进行转换，因为属性基本上是相同的。
 
@@ -133,39 +102,13 @@ public string Description { get; set; }
 
 `DinnersController`类的`Create`方法中的主要代码现在将晚餐模型映射到干净的`Dinner`实体，并发布事件，而不是写入数据库：
 
-```
-if (ModelState.IsValid)
-{
-  dinner.HostedBy = User.Identity.Name;
-  var eventMessage = new DinnerCreatedEvent
-  {
-    Dinner = Mapper.Map<entities.Dinner>(dinner),
-    CreatedAt = DateTime.UtcNow
-  };
-  MessageQueue.Publish(eventMessage);
-  return RedirectToAction("Index");
-}
-```
+[PRE4]
 
 这是一种“发出即忘记”的消息模式。Web 应用程序是生产者，发布事件消息。生产者不等待响应，也不知道哪些组件 - 如果有的话 - 将消耗消息并对其进行操作。它松散耦合且快速，并且将传递消息的责任放在消息队列上，这正是应该的地方。
 
 监听此事件消息的是一个新的.NET Framework 控制台项目，位于`NerdDinner.MessageHandlers.CreateDinner`中。控制台应用程序的`Main`方法使用共享的消息项目打开与消息队列的连接，并订阅这些创建晚餐事件消息。当接收到消息时，处理程序将消息中的`Dinner`实体映射回晚餐模型，并使用从`DinnersController`类中原始实现中取出的代码将模型保存到数据库中（并进行了一些整理）：
 
-```
-var dinner = Mapper.Map<models.Dinner>(eventMessage.Dinner);
-using (var db = new NerdDinnerContext())
-{
-  dinner.RSVPs = new List<RSVP>
-  {
-    new RSVP
-    {
-      AttendeeName = dinner.HostedBy
-    }
-  };
-  db.Dinners.Add(dinner);
-  db.SaveChanges();
-}
-```
+[PRE5]
 
 现在，消息处理程序可以打包到自己的 Docker 镜像中，并在网站容器旁边的容器中运行。
 
@@ -177,13 +120,7 @@ using (var db = new NerdDinnerContext())
 
 构建者编译解决方案，控制台应用程序的 Dockerfile 引用`dockeronwindows/ch05-nerd-dinner-builder:2e`镜像以复制编译的二进制文件。整个 Dockerfile 非常简单：
 
-```
-# escape=` FROM mcr.microsoft.com/windows/servercore:ltsc2019 CMD ["NerdDinner.MessageHandlers.SaveDinner.exe"]
-
-WORKDIR C:\save-handler
-COPY --from=dockeronwindows/ch05-nerd-dinner-builder:2e `
-     C:\src\NerdDinner.MessageHandlers.SaveDinner\obj\Release\ . 
-```
+[PRE6]
 
 `COPY`指令中的`from`参数指定文件的来源。它可以是多阶段构建中的另一个阶段，或者—就像在这个例子中—本地机器或注册表中的现有镜像。
 
@@ -193,18 +130,7 @@ COPY --from=dockeronwindows/ch05-nerd-dinner-builder:2e `
 
 使用`ManualResetEvent`对象可以简单地使控制台应用程序无限期地保持运行。在`Main`方法中，我等待一个永远不会发生的重置事件，因此程序会继续运行：
 
-```
-class Program
-{
-  private static ManualResetEvent _ResetEvent = new ManualResetEvent(false);
-
-  static void Main(string[] args)
-  {
-    // set up message listener
-    _ResetEvent.WaitOne();
-  }
-}
-```
+[PRE7]
 
 这是保持.NET Framework 或.NET Core 控制台应用程序保持活动状态的一种简单有效的方法。当我启动一个消息处理程序容器时，它将在后台保持运行并监听消息，直到容器停止。
 
@@ -220,23 +146,11 @@ NATS 消息传递的高吞吐量和低延迟使其成为在容器之间通信的
 
 您可以像运行其他容器一样运行 NATS 消息队列。Docker 镜像公开了端口`4222`，这是客户端用来连接队列的端口，但除非您想要在 Docker 容器外部发送消息到 NATS，否则您不需要发布该端口。同一网络中的容器始终可以访问彼此的端口，它们只需要被发布以使它们在 Docker 外部可用。NerdDinner Web 应用程序和消息处理程序正在使用服务器名称`message-queue`来连接 NATS，因此需要使用该容器名称：
 
-```
-docker container run --detach `
- --name message-queue `
- dockeronwindows/ch05-nats:2e
-```
+[PRE8]
 
 NATS 服务器应用程序将消息记录到控制台，以便 Docker 收集日志条目。当容器正在运行时，您可以使用`docker container logs`来验证队列是否正在监听：
 
-```
-> docker container logs message-queue
-[7996] 2019/02/09 15:40:05.857320 [INF] Starting nats-server version 1.4.1
-[7996] 2019/02/09 15:40:05.858318 [INF] Git commit [3e64f0b]
-[7996] 2019/02/09 15:40:05.859317 [INF] Starting http monitor on 0.0.0.0:8222
-[7996] 2019/02/09 15:40:05.859317 [INF] Listening for client connections on 0.0.0.0:4222
-[7996] 2019/02/09 15:40:05.859317 [INF] Server is ready
-[7996] 2019/02/09 15:40:05.948151 [INF] Listening for route connections on 0.0.0.0:6222
-```
+[PRE9]
 
 消息队列是一个基础架构级组件，不依赖于其他组件。它可以在其他容器之前启动，并且在应用程序容器停止或升级时保持运行。
 
@@ -248,23 +162,7 @@ NerdDinner 现在跨越了五个容器运行 - SQL Server，原始 Web 应用程
 
 在下一章中，我将使用 Docker Compose 来声明性地映射这些依赖关系。目前，我有一个名为`ch05-run-nerd-dinner_part-1.ps1`的 PowerShell 脚本，它明确地使用正确的配置启动容器：
 
-```
-docker container run -d `
-  --name message-queue `
- dockeronwindows/ch05-nats:2e;
-
-docker container run -d -p 1433  `
-  --name nerd-dinner-db `
-  -v C:\databases\nd:C:\data  `
- dockeronwindows/ch03-nerd-dinner-db:2e; docker container run -d `
-  --name nerd-dinner-save-handler  `
- dockeronwindows/ch05-nerd-dinner-save-handler:2e; docker container run -d `
-  --name nerd-dinner-homepage `
- dockeronwindows/ch03-nerd-dinner-homepage:2e; docker container run -d -p 80  `
-  --name nerd-dinner-web `
-  --env-file api-keys.env `
- dockeronwindows/ch05-nerd-dinner-web:2e;
-```
+[PRE10]
 
 在这个脚本中，我正在使用第三章中的 SQL 数据库和主页图像，*开发 Docker 化的.NET Framework 和.NET Core 应用程序*——这些组件没有改变，所以它们可以与新组件一起运行。如果您想要自己运行具有完整功能的应用程序，您需要在文件`api-keys.env`中填写自己的 API 密钥。您需要注册 Bing Maps API 和 IP 信息数据库。您可以在没有这些密钥的情况下运行应用程序，但不是所有功能都会正常工作。
 
@@ -274,15 +172,7 @@ docker container run -d -p 1433  `
 
 当我提交表单时，Web 应用程序会向队列发布事件消息。这是一个非常廉价的操作，所以 Web 应用程序几乎立即返回给用户。控制台应用程序在监听消息，它运行在不同的容器中——可能在不同的主机上。它接收消息并处理它。处理程序将活动记录到控制台，以便管理员用户可以使用`docker container logs`来监视它：
 
-```
-> docker container logs nerd-dinner-save-handler
-
-Connecting to message queue url: nats://message-queue:4222
-Listening on subject: events.dinner.created, queue: save-dinner-handler
-Received message, subject: events.dinner.created
-Saving new dinner, created at: 2/10/2019 8:22:16 PM; event ID: a6340c95-3629-4c0c-9a11-8a0bce8e6d91
-Dinner saved. Dinner ID: 1; event ID: a6340c95-3629-4c0c-9a11-8a0bce8e6d91
-```
+[PRE11]
 
 创建晚餐功能的功能是相同的——用户输入的数据保存到 SQL Server——用户体验也是相同的，但是这个功能的可扩展性得到了极大的改善。为容器设计让我可以将持久性代码提取到一个新的组件中，知道该组件可以部署在与现有解决方案相同的基础设施上，并且如果应用程序部署在集群上，它将继承现有的可扩展性和故障转移级别。
 
@@ -306,15 +196,7 @@ NerdDinner 的主要数据集是晚餐列表，我已经构建了一个 ASP.NET 
 
 我选择使用 Dapper，它是一个为.NET Standard 构建的快速直观的对象关系映射器，因此它可以与.NET Framework 和.NET Core 应用程序一起使用。Dapper 使用基于约定的映射；你提供一个 SQL 语句和一个目标类类型，它执行数据库查询并将结果映射到对象。从现有表中加载晚餐数据并将其映射到共享的`Dinner`对象的代码非常简单。
 
-```
-protected  override  string  GetAllSqlQuery  =>  "SELECT *, Location.Lat as Latitude... FROM Dinners"; public  override  IEnumerable<Dinner> GetAll()
-{ _logger.LogDebug("GetAll - executing SQL query: '{0}'", GetAllSqlQuery); using (IDbConnection  dbConnection  =  Connection)
-  { dbConnection.Open(); return  dbConnection.Query<Dinner, Coordinates, Dinner>( GetAllSqlQuery, 
-      (dinner,coordinates) => { dinner.Coordinates  =  coordinates; return  dinner;
-      }, splitOn: "LocationId");
-   }
-}
-```
+[PRE12]
 
 在 API 控制器类中调用了`GetAll`方法，其余的代码是通常的 ASP.NET Core 设置。
 
@@ -322,17 +204,7 @@ Dapper 通常比这个例子更容易使用，但当你需要时它可以让你�
 
 我已经修改了原始的 NerdDinner web 应用程序，使其在`DinnersController`类中获取晚餐列表时使用这个新的 API。我通过配置设置`DinnerApi:Enabled`使用了一个功能标志，这样应用程序可以使用 API 作为数据源，或直接从数据库查询。这让我可以分阶段地推出这个功能：
 
-```
-if (bool.Parse(Config.Current["DinnerApi:Enabled"]))
-{
-  var  client  =  new  RestClient(Config.Current["DinnerApi:Url"]);
-  var  request  =  new  RestRequest("dinners");
-  var  response  =  client.Execute<List<Dinner>>(request);
-  var  dinners  =  response.Data.Where(d  =>  d.EventDate  >=  DateTime.Now).OrderBy(d  =>  d.EventDate);
-  return  View(dinners.ToPagedList(pageIndex, PageSize)); } else {
-  var  dinners  =  db.Dinners.Where(d  =>  d.EventDate  >=  DateTime.Now).OrderBy(d  =>  d.EventDate);
-  return  View(dinners.ToPagedList(pageIndex, PageSize)); }
-```
+[PRE13]
 
 新的 API 被打包到名为`dockeronwindows/ch05-nerd-dinner-api`的 Docker 镜像中。这个 Dockerfile 非常简单；它只是从名为`microsoft/dotnet:2.1-aspnetcore-runtime-nanoserver-1809`的官方 ASP.NET Core 基础镜像开始，并复制编译后的 API 代码进去。
 
@@ -358,12 +230,7 @@ if (bool.Parse(Config.Current["DinnerApi:Enabled"]))
 
 Traefik 是一个快速、强大且易于使用的反向代理。您可以在一个容器中运行它，并发布 HTTP（或 HTTPS）端口，并配置容器以侦听来自 Docker Engine API 的事件：
 
-```
-docker container run -d -P  `
-  --volume \\.\pipe\docker_engine:\\.\pipe\docker_engine `
- sixeyed/traefik:v1.7.8-windowsservercore-ltsc2019 `
-  --docker --docker.endpoint=npipe:////./pipe/docker_engine
-```
+[PRE14]
 
 Traefik 是 Docker Hub 上的官方镜像，但与 NATS 一样，唯一可用的 Windows 镜像是基于 Windows Server 2016 的。我在这里使用自己的镜像，基于 Windows Server 2019。Dockerfile 在我的 GitHub 上的`sixeyed/dockerfiles-windows`存储库中，但在使用我的镜像之前，您应该检查 Docker Hub，看看官方 Traefik 镜像是否有 2019 变体。
 
@@ -373,11 +240,7 @@ Traefik 通过命名管道连接订阅来自 Docker API 的事件流，使用`do
 
 当您运行 Traefik 时，您可以使用标签创建应用程序容器，告诉 Traefik 应该将哪些请求路由到哪些容器。标签只是在创建容器时可以应用的键值对。它们会在来自 Docker 的事件流中显示。Traefik 使用带有前缀`traefik.frontend`的标签来构建其路由规则。这就是我如何通过 Traefik 运行具有路由的 API 容器：
 
-```
-docker container run -d `
-  --name nerd-dinner-api `
-  -l "traefik.frontend.rule=Host:api.nerddinner.local"  `  dockeronwindows/ch05-nerd-dinner-api:2e;
-```
+[PRE15]
 
 Docker 创建名为`nerd-dinner-api`的容器，然后发布一个包含新容器详细信息的事件。Traefik 接收到该事件后，会在其路由映射中添加一条规则。任何进入 Traefik 的带有 HTTP `Host` 头部`api.nerddinner.local`的请求都将从 API 容器中进行代理。API 容器不会发布任何端口 - 反向代理是唯一可公开访问的组件。
 
@@ -385,37 +248,15 @@ Traefik 具有非常丰富的路由规则集，可以使用 HTTP 请求的不同
 
 使用类似的规则，我可以部署 NerdDinner 的新版本，并让所有前端容器都由 Traefik 进行代理。脚本`ch05-run-nerd-dinner_part-2.ps1`是一个升级版本，首先删除现有的 web 容器：
 
-```
-docker container rm -f nerd-dinner-homepage docker container rm -f nerd-dinner-web
-```
+[PRE16]
 
 标签和环境变量在容器创建时被应用，并在容器的生命周期内持续存在。您无法更改现有容器上的这些值；您需要将其删除并创建一个新的容器。我想要为 Traefik 运行 NerdDinner 网站和主页容器，并为其添加标签，因此我需要替换现有的容器。脚本的其余部分启动 Traefik，用新配置替换 web 容器，并启动 API 容器：
 
-```
-docker container run -d -p 80:80  `
-  -v \\.\pipe\docker_engine:\\.\pipe\docker_engine `
- sixeyed/traefik:v1.7.8-windowsservercore-ltsc2019 `
-  --api --docker --docker.endpoint=npipe:////./pipe/docker_engine  docker container run -d `
-  --name nerd-dinner-homepage ` -l "traefik.frontend.rule=Path:/,/css/site.css"  `   -l "traefik.frontend.priority=10"  `
- dockeronwindows/ch03-nerd-dinner-homepage:2e;
-
-docker container run -d `
-  --name nerd-dinner-web `
-  --env-file api-keys.env `
-  -l "traefik.frontend.rule=PathPrefix:/"  `
-  -l "traefik.frontend.priority=1"  `   -e "DinnerApi:Enabled=true"  `
- dockeronwindows/ch05-nerd-dinner-web:2e; docker container run -d `
-  --name nerd-dinner-api ` -l "traefik.frontend.rule=PathPrefix:/api"  `
-  -l "traefik.frontend.priority=5"  `
- dockeronwindows/ch05-nerd-dinner-api:2e;
-```
+[PRE17]
 
 现在当我加载 NerdDinner 网站时，我将浏览到端口`80`上的 Traefik 容器。我正在使用`Host`头路由规则，所以我会在浏览器中输入`http://nerddinner.local`。这是一个本地开发环境，所以我已经将这些值添加到了我的`hosts`文件中（在测试和生产环境中，将有一个真正的 DNS 系统解析主机名）：
 
-```
-127.0.0.1  nerddinner.local
-127.0.0.1  api.nerddinner.local
-```
+[PRE18]
 
 对于路径`/`的主页请求是从主页容器代理的，并且我还为 CSS 文件指定了一个路由路径，这样我就可以看到包含样式的新主页：
 
@@ -467,11 +308,7 @@ Elasticsearch 中的数据以 JSON 文档的形式存储，每个文档都可以
 
 Docker Hub 上有一个官方的 Elasticsearch 镜像，但目前只有 Linux 变体。我在 Docker Hub 上有自己的镜像，将 Elasticsearch 打包成了一个 Windows Server 2019 的 Docker 镜像。在 Docker 中运行 Elasticsearch 与启动任何容器是一样的。这个命令暴露了端口`9200`，这是 REST API 的默认端口。
 
-```
- docker container run -d -p 9200 `
- --name elasticsearch ` --env ES_JAVA_OPTS='-Xms512m -Xmx512m' `
- sixeyed/elasticsearch:5.6.11-windowsservercore-ltsc2019
-```
+[PRE19]
 
 Elasticsearch 是一个占用内存很多的应用程序，默认情况下在启动时会分配 2GB 的系统内存。在开发环境中，我不需要那么多的内存来运行数据库。我可以通过设置`ES_JAVA_OPTS`环境变量来配置这个。在这个命令中，我将 Elasticsearch 限制在 512MB 的内存中。
 
@@ -481,13 +318,7 @@ Elasticsearch 是一个跨平台的应用程序，就像 NATS 一样。Windows �
 
 连接到消息队列并订阅消息的代码与现有消息处理程序相同。我有一个新的`Dinner`类，它代表 Elasticsearch 文档，因此消息处理程序代码将`Dinner`实体映射到 dinner 文档并将其保存在 Elasticsearch 中：
 
-```
-var eventMessage = MessageHelper.FromData<DinnerCreatedEvent>(e.Message.Data);
-var dinner = Mapper.Map<documents.Dinner>(eventMessage.Dinner);
-var  node  =  new  Uri(Config.Current["Elasticsearch:Url"]);
-var client = new ElasticClient(node);
-client.Index(dinner, idx => idx.Index("dinners"));
-```
+[PRE20]
 
 Elasticsearch 将在一个容器中运行，新的文档消息处理程序将在一个容器中运行，都在与 NerdDinner 解决方案的其余部分相同的 Docker 网络中。我可以在现有解决方案运行时启动新的容器，因为 Web 应用程序或 SQL Server 消息处理程序没有任何更改。使用 Docker 添加这个新功能是零停机部署。
 
@@ -515,17 +346,11 @@ Elasticsearch 消息处理程序不依赖于 EF 或任何旧代码，就像新�
 
 构建解决方案所需的所有工具都在 Microsoft 的 SDK 中，因此`dockeronwindows/ch05-nerd-dinner-builder:2e`的 Dockerfile 很简单。它从 SDK 开始，复制解决方案的源树，并还原依赖项：
 
-```
-# escape=` FROM microsoft/dotnet-framework:4.7.2-sdk-windowsservercore-ltsc2019 AS builder WORKDIR C:\src COPY src . RUN nuget restore
-```
+[PRE21]
 
 这会为 NerdDinner 解决方案文件运行`nuget restore`。这将为所有项目还原所有.NET Framework、.NET Standard 和.NET Core 引用。最后一条指令构建每个应用程序项目，指定项目文件和它们各自的单独输出路径：
 
-```
-RUN msbuild ...\NerdDinner.csproj /p:OutputPath=c:\nerd-dinner-web; ` msbuild ...\NerdDinner.MessageHandlers.SaveDinner.csproj /p:OutputPath=c:\save-handler; `
-    dotnet publish -o C:\index-handler ...\NerdDinner.MessageHandlers.IndexDinner.csproj; `
-    dotnet publish -o C:\dinner-api ...\NerdDinner.DinnerApi.csproj
-```
+[PRE22]
 
 你可以只运行`msbuild`来处理整个解决方案文件，但这只会生成已编译的二进制文件，而不是完全发布的目录。这种方法意味着每个应用程序都已经准备好进行打包发布，并且输出位于构建图像中的已知位置。这也意味着整个应用程序是从相同的源代码集编译的，因此您将发现应用程序之间的依赖关系中的任何破坏问题。
 
@@ -537,11 +362,7 @@ RUN msbuild ...\NerdDinner.csproj /p:OutputPath=c:\nerd-dinner-web; ` msbuild ..
 
 关于构建此映像的方式有一个不同之处。Dockerfile 复制了`src`文件夹，该文件夹比 Dockerfile 所在的文件夹高一级。为了确保`src`文件夹包含在 Docker 上下文中，我需要从`ch05`文件夹运行`build image`命令，并使用`--file`选项指定 Dockerfile 的路径：
 
-```
-docker image build `
- --tag dockeronwindows/ch05-nerd-dinner-builder `
- --file ch05-nerd-dinner-builder\Dockerfile .
-```
+[PRE23]
 
 构建映像会编译和打包所有项目，因此我可以将该映像用作应用程序 Dockerfiles 中发布输出的源。我只需要构建构建器一次，然后就可以用它来构建所有其他映像。
 
@@ -551,15 +372,11 @@ docker image build `
 
 REST API 的 Dockerfile `dockeronwindows/ch05-nerd-dinner-api:2e`非常简单：它只是设置容器环境，然后从构建图像中复制发布的应用程序：
 
-```
-# escape=` FROM microsoft/dotnet:2.1-aspnetcore-runtime-nanoserver-1809 EXPOSE 80 WORKDIR /dinner-api ENTRYPOINT ["dotnet", "NerdDinner.DinnerApi.dll"] COPY --from=dockeronwindows/ch05-nerd-dinner-builder:2e C:\dinner-api .
-```
+[PRE24]
 
 消息处理程序的 Dockerfile `dockeronwindows/ch05-nerd-dinner-index-handler:2e`更简单——这是一个.NET Core 控制台应用程序，因此不需要暴露端口：
 
-```
-# escape=` FROM microsoft/dotnet:2.1-runtime-nanoserver-1809 CMD ["dotnet", "NerdDinner.MessageHandlers.IndexDinner.dll"] WORKDIR /index-handler COPY --from=dockeronwindows/ch05-nerd-dinner-builder:2e C:\index-handler .
-```
+[PRE25]
 
 内容与用于 SQL Server 消息处理程序的.NET Framework 控制台应用程序非常相似。不同之处在于`FROM`图像；在这里，我使用.NET Core 运行时图像和`CMD`指令，这里运行控制台应用程序 DLL 的是`dotnet`命令。两个消息处理程序都使用构建图像作为复制编译应用程序的来源，然后设置它们需要的环境变量和启动命令。
 
@@ -577,36 +394,13 @@ Kibana 的最新版本是一个 Node.js 应用程序，因此像 Elasticsearch �
 
 在本章的源代码目录中，有第二个 PowerShell 脚本，用于部署此功能的容器。名为`ch05-run-nerd-dinner_part-3.ps1`的脚本启动了额外的 Elasticsearch、Kibana 和索引处理器容器，并假定其他组件已经从 part-1 和 part-2 脚本中运行：
 
-```
- docker container run -d `
-  --name elasticsearch `
-  --env ES_JAVA_OPTS='-Xms512m -Xmx512m'  `
- sixeyed/elasticsearch:5.6.11-windowsservercore-ltsc2019; docker container run -d `
-  --name kibana `
-  -l "traefik.frontend.rule=Host:kibana.nerddinner.local"  `
- sixeyed/kibana:5.6.11-windowsservercore-ltsc2019; docker container run -d `
-  --name nerd-dinner-index-handler `
- dockeronwindows/ch05-nerd-dinner-index-handler:2e; 
-```
+[PRE26]
 
 Kibana 容器带有 Traefik 的前端规则。默认情况下，Kibana 监听端口`5601`，但在我的设置中，我将能够在端口`80`上使用`kibana.nerddinner.local`域名访问它，我已经将其添加到我的`hosts`文件中，Traefik 将代理 UI。
 
 整个堆栈现在正在运行。当我添加一个新的晚餐时，我将看到来自消息处理器容器的日志，显示数据现在正在保存到 Elasticsearch，以及 SQL Server：
 
-```
-> docker container logs nerd-dinner-save-handler
-Connecting to message queue url: nats://message-queue:4222
-Listening on subject: events.dinner.created, queue: save-dinner-handler
-Received message, subject: events.dinner.created
-Saving new dinner, created at: 2/11/2019 10:18:32 PM; event ID: 9919cd1e-2b0b-41c7-8019-b2243e81a412
-Dinner saved. Dinner ID: 2; event ID: 9919cd1e-2b0b-41c7-8019-b2243e81a412
-
-> docker container logs nerd-dinner-index-handler
-Connecting to message queue url: nats://message-queue:4222
-Listening on subject: events.dinner.created, queue: index-dinner-handler
-Received message, subject: events.dinner.created
-Indexing new dinner, created at: 2/11/2019 10:18:32 PM; event ID: 9919cd1e-2b0b-41c7-8019-b2243e81a412
-```
+[PRE27]
 
 Kibana 由 Traefik 代理，所以我只需要浏览到`kibana.nerddinner.local`。启动屏幕唯一需要的配置是文档集合的名称，Elasticsearch 称之为索引。在这种情况下，索引被称为**dinners**。我已经使用消息处理器添加了一个文档，以便 Kibana 可以访问 Elasticsearch 元数据以确定文档中的字段：
 

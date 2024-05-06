@@ -84,34 +84,19 @@ Ansible 使用 SSH 协议进行通信，对其管理的机器没有特殊要求�
 
 安装说明因操作系统而异。在 Ubuntu 的情况下，只需运行以下命令即可：
 
-```
-$ sudo apt-get install software-properties-common
-$ sudo apt-add-repository ppa:ansible/ansible
-$ sudo apt-get update
-$ sudo apt-get install ansible
-```
+[PRE0]
 
 您可以在官方 Ansible 页面上找到所有操作系统的安装指南：[`docs.ansible.com/ansible/intro_installation.html`](http://docs.ansible.com/ansible/intro_installation.html)。
 
 安装过程完成后，我们可以执行 Ansible 命令来检查是否一切都安装成功。
 
-```
-$ ansible --version
-ansible 2.3.2.0
-    config file = /etc/ansible/ansible.cfg
-    configured module search path = Default w/o overrides
-```
+[PRE1]
 
 # 基于 Docker 的 Ansible 客户端
 
 还可以将 Ansible 用作 Docker 容器。我们可以通过运行以下命令来实现：
 
-```
-$ docker run williamyeh/ansible:ubuntu14.04
-ansible-playbook 2.3.2.0
- config file = /etc/ansible/ansible.cfg
- configured module search path = Default w/o overrides
-```
+[PRE2]
 
 Ansible Docker 镜像不再得到官方支持，因此唯一的解决方案是使用社区驱动的版本。您可以在 Docker Hub 页面上阅读更多关于其用法的信息。
 
@@ -127,30 +112,17 @@ SSH 密钥可以使用`ssh-keygen`工具生成，并通常存储在`~/.ssh`目�
 
 清单是在`/etc/ansible/hosts`文件中定义的，它具有以下结构：
 
-```
-[group_name]
-<server1_address>
-<server2_address>
-...
-```
+[PRE3]
 
 清单语法还接受服务器范围，例如`www[01-22].company.com`。如果 SSH 端口不是默认的 22 端口，还应该指定。您可以在官方 Ansible 页面上阅读更多信息：[`docs.ansible.com/ansible/intro_inventory.html`](http://docs.ansible.com/ansible/intro_inventory.html)。
 
 清单文件中可能有 0 个或多个组。例如，让我们在一个服务器组中定义两台机器。
 
-```
-[webservers]
-192.168.0.241
-192.168.0.242
-```
+[PRE4]
 
 我们还可以创建带有服务器别名的配置，并指定远程用户：
 
-```
-[webservers]
-web1 ansible_host=192.168.0.241 ansible_user=admin
-web2 ansible_host=192.168.0.242 ansible_user=admin
-```
+[PRE5]
 
 前面的文件定义了一个名为`webservers`的组，其中包括两台服务器。Ansible 客户端将作为用户`admin`登录到它们两台。当我们创建了清单后，让我们发现如何使用它来在许多服务器上执行相同的命令。
 
@@ -160,17 +132,7 @@ Ansible 提供了从云提供商（例如 Amazon EC2/Eucalyptus）、LDAP 或 Co
 
 我们可以运行的最简单的命令是对所有服务器进行 ping 测试。
 
-```
-$ ansible all -m ping
-web1 | SUCCESS => {
- "changed": false,
- "ping": "pong"
-}
-web2 | SUCCESS => {
- "changed": false,
- "ping": "pong"
-}
-```
+[PRE6]
 
 我们使用了`-m <module_name>`选项，允许指定应在远程主机上执行的模块。结果是成功的，这意味着服务器是可达的，并且身份验证已正确配置。
 
@@ -178,11 +140,7 @@ web2 | SUCCESS => {
 
 请注意，我们使用了`all`，以便可以处理所有服务器，但我们也可以通过组名`webservers`或单个主机别名来调用它们。作为第二个例子，让我们只在其中一个服务器上执行一个 shell 命令。
 
-```
-$ ansible web1 -a "/bin/echo hello"
-web1 | SUCCESS | rc=0 >>
-hello
-```
+[PRE7]
 
 `-a <arguments>`选项指定传递给 Ansible 模块的参数。在这种情况下，我们没有指定模块，因此参数将作为 shell Unix 命令执行。结果是成功的，并且打印了`hello`。
 
@@ -190,9 +148,7 @@ hello
 
 在其简单形式中，Ansible 临时命令的语法如下：
 
-```
-ansible <target> -m <module_name> -a <module_arguments>
-```
+[PRE8]
 
 临时命令的目的是在不必重复时快速执行某些操作。例如，我们可能想要检查服务器是否存活，或者在圣诞假期关闭所有机器。这种机制可以被视为在一组机器上执行命令，并由模块提供的附加语法简化。然而，Ansible 自动化的真正力量在于 playbooks。
 
@@ -204,17 +160,7 @@ Ansible playbook 是一个配置文件，描述了服务器应该如何配置。
 
 一个 playbook 由一个或多个 plays 组成。每个 play 包含一个主机组名称，要执行的任务以及配置细节（例如，远程用户名或访问权限）。一个示例 playbook 可能如下所示：
 
-```
----
-- hosts: web1
-  become: yes
-  become_method: sudo
-  tasks:
-  - name: ensure apache is at the latest version
-    apt: name=apache2 state=latest
-  - name: ensure apache is running
-    service: name=apache2 state=started enabled=yes
-```
+[PRE9]
 
 此配置包含一个 play，其中：
 
@@ -238,24 +184,7 @@ Ansible playbook 是一个配置文件，描述了服务器应该如何配置。
 
 当定义了 playbook.yml 时，我们可以使用`ansible-playbook`命令来执行它。
 
-```
-$ ansible-playbook playbook.yml
-
-PLAY [web1] ***************************************************************
-
-TASK [setup] **************************************************************
-ok: [web1]
-
-TASK [ensure apache is at the latest version] *****************************
-changed: [web1]
-
-TASK [ensure apache is running] *******************************************
-
-ok: [web1]
-
-PLAY RECAP ****************************************************************
-web1: ok=3 changed=1 unreachable=0 failed=0   
-```
+[PRE10]
 
 如果服务器需要输入`sudo`命令的密码，那么我们需要在`ansible-playbook`命令中添加`--ask-sudo-pass`选项。也可以通过设置额外变量`-e ansible_become_pass=<sudo_password>`来传递`sudo`密码（如果需要）。
 
@@ -267,23 +196,7 @@ web1: ok=3 changed=1 unreachable=0 failed=0
 
 我们可以再次执行命令。
 
-```
-$ ansible-playbook playbook.yml
-
-PLAY [web1] ***************************************************************
-
-TASK [setup] **************************************************************
-ok: [web1]
-
-TASK [ensure apache is at the latest version] *****************************
-ok: [web1]
-
-TASK [ensure apache is running] *******************************************
-ok: [web1]
-
-PLAY RECAP ****************************************************************
-web1: ok=3 changed=0 unreachable=0 failed=0
-```
+[PRE11]
 
 请注意输出略有不同。这次命令没有在服务器上做任何改变。这是因为每个 Ansible 模块都设计为幂等的。换句话说，按顺序多次执行相同的模块应该与仅执行一次相同。
 
@@ -305,57 +218,17 @@ Ansible 提供了一种基于事件的机制来通知变化。为了使用它，
 
 让我们看一个例子，我们如何将配置复制到服务器并且仅在配置更改时重新启动 Apache。
 
-```
-tasks:
-- name: copy configuration
-  copy:
-    src: foo.conf
-    dest: /etc/foo.conf
-  notify:
-  - restart apache
-handlers:
-- name: restart apache
-  service:
-    name: apache2
-    state: restarted
-```
+[PRE12]
 
 现在，我们可以创建`foo.conf`文件并运行`ansible-playbook`命令。
 
-```
-$ touch foo.conf
-$ ansible-playbook playbook.yml
-
-...
-TASK [copy configuration] ************************************************
-changed: [web1]
-
-RUNNING HANDLER [restart apache] *****************************************
-changed: [web1]
-
-PLAY RECAP ***************************************************************
-web1: ok=5 changed=2 unreachable=0 failed=0   
-```
+[PRE13]
 
 处理程序始终在 play 结束时执行，只执行一次，即使由多个任务触发。
 
 Ansible 复制了文件并重新启动了 Apache 服务器。重要的是要理解，如果我们再次运行命令，将不会发生任何事情。但是，如果我们更改`foo.conf`文件的内容，然后运行`ansible-playbook`命令，文件将再次被复制（并且 Apache 服务器将被重新启动）。
 
-```
-$ echo "something" > foo.conf
-$ ansible-playbook playbook.yml
-
-...
-
-TASK [copy configuration] *************************************************
-changed: [web1]
-
-RUNNING HANDLER [restart apache] ******************************************
-changed: [web1]
-
-PLAY RECAP ****************************************************************
-web1: ok=5 changed=2 unreachable=0 failed=0   
-```
+[PRE14]
 
 我们使用了`copy`模块，它足够智能，可以检测文件是否已更改，然后在这种情况下在服务器上进行更改。
 
@@ -367,63 +240,27 @@ Ansible 中还有一个发布-订阅机制。使用它意味着将一个主题�
 
 例如，考虑应用程序端口号。它可能因机器而异。幸运的是，Ansible 提供了变量，这是一个处理服务器差异的良好机制。让我们创建一个新的 playbook 并定义一个变量。
 
-```
----
-- hosts: web1
-  vars:
-    http_port: 8080
-```
+[PRE15]
 
 配置定义了`http_port`变量的值为`8080`。现在，我们可以使用 Jinja2 语法来使用它。
 
-```
-tasks:
-- name: print port number
-  debug:
-    msg: "Port number: {{http_port}}"
-```
+[PRE16]
 
 Jinja2 语言不仅允许获取变量，还可以用它来创建条件、循环等。您可以在 Jinja 页面上找到更多详细信息：[`jinja.pocoo.org/`](http://jinja.pocoo.org/)。
 
 `debug`模块在执行时打印消息。如果我们运行`ansible-playbook`命令，就可以看到变量的使用情况。
 
-```
-$ ansible-playbook playbook.yml
-
-...
-
-TASK [print port number] **************************************************
-ok: [web1] => {
- "msg": "Port number: 8080"
-}  
-```
+[PRE17]
 
 变量也可以在清单文件中的`[group_name:vars]`部分中定义。您可以在以下网址了解更多信息：[`docs.ansible.com/ansible/intro_inventory.html#host-variables`](http://docs.ansible.com/ansible/intro_inventory.html#host-variables)。
 
 除了用户定义的变量，还有预定义的自动变量。例如，`hostvars`变量存储了有关清单中所有主机信息的映射。使用 Jinja2 语法，我们可以迭代并打印清单中所有主机的 IP 地址。
 
-```
----
-- hosts: web1
-  tasks:
-  - name: print IP address
-    debug:
-      msg: "{% for host in groups['all'] %} {{
-              hostvars[host]['ansible_host'] }} {% endfor %}"
-```
+[PRE18]
 
 然后，我们可以执行`ansible-playbook`命令。
 
-```
-$ ansible-playbook playbook.yml
-
-...
-
-TASK [print IP address] **************************************************
-ok: [web1] => {
- "msg": " 192.168.0.241  192.168.0.242 "
-}
-```
+[PRE19]
 
 请注意，使用 Jinja2 语言，我们可以在 Ansible 剧本文件中指定流程控制操作。
 
@@ -437,30 +274,13 @@ ok: [web1] => {
 
 Ansible 角色是一个精心构建的剧本部分，准备包含在剧本中。角色是独立的单元，始终具有以下目录结构：
 
-```
-templates/
-tasks/
-handlers/
-vars/
-defaults/
-meta/
-```
+[PRE20]
 
 您可以在官方 Ansible 页面上阅读有关角色及每个目录含义的更多信息：[`docs.ansible.com/ansible/playbooks_roles.html`](http://docs.ansible.com/ansible/playbooks_roles.html)。
 
 在每个目录中，我们可以定义`main.yml`文件，其中包含可以包含在`playbook.yml`文件中的剧本部分。继续 MySQL 案例，GitHub 上定义了一个角色：[`github.com/geerlingguy/ansible-role-mysql`](https://github.com/geerlingguy/ansible-role-mysql)。该存储库包含可以在我们的 playbook 中使用的任务模板。让我们看一下`tasks/main.yml`文件的一部分，它安装`mysql`包。
 
-```
-...
-- name: Ensure MySQL Python libraries are installed.
-  apt: "name=python-mysqldb state=installed"
-
-- name: Ensure MySQL packages are installed.
-  apt: "name={{ item }} state=installed"
-  with_items: "{{ mysql_packages }}"
-  register: deb_mysql_install_packages
-...
-```
+[PRE21]
 
 这只是在`tasks/main.yml`文件中定义的任务之一。其他任务负责 MySQL 配置。
 
@@ -468,15 +288,7 @@ meta/
 
 如果我们使用这个角色，那么为了在服务器上安装 MySQL，只需创建以下 playbook.yml：
 
-```
----
-- hosts: all
-  become: yes
-  become_method: sudo
-  roles:
-  - role: geerlingguy.mysql
-    become: yes
-```
+[PRE22]
 
 这样的配置使用`geerlingguy.mysql`角色将 MySQL 数据库安装到所有服务器上。
 
@@ -486,15 +298,11 @@ Ansible Galaxy 是 Ansible 的角色库，就像 Docker Hub 是 Docker 的角色
 
 要从 Ansible Galaxy 安装角色，我们可以使用`ansible-galaxy`命令。
 
-```
-$ ansible-galaxy install username.role_name
-```
+[PRE23]
 
 此命令会自动下载角色。在 MySQL 示例中，我们可以通过执行以下命令下载角色：
 
-```
-$ ansible-galaxy install geerlingguy.mysql
-```
+[PRE24]
 
 该命令下载`mysql`角色，可以在 playbook 文件中后续使用。
 
@@ -508,42 +316,13 @@ $ ansible-galaxy install geerlingguy.mysql
 
 我们可以在新的 playbook 中指定一个 play。让我们创建`playbook.yml`文件，内容如下：
 
-```
----
-- hosts: web1
-  become: yes
-  become_method: sudo
-  tasks:
-  - name: install Redis
-    apt:
-      name: redis-server
-      state: present
-  - name: start Redis
-    service:
-      name: redis-server
-      state: started
-  - name: copy Redis configuration
-    copy:
-      src: redis.conf
-      dest: /etc/redis/redis.conf
-    notify: restart Redis
-  handlers:
-  - name: restart Redis
-    service:
-      name: redis-server
-      state: restarted
-```
+[PRE25]
 
 该配置在一个名为`web1`的服务器上执行。它安装`redis-server`包，复制 Redis 配置，并启动 Redis。请注意，每次更改`redis.conf`文件的内容并重新运行`ansible-playbook`命令时，配置都会更新到服务器上，并且 Redis 服务会重新启动。
 
 我们还需要创建`redis.conf`文件，内容如下：
 
-```
-daemonize yes
-pidfile /var/run/redis/redis-server.pid
-port 6379
-bind 0.0.0.0
-```
+[PRE26]
 
 此配置将 Redis 作为守护程序运行，并将其暴露给端口号为 6379 的所有网络接口。现在让我们定义第二个 play，用于设置计算器服务。
 
@@ -561,11 +340,7 @@ bind 0.0.0.0
 
 首先，我们需要使构建的 JAR 文件可执行，以便它可以作为 Unix 服务轻松在服务器上运行。为了做到这一点，只需将以下代码添加到`build.gradle`文件中：
 
-```
-bootRepackage {
-    executable = true
-}
-```
+[PRE27]
 
 # 更改 Redis 主机地址
 
@@ -577,39 +352,7 @@ bootRepackage {
 
 最后，我们可以将部署配置作为`playbook.yml`文件中的新 play 添加。
 
-```
-- hosts: web2
-  become: yes
-  become_method: sudo
-  tasks:
-  - name: ensure Java Runtime Environment is installed
-    apt:
-      name: default-jre
-      state: present
-  - name: create directory for Calculator
-    file:
-      path: /var/calculator
-      state: directory
-  - name: configure Calculator as a service
-    file:
-      path: /etc/init.d/calculator
-      state: link
-      force: yes
-      src: /var/calculator/calculator.jar
-  - name: copy Calculator
-    copy:
-      src: build/libs/calculator-0.0.1-SNAPSHOT.jar
-      dest: /var/calculator/calculator.jar
-      mode: a+x
-    notify:
-    - restart Calculator
-  handlers:
-  - name: restart Calculator
-    service:
-      name: calculator
-      enabled: yes
-      state: restarted
-```
+[PRE28]
 
 让我们走一遍我们定义的步骤：
 
@@ -625,10 +368,7 @@ bootRepackage {
 
 与往常一样，我们可以使用`ansible-playbook`命令执行 playbook。在此之前，我们需要使用 Gradle 构建计算器项目。
 
-```
-$ ./gradlew build
-$ ansible-playbook playbook.yml
-```
+[PRE29]
 
 成功部署后，服务应该可用，并且我们可以在`http://192.168.0.242:8080/sum?a=1&b=2`上检查它是否正常工作。预期地，它应该返回`3`作为输出。
 
@@ -682,38 +422,7 @@ Ansible 提供了一些非常有用的与 Docker 相关的模块：`docker_image
 
 我们可以使用 Ansible playbook 中的以下任务来安装 Docker 引擎。
 
-```
-tasks:
-- name: add docker apt keys
-  apt_key:
-    keyserver: hkp://p80.pool.sks-keyservers.net:80
-    id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
-- name: update apt
-  apt_repository:
-    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial main stable
-    state: present
-- name: install Docker
-  apt:
-    name: docker-ce
-    update_cache: yes
-    state: present
-- name: add admin to docker group
-  user:
-    name: admin
-    groups: docker
-    append: yes
-- name: install python-pip
-  apt:
-    name: python-pip
-    state: present
-- name: install docker-py
-  pip:
-    name: docker-py
-- name: install Docker Compose
-  pip:
-    name: docker-compose
-    version: 1.9.0
-```
+[PRE30]
 
 每个操作系统的 playbook 看起来略有不同。这里介绍的是针对 Ubuntu 16.04 的。
 
@@ -727,15 +436,7 @@ tasks:
 
 使用`docker_container`模块来运行 Docker 容器，它看起来与我们为 Docker Compose 配置所呈现的非常相似。让我们将其添加到`playbook.yml`文件中。
 
-```
-- name: run Redis container
-  docker_container:
-    name: redis
-    image: redis
-    state: started
-    exposed_ports:
-    - 6379
-```
+[PRE31]
 
 您可以在官方 Ansible 页面上阅读有关`docker_container`模块的所有选项的更多信息：[`docs.ansible.com/ansible/docker_container_module.html`](https://docs.ansible.com/ansible/docker_container_module.html)。
 
@@ -745,29 +446,11 @@ tasks:
 
 Ansible playbook 与 Docker Compose 配置非常相似。它们甚至共享相同的 YAML 文件格式。而且，可以直接从 Ansible 使用`docker-compose.yml`。我们将展示如何做到这一点，但首先让我们定义`docker-compose.yml`文件。
 
-```
-version: "2"
-services:
-  calculator:
-    image: leszko/calculator:latest
-    ports:
-    - 8080
-  redis:
-    image: redis:latest
-```
+[PRE32]
 
 这几乎与我们在上一章中定义的内容相同。这一次，我们直接从 Docker Hub 注册表获取计算器镜像，并且不在`docker-compose.yml`中构建它，因为我们希望构建一次镜像，将其推送到注册表，然后在每个部署步骤（在每个环境中）重复使用它，以确保相同的镜像部署在每台 Docker 主机上。当我们有了`docker-compose.yml`，我们就准备好向`playbook.yml`添加新任务了。
 
-```
-- name: copy docker-compose.yml
-  copy:
-    src: ./docker-compose.yml
-    dest: ./docker-compose.yml
-- name: run docker-compose
-  docker_service:
-    project_src: .
-    state: present
-```
+[PRE33]
 
 我们首先将 docker-compose.yml 文件复制到服务器，然后执行`docker-compose`。结果，Ansible 创建了两个容器：计算器和 Redis。
 

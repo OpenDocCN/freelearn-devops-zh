@@ -34,43 +34,15 @@ Kubernetes 具有命名空间概念，将物理集群中的资源划分为多个
 
 让我们看看如何创建一个命名空间。命名空间也是 Kubernetes 对象。我们可以像其他对象一样指定种类为命名空间。下面是创建一个命名空间`project1`的示例：
 
-```
-// configuration file of namespace
-# cat 8-1-1_ns1.yml
-apiVersion: v1
-kind: Namespace
-metadata:
-name: project1
-
-// create namespace for project1
-# kubectl create -f 8-1-1_ns1.yml
-namespace "project1" created
-
-// list namespace, the abbreviation of namespaces is ns. We could use `kubectl get ns` to list it as well.
-# kubectl get namespaces
-NAME          STATUS    AGE
-default       Active    1d
-kube-public   Active    1d
-kube-system   Active    1d
-project1      Active    11s
-```
+[PRE0]
 
 然后让我们尝试通过`project1`命名空间中的部署启动两个 nginx 容器：
 
-```
-// run a nginx deployment in project1 ns
-# kubectl run nginx --image=nginx:1.12.0 --replicas=2 --port=80 --namespace=project1 
-```
+[PRE1]
 
 当我们通过`kubectl get pods`列出 pod 时，我们会在我们的集群中看不到任何内容。为什么？因为 Kubernetes 使用当前上下文来决定哪个命名空间是当前的。如果我们在上下文或`kubectl`命令行中不明确指定命名空间，则将使用`default`命名空间：
 
-```
-// We'll see the Pods if we explicitly specify --namespace
-# kubectl get pods --namespace=project1
-NAME                     READY     STATUS    RESTARTS   AGE
-nginx-3599227048-gghvw   1/1       Running   0          15s
-nginx-3599227048-jz3lg   1/1       Running   0          15s  
-```
+[PRE2]
 
 您可以使用`--namespace <namespace_name>`，`--namespace=<namespace_name>`，`-n <namespace_name>`或`-n=<namespace_name>`来指定命令的命名空间。要列出跨命名空间的资源，请使用`--all-namespaces`参数。
 
@@ -80,19 +52,11 @@ nginx-3599227048-jz3lg   1/1       Running   0          15s
 
 **上下文**是集群信息、用于身份验证的用户和命名空间的组合概念。例如，以下是我们在 GKE 中一个集群的上下文信息：
 
-```
-- context:
-cluster: gke_devops-with-kubernetes_us-central1-b_cluster
-user: gke_devops-with-kubernetes_us-central1-b_cluster
-name: gke_devops-with-kubernetes_us-central1-b_cluster  
-```
+[PRE3]
 
 我们可以使用`kubectl config current-context`命令查看当前上下文：
 
-```
-# kubectl config current-context
-gke_devops-with-kubernetes_us-central1-b_cluster
-```
+[PRE4]
 
 要列出所有配置信息，包括上下文，您可以使用`kubectl config view`命令；要检查当前正在使用的上下文，使用`kubectl config get-contexts`命令。
 
@@ -100,36 +64,21 @@ gke_devops-with-kubernetes_us-central1-b_cluster
 
 下一步是创建上下文。与前面的示例一样，我们需要为上下文设置用户和集群名称。如果我们不指定这些，将设置为空值。创建上下文的命令是：
 
-```
-$ kubectl config set-context <context_name> --namespace=<namespace_name> --cluster=<cluster_name> --user=<user_name>  
-```
+[PRE5]
 
 在同一集群中可以创建多个上下文。以下是如何在我的 GKE 集群`gke_devops-with-kubernetes_us-central1-b_cluster`中为`project1`创建上下文的示例：
 
-```
-// create a context with my GKE cluster
-# kubectl config set-context project1 --namespace=project1 --cluster=gke_devops-with-kubernetes_us-central1-b_cluster --user=gke_devops-with-kubernetes_us-central1-b_cluster
-Context "project1" created.  
-```
+[PRE6]
 
 # 切换当前上下文
 
 然后我们可以通过`use-context`子命令切换上下文：
 
-```
-# kubectl config use-context project1
-Switched to context "project1".  
-```
+[PRE7]
 
 上下文切换后，我们通过`kubectl`调用的每个命令都在`project1`上下文下。我们不需要明确指定命名空间来查看我们的 pod：
 
-```
-// list pods
-# kubectl get pods
-NAME                     READY     STATUS    RESTARTS   AGE
-nginx-3599227048-gghvw   1/1       Running   0          3m
-nginx-3599227048-jz3lg   1/1       Running   0          3m  
-```
+[PRE8]
 
 # 资源配额
 
@@ -149,48 +98,17 @@ nginx-3599227048-jz3lg   1/1       Running   0          3m
 
 现在，让我们学习`ResourceQuota`的语法。以下是一个例子：
 
-```
-# cat 8-1-2_resource_quota.yml
-apiVersion: v1
-kind: ResourceQuota
-metadata:
- name: project1-resource-quota
-spec:
- hard:# the limits of the sum of memory request
- requests.cpu: "1"               # the limits of the sum   
-   of requested CPU
-   requests.memory: 1Gi            # the limits of the sum  
-   of requested memory 
-   limits.cpu: "2"           # the limits of total CPU  
-   limits
-   limits.memory: 2Gi        # the limits of total memory 
-   limit 
-   requests.storage: 64Gi    # the limits of sum of 
-   storage requests across PV claims
-   pods: "4"                 # the limits of pod number   
-```
+[PRE9]
 
 模板与其他对象一样，只是这种类型变成了`ResourceQuota`。我们指定的配额适用于处于成功或失败状态的 pod（即非终端状态）。支持几种资源约束。在前面的例子中，我们演示了如何设置计算 ResourceQuota、存储 ResourceQuota 和对象 CountQuota。随时，我们仍然可以使用`kubectl`命令来检查我们设置的配额：`kubectl describe resourcequota <resource_quota_name>`。
 
 现在让我们通过命令`kubectl edit deployment nginx`修改我们现有的 nginx 部署，将副本从`2`更改为`4`并保存。现在让我们列出状态。
 
-```
-# kubectl describe deployment nginx
-Replicas:         4 desired | 2 updated | 2 total | 2 available | 2 unavailable
-Conditions:
- Type                  Status      Reason
- ----                  ------      ------
- Available             False MinimumReplicasUnavailable
- ReplicaFailure  True  FailedCreate  
-```
+[PRE10]
 
 它指示一些 pod 在创建时失败。如果我们检查相应的 ReplicaSet，我们可以找出原因：
 
-```
-# kubectl describe rs nginx-3599227048
-...
-Error creating: pods "nginx-3599227048-" is **forbidden**: failed quota: project1-resource-quota: must specify limits.cpu,limits.memory,requests.cpu,requests.memory  
-```
+[PRE11]
 
 由于我们已经在内存和 CPU 上指定了请求限制，Kubernetes 不知道新期望的三个 pod 的默认请求限制。我们可以看到原来的两个 pod 仍在运行，因为资源配额不适用于现有资源。然后我们使用`kubectl edit deployment nginx`来修改容器规范如下：
 
@@ -198,28 +116,11 @@ Error creating: pods "nginx-3599227048-" is **forbidden**: failed quota: project
 
 在这里，我们在 pod 规范中指定了 CPU 和内存的请求和限制。这表明 pod 不能超过指定的配额，否则将无法启动：
 
-```
-// check the deployment state
-# kubectl get deployment
-NAME      DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-nginx     4         3         2            3           2d  
-```
+[PRE12]
 
 可用的 pod 变成了四个，而不是两个，但仍然不等于我们期望的四个。出了什么问题？如果我们退一步检查我们的资源配额，我们会发现我们已经使用了所有的 pod 配额。由于部署默认使用滚动更新部署机制，它将需要大于四的 pod 数量，这正是我们之前设置的对象限制：
 
-```
-# kubectl describe resourcequota project1-resource-quota
-Name:             project1-resource-quota
-Namespace:        project1
-Resource          Used  Hard
---------          ----  ----
-limits.cpu        900m  4
-limits.memory     900Mi 4Gi
-pods              4     4
-requests.cpu      300m  4
-requests.memory   450Mi 16Gi
-requests.storage  0     64Gi  
-```
+[PRE13]
 
 通过`kubectl edit resourcequota project1-resource-quota`命令将 pod 配额从`4`修改为`8`后，部署有足够的资源来启动 pod。一旦`Used`配额超过`Hard`配额，请求将被资源配额准入控制器拒绝，否则，资源配额使用将被更新以确保足够的资源分配。
 
@@ -233,26 +134,7 @@ LimitRange 由 LimitRanger 准入控制器插件控制。如果启动自托管�
 
 下面是一个示例，我们将`cpu.request`设置为`250m`，`limits`设置为`500m`，`memory.request`设置为`256Mi`，`limits`设置为`512Mi`：
 
-```
-# cat 8-1-3_limit_range.yml
-apiVersion: v1
-kind: LimitRange
-metadata:
- name: project1-limit-range
-spec:
- limits:
- - default:
- cpu: 0.5
- memory: 512Mi
- defaultRequest:
- cpu: 0.25
- memory: 256Mi
- type: Container
-
-// create limit range
-# kubectl create -f 8-1-3_limit_range.yml
-limitrange "project1-limit-range" created  
-```
+[PRE14]
 
 当我们在此命名空间内启动 pod 时，即使在 ResourceQuota 中设置了总限制，我们也不需要随时指定`cpu`和`memory`请求和`limits`。
 
@@ -260,16 +142,7 @@ CPU 的单位是核心，这是一个绝对数量。它可以是 AWS vCPU，GCP 
 
 此外，我们可以在 LimitRange 中为 pod 设置最小和最大的 CPU 和内存值。它与默认值的作用不同。默认值仅在 pod 规范不包含任何请求和限制时使用。最小和最大约束用于验证 pod 是否请求了太多的资源。语法是`spec.limits[].min`和`spec.limits[].max`。如果请求超过了最小和最大值，服务器将抛出 forbidden 错误。
 
-```
-limits: 
-   - max: 
-      cpu: 1 
-      memory: 1Gi 
-     min: 
-      cpu: 0.25 
-      memory: 128Mi 
-    type: Container 
-```
+[PRE15]
 
 Pod 的服务质量：Kubernetes 中的 pod 有三个 QoS 类别：Guaranteed、Burstable 和 BestEffort。它与我们上面学到的命名空间和资源管理概念密切相关。我们还在第四章中学习了 QoS，*使用存储和资源*。请参考第四章中的最后一节*使用存储和资源*进行复习。
 
@@ -281,34 +154,11 @@ Pod 的服务质量：Kubernetes 中的 pod 有三个 QoS 类别：Guaranteed、
 
 Kubeconfig 是一个文件，您可以使用它来通过切换上下文来切换多个集群。我们可以使用`kubectl config view`来查看设置。以下是`kubeconfig`文件中 minikube 集群的示例。
 
-```
-# kubectl config view
-apiVersion: v1
-clusters:  
-- cluster:
- certificate-authority: /Users/k8s/.minikube/ca.crt
- server: https://192.168.99.100:8443
- name: minikube
-contexts:
-- context:
- cluster: minikube
- user: minikube
- name: minikube
-current-context: minikube
-kind: Config
-preferences: {}
-users:
-- name: minikube
- user:
- client-certificate: /Users/k8s/.minikube/apiserver.crt
- client-key: /Users/k8s/.minikube/apiserver.key
-```
+[PRE16]
 
 就像我们之前学到的一样。我们可以使用`kubectl config use-context`来切换要操作的集群。我们还可以使用`kubectl config --kubeconfig=<config file name>`来指定要使用的`kubeconfig`文件。只有指定的文件将被使用。我们还可以通过环境变量`$KUBECONFIG`指定`kubeconfig`文件。这样，配置文件可以被合并。例如，以下命令将合并`kubeconfig-file1`和`kubeconfig-file2`：
 
-```
-# export KUBECONFIG=$KUBECONFIG: kubeconfig-file1: kubeconfig-file2  
-```
+[PRE17]
 
 您可能会发现我们之前没有进行任何特定的设置。那么`kubectl config view`的输出来自哪里呢？默认情况下，它存在于`$HOME/.kube/config`下。如果没有设置前面的任何一个，将加载此文件。
 
@@ -316,50 +166,15 @@ users:
 
 与普通用户不同，**服务账户**是由 pod 内的进程用来联系 Kubernetes API 服务器的。默认情况下，Kubernetes 集群为不同的目的创建不同的服务账户。在 GKE 中，已经创建了大量的服务账户：
 
-```
-// list service account across all namespaces
-# kubectl get serviceaccount --all-namespaces
-NAMESPACE     NAME                         SECRETS   AGE
-default       default                      1         5d
-kube-public   default                      1         5d
-kube-system   namespace-controller         1         5d
-kube-system   resourcequota-controller     1         5d
-kube-system   service-account-controller   1         5d
-kube-system   service-controller           1         5d
-project1      default                      1         2h
-...  
-```
+[PRE18]
 
 Kubernetes 将在每个命名空间中创建一个默认的服务账户，如果在创建 pod 时未指定服务账户，则将使用该默认服务账户。让我们看看默认服务账户在我们的`project1`命名空间中是如何工作的：
 
-```
-# kubectl describe serviceaccount/default
-Name:       default
-Namespace:  project1
-Labels:           <none>
-Annotations:      <none>
-Image pull secrets:     <none>
-Mountable secrets:      default-token-nsqls
-Tokens:                 default-token-nsqls  
-```
+[PRE19]
 
 我们可以看到，服务账户基本上是使用可挂载的密钥作为令牌。让我们深入了解令牌中包含的内容：
 
-```
-// describe the secret, the name is default-token-nsqls here
-# kubectl describe secret default-token-nsqls
-Name:       default-token-nsqls
-Namespace:  project1
-Annotations:  kubernetes.io/service-account.name=default
-              kubernetes.io/service-account.uid=5e46cc5e- 
-              8b52-11e7-a832-42010af00267
-Type: kubernetes.io/service-account-token
-Data
-====
-ca.crt:     # the public CA of api server. Base64 encoded.
-namespace:  # the name space associated with this service account. Base64 encoded
-token:      # bearer token. Base64 encoded
-```
+[PRE20]
 
 密钥将自动挂载到目录`/var/run/secrets/kubernetes.io/serviceaccount`。当 pod 访问 API 服务器时，API 服务器将检查证书和令牌进行认证。服务账户的概念将在接下来的部分中与我们同在。
 
@@ -383,21 +198,15 @@ token:      # bearer token. Base64 encoded
 
 在第七章，*持续交付*中，在我们演示了如何部署`my-app`的示例中，我们创建了一个名为`cd`的命名空间，并且我们使用了脚本`get-sa-token.sh`（[`github.com/DevOps-with-Kubernetes/examples/blob/master/chapter7/get-sa-token.sh`](https://github.com/DevOps-with-Kubernetes/examples/blob/master/chapter7/get-sa-token.sh)）来为我们导出令牌。然后我们通过`kubectl config set-credentials <user> --token=$TOKEN`命令创建了一个名为`mysa`的用户：
 
-```
-# kubectl config set-credentials mysa --token=${CI_ENV_K8S_SA_TOKEN}  
-```
+[PRE21]
 
 接下来，我们将上下文设置为与用户和命名空间绑定：
 
-```
-# kubectl config set-context myctxt --cluster=mycluster --user=mysa  
-```
+[PRE22]
 
 最后，我们将把我们的上下文`myctxt`设置为默认上下文：
 
-```
-# kubectl config use-context myctxt  
-```
+[PRE23]
 
 当服务账户发送请求时，API 服务器将验证令牌，以检查请求者是否有资格以及它所声称的身份是否属实。
 
@@ -409,17 +218,11 @@ token:      # bearer token. Base64 encoded
 
 首先，我们将通过 OpenSSL（[`www.openssl.org`](https://www.openssl.org)）生成一个私钥：
 
-```
-// generate a private key for Linda
-# openssl genrsa -out linda.key 2048  
-```
+[PRE24]
 
 接下来，我们将为琳达创建一个证书签名请求（`.csr`）：
 
-```
-// making CN as your username
-# openssl req -new -key linda.key -out linda.csr -subj "/CN=linda"  
-```
+[PRE25]
 
 现在，`linda.key`和`linda.csr`应该位于当前文件夹中。为了批准签名请求，我们需要找到我们 Kubernetes 集群的 CA。
 
@@ -427,35 +230,19 @@ token:      # bearer token. Base64 encoded
 
 假设我们在当前文件夹下有`ca.crt`和`ca.key`，我们可以通过我们的签名请求生成证书。使用`-days`参数，我们可以定义过期日期：
 
-```
-// generate the cert for Linda, this cert is only valid for 30 days.
-# openssl x509 -req -in linda.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out linda.crt -days 30
-Signature ok
-subject=/CN=linda
-Getting CA Private Key  
-```
+[PRE26]
 
 在我们的集群中有证书签名后，我们可以在集群中设置一个用户。
 
-```
-# kubectl config set-credentials linda --client-certificate=linda.crt --client-key=linda.key
-User "linda" set.  
-```
+[PRE27]
 
 记住上下文的概念：它是集群信息、用于认证的用户和命名空间的组合。现在，我们将在`kubeconfig`中设置一个上下文条目。请记住从以下示例中替换您的集群名称、命名空间和用户：
 
-```
-# kubectl config set-context devops-context --cluster=k8s-devops.net --namespace=project1 --user=linda
-Context "devops-context" modified.  
-```
+[PRE28]
 
 现在，琳达应该没有任何权限：
 
-```
-// test for getting a pod 
-# kubectl --context=devops-context get pods
-Error from server (Forbidden): User "linda" cannot list pods in the namespace "project1". (get pods)  
-```
+[PRE29]
 
 琳达现在通过了认证阶段，而 Kubernetes 知道她是琳达。但是，为了让琳达有权限进行部署，我们需要在授权模块中设置策略。
 
@@ -490,11 +277,7 @@ ABAC 允许管理员将一组用户授权策略定义为每行一个 JSON 格式
 
 以下是一些示例：
 
-```
-{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"admin", "namespace": "*", "resource": "*", "apiGroup": "*"}} 
-{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"linda", "namespace": "project1", "resource": "deployments", "apiGroup": "*", "readonly": true}} 
-{"apiVersion": "abac.authorization.kubernetes.io/v1beta1", "kind": "Policy", "spec": {"user":"linda", "namespace": "project1", "resource": "replicasets", "apiGroup": "*", "readonly": true}} 
-```
+[PRE30]
 
 在前面的例子中，我们有一个名为 admin 的用户，可以访问所有内容。另一个名为`linda`的用户只能在命名空间`project1`中读取部署和副本集。
 
@@ -508,53 +291,11 @@ RBAC 在 Kubernetes 1.6 中处于 beta 阶段，默认情况下是启用的。�
 
 在 Kubernetes 中，`Role`绑定在命名空间内，而`ClusterRole`是全局的。以下是一个`Role`的示例，可以对部署、副本集和 pod 资源执行所有操作，包括`get`、`watch`、`list`、`create`、`update`、`delete`、`patch`。
 
-```
-# cat 8-5-2_role.yml
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
- namespace: project1
- name: devops-role
-rules:
-- apiGroups: ["", "extensions", "apps"]
- resources:
- - "deployments"
- - "replicasets"
- - "pods"
- verbs: ["*"]
-```
+[PRE31]
 
 在我们写这本书的时候，`apiVersion`仍然是`v1beta1`。如果 API 版本发生变化，Kubernetes 会抛出错误并提醒您进行更改。在`apiGroups`中，空字符串表示核心 API 组。API 组是 RESTful API 调用的一部分。核心表示原始 API 调用路径，例如`/api/v1`。新的 REST 路径中包含组名和 API 版本，例如`/apis/$GROUP_NAME/$VERSION`；要查找您想要使用的 API 组，请查看[`kubernetes.io/docs/reference`](https://kubernetes.io/docs/reference)中的 API 参考。在资源下，您可以添加您想要授予访问权限的资源，在动词下列出了此角色可以执行的操作数组。让我们来看一个更高级的`ClusterRoles`示例，我们在上一章中使用了持续交付角色：
 
-```
-# cat cd-clusterrole.yml
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
- name: cd-role
-rules:
-- apiGroups: ["extensions", "apps"]
- resources:
- - deployments
- - replicasets
- - ingresses
- verbs: ["*"]
- - apiGroups: [""]
- resources:
- - namespaces
- - events
- verbs: ["get", "list", "watch"]
- - apiGroups: [""]
- resources:
- - pods
- - services
- - secrets
- - replicationcontrollers
- - persistentvolumeclaims
- - jobs
- - cronjobs
- verbs: ["*"]
-```
+[PRE32]
 
 `ClusterRole`是集群范围的。一些资源不属于任何命名空间，比如节点，只能由`ClusterRole`控制。它可以访问的命名空间取决于它关联的`ClusterRoleBinding`中的`namespaces`字段。我们可以看到，我们授予了该角色读取和写入 Deployments、ReplicaSets 和 ingresses 的权限，它们分别属于 extensions 和 apps 组。在核心 API 组中，我们只授予了对命名空间和事件的访问权限，以及对其他资源（如 pods 和 services）的所有权限。
 
@@ -562,80 +303,33 @@ rules:
 
 `RoleBinding`用于将`Role`或`ClusterRole`绑定到一组用户或服务账户。如果`ClusterRole`与`RoleBinding`绑定而不是`ClusterRoleBinding`，它将只被授予`RoleBinding`指定的命名空间内的权限。以下是`RoleBinding`规范的示例：
 
-```
-# cat 8-5-2_rolebinding_user.yml  
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1beta1
-metadata:
- name: devops-role-binding
- namespace: project1
-subjects:
-- kind: User
- name: linda
- apiGroup: [""]
-roleRef:
- kind: Role
- name: devops-role
- apiGroup: [""]
-```
+[PRE33]
 
 在这个例子中，我们通过`roleRef`将`Role`与用户绑定。Kubernetes 支持不同类型的`roleRef`；我们可以在这里将`Role`的类型替换为`ClusterRole`：
 
-```
-roleRef:
-kind: ClusterRole
-name: cd-role
-apiGroup: rbac.authorization.k8s.io 
-```
+[PRE34]
 
 然后`cd-role`只能访问`project1`命名空间中的资源。
 
 另一方面，`ClusterRoleBinding`用于在所有命名空间中授予权限。让我们回顾一下我们在第七章中所做的事情，*持续交付*。我们首先创建了一个名为`cd-agent`的服务账户，然后创建了一个名为`cd-role`的`ClusterRole`。最后，我们为`cd-agent`和`cd-role`创建了一个`ClusterRoleBinding`。然后我们使用`cd-agent`代表我们进行部署：
 
-```
-# cat cd-clusterrolebinding.yml
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
- name: cd-agent
-roleRef:
- apiGroup: rbac.authorization.k8s.io
- kind: ClusterRole
- name: cd-role
-subjects:
-- apiGroup: rbac.authorization.k8s.io
- kind: User
- name: system:serviceaccount:cd:cd-agent  
-```
+[PRE35]
 
 `cd-agent`通过`ClusterRoleBinding`与`ClusterRole`绑定，因此它可以跨命名空间拥有`cd-role`中指定的权限。由于服务账户是在命名空间中创建的，我们需要指定其完整名称，包括命名空间：
 
-```
-system:serviceaccount:<namespace>:<serviceaccountname> 
-```
+[PRE36]
 
 让我们通过`8-5-2_role.yml`和`8-5-2_rolebinding_user.yml`启动`Role`和`RoleBinding`：
 
-```
-# kubectl create -f 8-5-2_role.yml
-role "devops-role" created
-# kubectl create -f 8-5-2_rolebinding_user.yml
-rolebinding "devops-role-binding" created  
-```
+[PRE37]
 
 现在，我们不再被禁止了：
 
-```
-# kubectl --context=devops-context get pods
-No resources found.
-```
+[PRE38]
 
 如果 Linda 想要列出命名空间，允许吗？：
 
-```
-# kubectl --context=devops-context get namespaces
-Error from server (Forbidden): User "linda" cannot list namespaces at the cluster scope. (get namespaces)  
-```
+[PRE39]
 
 答案是否定的，因为 Linda 没有被授予列出命名空间的权限。
 
@@ -643,9 +337,7 @@ Error from server (Forbidden): User "linda" cannot list namespaces at the cluste
 
 准入控制发生在 Kubernetes 处理请求之前，经过身份验证和授权之后。在启动 API 服务器时，通过添加`--admission-control`参数来启用它。如果集群版本>=1.6.0，Kubernetes 建议在集群中使用以下插件。
 
-```
---admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,DefaultTolerationSeconds,ResourceQuota  
-```
+[PRE40]
 
 以下介绍了这些插件的用法，以及为什么我们需要它们。有关支持的准入控制插件的更多最新信息，请访问官方文档[`kubernetes.io/docs/admin/admission-controllers`](https://kubernetes.io/docs/admin/admission-controllers)。
 
@@ -683,50 +375,21 @@ Error from server (Forbidden): User "linda" cannot list namespaces at the cluste
 
 假设我们有两个节点：
 
-```
-# kubectl get nodes
-NAME                            STATUS    AGE       VERSION  
-ip-172-20-56-91.ec2.internal Ready 6h v1.7.2
-ip-172-20-68-10.ec2.internal Ready 29m v1.7.2
-```
+[PRE41]
 
 现在通过`kubectl run nginx --image=nginx:1.12.0 --replicas=1 --port=80`命令运行一个 nginx Pod。
 
 该 Pod 正在第一个节点`ip-172-20-56-91.ec2.internal`上运行：
 
-```
-# kubectl describe pods nginx-4217019353-s9xrn
-Name:       nginx-4217019353-s9xrn
-Node:       ip-172-20-56-91.ec2.internal/172.20.56.91
-Tolerations:    node.alpha.kubernetes.io/notReady:NoExecute for 300s
-node.alpha.kubernetes.io/unreachable:NoExecute for 300s  
-```
+[PRE42]
 
 通过 Pod 描述，我们可以看到有两个默认的忍受度附加到 Pod 上。这意味着如果节点尚未准备好或不可达，那么在 Pod 从节点中被驱逐之前等待 300 秒。这两个忍受度由 DefaultTolerationSeconds 准入控制器插件应用。我们稍后会谈论这个。接下来，我们将在第一个节点上设置一个 taint：
 
-```
-# kubectl taint nodes ip-172-20-56-91.ec2.internal experimental=true:NoExecute
-node "ip-172-20-56-91.ec2.internal" tainted  
-```
+[PRE43]
 
 由于我们将操作设置为`NoExecute`，并且`experimental=true`与我们的 Pod 上的任何忍受度不匹配，因此 Pod 将立即从节点中删除并重新调度。可以将多个 taints 应用于一个节点。Pod 必须匹配所有忍受度才能在该节点上运行。以下是一个可以通过的带污染节点的示例：
 
-```
-# cat 8-6_pod_tolerations.yml
-apiVersion: v1
-kind: Pod
-metadata:
- name: pod-with-tolerations
-spec:
- containers:
- - name: web
- image: nginx
- tolerations:
- - key: "experimental"
- value: "true"
- operator: "Equal"
- effect: "NoExecute"  
-```
+[PRE44]
 
 除了`Equal`运算符，我们也可以使用`Exists`。在这种情况下，我们不需要指定值。只要键存在并且效果匹配，那么 Pod 就有资格在带污染的节点上运行。
 
@@ -736,13 +399,7 @@ spec:
 
 此插件用于将`node-selector`注释设置为命名空间。当启用插件时，使用以下格式通过`--admission-control-config-file`命令传递配置文件：
 
-```
-podNodeSelectorPluginConfig:
- clusterDefaultNodeSelector: <default-node-selectors-  
-  labels>
- namespace1: <namespace-node-selectors-labels-1>
- namespace2: <namespace-node-selectors-labels-2>
-```
+[PRE45]
 
 然后`node-selector`注释将应用于命名空间。然后该命名空间上的 Pod 将在这些匹配的节点上运行。
 

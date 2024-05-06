@@ -156,21 +156,7 @@ Kubernetes 服务使一组逻辑 pod 能够进行网络访问。通常使用标�
 
 使用**YAML Ain't Markup Language** (**YAML**)文件定义了 Kubernetes 服务，如下所示：
 
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: service-1
-spec:
-  type: NodePort 
-  selector:
-    app: app-1
-  ports:
-    - nodePort: 29763
-      protocol: TCP
-      port: 80
-      targetPort: 9376
-```
+[PRE0]
 
 在这个 YAML 文件中，以下内容适用：
 
@@ -184,15 +170,7 @@ spec:
 
 服务通常使用选择器来定义，选择器是附加到需要在同一服务中的 pod 的标签。服务可以在没有选择器的情况下定义。这通常是为了访问外部服务或不同命名空间中的服务。没有选择器的服务将使用端点对象映射到网络地址和端口，如下所示：
 
-```
-apiVersion: v1
-kind: Endpoints
-subsets:
-  - addresses:
-      - ip: 192.123.1.22
-    ports:
-      - port: 3909
-```
+[PRE1]
 
 此端点对象将路由流量`192:123.1.22:3909`到附加的服务。
 
@@ -202,10 +180,7 @@ subsets:
 
 1.  **环境变量**：创建服务时，在节点上创建了一组环境变量，形式为`[NAME]_SERVICE_HOST`和`[NAME]_SERVICE_PORT`。其他 pod 或应用程序可以使用这些环境变量来访问服务，如下面的代码片段所示：
 
-```
-DB_SERVICE_HOST=192.122.1.23
-DB_SERVICE_PORT=3909
-```
+[PRE2]
 
 1.  **DNS**：DNS 服务作为附加组件添加到 Kubernetes 中。Kubernetes 支持两个附加组件：CoreDNS 和 Kube-DNS。DNS 服务包含服务名称到 IP 地址的映射。Pod 和应用程序使用此映射来连接到服务。
 
@@ -229,18 +204,7 @@ DB_SERVICE_PORT=3909
 
 Ingress 不是一种服务类型，但在这里值得一提。Ingress 是一个智能路由器，为集群中的服务提供外部**HTTP/HTTPS**（**超文本传输安全协议**）访问。除了 HTTP/HTTPS 之外的服务只能暴露给 NodePort 或 LoadBalancer 服务类型。Ingress 资源是使用 YAML 文件定义的，就像这样：
 
-```
-apiVersion: extensions/v1beta1
-kind: Ingress
-spec:
-  rules:
-  - http:
-      paths:
-      - path: /testpath
-        backend:
-          serviceName: service-1
-          servicePort: 80
-```
+[PRE3]
 
 这个最小的 Ingress 规范将`testpath`路由的所有流量转发到`service-1`路由。
 
@@ -248,81 +212,25 @@ Ingress 对象有五种不同的变体，列举如下：
 
 +   **单服务 Ingress**：通过指定默认后端和没有规则来暴露单个服务，如下面的代码块所示：
 
-```
-apiVersion: extensions/v1beta1
-kind: Ingress
-spec:
-  backend:
-    serviceName: service-1
-    servicePort: 80
-```
+[PRE4]
 
 这个 Ingress 暴露了一个专用 IP 地址给`service-1`。
 
 +   **简单的分流**：分流配置根据**统一资源定位符**（**URL**）将来自单个 IP 的流量路由到多个服务，如下面的代码块所示：
 
-```
-apiVersion: extensions/v1beta1
-kind: Ingress
-spec:
-  rules:
-  - host: foo.com
-    http:
-      paths:
-      - path: /foo
-        backend:
-          serviceName: service-1
-          servicePort: 8080
-      - path: /bar
-        backend:
-          serviceName: service-2
-          servicePort: 8080
-```
+[PRE5]
 
 这个配置允许`foo.com/foo`的请求到达`service-1`，并且`foo.com/bar`连接到`service-2`。
 
 +   **基于名称的虚拟主机**：此配置使用多个主机名来达到一个 IP 到达不同服务的目的，如下面的代码块所示：
 
-```
-apiVersion: extensions/v1beta1
-kind: Ingress
-spec:
-  rules:
-  - host: foo.com
-    http:
-      paths:
-      - backend:
-          serviceName: service-1
-          servicePort: 80
-  - host: bar.com
-    http:
-      paths:
-      - backend:
-          serviceName: service-2
-          servicePort: 80
-```
+[PRE6]
 
 这个配置允许`foo.com`的请求连接到`service-1`，`bar.com`的请求连接到`service-2`。在这种情况下，两个服务分配的 IP 地址是相同的。
 
 +   传输层安全性（TLS）：可以向入口规范添加一个秘密以保护端点，如下面的代码块所示：
 
-```
-apiVersion: extensions/v1beta1
-kind: Ingress
-spec:
-  tls:
-  - hosts:
-    - ssl.foo.com
-    secretName: secret-tls
-  rules:
-    - host: ssl.foo.com
-      http:
-        paths:
-        - path: /
-          backend:
-            serviceName: service-1
-            servicePort: 443
-```
+[PRE7]
 
 通过这个配置，`secret-tls`提供了端点的私钥和证书。
 
@@ -360,55 +268,13 @@ CNI 规范中不要求实施网络策略，但是当 DevOps 选择要使用的 C
 
 由于 Kubernetes 默认使用`kubenet`插件，为了在 Kubernetes 集群中使用 CNI 插件，用户必须通过`--network-plugin=cni`命令行选项传递，并通过`--cni-conf-dir`标志或在`/etc/cni/net.d`默认目录中指定配置文件。以下是在 Kubernetes 集群中定义的示例配置，以便`kubelet`知道要与哪个 CNI 插件交互：
 
-```
-{
-  'name': 'k8s-pod-network',
-  'cniVersion': '0.3.0',
-  'plugins': [
-    {
-      'type': 'calico',
-      'log_level': 'info',
-      'datastore_type': 'kubernetes',
-      'nodename': '127.0.0.1',
-      'ipam': {
-        'type': 'host-local',
-        'subnet': 'usePodCidr'
-      },
-      'policy': {
-        'type': 'k8s'
-      },
-      'kubernetes': {
-        'kubeconfig': '/etc/cni/net.d/calico-kubeconfig'
-      }
-    },
-    {
-      'type': 'portmap',
-      'capabilities': {'portMappings': true}
-    }
-  ]
-}
-```
+[PRE8]
 
 CNI 配置文件告诉`kubelet`使用 Calico 作为 CNI 插件，并使用`host-local`来为 pod 分配 IP 地址。在列表中，还有另一个名为`portmap`的 CNI 插件，用于支持`hostPort`，允许容器端口在主机 IP 上暴露。
 
 在使用**Kubernetes Operations**（**kops**）创建集群时，您还可以指定要使用的 CNI 插件，如下面的代码块所示：
 
-```
-  export NODE_SIZE=${NODE_SIZE:-m4.large}
-  export MASTER_SIZE=${MASTER_SIZE:-m4.large}
-  export ZONES=${ZONES:-'us-east-1d,us-east-1b,us-east-1c'}
-  export KOPS_STATE_STORE='s3://my-state-store'
-  kops create cluster k8s-clusters.example.com \
-  --node-count 3 \
-  --zones $ZONES \
-  --node-size $NODE_SIZE \
-  --master-size $MASTER_SIZE \
-  --master-zones $ZONES \
-  --networking calico \
-  --topology private \
-  --bastion='true' \
-  --yes
-```
+[PRE9]
 
 在此示例中，集群是使用`calico` CNI 插件创建的。
 

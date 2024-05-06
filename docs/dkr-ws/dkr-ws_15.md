@@ -56,12 +56,7 @@ Docker 授权基于两种模式：**启用所有类型的操作**或**禁用所�
 
 在接下来的练习中，您将学习如何配置和安装授权插件。您将安装由 Open Policy Agent 创建和维护的**基于策略的授权**插件（[`www.openpolicyagent.org/`](https://www.openpolicyagent.org/)）。**基于策略的访问**是基于根据一些规则（即**策略**）授予用户访问权限的想法。插件的源代码可在 GitHub 上找到（[`github.com/open-policy-agent/opa-docker-authz`](https://github.com/open-policy-agent/opa-docker-authz)），它与类似以下的策略文件一起使用：
 
-```
-package docker.authz 
-allow {
-    input.Method = "GET"
-}
-```
+[PRE0]
 
 策略文件存储在 Docker 守护程序可以读取的主机系统中。例如，这里显示的策略文件只允许`GET`作为请求的方法。它实际上通过禁止任何其他方法（如`POST`、`DELETE`或`UPDATE`）使 Docker 守护程序变为只读。在接下来的练习中，您将使用一个策略文件并配置 Docker 守护程序与授权插件通信并限制一些请求。
 
@@ -81,38 +76,19 @@ allow {
 
 1.  通过运行以下命令在`/etc/docker/policies/authz.rego`位置创建一个文件：
 
-```
-mkdir -p /etc/docker/policies
-touch /etc/docker/policies/authz.rego
-ls /etc/docker/policies
-```
+[PRE1]
 
 这些命令创建一个位于`/etc/docker/policies`的文件：
 
-```
-authz.rego
-```
+[PRE2]
 
 1.  用编辑器打开文件并插入以下数据：
 
-```
-package docker.authz 
-allow {
-    input.Method = "GET"
-}
-```
+[PRE3]
 
 您可以使用以下命令将内容写入文件中：
 
-```
-cat > /etc/docker/policies/authz.rego << EOF
-package docker.authz 
-allow {
-    input.Method = "GET"
-}
-EOF
-cat /etc/docker/policies/authz.rego
-```
+[PRE4]
 
 注意
 
@@ -122,11 +98,7 @@ cat /etc/docker/policies/authz.rego
 
 1.  通过在终端中运行以下命令安装插件，并在提示权限时输入*y*：
 
-```
-docker plugin install --alias opa-docker-authz:readonly \
-openpolicyagent/opa-docker-authz-v2:0.5 \
-opa-args="-policy-file /opa/policies/authz.rego"
-```
+[PRE5]
 
 该命令安装位于`openpolicyagent/opa-docker-authz-v2:0.5`的插件，并使用别名`opa-docker-authz:readonly`。此外，来自*步骤 1*的策略文件被传递为`opa-args`：
 
@@ -136,9 +108,7 @@ opa-args="-policy-file /opa/policies/authz.rego"
 
 1.  使用以下命令检查已安装的插件：
 
-```
-docker plugin ls
-```
+[PRE6]
 
 该命令列出插件：
 
@@ -148,51 +118,33 @@ docker plugin ls
 
 1.  使用以下版本编辑 Docker 守护程序配置位于`/etc/docker/daemon.json`：
 
-```
-{
-    "authorization-plugins": ["opa-docker-authz:readonly"]
-}
-```
+[PRE7]
 
 您可以使用`cat /etc/docker/daemon.json`命令检查文件的内容。
 
 1.  使用以下命令重新加载 Docker 守护程序：
 
-```
-sudo kill -HUP $(pidof dockerd)
-```
+[PRE8]
 
 该命令通过使用`pidof`命令获取`dockerd`的进程 ID 来终止`dockerd`的进程。此外，它发送`HUP`信号，这是发送给 Linux 进程以更新其配置的信号。简而言之，您正在使用新的授权插件配置重新加载 Docker 守护程序。运行以下列出命令以检查列出操作是否被允许：
 
-```
-docker ps
-```
+[PRE9]
 
 该命令列出正在运行的容器，并显示列出操作是允许的：
 
-```
-CONTAINER ID  IMAGE  COMMAND  CREATED  STATUS  PORTS  NAMES
-```
+[PRE10]
 
 1.  运行以下命令以检查是否允许创建新容器：
 
-```
-docker run ubuntu
-```
+[PRE11]
 
 该命令创建并运行一个容器；但是，由于该操作不是只读的，因此不被允许：
 
-```
-Error response from daemon: authorization denied by plugin 
-opa-docker-authz:readonly: request rejected by administrative policy.
-See 'docker run –-help'.
-```
+[PRE12]
 
 1.  检查 Docker 守护程序的日志是否有任何与插件相关的行：
 
-```
-journalctl -u docker | grep plugin | grep "OPA policy decision"
-```
+[PRE13]
 
 注意
 
@@ -206,20 +158,11 @@ journalctl -u docker | grep plugin | grep "OPA policy decision"
 
 1.  通过从`/etc/docker/daemon.json`中删除`authorization-plugins`部分并重新加载 Docker 守护程序，停止使用插件，类似于*步骤 6*中所做的操作：
 
-```
-cat > /etc/docker/daemon.json << EOF
-{}
-EOF
-cat /etc/docker/daemon.json
-sudo kill -HUP $(pidof dockerd)
-```
+[PRE14]
 
 1.  通过以下命令禁用和删除插件：
 
-```
-docker plugin disable opa-docker-authz:readonly 
-docker plugin rm opa-docker-authz:readonly  
-```
+[PRE15]
 
 这些命令通过返回插件的名称来禁用和删除 Docker 中的插件。
 
@@ -229,9 +172,7 @@ docker plugin rm opa-docker-authz:readonly
 
 Docker 通过 Docker 网络插件支持各种网络技术。虽然它支持容器对容器和主机对容器的完整功能的网络，但插件使我们能够将网络扩展到更多的技术。网络插件实现了远程驱动程序作为不同网络拓扑的一部分，比如虚拟可扩展局域网（`vxlan`）和 MAC 虚拟局域网（`macvlan`）。您可以使用 Docker 插件命令安装和启用网络插件。此外，您需要使用`--driver`标志指定网络驱动程序的名称。例如，如果您已经安装并启用了`my-new-network-technology`驱动程序，并且希望您的新网络成为其中的一部分，您需要设置一个`driver`标志：
 
-```
-docker network create --driver my-new-network-technology mynet
-```
+[PRE16]
 
 这个命令创建了一个名为`mynet`的网络，而`my-new-network-technology`插件管理所有网络操作。
 
@@ -245,25 +186,7 @@ docker network create --driver my-new-network-technology mynet
 
 在`go-plugin-helpers`提供的官方 SDK 中，有用于为 Docker 创建网络扩展的 Go 处理程序。`Driver`接口定义如下：
 
-```
-// Driver represent the interface a driver must fulfill.
-type Driver interface {
-     GetCapabilities() (*CapabilitiesResponse, error)
-     CreateNetwork(*CreateNetworkRequest) error
-     AllocateNetwork(*AllocateNetworkRequest)        (*AllocateNetworkResponse, error)
-     DeleteNetwork(*DeleteNetworkRequest) error
-     FreeNetwork(*FreeNetworkRequest) error
-     CreateEndpoint(*CreateEndpointRequest)        (*CreateEndpointResponse, error)
-     DeleteEndpoint(*DeleteEndpointRequest) error
-     EndpointInfo(*InfoRequest) (*InfoResponse, error)
-     Join(*JoinRequest) (*JoinResponse, error)
-     Leave(*LeaveRequest) error
-     DiscoverNew(*DiscoveryNotification) error
-     DiscoverDelete(*DiscoveryNotification) error
-     ProgramExternalConnectivity(*ProgramExternalConnectivityRequest)        error
-     RevokeExternalConnectivity(*RevokeExternalConnectivityRequest)        error
-}
-```
+[PRE17]
 
 注意
 
@@ -283,9 +206,7 @@ Docker 网络插件接管特定网络实例的网络操作并实现自定义技�
 
 1.  通过在终端中运行以下命令初始化 Docker swarm（如果之前未启用）：
 
-```
-docker swarm init
-```
+[PRE18]
 
 此命令创建一个 Docker swarm 以部署多个应用程序实例：
 
@@ -295,10 +216,7 @@ docker swarm init
 
 1.  通过运行以下命令安装**Weave Net**插件：
 
-```
-docker plugin install --grant-all-permissions \
-store/weaveworks/net-plugin:2.5.2
-```
+[PRE19]
 
 此命令从商店安装插件并授予所有权限：
 
@@ -308,11 +226,7 @@ store/weaveworks/net-plugin:2.5.2
 
 1.  使用以下命令使用驱动程序创建新网络：
 
-```
-docker network create  \
---driver=store/weaveworks/net-plugin:2.5.2  \
-weave-custom-net
-```
+[PRE20]
 
 使用插件提供的驱动程序创建名为`weave-custom-net`的新网络：
 
@@ -324,13 +238,7 @@ weave-custom-net
 
 1.  使用以下命令创建一个三个副本的应用程序：
 
-```
-docker service create --network=weave-custom-net \
---replicas=3 \
---name=workshop \
--p 80:80 \
-onuryilmaz/hello-plain-text
-```
+[PRE21]
 
 该命令创建了`onuryilmaz/hello-plain-text`镜像的三个副本，并使用`the weave-custom-net`网络连接实例。此外，它使用名称`workshop`并发布到端口`80`：
 
@@ -340,14 +248,7 @@ onuryilmaz/hello-plain-text
 
 1.  通过运行以下命令获取容器的名称：
 
-```
-FIRST_CONTAINER=$(docker ps --format "{{.Names}}" |grep "workshop.1")
-echo $FIRST_CONTAINER
-SECOND_CONTAINER=$(docker ps --format "{{.Names}}" |grep "workshop.2")
-echo $SECOND_CONTAINER
-THIRD_CONTAINER=$(docker ps --format "{{.Names}}" |grep "workshop.3")
-echo $THIRD_CONTAINER
-```
+[PRE22]
 
 这些命令列出了正在运行的 Docker 容器名称，并按`workshop`实例进行过滤。您将需要容器的名称来测试它们之间的连接：
 
@@ -357,9 +258,7 @@ echo $THIRD_CONTAINER
 
 1.  运行以下命令将第一个容器连接到第二个容器：
 
-```
-docker exec -it $FIRST_CONTAINER sh -c "curl $SECOND_CONTAINER" 
-```
+[PRE23]
 
 该命令使用`curl`命令连接第一个和第二个容器：
 
@@ -371,9 +270,7 @@ docker exec -it $FIRST_CONTAINER sh -c "curl $SECOND_CONTAINER"
 
 1.  类似于*步骤 6*，将第一个容器连接到第三个容器：
 
-```
-docker exec -it $FIRST_CONTAINER sh -c "curl $THIRD_CONTAINER" 
-```
+[PRE24]
 
 如预期的那样，在*步骤 6*和*步骤 7*中检索到了不同的服务器名称和地址：
 
@@ -385,10 +282,7 @@ docker exec -it $FIRST_CONTAINER sh -c "curl $THIRD_CONTAINER"
 
 1.  您可以使用以下命令删除应用程序和网络：
 
-```
-docker service rm workshop
-docker network rm weave-custom-net
-```
+[PRE25]
 
 在这个练习中，您已经在 Docker 中安装并使用了一个网络插件。除此之外，您还创建了一个使用自定义网络驱动程序连接的容器化应用程序。在下一节中，您将学习更多关于 Docker 中的卷插件。
 
@@ -398,19 +292,7 @@ Docker 卷被挂载到容器中，以允许有状态的应用程序在容器中�
 
 Docker 卷插件控制卷的生命周期，包括`Create`、`Mount`、`Unmount`、`Path`和`Remove`等功能。在插件 SDK 中，卷驱动程序接口定义如下：
 
-```
-// Driver represent the interface a driver must fulfill.
-type Driver interface {
-     Create(*CreateRequest) error
-     List() (*ListResponse, error)
-     Get(*GetRequest) (*GetResponse, error)
-     Remove(*RemoveRequest) error
-     Path(*PathRequest) (*PathResponse, error)
-     Mount(*MountRequest) (*MountResponse, error)
-     Unmount(*UnmountRequest) error
-     Capabilities() *CapabilitiesResponse
-}
-```
+[PRE26]
 
 注意
 
@@ -436,9 +318,7 @@ Docker 卷插件通过从不同提供商和技术提供存储来管理卷的生�
 
 1.  在终端中运行以下命令安装`docker-volume-sshfs`插件：
 
-```
-docker plugin install --grant-all-permissions vieux/sshfs
-```
+[PRE27]
 
 此命令通过授予所有权限来安装插件：
 
@@ -448,63 +328,39 @@ docker plugin install --grant-all-permissions vieux/sshfs
 
 1.  使用以下命令创建一个带有 SSH 连接的 Docker 容器，以便为其他容器提供卷：
 
-```
-docker run -d -p 2222:22 \
---name volume_provider \
-rastasheep/ubuntu-sshd:14.04
-```
+[PRE28]
 
 此命令创建并运行一个名为`volume_provider`的`sshd`容器。端口`2222`被发布，并将在接下来的步骤中用于连接到此容器。
 
 您应该会得到以下输出：
 
-```
-87eecaca6a1ea41e682e300d077548a4f902fdda21acc218a51253a883f725d
-```
+[PRE29]
 
 1.  通过运行以下命令创建一个名为`volume-over-ssh`的新卷：
 
-```
-docker volume create -d vieux/sshfs \
---name volume-over-ssh \
--o sshcmd=root@localhost:/tmp \
--o password=root \
--o port=2222
-```
+[PRE30]
 
 此命令使用`vieux/sshfs`驱动程序和`sshcmd`、`password`和`port`参数指定的`ssh`连接创建一个新卷：
 
-```
-volume-over-ssh
-```
+[PRE31]
 
 1.  通过运行以下命令在*步骤 3*中创建的卷中创建一个新文件并保存：
 
-```
-docker run --rm -v volume-over-ssh:/data busybox \
-sh -c "touch /data/test.txt && echo 'Hello from Docker Workshop' >> /data/test.txt"
-```
+[PRE32]
 
 此命令通过挂载`volume-over-ssh`来运行一个容器。然后创建一个文件并写入其中。
 
 1.  通过运行以下命令检查*步骤 4*中创建的文件的内容：
 
-```
-docker run --rm -v volume-over-ssh:/data busybox \
-cat /data/test.txt
-```
+[PRE33]
 
 此命令通过挂载相同的卷来运行一个容器，并从中读取文件：
 
-```
-Hello from Docker Workshop
-```
+[PRE34]
 
 1.  （可选）通过运行以下命令删除卷：
 
-```
-docker volume rm volume-over-ssh
-```
+[PRE35]
 
 在这个练习中，您已经在 Docker 中安装并使用了卷插件。此外，您已经创建了一个卷，并从多个容器中用于写入和读取。
 

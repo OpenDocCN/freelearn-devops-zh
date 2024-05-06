@@ -60,22 +60,11 @@ Libnetwork 是容器网络模型（CNM）的规范实现，驱动程序是实现
 
 在**node1**上运行以下命令。
 
-```
-$ docker swarm init `\`
-  --advertise-addr`=``172`.31.1.5 `\`
-  --listen-addr`=``172`.31.1.5:2377
-
-Swarm initialized: current node `(`1ex3...o3px`)` is now a manager. 
-```
+[PRE0]
 
 在**node2**上运行下一个命令。在 Windows Server 上，您可能需要修改 Windows 防火墙规则以允许端口`2377/tcp`、`7946/tcp`和`7946/udp`。
 
-```
-$ docker swarm join `\`
-  --token SWMTKN-1-0hz2ec...2vye `\`
-  `172`.31.1.5:2377
-This node joined a swarm as a worker. 
-```
+[PRE1]
 
 我们现在有一个两节点的 Swarm，**node1**作为管理者，**node2**作为工作节点。
 
@@ -85,35 +74,17 @@ This node joined a swarm as a worker.
 
 在**node1**（管理者）上运行以下命令。在 Windows 上，您可能需要为 Windows Docker 节点上的端口`4789/udp`添加规则才能使其工作。
 
-```
-$ docker network create -d overlay uber-net
-c740ydi1lm89khn5kd52skrd9 
-```
+[PRE2]
 
 完成了！您刚刚创建了一个全新的覆盖网络，该网络对 Swarm 中的所有主机都可用，并且其控制平面已使用 TLS 加密！如果您想加密数据平面，只需在命令中添加`-o encrypted`标志。
 
 您可以使用`docker network ls`命令在每个节点上列出所有网络。
 
-```
-$ docker network ls
-NETWORK ID      NAME              DRIVER     SCOPE
-ddac4ff813b7    bridge            bridge     `local`
-389a7e7e8607    docker_gwbridge   bridge     `local`
-a09f7e6b2ac6    host              host       `local`
-ehw16ycy980s    ingress           overlay    swarm
-2b26c11d3469    none              null       `local`
-c740ydi1lm89    uber-net          overlay    swarm 
-```
+[PRE3]
 
 在 Windows 服务器上，输出将更像这样：
 
-```
-NETWORK ID      NAME             DRIVER      SCOPE
-8iltzv6sbtgc    ingress          overlay     swarm
-6545b2a61b6f    nat              nat         local
-96d0d737c2ee    none             null        local
-nil5ouh44qco    uber-net         overlay     swarm 
-```
+[PRE4]
 
 我们创建的网络位于名为**uber-net**的列表底部。其他网络是在安装 Docker 和初始化 Swarm 时自动创建的。
 
@@ -127,21 +98,11 @@ nil5ouh44qco    uber-net         overlay     swarm
 
 Linux 示例：
 
-```
-$ docker service create --name `test` `\`
-   --network uber-net `\`
-   --replicas `2` `\`
-   ubuntu sleep infinity 
-```
+[PRE5]
 
 Windows 示例：
 
-```
-> docker service create --name test `
-  --network uber-net `
-  --replicas 2 `
-  microsoft\powershell:nanoserver Start-Sleep 3600 
-```
+[PRE6]
 
 `> **注意：** Windows 示例使用反引号字符来分割参数，使命令更易读。反引号是 PowerShell 转义换行的方式。
 
@@ -151,12 +112,7 @@ Windows 示例：
 
 使用`docker service ps`命令验证操作。
 
-```
-$ docker service ps `test`
-ID          NAME    IMAGE   NODE    DESIRED STATE  CURRENT STATE
-77q...rkx   test.1  ubuntu  node1   Running        Running
-97v...pa5   test.2  ubuntu  node2   Running        Running 
-```
+[PRE7]
 
 `当 Swarm 在叠加网络上启动容器时，它会自动将该网络扩展到容器所在的节点。这意味着**uber-net**网络现在在**node2**上可见。
 
@@ -176,40 +132,13 @@ ID          NAME    IMAGE   NODE    DESIRED STATE  CURRENT STATE
 
 运行`docker network inspect`来查看分配给叠加网络的**子网**。
 
-```
-$ docker network inspect uber-net
-``
-    `{`
-        `"Name"`: `"uber-net"`,
-        `"Id"`: `"c740ydi1lm89khn5kd52skrd9"`,
-        `"Scope"`: `"swarm"`,
-        `"Driver"`: `"overlay"`,
-        `"EnableIPv6"`: false,
-        `"IPAM"`: `{`
-            `"Driver"`: `"default"`,
-            `"Options"`: null,
-            `"Config"`: `[`
-                `{`
-                    `"Subnet"`: `"10.0.0.0/24"`,
-                    `"Gateway"`: `"10.0.0.1"`
-                `}`
-<Snip> 
-```
+[PRE8]
 
 `上面的输出显示**uber-net**的子网为`10.0.0.0/24`。请注意，这与任何一个物理底层网络（`172.31.1.0/24`和`192.168.1.0/24`）都不匹配。
 
 在**node1**和**node2**上运行以下两个命令。这些命令将获取容器的 ID 和 IP 地址。确保在第二个命令中使用您自己实验室中的容器 ID。
 
-```
-$ docker container ls
-CONTAINER ID   IMAGE           COMMAND           CREATED      STATUS
-396c8b142a85   ubuntu:latest   `"sleep infinity"`  `2` hours ago  Up `2` hrs
-
-$ docker container inspect `\`
-  --format`=``'{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'` 396c8b`\`
-142a85
-`10`.0.0.3 
-```
+[PRE9]
 
 `确保您在两个节点上运行这些命令，以获取两个容器的 IP 地址。
 
@@ -229,46 +158,11 @@ $ docker container inspect `\`
 
 Linux 示例：
 
-```
-`$` `docker` `container` `exec` `-``it` `396``c8b142a85` `bash`
-
-`root``@396``c8b142a85``:``/``#` `apt``-``get` `update`
-`<``Snip``>`
-
-`root``@396``c8b142a85``:``/``#` `apt``-``get` `install` `iputils``-``ping`
-`Reading` `package` `lists``...` `Done`
-`Building` `dependency` `tree`
-`Reading` `state` `information``...` `Done`
-`<``Snip``>`
-`Setting` `up` `iputils``-``ping` `(``3``:``20121221``-``5u``buntu2``)` `...`
-`Processing` `triggers` `for` `libc``-``bin` `(``2.23``-``0u``buntu3``)` `...`
-
-`root``@396``c8b142a85``:``/``#` `ping` `10.0.0.4`
-`PING` `10.0.0.4` `(``10.0.0.4``)` `56``(``84``)` `bytes` `of` `data``.`
-`64` `bytes` `from` `10.0.0.4``:` `icmp_seq``=``1` `ttl``=``64` `time``=``1.06` `ms`
-`64` `bytes` `from` `10.0.0.4``:` `icmp_seq``=``2` `ttl``=``64` `time``=``1.07` `ms`
-`64` `bytes` `from` `10.0.0.4``:` `icmp_seq``=``3` `ttl``=``64` `time``=``1.03` `ms`
-`64` `bytes` `from` `10.0.0.4``:` `icmp_seq``=``4` `ttl``=``64` `time``=``1.26` `ms`
-`^``C`
-`root``@396``c8b142a85``:``/``#` 
-```
+[PRE10]
 
 Windows 示例：
 
-```
-> docker container exec -it 1a4f29e5a4b6 pwsh.exe
-Windows PowerShell
-Copyright (C) 2016 Microsoft Corporation. All rights reserved.
-
-PS C:\> ping 10.0.0.4
-
-Pinging 10.0.0.4 with 32 bytes of data:
-Reply from 10.0.0.4: bytes=32 time=1ms TTL=128
-Reply from 10.0.0.4: bytes=32 time<1ms TTL=128
-Reply from 10.0.0.4: bytes=32 time=2ms TTL=128
-Reply from 10.0.0.4: bytes=32 time=2ms TTL=12
-PS C:\> 
-```
+[PRE11]
 
 `恭喜。**node1**上的容器可以使用叠加网络 ping **node2**上的容器。
 
@@ -278,24 +172,11 @@ PS C:\>
 
 Linux 示例：
 
-```
-`$` `root``@396``c8b142a85``:``/``#` `traceroute` `10.0.0.4`
-`traceroute` `to` `10.0.0.4` `(``10.0.0.4``),` `30` `hops` `max``,` `60` `byte` `packets`
- `1`  `test``-``svc``.2.97``v``...``a5``.``uber``-``net` `(``10.0.0.4``)`  `1.110``ms`  `1.034``ms`  `1.073``ms` 
-```
+[PRE12]
 
 Windows 示例：
 
-```
-PS C:\> tracert 10.0.0.3
-
-Tracing route to test.2.ttcpiv3p...7o4.uber-net [10.0.0.4]
-over a maximum of 30 hops:
-
-  1  <1 ms  <1 ms  <1 ms  test.2.ttcpiv3p...7o4.uber-net [10.0.0.4]
-
-Trace complete. 
-```
+[PRE13]
 
 到目前为止，我们已经用一个命令创建了一个叠加网络。然后我们将容器添加到其中。这些容器被安排在两个位于两个不同第 2 层底层网络上的主机上。一旦我们确定了容器的 IP 地址，我们证明它们可以直接通过叠加网络进行通信。
 
@@ -383,4 +264,4 @@ VXLAN 隧道的每一端都由 VXLAN 隧道端点（VTEP）终止。正是这个
 
 在本章中，我们看到使用 `docker network create` 命令创建新的 Docker 覆盖网络是多么容易。然后我们学习了它们如何在幕后使用 VXLAN 技术组合在一起。
 
-我们只是触及了 Docker 覆盖网络可以做的一小部分。``````````````
+我们只是触及了 Docker 覆盖网络可以做的一小部分。[PRE14]`

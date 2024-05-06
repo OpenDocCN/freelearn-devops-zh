@@ -102,13 +102,7 @@ Kubernetes 甚至在不添加任何第三方解决方案的情况下就提供了
 
 接下来，检查`分配的资源`块：
 
-```
-Allocated resources:
- (Total limits may be over 100 percent, i.e., overcommitted.)
- CPU Requests	CPU Limits    Memory Requests  Memory Limits
- ------------	----------    ---------------  -------------
- 8520m (40%)	4500m (24%)   16328Mi (104%)   16328Mi (104%)
-```
+[PRE0]
 
 现在我们看到了一些指标！看起来我们的 Pod 正在请求过多的内存，导致我们的 Node 和 Pod 出现问题。从这个输出中可以看出，Kubernetes 默认已经在收集有关我们的 Nodes 的指标数据。没有这些数据，调度器将无法正常工作，因为维护 Pod 资源请求与 Node 容量是其最重要的功能之一。
 
@@ -118,9 +112,7 @@ Metrics Server 是一个官方支持的 Kubernetes 应用程序，它收集指�
 
 部署 Metrics Server 非常快速。在撰写本书时，可以使用以下命令安装最新版本：
 
-```
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.3.7/components.yaml
-```
+[PRE1]
 
 重要说明
 
@@ -144,17 +136,11 @@ CPU 核心以`millcpu`或`millicores`来衡量。1000`millicores`相当于一个
 
 为此，我们运行以下命令：
 
-```
-Kubectl top pods -n kube-system 
-```
+[PRE2]
 
 然后我们得到以下输出：
 
-```
-NAMESPACE     NAME                CPU(cores)   MEMORY(bytes)   
-default       my-hungry-pod       8m           50Mi            
-default       my-lightweight-pod  2m           10Mi       
-```
+[PRE3]
 
 正如您所看到的，该命令使用与`kubectl top nodes`相同的绝对单位-毫核和字节。在查看 Pod 级别的指标时，没有相对百分比。
 
@@ -190,9 +176,7 @@ default       my-lightweight-pod  2m           10Mi    �
 
 要检查特定 Pod 的日志，可以使用`kubectl logs <pod_name>`命令。该命令的输出将显示写入容器的`stdout`或`stderr`的任何文本。如果一个 Pod 有多个容器，您必须在命令中包含容器名称：
 
-```
-kubectl logs <pod_name> <container_name> 
-```
+[PRE4]
 
 在幕后，Kubernetes 通过使用容器引擎的日志驱动程序来处理 Pod 日志。通常，任何写入`stdout`或`stderr`的日志都会被持久化到每个节点的磁盘中的`/var/logs`文件夹中。根据 Kubernetes 的分发情况，可能会设置日志轮换，以防止日志占用节点磁盘空间过多。此外，Kubernetes 组件，如调度器、kubelet 和 kube-apiserver 也会将日志持久化到节点磁盘空间中，通常在`/var/logs`文件夹中。重要的是要注意默认日志记录功能的有限性 - Kubernetes 的强大可观察性堆栈肯定会包括第三方解决方案用于日志转发，我们很快就会看到。
 
@@ -206,15 +190,11 @@ Kubernetes 仪表板提供了 kubectl 的所有功能，包括查看日志和编
 
 要安装 Kubernetes 仪表板的版本，请运行以下`kubectl`命令，将`<VERSION>`标签替换为您所需的版本，根据您正在使用的 Kubernetes 版本（再次检查 Dashboard GitHub 页面以获取版本兼容性）：
 
-```
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/<VERSION> /aio/deploy/recommended.yaml
-```
+[PRE5]
 
 在我们的案例中，截至本书撰写时，我们将使用 v2.0.4 - 最终的命令看起来像这样：
 
-```
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.4/aio/deploy/recommended.yaml
-```
+[PRE6]
 
 安装了 Kubernetes 仪表板后，有几种方法可以访问它。
 
@@ -230,9 +210,7 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.4/a
 
 为了使用`kubectl proxy`访问特定的 Kubernetes 服务，您只需要正确的路径。运行`kubectl proxy`后访问 Kubernetes 仪表板的路径将如下所示：
 
-```
-http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
-```
+[PRE7]
 
 正如您所看到的，我们在浏览器中放置的`kubectl proxy`路径是在本地主机端口`8001`上，并提到了命名空间（`kubernetes-dashboard`）、服务名称和选择器（`https:kubernetes-dashboard`）以及代理路径。
 
@@ -248,62 +226,35 @@ http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kube
 
 1.  我们可以使用以下 Kubectl 命令来命令式地创建一个服务账户：
 
-```
-kubectl create serviceaccount dashboard-user
-```
+[PRE8]
 
 这将产生以下输出，确认了我们服务账户的创建：
 
-```
-serviceaccount/dashboard-user created
-```
+[PRE9]
 
 1.  现在，我们需要将我们的服务账户链接到一个 ClusterRole。您也可以使用 Role，但我们希望我们的仪表板用户能够访问所有命名空间。为了使用单个命令将服务账户链接到 `cluster-admin` 默认 ClusterRole，我们可以运行以下命令：
 
-```
-kubectl create clusterrolebinding dashboard-user \--clusterrole=cluster-admin --serviceaccount=default:dashboard-user
-```
+[PRE10]
 
 这个命令将产生以下输出：
 
-```
-clusterrolebinding.rbac.authorization.k8s.io/dashboard-user created
-```
+[PRE11]
 
 1.  运行此命令后，我们应该能够登录到我们的仪表板！首先，我们只需要找到我们将用于登录的令牌。服务账户的令牌存储为 Kubernetes 秘密，所以让我们看看它是什么样子。运行以下命令以查看我们的令牌存储在哪个秘密中：
 
-```
-kubectl get secrets
-```
+[PRE12]
 
 在输出中，您应该会看到一个类似以下的秘密：
 
-```
-NAME                         TYPE                                  DATA   AGE
-dashboard-user-token-dcn2g   kubernetes.io/service-account-token   3      112s
-```
+[PRE13]
 
 1.  现在，为了获取我们用于登录到仪表板的令牌，我们只需要使用以下命令描述秘密内容：
 
-```
-kubectl describe secret dashboard-user-token-dcn2g   
-```
+[PRE14]
 
 生成的输出将如下所示：
 
-```
-Name:         dashboard-user-token-dcn2g
-Namespace:    default
-Labels:       <none>
-Annotations:  kubernetes.io/service-account.name: dashboard-user
-              kubernetes.io/service-account.uid: 9dd255sd-426c-43f4-88c7-66ss91h44215
-Type:  kubernetes.io/service-account-token
-Data
-====
-ca.crt:     1025 bytes
-namespace:  7 bytes
-token: < LONG TOKEN HERE >
-```
+[PRE15]
 
 1.  要登录到仪表板，复制`token`旁边的字符串，将其复制到 Kubernetes 仪表板登录界面上的令牌输入中，然后点击**登录**。您应该会看到 Kubernetes 仪表板概览页面！
 
@@ -347,23 +298,17 @@ Prometheus 和 Grafana 是 Kubernetes 上典型的可见性技术组合。Promet
 
 要安装 Prometheus，首先我们需要下载一个发布版，这可能会因 Prometheus 的最新版本或您打算使用的 Kubernetes 版本而有所不同：
 
-```
-curl -LO https://github.com/coreos/kube-prometheus/archive/v0.5.0.zip
-```
+[PRE16]
 
 接下来，使用任何工具解压文件。首先，我们需要安装 CRDs。一般来说，大多数 Kubernetes 工具安装说明都会让您首先在 Kubernetes 上创建 CRDs，因为如果底层 CRD 尚未在 Kubernetes 上创建，那么任何使用 CRD 的其他设置都将失败。
 
 让我们使用以下命令安装它们：
 
-```
-kubectl apply -f manifests/setup
-```
+[PRE17]
 
 在创建 CRDs 时，我们需要等待几秒钟。此命令还将为我们的资源创建一个 `monitoring` 命名空间。一旦一切准备就绪，让我们使用以下命令启动其余的 Prometheus 和 Grafana 资源：
 
-```
-kubectl apply -f manifests/
-```
+[PRE18]
 
 让我们来谈谈这个命令实际上会创建什么。整个堆栈包括以下内容：
 
@@ -393,9 +338,7 @@ kubectl apply -f manifests/
 
 为了`port-forward`到 Prometheus UI 服务，使用`port-forward` kubectl 命令：
 
-```
-Kubectl -n monitoring port-forward svc/prometheus-k8s 3000:9090
-```
+[PRE19]
 
 我们需要使用端口`9090`来访问 Prometheus UI。在您的机器上访问服务`http://localhost:3000`。
 
@@ -411,9 +354,7 @@ Kubectl -n monitoring port-forward svc/prometheus-k8s 3000:9090
 
 为了演示这是如何工作的，让我们输入一个基本的查询，如下所示：
 
-```
-kubelet_http_requests_total
-```
+[PRE20]
 
 此查询将列出每个节点上发送到 kubelet 的 HTTP 请求的总数，对于每个请求类别，如下截图所示：
 
@@ -441,9 +382,7 @@ Grafana 提供了强大的工具来可视化指标，支持许多可以实时更
 
 1.  我们将结束当前的端口转发（*CTRL* + *C*即可），并设置一个新的端口转发监听器到 Grafana UI：
 
-```
-Kubectl -n monitoring port-forward svc/grafana 3000:3000
-```
+[PRE21]
 
 1.  再次导航到`localhost:3000`以查看 Grafana UI。您应该能够使用**用户名**：`admin`和**密码**：`admin`登录，然后您应该能够按照以下截图更改初始密码：![图 9.10 – Grafana 更改密码屏幕](img/B14790_09_010_new.jpg)
 
@@ -477,9 +416,7 @@ Alertmanager 是一个用于管理从 Prometheus 警报生成的警报的开源�
 
 1.  首先，让我们使用以下命令`port-forward` Alertmanager 服务：
 
-```
-Kubectl -n monitoring port-forward svc/alertmanager-main 3000:9093
-```
+[PRE22]
 
 1.  像往常一样，导航到 `localhost:3000`，查看如下截图所示的 UI。它看起来与 Prometheus UI 类似：
 
@@ -501,24 +438,17 @@ Alertmanager 与 Prometheus 警报一起工作。您可以使用 Prometheus 服�
 
 1.  首先，使用以下命令克隆或下载 Kubernetes 存储库：
 
-```
-git clone https://github.com/kubernetes/kubernetes
-```
+[PRE23]
 
 1.  清单位于`kubernetes/cluster/addons`文件夹中，具体位于`fluentd-elasticsearch`下：
 
-```
-cd kubernetes/cluster/addons
-```
+[PRE24]
 
 对于生产工作负载，我们可能会对这些清单进行一些更改，以便为我们的集群正确定制配置，但出于本教程的目的，我们将保留所有内容为默认值。让我们开始引导我们的 EFK 堆栈的过程。
 
 1.  首先，让我们创建 Elasticsearch 集群本身。这在 Kubernetes 上作为一个 StatefulSet 运行，并提供一个 Service。要创建集群，我们需要运行两个`kubectl`命令：
 
-```
-kubectl apply -f ./fluentd-elasticsearch/es-statefulset.yaml
-kubectl apply -f ./fluentd-elasticsearch/es-service.yaml
-```
+[PRE25]
 
 重要提示
 
@@ -528,31 +458,21 @@ kubectl apply -f ./fluentd-elasticsearch/es-service.yaml
 
 1.  要安装代理和它们的配置的 DaemonSet，请运行以下两个`kubectl`命令：
 
-```
-kubectl apply -f ./fluentd-elasticsearch/fluentd-es-configmap.yaml
-kubectl apply -f ./fluentd-elasticsearch/fluentd-es-ds.yaml
-```
+[PRE26]
 
 1.  现在我们已经创建了 ConfigMap 和 FluentD DaemonSet，我们可以创建我们的 Kibana 应用程序，这是一个用于与 Elasticsearch 交互的 GUI。这一部分作为一个 Deployment 运行，带有一个 Service。要将 Kibana 部署到我们的集群，运行最后两个`kubectl`命令：
 
-```
-kubectl apply -f ./fluentd-elasticsearch/kibana-deployment.yaml
-kubectl apply -f ./fluentd-elasticsearch/kibana-service.yaml
-```
+[PRE27]
 
 1.  一旦所有东西都已启动，这可能需要几分钟，我们就可以像我们之前对 Prometheus 和 Grafana 做的那样访问 Kibana UI。要检查我们刚刚创建的资源的状态，我们可以运行以下命令：
 
-```
-kubectl get po -A
-```
+[PRE28]
 
 1.  一旦 FluentD、Elasticsearch 和 Kibana 的所有 Pod 都处于**Ready**状态，我们就可以继续进行。如果您的任何 Pod 处于**Error**或**CrashLoopBackoff**阶段，请参阅`addons`文件夹中的 Kubernetes GitHub 文档以获取更多信息。
 
 1.  一旦我们确认我们的组件正常工作，让我们使用`port-forward`命令来访问 Kibana UI。顺便说一句，我们的 EFK 堆栈组件将位于`kube-system`命名空间中 - 因此我们的命令需要反映这一点。因此，让我们使用以下命令：
 
-```
-kubectl port-forward -n kube-system svc/kibana-logging 8080:5601
-```
+[PRE29]
 
 这个命令将从 Kibana UI 开始一个`port-forward`到您本地机器的端口`8080`。
 
@@ -616,41 +536,27 @@ Jaeger 提供了一个用于查看跟踪并与 Prometheus 集成的 UI。官方 
 
 首先，我们需要为 Jaeger 创建一个命名空间。我们可以通过`kubectl create namespace`命令获取它：
 
-```
-kubectl create namespace observability
-```
+[PRE30]
 
 现在我们的命名空间已创建，我们需要创建一些 Jaeger 和操作员将使用的**CRDs**。我们将在我们的 Kubernetes 扩展章节中深入讨论 CRDs，但现在，把它们看作是一种利用 Kubernetes API 来构建应用程序自定义功能的方式。使用以下步骤，让我们安装 Jaeger：
 
 1.  要创建 Jaeger CRDs，请运行以下命令：
 
-```
-kubectl create -f https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/crds/jaegertracing.io_jaegers_crd.yaml
-```
+[PRE31]
 
 创建了我们的 CRDs 后，操作员需要创建一些角色和绑定以便进行工作。
 
 1.  我们希望 Jaeger 在我们的集群中拥有全局权限，因此我们将创建一些可选的 ClusterRoles 和 ClusterRoleBindings。为了实现这一点，我们运行以下命令：
 
-```
-kubectl create -n observability -f https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/service_account.yaml
-kubectl create -n observability -f https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/role.yaml
-kubectl create -n observability -f https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/role_binding.yaml
-kubectl create -f https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/cluster_role.yaml
-kubectl create -f https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/cluster_role_binding.yaml
-```
+[PRE32]
 
 1.  现在，我们终于拥有了操作员工作所需的所有要素。让我们用最后一个`kubectl`命令安装操作员：
 
-```
-kubectl create -n observability -f https://raw.githubusercontent.com/jaegertracing/jaeger-operator/master/deploy/operator.yaml
-```
+[PRE33]
 
 1.  最后，使用以下命令检查操作员是否正在运行：
 
-```
-kubectl get deploy -n observability
-```
+[PRE34]
 
 如果操作员正常运行，您将看到类似以下输出，部署中将有一个可用的 Pod：
 
@@ -668,44 +574,27 @@ Jaeger 可以以三种主要配置运行：*AllInOne*，*Production*和*Streamin
 
 Jaeger-allinone.yaml
 
-```
-apiVersion: jaegertracing.io/v1
-kind: Jaeger
-metadata:
-  name: all-in-one
-  namespace: observability
-spec:
-  strategy: allInOne
-```
+[PRE35]
 
 我们只是使用了可能的 Jaeger 类型配置的一个小子集 - 再次查看完整的文档以了解全部情况。
 
 现在，我们可以通过运行以下命令来创建我们的 Jaeger 实例：
 
-```
-Kubectl apply -f jaeger-allinone.yaml
-```
+[PRE36]
 
 这个命令创建了我们之前安装的 Jaeger CRD 的一个实例。此时，Jaeger Operator 应该意识到已经创建了 CRD。不到一分钟，我们的实际 Jaeger Pod 应该正在运行。我们可以通过以下命令列出 observability 命名空间中的所有 Pod 来检查：
 
-```
-Kubectl get po -n observability
-```
+[PRE37]
 
 作为输出，您应该看到为我们的全功能实例新创建的 Jaeger Pod：
 
-```
-NAME                         READY   STATUS    RESTARTS   AGE
-all-in-one-12t6bc95sr-aog4s  1/1     Running   0          5m
-```
+[PRE38]
 
 当我们的集群上也运行有 Ingress 控制器时，Jaeger Operator 会创建一个 Ingress 记录。这意味着我们可以简单地使用 kubectl 列出我们的 Ingress 条目，以查看如何访问 Jaeger UI。
 
 您可以使用这个命令列出 Ingress：
 
-```
-Kubectl get ingress -n observability
-```
+[PRE39]
 
 输出应该显示您的 Jaeger UI 的新 Ingress，如下所示：
 

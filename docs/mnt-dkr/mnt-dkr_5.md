@@ -36,10 +36,7 @@ Sysdig 有两种不同的版本，第一种是开源版本，可在[`www.sysdig.
 
 考虑到 Sysdig 有多么强大，它拥有我所遇到的最简单的安装和配置过程之一。要在 CentOS 或 Ubuntu 服务器上安装 Sysdig，请输入以下命令：
 
-```
-**curl -s https://s3.amazonaws.com/download.draios.com/stable/install-sysdig | sudo bash**
-
-```
+[PRE0]
 
 运行上述命令后，您将获得以下输出：
 
@@ -53,11 +50,7 @@ Sysdig 有两种不同的版本，第一种是开源版本，可在[`www.sysdig.
 
 在我们看如何使用 Sysdig 之前，让我们通过运行以下命令使用`docker-compose`启动一些容器：
 
-```
-**cd /monitoring_docker/chapter05/wordpress/**
-**docker-compose up –d**
-
-```
+[PRE1]
 
 这将启动一个运行数据库和两个 Web 服务器容器的 WordPress 安装，这些容器使用 HAProxy 容器进行负载平衡。一旦容器启动，您就可以在[`docker.media-glass.es/`](http://docker.media-glass.es/)上查看 WordPress 安装。在网站可见之前，您需要输入一些详细信息来创建管理员用户；按照屏幕提示完成这些步骤。
 
@@ -67,17 +60,11 @@ Sysdig 有两种不同的版本，第一种是开源版本，可在[`www.sysdig.
 
 那里有很多信息，所以让我们开始过滤流并运行以下命令：
 
-```
-**sudosysdigevt.type=chdir**
-
-```
+[PRE2]
 
 这将仅显示用户更改目录的事件；要查看其运行情况，打开第二个终端，您会看到当您登录时，在第一个终端中会看到一些活动。如您所见，它看起来很像传统的日志文件；我们可以通过运行以下命令格式化输出以提供用户名等信息：
 
-```
-**sudosysdig -p"user:%user.name dir:%evt.arg.path" evt.type=chdir**
-
-```
+[PRE3]
 
 然后，在您的第二个终端中，多次更改目录：
 
@@ -89,24 +76,15 @@ Sysdig 有两种不同的版本，第一种是开源版本，可在[`www.sysdig.
 
 在上一节中，我们看到了实时过滤数据；也可以将 Sysdig 数据流式传输到文件中，以便以后查询数据。退出第二个终端，并在第一个终端上运行以下命令：
 
-```
-**sudosysdig -w ~/monitoring-docker.scap**
-
-```
+[PRE4]
 
 当第一个终端上的命令正在运行时，登录到第二个终端上的主机，并多次更改目录。此外，在我们录制时，点击本节开头启动的 WordPress 网站，URL 为`http://docker.media-glass.es/`。完成后，按下*Crtl* + *c*停止录制；您现在应该已经回到提示符。您可以通过运行以下命令检查 Sysdig 创建的文件的大小：
 
-```
-**ls -lha ~/monitoring-docker.scap**
-
-```
+[PRE5]
 
 现在，我们可以使用我们捕获的数据应用与我们在查看实时流时相同的过滤器：
 
-```
-**sudosysdig -r ~/monitoring-docker.scap -p"user:%user.name dir:%evt.arg.path" evt.type=chdir**
-
-```
+[PRE6]
 
 通过运行上述命令，您将获得以下输出：
 
@@ -118,31 +96,19 @@ Sysdig 有两种不同的版本，第一种是开源版本，可在[`www.sysdig.
 
 在`~/monitoring-docker.scap`中记录的一件事是系统状态的详细信息；这包括我们在本章开头启动的容器的信息。让我们使用这个文件来获取一些有关容器的统计信息。要列出在我们捕获数据文件期间处于活动状态的容器，请运行：
 
-```
-**sudo sysdig -r ~/monitoring-docker.scap -c lscontainers**
-
-```
+[PRE7]
 
 要查看哪个容器在大部分时间内使用了 CPU，我们点击 WordPress 网站运行：
 
-```
-**sudo sysdig -r ~/monitoring-docker.scap -c topcontainers_cpu**
-
-```
+[PRE8]
 
 要查看具有名称中包含“wordpress”的每个容器中的顶级进程，（在我们的情况下是所有容器），运行以下命令：
 
-```
-**sudo sysdig -r ~/monitoring-docker.scap -c topprocs_cpu container.name contains wordpress**
-
-```
+[PRE9]
 
 最后，我们的哪个容器传输了最多的数据？：
 
-```
-**sudosysdig -r ~/monitoring-docker.scap -c topcontainers_net**
-
-```
+[PRE10]
 
 通过运行上述命令，您将获得以下输出：
 
@@ -162,10 +128,7 @@ Sysdig 有两种不同的版本，第一种是开源版本，可在[`www.sysdig.
 
 启动 Csysdig 只需一个命令：
 
-```
-**sudo csysdig**
-
-```
+[PRE11]
 
 一旦进程启动，它应该立即对任何使用过 top 或 cAdvisor（减去图表）的人都很熟悉；它的默认视图将向您显示正在运行的进程的实时信息：
 
@@ -177,10 +140,7 @@ Sysdig 有两种不同的版本，第一种是开源版本，可在[`www.sysdig.
 
 然而，在我们深入研究容器之前，让我们通过按*q*退出 Csysdig，并加载我们在上一节中创建的文件。要做到这一点，输入以下命令：
 
-```
-**sudo csysdig -r ~/monitoring-docker.scap**
-
-```
+[PRE12]
 
 一旦 Csysdig 加载，您会注意到**源**已从**实时系统**更改为我们数据文件的文件路径。从这里，按*F2*，使用上箭头选择容器，然后按*Enter*。从这里，您可以使用上下箭头选择两个 web 服务器中的一个，这些可能是`wordpress_wordpress1_1`或`wordpress_wordpress2_1`，如下图所示：
 

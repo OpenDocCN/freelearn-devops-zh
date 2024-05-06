@@ -116,9 +116,7 @@ Docker 容器允许我们在我们的计算机上以全新的环境运行应用�
 
 这个命令在 **Docker Hub** 中搜索镜像：
 
-```
-docker search <term> (for example, docker search ubuntu)
-```
+[PRE0]
 
 Docker Hub 是默认的 Docker 注册表。Docker 注册表保存了命名的 Docker 镜像。Docker Hub 基本上就是 "Docker 镜像的 GitHub"。之前，我们看过如何运行 Ubuntu 容器而不构建一个；这就是 Ubuntu 镜像存储和版本控制的地方：
 
@@ -142,19 +140,13 @@ Docker Hub 是默认的 Docker 注册表。Docker 注册表保存了命名的 Do
 
 这个命令允许你从 Docker Hub 搜索：
 
-```
-docker search <term>
-
-```
+[PRE1]
 
 例如，`docker search ubuntu`。
 
 这个命令从注册表中拉取一个镜像到你的本地机器：
 
-```
-docker pull
-
-```
+[PRE2]
 
 例如，`docker pull ubuntu`。
 
@@ -174,10 +166,7 @@ docker pull
 
 1.  这个命令用于从 Docker Hub 拉取镜像。
 
-```
-docker pull
-
-```
+[PRE3]
 
 图像的种类范围从操作系统到库，例如 Ubuntu、Node.js 和 Apache。此命令允许您从 Docker Hub 中拉取图像：
 
@@ -195,10 +184,7 @@ docker pull
 
 此命令将检查名为`hello-world`的图像是否在本地存在：
 
-```
-docker run <image>
-
-```
+[PRE4]
 
 例如，`docker run hello-world`：
 
@@ -208,9 +194,7 @@ docker run <image>
 
 此命令列出正在运行的容器：
 
-```
-docker ps
-```
+[PRE5]
 
 如果没有运行的容器，您应该看到一个带有标题的空屏幕：
 
@@ -282,9 +266,7 @@ Dockerfile 是一个简单的文本文档，其中写有模板容器的所有命
 
 创建一个名为`run.py`的文件，并输入第一行如下：
 
-```
-print("Hello Docker - PY")
-```
+[PRE6]
 
 在同一文件夹级别上创建一个新文件，并将其命名为**Dockerfile**。
 
@@ -294,12 +276,7 @@ print("Hello Docker - PY")
 
 在**Dockerfile**中添加以下内容：
 
-```
-FROM python
-ADD . .
-RUN ls
-CMD python run.py
-```
+[PRE7]
 
 **FROM**命令，正如前面所提到的，指定了基本图像。
 
@@ -319,9 +296,7 @@ CMD python run.py
 
 在脚本中添加以下行并保存：
 
-```
-console.log("Hello Docker - JS")
-```
+[PRE8]
 
 运行`docker search node` - 我们将选择官方图像：`node`
 
@@ -337,13 +312,7 @@ console.log("Hello Docker - JS")
 
 这应该与脚本在同一文件级别。
 
-```
-FROM node
-ADD . .
-RUN ls
-CMD node run.js
-
-```
+[PRE9]
 
 我们现在将涵盖这些内容。
 
@@ -361,16 +330,7 @@ CMD node run.js
 
 1.  编写一个包括以下步骤的 Dockerfile：
 
-```
-FROM ubuntu:xenial 
-RUN apt-get install -y apt-transport-https curl software-properties-common python-software-properties
-RUN curl -fsSL https://apt.dockerproject.org/gpg | apt-key add 
-RUN echo 'deb https://apt.dockerproject.org/repo ubuntu-xenial main' > /etc/apt/sources.list.d/docker.list
-RUN apt-get update
-RUN apt-get install -y python3-pip
-RUN apt-get install -y build-essential libssl-dev libffi-dev python-dev
-
-```
+[PRE10]
 
 # 构建镜像
 
@@ -384,9 +344,7 @@ RUN apt-get install -y build-essential libssl-dev libffi-dev python-dev
 
 构建镜像的命令如下：
 
-```
-docker build -t <image-name> <relative location of the Dockerfile>
-```
+[PRE11]
 
 `-t`代表标签。`<image-name>`可以包括特定的标签，比如 latest。建议您始终以这种方式进行操作：给镜像打标签。
 
@@ -410,10 +368,7 @@ docker build -t <image-name> <relative location of the Dockerfile>
 
 要构建镜像，请在 Python 工作区运行以下命令：
 
-```
->$ docker build -t python-docker .
-
-```
+[PRE12]
 
 ### 注意
 
@@ -429,10 +384,7 @@ docker build -t <image-name> <relative location of the Dockerfile>
 
 打开 JavaScript 目录，并按以下方式构建 JavaScript 图像：
 
-```
->$ docker build -t js-docker .
-
-```
+[PRE13]
 
 运行命令将根据**Dockerfile**中的四行命令概述四个步骤。
 
@@ -444,9 +396,7 @@ docker build -t <image-name> <relative location of the Dockerfile>
 
 要删除非标记的图像（假定不相关），需要了解 bash 脚本知识。使用以下命令：
 
-```
-docker rmi $(docker images | grep "^<none>" | awk "{print $3}")
-```
+[PRE14]
 
 这只是在`docker images`命令的行中搜索带有<none>的图像，并返回第三列中的图像 ID：
 
@@ -486,15 +436,11 @@ docker rmi $(docker images | grep "^<none>" | awk "{print $3}")
 
 你注意到了什么？容器运行的输出显示在终端的相应行上。注意，在 Dockerfile 中由 CMD 前导的命令是运行的命令：
 
-```
-docker build -t python-docker:test .  and docker build -t js-docker:test .
-```
+[PRE15]
 
 然后，运行以下命令：
 
-```
-python-docker:test and docker run js-docker:test
-```
+[PRE16]
 
 ### 注意
 
@@ -572,9 +518,7 @@ Python 镜像的 Dockerfile 中的 CMD 是`python3`。这意味着在容器中�
 
 这里使用的命令是：
 
-```
-docker build -t <image-name>:<tag> <relative location of the Dockerfile>
-```
+[PRE17]
 
 比如，我们知道 Python 有几个版本：Python 3.6，3.5 等等。Node.js 有更多的版本。如果你看一下 Docker Hub 上官方的 Node.js 页面，你会看到列表顶部有以下内容：
 

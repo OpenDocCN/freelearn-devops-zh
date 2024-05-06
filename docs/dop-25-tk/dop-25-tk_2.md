@@ -20,11 +20,7 @@ Cluster Autoscaler 背后的逻辑很容易理解。我们还没有看到它是�
 
 本章中的所有命令都可以在`02-ca.sh`（[`gist.github.com/vfarcic/a6b2a5132aad6ca05b8ff5033c61a88f`](https://gist.github.com/vfarcic/a6b2a5132aad6ca05b8ff5033c61a88f)）Gist 中找到。
 
-```
- 1  cd k8s-specs
- 2
- 3  git pull
-```
+[PRE0]
 
 接下来，我们需要一个集群。请使用下面的 Gists 作为灵感来创建一个新的集群，或者验证您已经满足所有要求。
 
@@ -64,113 +60,45 @@ AKS 用户注意：在撰写本文时（2018 年 10 月），Cluster Autoscaler 
 
 首先，我们将检索 AWS Autoscaling Groups 的列表，并使用`jq`过滤结果，以便只返回匹配组的名称。
 
-```
- 1  export NAME=devops25
- 2
- 3  ASG_NAME=$(aws autoscaling \
- 4      describe-auto-scaling-groups \
- 5      | jq -r ".AutoScalingGroups[] \
- 6      | select(.AutoScalingGroupName \
- 7      | startswith(\"eksctl-$NAME-nodegroup\")) \
- 8      .AutoScalingGroupName")
- 9
-10 echo $ASG_NAME
-```
+[PRE1]
 
 后一个命令的输出应该类似于接下来的输出。
 
-```
-eksctl-devops25-nodegroup-0-NodeGroup-1KWSL5SEH9L1Y
-```
+[PRE2]
 
 我们将集群的名称存储在环境变量`NAME`中。然后，我们检索了所有组的列表，并使用`jq`过滤输出，以便只返回名称以`eksctl-$NAME-nodegroup`开头的组。最后，相同的`jq`命令检索了`AutoScalingGroupName`字段，并将其存储在环境变量`ASG_NAME`中。最后一个命令输出了组名，以便我们可以确认（视觉上）它看起来是否正确。
 
 接下来，我们将向组添加一些标记。Kubernetes Cluster Autoscaler 将与具有`k8s.io/cluster-autoscaler/enabled`和`kubernetes.io/cluster/[NAME_OF_THE_CLUSTER]`标记的组一起工作。因此，我们只需添加这些标记，让 Kubernetes 知道要使用哪个组。
 
-```
- 1  aws autoscaling \
- 2      create-or-update-tags \
- 3      --tags \
- 4      ResourceId=$ASG_NAME,ResourceType=auto-scaling-group,Key=k8s.io/
-    clusterautoscaler/enabled,Value=true,PropagateAtLaunch=true \
- 5      ResourceId=$ASG_NAME,ResourceType=auto-scaling-
-    group,Key=kubernetes.io/cluster/$NAME,Value=true,PropagateAtLaunch=true
-```
+[PRE3]
 
 我们在 AWS 中需要做的最后一项更改是向通过 eksctl 创建的角色添加一些额外的权限。与自动缩放组一样，我们不知道角色的名称，但我们知道用于创建它的模式。因此，在添加新策略之前，我们将检索角色的名称。
 
-```
- 1  IAM_ROLE=$(aws iam list-roles \
- 2      | jq -r ".Roles[] \
- 3      | select(.RoleName \
- 4      | startswith(\"eksctl-$NAME-nodegroup-0-NodeInstanceRole\")) \
- 5      .RoleName")
- 6  
- 7  echo $IAM_ROLE
-```
+[PRE4]
 
 后一条命令的输出应该类似于接下来的输出。
 
-```
-eksctl-devops25-nodegroup-0-NodeInstanceRole-UU6CKXYESUES
-```
+[PRE5]
 
 我们列出了所有角色，并使用`jq`过滤输出，以便只返回名称以`eksctl-$NAME-nodegroup-0-NodeInstanceRole`开头的角色。过滤角色后，我们检索了`RoleName`并将其存储在环境变量`IAM_ROLE`中。
 
 接下来，我们需要描述新策略的 JSON。我已经准备好了，让我们快速看一下。
 
-```
- 1  cat scaling/eks-autoscaling-policy.json
-```
+[PRE6]
 
 输出如下。
 
-```
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "autoscaling:DescribeAutoScalingGroups",
-        "autoscaling:DescribeAutoScalingInstances",
-        "autoscaling:DescribeLaunchConfigurations",
-        "autoscaling:DescribeTags",
-        "autoscaling:SetDesiredCapacity",
-        "autoscaling:TerminateInstanceInAutoScalingGroup"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-```
+[PRE7]
 
 如果你熟悉 AWS（我希望你是），那个策略应该很简单。它允许与`autoscaling`相关的一些额外操作。
 
 最后，我们可以将新策略`put`到角色中。
 
-```
- 1  aws iam put-role-policy \
- 2      --role-name $IAM_ROLE \
- 3      --policy-name $NAME-AutoScaling \
- 4      --policy-document file://scaling/eks-autoscaling-policy.json
-```
+[PRE8]
 
 现在我们已经向自动缩放组添加了所需的标记，并创建了额外的权限，允许 Kubernetes 与该组进行交互，我们可以安装 Cluster Autoscaler Helm Chart。
 
-```
- 1  helm install stable/cluster-autoscaler \
- 2      --name aws-cluster-autoscaler \
- 3      --namespace kube-system \
- 4      --set autoDiscovery.clusterName=$NAME \
- 5      --set awsRegion=$AWS_DEFAULT_REGION \
- 6      --set sslCertPath=/etc/kubernetes/pki/ca.crt \
- 7      --set rbac.create=true
- 8
-9  kubectl -n kube-system \
-10      rollout status \
-11      deployment aws-cluster-autoscaler
-```
+[PRE9]
 
 一旦部署完成，自动缩放器应该完全可用。
 
@@ -184,116 +112,41 @@ eksctl-devops25-nodegroup-0-NodeInstanceRole-UU6CKXYESUES
 
 让我们首先看一下集群中有多少个节点。
 
-```
- 1  kubectl get nodes
-```
+[PRE10]
 
 来自 GKE 的输出如下。
 
-```
-NAME             STATUS ROLES  AGE   VERSION
-gke-devops25-... Ready  <none> 5m27s v1.9.7-gke.6
-gke-devops25-... Ready  <none> 5m28s v1.9.7-gke.6
-gke-devops25-... Ready  <none> 5m24s v1.9.7-gke.6
-```
+[PRE11]
 
 在您的情况下，节点的数量可能会有所不同。这并不重要。重要的是要记住您现在有多少个节点，因为这个数字很快就会改变。
 
 在我们推出`go-demo-5`应用程序之前，让我们先看一下它的定义。
 
-```
- 1  cat scaling/go-demo-5-many.yml
-```
+[PRE12]
 
 输出内容，仅限于相关部分，如下所示。
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: api
-  namespace: go-demo-5
-spec:
-  ...
-  template:
-    ...
-    spec:
-      containers:
-      - name: api
-        ...
-        resources:
-          limits:
-            memory: 1Gi
-            cpu: 0.1
-          requests:
-            memory: 500Mi
-            cpu: 0.01
-...
-apiVersion: autoscaling/v2beta1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: api
-  namespace: go-demo-5
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: api
-  minReplicas: 15
-  maxReplicas: 30
-  ...
-```
+[PRE13]
 
 在这种情况下，我们即将应用的定义中唯一重要的部分是与`api`部署连接的 HPA。它的最小副本数是`15`。假设每个`api`容器请求 500 MB RAM，那么十五个副本（7.5 GB RAM）应该超出了我们的集群可以承受的范围，假设它是使用其中一个 Gists 创建的。否则，您可能需要增加最小副本数。
 
 让我们应用这个定义并看一下 HPA。
 
-```
- 1  kubectl apply \
- 2      -f scaling/go-demo-5-many.yml \
- 3      --record
- 4
- 5  kubectl -n go-demo-5 get hpa
-```
+[PRE14]
 
 后一条命令的输出如下。
 
-```
-NAME   REFERENCE        TARGETS                        MINPODS   MAXPODS   REPLICAS   AGE
-api    Deployment/api   <unknown>/80%, <unknown>/80%   15        30        1          38s
-db     StatefulSet/db   <unknown>/80%, <unknown>/80%   3         5         1          40s
-```
+[PRE15]
 
 无论目标是否仍然是`未知`，它们很快就会被计算出来，但我们现在不关心它们。重要的是`api` HPA 将会将部署扩展至至少`15`个副本。
 
 接下来，我们需要等待几秒钟，然后再看一下`go-demo-5`命名空间中的 Pod。
 
-```
- 1  kubectl -n go-demo-5 get pods
-```
+[PRE16]
 
 输出如下。
 
-```
-NAME    READY STATUS            RESTARTS AGE
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   Pending           0        2s
-api-... 0/1   Pending           0        2s
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   ContainerCreating 1        32s
-api-... 0/1   Pending           0        2s
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   Pending           0        2s
-api-... 0/1   ContainerCreating 0        2s
-api-... 0/1   ContainerCreating 0        2s
-db-0    2/2   Running           0        34s
-db-1    0/2   ContainerCreating 0        34s
-```
+[PRE17]
 
 我们可以看到一些`api` Pod 正在被创建，而其他一些则是挂起的。Pod 进入挂起状态可能有很多原因。
 
@@ -303,29 +156,11 @@ db-1    0/2   ContainerCreating 0        34s
 
 让我们看看集群自动缩放器是否有助于解决我们的容量不足问题。我们将探索包含集群自动缩放器状态的 ConfigMap。
 
-```
- 1  kubectl -n kube-system get cm \
- 2      cluster-autoscaler-status \
- 3      -o yaml
-```
+[PRE18]
 
 输出内容太多，无法完整呈现，所以我们将专注于重要的部分。
 
-```
-apiVersion: v1
-data:
-  status: |+
-    Cluster-autoscaler status at 2018-10-03 ...
-    Cluster-wide:
-      ...
-      ScaleUp: InProgress (ready=3 registered=3)
-    ... 
-    NodeGroups:
-      Name:    ...gke-devops25-default-pool-ce277413-grp
-      ...
-      ScaleUp: InProgress (ready=1 cloudProviderTarget=2)
-               ...
-```
+[PRE19]
 
 状态分为两个部分：`整个集群`和`节点组`。整个集群状态的`ScaleUp`部分显示缩放正在进行中。目前有`3`个就绪节点。
 
@@ -337,39 +172,21 @@ data:
 
 让我们描述`api` Pod 并检索它们的事件。由于我们只想要与`cluster-autoscaler`相关的事件，我们将使用`grep`来限制输出。
 
-```
- 1  kubectl -n go-demo-5 \
- 2      describe pods \
- 3      -l app=api \
- 4      | grep cluster-autoscaler
-```
+[PRE20]
 
 在 GKE 上的输出如下。
 
-```
-  Normal TriggeredScaleUp 85s cluster-autoscaler pod triggered scale-up: [{... 1->2 (max: 3)}]
-  Normal TriggeredScaleUp 86s cluster-autoscaler pod triggered scale-up: [{... 1->2 (max: 3)}]
-  Normal TriggeredScaleUp 87s cluster-autoscaler pod triggered scale-up: [{... 1->2 (max: 3)}]
-  Normal TriggeredScaleUp 88s cluster-autoscaler pod triggered scale-up: [{... 1->2 (max: 3)}]
-```
+[PRE21]
 
 我们可以看到几个 Pod 触发了`scale-up`事件。这些是处于挂起状态的 Pod。这并不意味着每个触发都创建了一个新节点。集群自动缩放器足够智能，知道不应该为每个触发创建新节点，但在这种情况下，一个或两个节点（取决于缺少的容量）应该足够。如果证明这是错误的，它将在一段时间后再次扩展。
 
 让我们检索构成集群的节点，看看是否有任何变化。
 
-```
- 1  kubectl get nodes
-```
+[PRE22]
 
 输出如下。
 
-```
-NAME                                     STATUS     ROLES    AGE     VERSION
-gke-devops25-default-pool-7d4b99ad-...   Ready      <none>   2m45s   v1.9.7-gke.6
-gke-devops25-default-pool-cb207043-...   Ready      <none>   2m45s   v1.9.7-gke.6
-gke-devops25-default-pool-ce277413-...   NotReady   <none>   12s     v1.9.7-gke.6
-gke-devops25-default-pool-ce277413-...   Ready      <none>   2m48s   v1.9.7-gke.6
-```
+[PRE23]
 
 我们可以看到一个新的工作节点被添加到集群中。它还没有准备好，所以我们需要等待一段时间，直到它完全可操作。
 
@@ -379,33 +196,11 @@ gke-devops25-default-pool-ce277413-...   Ready      <none>   2m48s   v1.9.7-gke.
 
 现在，让我们看看我们的 Pod 发生了什么。记住，上次我们检查它们时，有相当多的 Pod 处于挂起状态。
 
-```
- 1  kubectl -n go-demo-5 get pods
-```
+[PRE24]
 
 输出如下。
 
-```
-NAME    READY STATUS  RESTARTS AGE
-api-... 1/1   Running 1        75s
-api-... 1/1   Running 0        75s
-api-... 1/1   Running 0        75s
-api-... 1/1   Running 1        75s
-api-... 1/1   Running 1        75s
-api-... 1/1   Running 3        105s
-api-... 1/1   Running 0        75s
-api-... 1/1   Running 0        75s
-api-... 1/1   Running 1        75s
-api-... 1/1   Running 1        75s
-api-... 1/1   Running 0        75s
-api-... 1/1   Running 1        75s
-api-... 1/1   Running 0        75s
-api-... 1/1   Running 1        75s
-api-... 1/1   Running 0        75s
-db-0    2/2   Running 0        107s
-db-1    2/2   Running 0        67s
-db-2    2/2   Running 0        28s
-```
+[PRE25]
 
 集群自动缩放器增加了节点组（例如，AWS 中的自动缩放组）中所需的节点数量，从而创建了一个新节点。一旦调度程序注意到集群容量的增加，它就会将待定的 Pod 调度到新节点中。在几分钟内，我们的集群扩展了，所有缩放的 Pod 都在运行。
 
@@ -429,82 +224,33 @@ db-2    2/2   Running 0        28s
 
 我们将通过应用一个新的定义来模拟需求下降，这将重新定义 HPAs 的阈值为`2`（最小）和`5`（最大）。
 
-```
- 1  kubectl apply \
- 2      -f scaling/go-demo-5.yml \
- 3      --record
- 4
- 5  kubectl -n go-demo-5 get hpa
-```
+[PRE26]
 
 后一条命令的输出如下。
 
-```
-NAME REFERENCE      TARGETS          MINPODS MAXPODS REPLICAS AGE
-api  Deployment/api 0%/80%, 0%/80%   2       5       15       2m56s
-db   StatefulSet/db 56%/80%, 10%/80% 3       5       3        2m57s
-```
+[PRE27]
 
 我们可以看到`api` HPA 的最小和最大值已经改变为`2`和`5`。当前副本的数量仍然是`15`，但很快会降到`5`。HPA 已经改变了部署的副本，所以让我们等待它的部署完成，然后再看一下 Pods。
 
-```
- 1  kubectl -n go-demo-5 rollout status \
- 2      deployment api
- 3
- 4  kubectl -n go-demo-5 get pods
-```
+[PRE28]
 
 后一个命令的输出如下。
 
-```
-NAME    READY STATUS  RESTARTS AGE
-api-... 1/1   Running 0        104s
-api-... 1/1   Running 0        104s
-api-... 1/1   Running 0        104s
-api-... 1/1   Running 0        94s
-api-... 1/1   Running 0        104s
-db-0    2/2   Running 0        4m37s
-db-1    2/2   Running 0        3m57s
-db-2    2/2   Running 0        3m18s
-```
+[PRE29]
 
 让我们看看`nodes`发生了什么。
 
-```
- 1  kubectl get nodes
-```
+[PRE30]
 
 输出显示我们仍然有四个节点（或者在我们缩减部署之前的数字）。
 
 考虑到我们还没有达到只有三个节点的期望状态，我们可能需要再看一下`cluster-autoscaler-status` ConfigMap。
 
-```
- 1  kubectl -n kube-system \
- 2      get configmap \
- 3      cluster-autoscaler-status \
- 4      -o yaml
-```
+[PRE31]
 
 输出，仅限于相关部分，如下所示。
 
-```
-apiVersion: v1
-data:
-  status: |+
-    Cluster-autoscaler status at 2018-10-03 ...
-    Cluster-wide:
-      Health: Healthy (ready=4 ...)
-      ...
-      ScaleDown: CandidatesPresent (candidates=1)
-                 ...
-    NodeGroups:
-      Name:      ...gke-devops25-default-pool-f4c233dd-grp
-      ...
-      ScaleDown: CandidatesPresent (candidates=1)
-                 LastProbeTime:      2018-10-03 23:06:...
-                 LastTransitionTime: 2018-10-03 23:05:...
-      ...
-```
+[PRE32]
 
 如果您的输出不包含`ScaleDown: CandidatesPresent`，您可能需要等一会儿并重复上一个命令。
 
@@ -520,32 +266,11 @@ data:
 
 现在已经过了足够的时间，我们将再次查看`cluster-autoscaler-status` ConfigMap。
 
-```
- 1  kubectl -n kube-system \
- 2      get configmap \
- 3      cluster-autoscaler-status \
- 4      -o yaml
-```
+[PRE33]
 
 输出，仅限于相关部分，如下所示。
 
-```
-apiVersion: v1
-data:
-  status: |+
-    Cluster-autoscaler status at 2018-10-03 23:16:24...
-    Cluster-wide:
-      Health:    Healthy (ready=3 ... registered=4 ...)
-                 ...
-      ScaleDown: NoCandidates (candidates=0)
-                 ...
-    NodeGroups:
-      Name:      ...gke-devops25-default-pool-f4c233dd-grp
-      Health:    Healthy (ready=1 ... registered=2 ...)
-                 ...
-      ScaleDown: NoCandidates (candidates=0)
-                 ...
-```
+[PRE34]
 
 从整个集群部分，我们可以看到现在有`3`个就绪节点，但仍然有`4`（或更多）已注册。这意味着其中一个节点已经被排空，但仍然没有被销毁。同样，其中一个节点组显示有`1`个就绪节点，尽管已注册`2`个（您的数字可能有所不同）。
 
@@ -553,18 +278,11 @@ data:
 
 现在我们需要再等一会儿，然后检索节点并确认只有三个可用。
 
-```
- 1  kubectl get nodes
-```
+[PRE35]
 
 来自 GKE 的输出如下。
 
-```
-NAME    STATUS ROLES  AGE VERSION
-gke-... Ready  <none> 36m v1.9.7-gke.6
-gke-... Ready  <none> 36m v1.9.7-gke.6
-gke-... Ready  <none> 36m v1.9.7-gke.6
-```
+[PRE36]
 
 我们可以看到节点已被移除，我们已经从过去的经验中知道，Kube Scheduler 将那个节点中的 Pod 移动到仍在运行的节点中。现在您已经经历了节点的缩减，我们将探讨管理该过程的规则。
 
@@ -648,9 +366,7 @@ AKS 有什么好说的呢？我钦佩微软在 Azure 上所做的改进，以及
 
 如果您不打算立即进入下一章，并且您的集群是可丢弃的（例如，不在裸机上），那么这就是您应该销毁集群的时刻。否则，请删除`go-demo-5`命名空间，以删除我们在本章中创建的资源。
 
-```
- 1  kubectl delete ns go-demo-5
-```
+[PRE37]
 
 在您离开之前，您可能希望复习本章的要点。
 

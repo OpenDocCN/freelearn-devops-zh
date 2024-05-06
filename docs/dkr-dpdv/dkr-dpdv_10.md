@@ -80,32 +80,11 @@ https://github.com/nigelpoulton/psweb.git
 
 从 GitHub 克隆示例应用程序。
 
-```
-$ git clone https://github.com/nigelpoulton/psweb.git
-
-Cloning into `'psweb'`...
-remote: Counting objects: `15`, `done`.
-remote: Compressing objects: `100`% `(``11`/11`)`, `done`.
-remote: Total `15` `(`delta `2``)`, reused `15` `(`delta `2``)`, pack-reused `0`
-Unpacking objects: `100`% `(``15`/15`)`, `done`.
-Checking connectivity... `done`. 
-```
+[PRE0]
 
 `克隆操作会创建一个名为`psweb`的新目录。切换到`psweb`目录并列出其内容。
 
-```
-$ `cd` psweb
-
-$ ls -l
-total `28`
--rw-r--r-- `1` root root  `341` Sep `29` `16`:26 app.js
--rw-r--r-- `1` root root  `216` Sep `29` `16`:26 circle.yml
--rw-r--r-- `1` root root  `338` Sep `29` `16`:26 Dockerfile
--rw-r--r-- `1` root root  `421` Sep `29` `16`:26 package.json
--rw-r--r-- `1` root root  `370` Sep `29` `16`:26 README.md
-drwxr-xr-x `2` root root `4096` Sep `29` `16`:26 `test`
-drwxr-xr-x `2` root root `4096` Sep `29` `16`:26 views 
-```
+[PRE1]
 
 “这个目录包含了所有的应用程序源代码，以及用于视图和单元测试的子目录。随意查看这些文件 - 应用程序非常简单。在本章中，我们不会使用单元测试。
 
@@ -119,18 +98,7 @@ drwxr-xr-x `2` root root `4096` Sep `29` `16`:26 views
 
 让我们来看看 Dockerfile 的内容。
 
-```
-$ cat Dockerfile
-
-FROM alpine
-LABEL `maintainer``=``"nigelpoulton@hotmail.com"`
-RUN apk add --update nodejs nodejs-npm
-COPY . /src
-WORKDIR /src
-RUN npm install
-EXPOSE `8080`
-ENTRYPOINT `[``"node"`, `"./app.js"``]` 
-```
+[PRE2]
 
 `Dockerfile 有两个主要目的：
 
@@ -188,32 +156,11 @@ ENTRYPOINT `[``"node"`, `"./app.js"``]`
 
 确保在命令的末尾包括句点（.），并确保从包含 Dockerfile 和应用程序代码的`psweb`目录运行命令。
 
-```
-$ docker image build -t web:latest .
-
-Sending build context to Docker daemon  `76`.29kB
-Step `1`/8 : FROM alpine
-latest: Pulling from library/alpine
-ff3a5c916c92: Pull `complete`
-Digest: sha256:7df6db5aa6...0bedab9b8df6b1c0
-Status: Downloaded newer image `for` alpine:latest
- ---> 76da55c8019d
-<Snip>
-Step `8`/8 : ENTRYPOINT node ./app.js
- ---> Running in 13977a4f3b21
- ---> fc69fdc4c18e
-Removing intermediate container 13977a4f3b21
-Successfully built fc69fdc4c18e
-Successfully tagged web:latest 
-```
+[PRE3]
 
 `检查镜像是否存在于您的 Docker 主机的本地存储库中。
 
-```
-$ docker image ls
-REPO    TAG       IMAGE ID          CREATED              SIZE
-web     latest    fc69fdc4c18e      `10` seconds ago       `64`.4MB 
-```
+[PRE4]
 
 `恭喜，应用已经容器化！
 
@@ -229,13 +176,7 @@ web     latest    fc69fdc4c18e      `10` seconds ago       `64`.4MB
 
 在以下示例中，您需要用您自己的 Docker ID 替换我的 Docker ID。因此，每当您看到“nigelpoulton”时，请将其替换为您的 Docker ID。
 
-```
-$ docker login
-Login with **your** Docker ID to push and pull images from Docker Hub...
-Username: nigelpoulton
-Password:
-Login Succeeded 
-```
+[PRE5]
 
 `在您可以推送镜像之前，您需要以特殊方式标记它。这是因为 Docker 在推送镜像时需要以下所有信息：
 
@@ -249,32 +190,17 @@ Docker 有自己的观点，因此您不需要为`Registry`和`Tag`指定值。�
 
 先前的`docker image ls`输出显示我们的镜像的存储库名称为`web`。这意味着`docker image push`将尝试将镜像推送到`docker.io/web:latest`。但是，我无法访问`web`存储库，我的所有镜像都必须位于`nigelpoulton`的二级命名空间中。这意味着我们需要重新标记镜像以包含我的 Docker ID。
 
-```
-$ docker image tag web:latest nigelpoulton/web:latest 
-```
+[PRE6]
 
 `命令的格式是`docker image tag <current-tag> <new-tag>`，它会添加一个额外的标签，而不是覆盖原始标签。
 
 另一个镜像列表显示，该镜像现在有两个标签，其中一个包含我的 Docker ID。
 
-```
-$ docker image ls
-REPO                TAG       IMAGE ID         CREATED         SIZE
-web                 latest    fc69fdc4c18e     `10` secs ago     `64`.4MB
-nigelpoulton/web    latest    fc69fdc4c18e     `10` secs ago     `64`.4MB 
-```
+[PRE7]
 
 `现在我们可以将其推送到 Docker Hub。
 
-```
-$ docker image push nigelpoulton/web:latest
-The push refers to repository `[`docker.io/nigelpoulton/web`]`
-2444b4ec39ad: Pushed
-ed8142d2affb: Pushed
-d77e2754766d: Pushed
-cd7100a72410: Mounted from library/alpine
-latest: digest: sha256:68c2dea730...f8cf7478 size: `1160` 
-```
+[PRE8]
 
 `图 8.6 显示了 Docker 如何确定推送位置。
 
@@ -294,22 +220,13 @@ latest: digest: sha256:68c2dea730...f8cf7478 size: `1160`
 
 > **注意：**如果您的主机已经在端口 80 上运行服务，您可以在`docker container run`命令中指定不同的端口。例如，要将应用程序映射到 Docker 主机上的端口 5000，请使用`-p 5000:8080`标志。
 
-```
-$ docker container run -d --name c1 `\`
-  -p `80`:8080 `\`
-  web:latest 
-```
+[PRE9]
 
 `-d`标志在后台运行容器，`-p 80:8080`标志将主机上的端口 80 映射到运行容器内部的端口 8080。
 
 检查容器是否正在运行并验证端口映射。
 
-```
-$ docker container ls
-
-ID    IMAGE       COMMAND           STATUS      PORTS
-`49`..  web:latest  `"node ./app.js"`   UP `6` secs   `0`.0.0.0:80->8080/tcp 
-```
+[PRE10]
 
 上面的输出被剪辑以提高可读性，但显示应用程序容器正在运行。请注意，端口 80 被映射到容器中的端口 8080，映射到所有主机接口（`0.0.0.0:80`）。
 
@@ -345,20 +262,7 @@ Dockerfile 中的注释行以`#`字符开头。
 
 您可以使用`docker image history`命令查看用于构建镜像的指令。
 
-```
-$ docker image `history` web:latest
-
-IMAGE     CREATED BY                                      SIZE
-fc6..18e  /bin/sh -c `#(nop)  ENTRYPOINT ["node" "./a...   0B`
-`334`..bf0  /bin/sh -c `#(nop)  EXPOSE 8080/tcp              0B`
-b27..eae  /bin/sh -c npm install                          `14`.1MB
-`932`..749  /bin/sh -c `#(nop) WORKDIR /src                  0B`
-`052`..2dc  /bin/sh -c `#(nop) COPY dir:2a6ed1703749e80...   22.5kB`
-c1d..81f  /bin/sh -c apk add --update nodejs nodejs-npm   `46`.1MB
-`336`..b92  /bin/sh -c `#(nop)  LABEL maintainer=nigelp...   0B`
-3fd..f02  /bin/sh -c `#(nop)  CMD ["/bin/sh"]              0B`
-<missing> /bin/sh -c `#(nop) ADD file:093f0723fa46f6c...   4.15MB` 
-```
+[PRE11]
 
 上面输出中的两点值得注意。
 
@@ -368,38 +272,13 @@ c1d..81f  /bin/sh -c apk add --update nodejs nodejs-npm   `46`.1MB
 
 使用`docker image inspect`命令确认只创建了 4 个层。
 
-```
-$ docker image inspect web:latest
-
-<Snip>
-`}`,
-`"RootFS"`: `{`
-    `"Type"`: `"layers"`,
-    `"Layers"`: `[`
-        `"sha256:cd7100...1882bd56d263e02b6215"`,
-        `"sha256:b3f88e...cae0e290980576e24885"`,
-        `"sha256:3cfa21...cc819ef5e3246ec4fe16"`,
-        `"sha256:4408b4...d52c731ba0b205392567"`
-    `]`
-`}`, 
-```
+[PRE12]
 
 使用`FROM`指令从官方仓库中使用镜像被认为是一个良好的做法。这是因为它们往往遵循最佳实践，并且相对免受已知漏洞的影响。从小型镜像（`FROM`）开始也是一个好主意，因为这样可以减少潜在的漏洞。
 
 您可以查看`docker image build`命令的输出，以了解构建镜像的一般过程。如下摘录所示，基本过程是：`启动临时容器` > `在该容器内运行 Dockerfile 指令` > `将结果保存为新的镜像层` > `删除临时容器`。
 
-```
-Step 3/8 : RUN apk add --update nodejs nodejs-npm
- ---> Running in e690ddca785f    << Run inside of temp container
-fetch http://dl-cdn...APKINDEX.tar.gz
-fetch http://dl-cdn...APKINDEX.tar.gz
-(1/10) Installing ca-certificates (20171114-r0)
-<Snip>
-OK: 61 MiB in 21 packages
- ---> c1d31d36b81f               << Create new layer
-Removing intermediate container  << Remove temp container
-Step 4/8 : COPY . /src 
-```
+[PRE13]
 
 #### 使用**多阶段构建**进行生产部署
 
@@ -437,30 +316,7 @@ Step 4/8 : COPY . /src
 
 Dockerfile 如下所示：
 
-```
-FROM node:latest AS storefront
-WORKDIR /usr/src/atsea/app/react-app
-COPY react-app .
-RUN npm install
-RUN npm run build
-
-FROM maven:latest AS appserver
-WORKDIR /usr/src/atsea
-COPY pom.xml .
-RUN mvn -B -f pom.xml -s /usr/share/maven/ref/settings-docker.xml dependency\
-:resolve
-COPY . .
-RUN mvn -B -s /usr/share/maven/ref/settings-docker.xml package -DskipTests
-
-FROM java:8-jdk-alpine AS production
-RUN adduser -Dh /home/gordon gordon
-WORKDIR /static
-COPY --from=storefront /usr/src/atsea/app/react-app/build/ .
-WORKDIR /app
-COPY --from=appserver /usr/src/atsea/target/AtSea-0.0.1-SNAPSHOT.jar .
-ENTRYPOINT ["java", "-jar", "/app/AtSea-0.0.1-SNAPSHOT.jar"]
-CMD ["--spring.profiles.active=postgres"] 
-```
+[PRE14]
 
 “首先要注意的是 Dockerfile 有三个`FROM`指令。每个都构成一个独立的**构建阶段**。在内部，它们从顶部开始编号为 0。但是，我们还给每个阶段起了一个友好的名字。
 
@@ -484,64 +340,21 @@ CMD ["--spring.profiles.active=postgres"]
 
 克隆存储库。
 
-```
-$ git clone https://github.com/nigelpoulton/atsea-sample-shop-app.git
-
-Cloning into `'atsea-sample-shop-app'`...
-remote: Counting objects: `632`, `done`.
-remote: Total `632` `(`delta `0``)`, reused `0` `(`delta `0``)`, pack-reused `632`
-Receiving objects: `100`% `(``632`/632`)`, `7`.23 MiB `|` `1`.88 MiB/s, `done`.
-Resolving deltas: `100`% `(``195`/195`)`, `done`.
-Checking connectivity... `done`. 
-```
+[PRE15]
 
 切换到克隆存储库的`app`文件夹，并验证 Dockerfile 是否存在。
 
-```
-$ `cd` atsea-sample-shop-app/app
-
-$ ls -l
-total `24`
--rw-r--r-- `1` root root  `682` Oct  `1` `22`:03 Dockerfile
--rw-r--r-- `1` root root `4365` Oct  `1` `22`:03 pom.xml
-drwxr-xr-x `4` root root `4096` Oct  `1` `22`:03 react-app
-drwxr-xr-x `4` root root `4096` Oct  `1` `22`:03 src 
-```
+[PRE16]
 
 进行构建（这可能需要几分钟才能完成）。
 
-```
-$ docker image build -t multi:stage .
-
-Sending build context to Docker daemon  `3`.658MB
-Step `1`/19 : FROM node:latest AS storefront
-latest: Pulling from library/node
-aa18ad1a0d33: Pull `complete`
-15a33158a136: Pull `complete`
-<Snip>
-Step `19`/19 : CMD --spring.profiles.active`=`postgres
- ---> Running in b4df9850f7ed
- ---> 3dc0d5e6223e
-Removing intermediate container b4df9850f7ed
-Successfully built 3dc0d5e6223e
-Successfully tagged multi:stage 
-```
+[PRE17]
 
 > **注意：**上面示例中使用的`multi:stage`标签是任意的。您可以根据自己的要求和标准为镜像打标签 - 没有必要像我们在这个示例中那样为多阶段构建打标签。
 
 运行`docker image ls`以查看构建操作拉取和创建的镜像列表。
 
-```
-$ docker image ls
-
-REPO    TAG             IMAGE ID        CREATED        SIZE
-node    latest          9ea1c3e33a0b    `4` days ago     673MB
-<none>  <none>          6598db3cefaf    `3` mins ago     816MB
-maven   latest          cbf114925530    `2` weeks ago    750MB
-<none>  <none>          d5b619b83d9e    `1` min ago      891MB
-java    `8`-jdk-alpine    3fd9dd82815c    `7` months ago   145MB
-multi   stage           3dc0d5e6223e    `1` min ago      210MB 
-```
+[PRE18]
 
 上面输出的第一行显示了`storefront`阶段拉取的`node:latest`镜像。下面的镜像是该阶段生成的镜像（通过添加代码并运行 npm install 和构建操作创建）。两者都是非常大的镜像，包含了大量的构建工具。
 
@@ -567,15 +380,7 @@ Docker 使用的构建过程有一个缓存的概念。看到缓存的影响最�
 
 我们将使用这个示例 Dockerfile 进行快速演示：
 
-```
-FROM alpine
-RUN apk add --update nodejs nodejs-npm
-COPY . /src
-WORKDIR /src
-RUN npm install
-EXPOSE 8080
-ENTRYPOINT ["node", "./app.js"] 
-```
+[PRE19]
 
 `第一条指令告诉 Docker 使用`alpine:latest`镜像作为其*基础镜像*。如果该镜像已经存在于主机上，构建将继续进行到下一条指令。如果该镜像不存在，它将从 Docker Hub（docker.io）上拉取。
 

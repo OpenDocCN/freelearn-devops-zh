@@ -58,12 +58,7 @@ Docker 是一种工具，允许软件开发人员轻松创建应用程序，并�
 
 任何命令行输入或输出都以以下方式编写：
 
-```
-# Enable autolock on your swarm cluster
-docker swarm update --autolock=true
-# Adjust certificate expiry to 30 days
-docker swarm update --cert-expiry 720h
-```
+[PRE0]
 
 **粗体**：表示新术语、重要单词或屏幕上看到的单词。例如，菜单或对话框中的单词会以这种方式出现在文本中。以下是一个例子：“一旦配置已保存，让我们通过单击“立即构建”链接来测试作业。”
 

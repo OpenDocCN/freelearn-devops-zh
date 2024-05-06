@@ -60,9 +60,7 @@ Docker 容器是高度可扩展软件系统的未来，并且可以轻松创建�
 
 代码块、终端命令或创建 YAML 文件的文本设置如下：
 
-```
-docker build -t test . 
-```
+[PRE0]
 
 新的重要单词显示为：“Docker 提供了一个在线存储库来存储您的镜像，称为**Docker Hub**。”
 
@@ -70,30 +68,13 @@ docker build -t test .
 
 代码片段的关键部分如下所示：
 
-```
-1 FROM alpine
-2 
-3 RUN apk update
-4 RUN apk add wget curl
-5
-6 RUN wget -O test.txt https://github.com/PacktWorkshops/   The-Docker-Workshop/raw/master/Chapter3/Exercise3.02/     100MB.bin
-7
-8 CMD mkdir /var/www/
-9 CMD mkdir /var/www/html/
-```
+[PRE1]
 
 长代码片段被截断，并且在截断的代码顶部放置了 GitHub 上代码文件的相应名称。完整代码的永久链接放置在代码片段下方。它应该如下所示：
 
 Dockerfile
 
-```
-7 # create root directory for our project in the container
-7 RUN mkdir /service
-9 RUN mkdir /service/static
-10
-11# Set the working directory to /service
-12 WORKDIR /service
-```
+[PRE2]
 
 此示例的完整代码可以在[`packt.live/2E9OErr`](https://packt.live/2E9OErr)找到。
 
@@ -117,15 +98,11 @@ Dockerfile
 
 在 Ubuntu 上使用 APT 安装任何软件包之前，请确保您的软件包是最新的。使用以下命令：
 
-```
-sudo apt update
-```
+[PRE3]
 
 此外，您可以使用以下命令选择升级计算机上的任何可升级软件包：
 
-```
-sudo apt upgrade
-```
+[PRE4]
 
 ### 安装 Git
 
@@ -133,9 +110,7 @@ sudo apt upgrade
 
 使用以下命令在 Ubuntu 上安装 Git：
 
-```
-sudo apt install git-all
-```
+[PRE5]
 
 ### Docker
 
@@ -143,71 +118,47 @@ Docker 是本研讨会使用的默认容器化引擎。随着您阅读本书的�
 
 使用以下命令在 Ubuntu 上安装 Docker：
 
-```
-sudo apt install docker.io -y
-```
+[PRE6]
 
 安装完成后，您需要确保 Docker 守护程序已启动并在系统上运行。使用以下命令执行此操作，确保您以`sudo`命令作为提升的用户运行此命令：
 
-```
-sudo systemctl start docker
-```
+[PRE7]
 
 确保 Docker 守护程序在下次启动系统时启动。运行以下命令，以确保 Docker 在您安装它的系统上每次停止或重新启动时启动：
 
-```
-sudo systemctl enable docker
-```
+[PRE8]
 
 使用`docker`命令和`--version`选项验证您安装的 Docker 版本。运行以下命令：
 
-```
-docker –version
-```
+[PRE9]
 
 您应该看到类似以下的输出：
 
-```
-Docker version 19.03.8, build afacb8b7f0
-```
+[PRE10]
 
 如果您不是以 root 用户身份执行命令，很有可能无法运行所需的大部分命令。如果运行以下示例命令，可能会遇到连接到 Docker 守护程序的访问问题：
 
-```
-docker ps
-```
+[PRE11]
 
 如果您以没有提升权限的用户身份运行该命令，可能会看到以下错误：
 
-```
-Got permission denied while trying to connect to the 
-Docker daemon socket at unix:///var/run/docker.sock: Get http://%2Fvar%2Frun%2Fdocker.sock/v1.40/containers/json: 
-dial unix /var/run/docker.sock: connect: permission denied
-```
+[PRE12]
 
 要解决此问题，请将当前用户添加到安装应用程序时创建的 Docker 组中。使用以下命令在您的系统上执行此操作：
 
-```
-sudo usermod -aG docker ${USER}
-```
+[PRE13]
 
 要激活这些更改，您需要注销系统，然后重新登录，或执行以下命令为当前用户创建一个新会话：
 
-```
-sudo su ${USER}
-```
+[PRE14]
 
 再次运行`docker ps`命令，以确保您的更改成功：
 
-```
-docker ps
-```
+[PRE15]
 
 如果一切正常，您应该看到类似以下的输出，显示您的系统上没有运行 Docker 容器：
 
-```
-CONTAINER ID  IMAGE  COMMAND  CREATED  STATUS  PORTS  NAMES
-```
+[PRE16]
 
 ## 为 Windows 用户双引导 Ubuntu
 
@@ -239,9 +190,7 @@ CONTAINER ID  IMAGE  COMMAND  CREATED  STATUS  PORTS  NAMES
 
 1.  按下*Win* + *R*打开命令提示符，然后输入`cmd.exe`。现在运行以下命令：
 
-```
-chkdsk D: /f
-```
+[PRE17]
 
 用要使用的驱动器号替换它。您应该看到类似以下的响应：
 
@@ -335,9 +284,6 @@ chkdsk D: /f
 
 安装 Git 后，您可以使用以下命令克隆存储库：
 
-```
-git clone https://github.com/PacktWorkshops/The-Docker-Workshop
-cd The-Docker-Workshop
-```
+[PRE18]
 
 如果您在安装过程中遇到任何问题或有任何疑问，请发送电子邮件至`workshops@packt.com`。

@@ -28,42 +28,17 @@
 
 当我们输入 `ps axf` 时，会看到一个长长的正在运行的进程列表：
 
-```
-$ ps axf
- PID TTY      STAT   TIME COMMAND
-    2 ?        S      0:00 [kthreadd]
-    3 ?        S      0:42  \_ [ksoftirqd/0]
-    5 ?        S<     0:00  \_ [kworker/0:0H]
-    7 ?        S      8:14  \_ [rcu_sched]
-    8 ?        S      0:00  \_ [rcu_bh]
-```
+[PRE0]
 
 `ps` 是一个报告系统上当前进程的实用程序。`ps axf` 是列出所有进程的命令。
 
 现在让我们使用 `unshare` 进入一个新的 `pid` 命名空间，它能够逐部分将进程资源与新的命名空间分离，并再次检查进程：
 
-```
-$ sudo unshare --fork --pid --mount-proc=/proc /bin/sh
-$ ps axf
- PID TTY      STAT   TIME COMMAND
-    1 pts/0    S      0:00 /bin/sh
-    2 pts/0    R+     0:00 ps axf
-```
+[PRE1]
 
 您会发现新命名空间中 shell 进程的 `pid` 变为 `1`，而所有其他进程都消失了。也就是说，您已经创建了一个 `pid` 容器。让我们切换到命名空间外的另一个会话，并再次列出进程：
 
-```
-$ ps axf // from another terminal
- PID TTY   COMMAND
-  ...
-  25744 pts/0 \_ unshare --fork --pid --mount-proc=/proc    
-  /bin/sh
- 25745 pts/0    \_ /bin/sh
-  3305  ?     /sbin/rpcbind -f -w
-  6894  ?     /usr/sbin/ntpd -p /var/run/ntpd.pid -g -u  
-  113:116
-    ...
-```
+[PRE2]
 
 在新的命名空间中，您仍然可以看到其他进程和您的 shell 进程。
 
@@ -75,51 +50,19 @@ $ ps axf // from another terminal
 
 鉴于此，`cgroups` 在这里被用来限制资源使用。与命名空间一样，它可以对不同类型的系统资源设置约束。让我们从我们的 `pid` 命名空间继续，用 `yes > /dev/null` 来压力测试 CPU，并用 `top` 进行监控：
 
-```
-$ yes > /dev/null & top
-$ PID USER  PR  NI    VIRT   RES   SHR S  %CPU %MEM    
-TIME+ COMMAND
- 3 root  20   0    6012   656   584 R 100.0  0.0  
-  0:15.15 yes
- 1 root  20   0    4508   708   632 S   0.0  0.0                   
-  0:00.00 sh
- 4 root  20   0   40388  3664  3204 R   0.0  0.1  
-  0:00.00 top
-```
+[PRE3]
 
 我们的 CPU 负载达到了预期的 100%。现在让我们使用 CPU cgroup 来限制它。Cgroups 组织为`/sys/fs/cgroup/`下的目录（首先切换到主机会话）：
 
-```
-$ ls /sys/fs/cgroup
-blkio        cpuset   memory            perf_event
-cpu          devices  net_cls           pids
-cpuacct      freezer  net_cls,net_prio  systemd
-cpu,cpuacct  hugetlb  net_prio 
-```
+[PRE4]
 
 每个目录代表它们控制的资源。创建一个 cgroup 并控制进程非常容易：只需在资源类型下创建一个任意名称的目录，并将您想要控制的进程 ID 附加到`tasks`中。这里我们想要限制`yes`进程的 CPU 使用率，所以在`cpu`下创建一个新目录，并找出`yes`进程的 PID：
 
-```
-$ ps x | grep yes
-11809 pts/2    R     12:37 yes
-
-$ mkdir /sys/fs/cgroup/cpu/box && \
- echo 11809 > /sys/fs/cgroup/cpu/box/tasks
-```
+[PRE5]
 
 我们刚刚将`yes`添加到新创建的 CPU 组`box`中，但策略仍未设置，进程仍在没有限制地运行。通过将所需的数字写入相应的文件来设置限制，并再次检查 CPU 使用情况：
 
-```
-$ echo 50000 > /sys/fs/cgroup/cpu/box/cpu.cfs_quota_us
-$ PID USER  PR  NI    VIRT   RES   SHR S  %CPU %MEM    
- TIME+ COMMAND
-    3 root  20   0    6012   656   584 R  50.2  0.0     
-    0:32.05 yes
-    1 root  20   0    4508  1700  1608 S   0.0  0.0  
-    0:00.00 sh
-    4 root  20   0   40388  3664  3204 R   0.0  0.1  
-    0:00.00 top
-```
+[PRE6]
 
 CPU 使用率显着降低，这意味着我们的 CPU 限制起作用了。
 
@@ -143,29 +86,19 @@ Docker 需要 Yakkety 16.10、Xenial 16.04LTS 和 Trusty 14.04LTS 的 64 位版�
 
 1.  确保您拥有允许`apt`存储库的软件包；如果没有，请获取它们：
 
-```
-$ sudo apt-get install apt-transport-https ca-certificates curl software-properties-common 
-```
+[PRE7]
 
 1.  添加 Docker 的`gpg`密钥并验证其指纹是否匹配`9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88`：
 
-```
-$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-$ sudo apt-key fingerprint 0EBFCD88 
-```
+[PRE8]
 
 1.  设置`amd64`架构的存储库：
 
-```
-$ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" 
-```
+[PRE9]
 
 1.  更新软件包索引并安装 Docker CE：
 
-```
- $ sudo apt-get update 
- $ sudo apt-get install docker-ce
-```
+[PRE10]
 
 # 在 CentOS 上安装 Docker
 
@@ -173,30 +106,21 @@ $ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ub
 
 1.  安装实用程序以启用`yum`使用额外的存储库：
 
-```
-    $ sudo yum install -y yum-utils  
-```
+[PRE11]
 
 1.  设置 Docker 的存储库：
 
-```
-$ sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 
-```
+[PRE12]
 
 1.  更新存储库并验证指纹是否匹配：
 
 `060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35`：
 
-```
-    $ sudo yum makecache fast   
-```
+[PRE13]
 
 1.  安装 Docker CE 并启动它：
 
-```
-$ sudo yum install docker-ce
-$ sudo systemctl start docker 
-```
+[PRE14]
 
 # 为 macOS 安装 Docker
 
@@ -210,18 +134,11 @@ Docker 使用微型 Linux moby 和 Hypervisor 框架来在 macOS 上构建本机
 
 现在您已经进入了 Docker。尝试创建和运行您的第一个 Docker 容器；如果您在 Linux 上，请使用 `sudo` 运行：
 
-```
-$ docker run alpine ls
-bin dev etc home lib media mnt proc root run sbin srv sys tmp usr var
-```
+[PRE15]
 
 您会发现您处于 `root` 目录下而不是当前目录。让我们再次检查进程列表：
 
-```
-$ docker run alpine ps aux
-PID   USER     TIME   COMMAND
-1 root       0:00 ps aux
-```
+[PRE16]
 
 它是隔离的，正如预期的那样。您已经准备好使用容器了。
 
@@ -247,32 +164,11 @@ Alpine 是一个 Linux 发行版。由于其体积非常小，许多人使用它
 
 有时，当我们需要进入容器检查镜像或在内部更新某些内容时，我们将使用选项`-i`和`-t`（`--interactive`和`--tty`）。此外，选项`-d`（`--detach`）使您可以以分离模式运行容器。如果您想与分离的容器进行交互，`exec`和`attach`命令可以帮助我们。`exec`命令允许我们在运行的容器中运行进程，而`attach`按照其字面意思工作。以下示例演示了如何使用它们：
 
-```
-$ docker run alpine /bin/sh -c "while :;do echo  
-  'meow~';sleep 1;done"
-meow~
-meow~
-...
-```
+[PRE17]
 
 您的终端现在应该被“喵喵喵”淹没了。切换到另一个终端并运行`docker ps`命令，以获取容器的状态，找出喵喵叫的容器的名称和 ID。这里的名称和 ID 都是由 Docker 生成的，您可以使用其中任何一个访问容器。为了方便起见，名称可以在`create`或`run`时使用`--name`标志进行分配：
 
-```
-$ docker ps
-CONTAINER ID    IMAGE    (omitted)     NAMES
-d51972e5fc8c    alpine      ...        zen_kalam
-
-$ docker exec -it d51972e5fc8c /bin/sh
-/ # ps
-PID   USER     TIME   COMMAND
-  1 root       0:00 /bin/sh -c while :;do echo  
-  'meow~';sleep 1;done
-  27 root       0:00 /bin/sh
-  34 root       0:00 sleep 1
-  35 root       0:00 ps
-  / # kill -s 2 1
-  $ // container terminated
-```
+[PRE18]
 
 一旦我们进入容器并检查其进程，我们会看到两个 shell：一个是喵喵叫，另一个是我们所在的位置。在容器内部使用`kill -s 2 1`杀死它，我们会看到整个容器停止，因为入口点已经退出。最后，让我们使用`docker ps -a`列出已停止的容器，并使用`docker rm CONTAINER_NAME`或`docker rm CONTAINER_ID`清理它们。自 Docker 1.13 以来，引入了`docker system prune`命令，它可以帮助我们轻松清理已停止的容器和占用的资源。
 
@@ -292,23 +188,7 @@ PID   USER     TIME   COMMAND
 
 数据卷允许容器的读写绕过 Docker 的文件系统，它可以位于主机的目录或其他存储中，比如 Ceph 或 GlusterFS。因此，对卷的磁盘 I/O 可以根据底层存储的实际速度进行操作。由于数据在容器外是持久的，因此可以被多个容器重复使用和共享。通过在 `docker run` 或 `docker create` 中指定 `-v`（`--volume`）标志来挂载卷。以下示例在容器中挂载了一个卷到 `/chest`，并在其中留下一个文件。然后，我们使用 `docker inspect` 来定位数据卷：
 
-```
-$ docker run --name demo -v /chest alpine touch /chest/coins
-$ docker inspect demo
-...
-"Mounts": [
- {
-    "Type": "volume",
-     "Name":(hash-digits),
-     "Source":"/var/lib/docker/volumes/(hash- 
-      digits)/_data",
-      "Destination": "/chest",
-      "Driver": "local",
-      "Mode": "",
-       ...
-$ ls /var/lib/docker/volumes/(hash-digits)/_data
-      coins
-```
+[PRE19]
 
 Docker CE 在 macOS 上提供的 moby Linux 的默认 `tty` 路径位于：
 
@@ -318,22 +198,11 @@ Docker CE 在 macOS 上提供的 moby Linux 的默认 `tty` 路径位于：
 
 数据卷的一个用例是在容器之间共享数据。为此，我们首先创建一个容器并在其上挂载卷，然后挂载一个或多个容器，并使用 `--volumes-from` 标志引用卷。以下示例创建了一个带有数据卷 `/share-vol` 的容器。容器 A 可以向其中放入一个文件，容器 B 也可以读取它：
 
-```
-$ docker create --name box -v /share-vol alpine nop
-c53e3e498ab05b19a12d554fad4545310e6de6950240cf7a28f42780f382c649
-$ docker run --name A --volumes-from box alpine touch /share-vol/wine
-$ docker run --name B --volumes-from box alpine ls /share-vol
-wine
-```
+[PRE20]
 
 此外，数据卷可以挂载在给定的主机路径下，当然其中的数据是持久的：
 
-```
-$ docker run --name hi -v $(pwd)/host/dir:/data alpine touch /data/hi
-$ docker rm hi
-$ ls $(pwd)/host/dir
-hi
-```
+[PRE21]
 
 # 分发镜像
 
@@ -353,41 +222,11 @@ hi
 
 例如，图像名称`gcr.io/google-containers/guestbook:v3`指示 Docker 从`gcr.io`下载`google-containers/guestbook`的`v3`版本。同样，如果你想将图像推送到注册表，也要以相同的方式标记你的图像并推送它。要列出当前在本地磁盘上拥有的图像，使用`docker images`，并使用`docker rmi [IMAGE]`删除图像。以下示例显示了如何在不同的注册表之间工作：从 Docker Hub 下载`nginx`图像，将其标记为私有注册表路径，并相应地推送它。请注意，尽管默认标记是`latest`，但你必须显式地标记和推送它。
 
-```
-$ docker pull nginx
-Using default tag: latest
-latest: Pulling from library/nginx
-ff3d52d8f55f: Pull complete
-...
-Status: Downloaded newer image for nginx:latest
-
-$ docker tag nginx localhost:5000/comps/prod/nginx:1.14
-$ docker push localhost:5000/comps/prod/nginx:1.14
-The push refers to a repository [localhost:5000/comps/prod/nginx]
-...
-8781ec54ba04: Pushed
-1.14: digest: sha256:(64-digits-hash) size: 948
-$ docker tag nginx localhost:5000/comps/prod/nginx
-$ docker push localhost:5000/comps/prod/nginx
-The push refers to a repository [localhost:5000/comps/prod/nginx]
-...
-8781ec54ba04: Layer already exists
-latest: digest: sha256:(64-digits-hash) size: 948
-```
+[PRE22]
 
 大多数注册表服务在你要推送图像时都会要求进行身份验证。`docker login`就是为此目的而设计的。有时，当尝试拉取图像时，你可能会收到`image not found error`的错误，即使图像路径是有效的。这很可能是你未经授权访问保存图像的注册表。要解决这个问题，首先要登录：
 
-```
-$ docker pull localhost:5000/comps/prod/nginx
-Pulling repository localhost:5000/comps/prod/nginx
-Error: image comps/prod/nginx:latest not found
-$ docker login -u letme -p in localhost:5000
-Login Succeeded
-$ docker pull localhost:5000/comps/prod/nginx
-Pulling repository localhost:5000/comps/prod/nginx
-...
-latest: digest: sha256:(64-digits-hash) size: 948
-```
+[PRE23]
 
 除了通过注册表服务分发图像外，还有将图像转储为 TAR 存档文件，并将其导入到本地存储库的选项：
 
@@ -411,61 +250,25 @@ latest: digest: sha256:(64-digits-hash) size: 948
 
 Docker 提供了三种网络类型来管理容器内部和主机之间的通信，即`bridge`、`host`和`none`。
 
-```
-$ docker network ls
-NETWORK ID          NAME                DRIVER              SCOPE
-1224183f2080        bridge              bridge              local
-801dec6d5e30        host                host                local
-f938cd2d644d        none                null                local
-```
+[PRE24]
 
 默认情况下，每个容器在创建时都连接到桥接网络。在这种模式下，每个容器都被分配一个虚拟接口和一个私有 IP 地址，通过该接口传输的流量被桥接到主机的`docker0`接口。此外，同一桥接网络中的其他容器可以通过它们的 IP 地址相互连接。让我们运行一个通过端口`5000`发送短消息的容器，并观察其配置。`--expose`标志将给定端口开放给容器外部的世界：
 
-```
-$ docker run --name greeter -d --expose 5000 alpine \
-/bin/sh -c "echo Welcome stranger! | nc -lp 5000"
-2069cbdf37210461bc42c2c40d96e56bd99e075c7fb92326af1ec47e64d6b344 $ docker exec greeter ifconfig
-eth0      Link encap:Ethernet  HWaddr 02:42:AC:11:00:02
-inet addr:172.17.0.2  Bcast:0.0.0.0  Mask:255.255.0.0
-...
-```
+[PRE25]
 
 在这里，容器`greeter`被分配了 IP`172.17.0.2`。现在运行另一个连接到该 IP 地址的容器：
 
-```
-$ docker run alpine telnet 172.17.0.2 5000
-Welcome stranger!
-Connection closed by foreign host
-```
+[PRE26]
 
 `docker network inspect bridge`命令提供配置详细信息，例如子网段和网关信息。
 
 此外，您可以将一些容器分组到一个用户定义的桥接网络中。这也是连接单个主机上多个容器的推荐方式。用户定义的桥接网络与默认的桥接网络略有不同，主要区别在于您可以通过名称而不是 IP 地址访问其他容器。创建网络是通过`docker network create [NW-NAME]`完成的，将容器附加到它是通过创建时的标志`--network [NW-NAME]`完成的。容器的网络名称默认为其名称，但也可以使用`--network-alias`标志给它另一个别名：
 
-```
-$ docker network create room
-b0cdd64d375b203b24b5142da41701ad9ab168b53ad6559e6705d6f82564baea
-$ docker run -d --network room \
---network-alias dad --name sleeper alpine sleep 60
-b5290bcca85b830935a1d0252ca1bf05d03438ddd226751eea922c72aba66417
-$ docker run --network room alpine ping -c 1 sleeper
-PING sleeper (172.18.0.2): 56 data bytes
-...
-$ docker run --network room alpine ping -c 1 dad
-PING dad (172.18.0.2): 56 data bytes
-...
-```
+[PRE27]
 
 主机网络按照其名称的字面意思工作；每个连接的容器共享主机的网络，但同时失去了隔离属性。none 网络是一个完全分离的盒子。无论是入口还是出口，流量都在内部隔离，因为容器上没有网络接口。在这里，我们将一个监听端口`5000`的容器连接到主机网络，并在本地与其通信：
 
-```
-$ docker run -d --expose 5000 --network host alpine \
-/bin/sh -c "echo im a container | nc -lp 5000"
-ca73774caba1401b91b4b1ca04d7d5363b6c281a05a32828e293b84795d85b54
-$ telnet localhost 5000
-im a container
-Connection closed by foreign host
-```
+[PRE28]
 
 如果您在 macOS 上使用 Docker CE，主机指的是 hypervisor 框架上的 moby Linux。
 
@@ -475,13 +278,7 @@ Connection closed by foreign host
 
 除了共享主机网络外，在创建容器时，标志`-p(--publish) [host]:[container]`还允许您将主机端口映射到容器。这个标志意味着`-expose`，因为您无论如何都需要打开容器的端口。以下命令在端口`80`启动一个简单的 HTTP 服务器。您也可以用浏览器查看它。
 
-```
-$ docker run -p 80:5000 alpine /bin/sh -c \
-"while :; do echo -e 'HTTP/1.1 200 OK\n\ngood day'|nc -lp 5000; done"
-
-$ curl localhost
-good day
-```
+[PRE29]
 
 # 使用 Dockerfile
 
@@ -491,23 +288,11 @@ good day
 
 `Dockerfile`由一系列文本指令组成，指导 Docker 守护程序形成一个 Docker 镜像。通常，`Dockerfile`是以指令`FROM`开头的，后面跟着零个或多个指令。例如，我们可以从以下一行指令构建一个镜像：
 
-```
-docker commit $(   \
-docker start $(  \
-docker create alpine /bin/sh -c    \
-"echo My custom build > /etc/motd" \
- ))
-```
+[PRE30]
 
 它大致相当于以下`Dockerfile`：
 
-```
-./Dockerfile:
----
-FROM alpine
-RUN echo "My custom build" > /etc/motd
----
-```
+[PRE31]
 
 显然，使用`Dockerfile`构建更加简洁和清晰。
 
@@ -515,26 +300,11 @@ RUN echo "My custom build" > /etc/motd
 
 `.dockerignore`文件是一个列表，指示在构建时可以忽略同一目录下的哪些文件，它通常看起来像下面的文件：
 
-```
-./.dockerignore:
----
-# ignore .dockerignore, .git
-.dockerignore 
-.git
-# exclude all *.tmp files and vim swp file recursively
-**/*.tmp
-**/[._]*.s[a-w][a-z]
-...
----
-```
+[PRE32]
 
 通常，`docker build`将尝试在`context`下找到一个名为`Dockerfile`的文件来开始构建；但有时出于某些原因，我们可能希望给它另一个名称。`-f`（`--file`）标志就是为了这个目的。另外，另一个有用的标志`-t`（`--tag`）在构建完镜像后能够给一个或多个仓库标签。假设我们想要在`./deploy`下构建一个名为`builder.dck`的`Dockerfile`，并用当前日期和最新标签标记它，命令将是：
 
-```
-$ docker build -f deploy/builder.dck  \
--t my-reg.com/prod/teabreak:$(date +"%g%m%d") \
--t my-reg.com/prod/teabreak:latest .
-```
+[PRE33]
 
 # Dockerfile 语法
 
@@ -544,10 +314,7 @@ $ docker build -f deploy/builder.dck  \
 
 +   `RUN`：
 
-```
-RUN <commands>
-RUN ["executable", "params", "more params"]
-```
+[PRE34]
 
 `RUN`指令在当前缓存层运行一行命令，并提交结果。两种形式之间的主要差异在于命令的执行方式。第一种称为**shell 形式**，实际上以`/bin/sh -c <commands>`的形式执行命令；另一种形式称为**exec 形式**，它直接使用`exec`处理命令。
 
@@ -557,81 +324,43 @@ exec 形式被解析为 JSON 数组，这意味着您必须用双引号包装文
 
 +   `CMD`：
 
-```
-CMD ["executable", "params", "more params"]
-CMD ["param1","param2"]
-CMD command param1 param2 ...:
-```
+[PRE35]
 
 `CMD`设置了构建图像的默认命令；它不会在构建时运行命令。如果在 Docker run 时提供了参数，则这里的`CMD`配置将被覆盖。`CMD`的语法规则几乎与`RUN`相同；第一种形式是 exec 形式，第三种形式是 shell 形式，也就是在前面加上`/bin/sh -c`。`ENTRYPOINT`与`CMD`交互的另一个指令；实际上，三种`CMD`形式在容器启动时都会被`ENTRYPOINT`所覆盖。在`Dockerfile`中可以有多个`CMD`指令，但只有最后一个会生效。
 
 +   `ENTRYPOINT`：
 
-```
-ENTRYPOINT ["executable", "param1", "param2"] ENTRYPOINT command param1 param2
-```
+[PRE36]
 
 这两种形式分别是执行形式和 shell 形式，语法规则与`RUN`相同。入口点是图像的默认可执行文件。也就是说，当容器启动时，它会运行由`ENTRYPOINT`配置的可执行文件。当`ENTRYPOINT`与`CMD`和`docker run`参数结合使用时，以不同形式编写会导致非常不同的行为。以下是它们组合的规则：
 
 +   +   如果`ENTRYPOINT`是 shell 形式，则`CMD`和 Docker `run`参数将被忽略。命令将变成：
 
-```
-     /bin/sh -c entry_cmd entry_params ...     
-```
+[PRE37]
 
 +   +   如果`ENTRYPOINT`是 exec 形式，并且指定了 Docker `run`参数，则`CMD`命令将被覆盖。运行时命令将是：
 
-```
-      entry_cmd entry_params run_arguments
-```
+[PRE38]
 
 +   +   如果`ENTRYPOINT`以执行形式存在，并且只配置了`CMD`，则三种形式的运行时命令将变为以下形式：
 
-```
-  entry_cmd entry_parms CMD_exec CMD_parms
-  entry_cmd entry_parms CMD_parms
-  entry_cmd entry_parms /bin/sh -c CMD_cmd 
-  CMD_parms   
-```
+[PRE39]
 
 +   `ENV`：
 
-```
-ENV key value
-ENV key1=value1 key2=value2 ... 
-```
+[PRE40]
 
 `ENV`指令为随后的指令和构建的镜像设置环境变量。第一种形式将键设置为第一个空格后面的字符串，包括特殊字符。第二种形式允许我们在一行中设置多个变量，用空格分隔。如果值中有空格，可以用双引号括起来或转义空格字符。此外，使用`ENV`定义的键也会影响同一文档中的变量。查看以下示例以观察`ENV`的行为：
 
-```
-    FROM alpine
-    ENV key wD # aw
-    ENV k2=v2 k3=v\ 3 \
-        k4="v 4"
-    ENV k_${k2}=$k3 k5=\"K\=da\"
-
-    RUN echo key=$key ;\
-       echo k2=$k2 k3=$k3 k4=$k4 ;\
-       echo k_\${k2}=k_${k2}=$k3 k5=$k5
-
-```
+[PRE41]
 
 在 Docker 构建期间的输出将是：
 
-```
-    ...
-    ---> Running in 738709ef01ad
-    key=wD # aw
-    k2=v2 k3=v 3 k4=v 4
-    k_${k2}=k_v2=v 3 k5="K=da"
-    ...
-```
+[PRE42]
 
 +   `LABEL key1=value1 key2=value2 ...`：`LABEL`的用法类似于`ENV`，但标签仅存储在镜像的元数据部分，并由其他主机程序使用，而不是容器中的程序。它取代了以下形式的`maintainer`指令：
 
-```
-LABEL maintainer=johndoe@example.com
-```
+[PRE43]
 
 如果命令带有`-f(--filter)`标志，则可以使用标签过滤对象。例如，`docker images --filter label=maintainer=johndoe@example.com`会查询出带有前面维护者标签的镜像。
 
@@ -641,79 +370,35 @@ LABEL maintainer=johndoe@example.com
 
 +   `WORKDIR <path>`：此指令将工作目录设置为特定路径。如果路径不存在，路径将被自动创建。它的工作原理类似于`Dockerfile`中的`cd`，因为它既可以接受相对路径也可以接受绝对路径，并且可以多次使用。如果绝对路径后面跟着一个相对路径，结果将相对于前一个路径：
 
-```
-    WORKDIR /usr
-    WORKDIR src
-    WORKDIR app
-    RUN pwd
-    ---> Running in 73aff3ae46ac
-    /usr/src/app
-    ---> 4a415e366388
-
-```
+[PRE44]
 
 此外，使用`ENV`设置的环境变量会影响路径。
 
 +   `COPY：`
 
-```
-COPY <src-in-context> ... <dest-in-container> COPY ["<src-in-context>",... "<dest-in-container>"]
-```
+[PRE45]
 
 该指令将源复制到构建容器中的文件或目录。源可以是文件或目录，目的地也可以是文件或目录。源必须在上下文路径内，因为只有上下文路径下的文件才会被发送到 Docker 守护程序。此外，`COPY`利用`.dockerignore`来过滤将被复制到构建容器中的文件。第二种形式适用于路径包含空格的情况。
 
 +   `ADD`：
 
-```
-ADD <src > ... <dest >
-ADD ["<src>",... "<dest >"]
-```
+[PRE46]
 
 `ADD`在功能上与`COPY`非常类似：将文件移动到镜像中。除了复制文件外，`<src>`也可以是 URL 或压缩文件。如果`<src>`是一个 URL，`ADD`将下载并将其复制到镜像中。如果`<src>`被推断为压缩文件，它将被提取到`<dest>`路径中。
 
 +   `VOLUME`：
 
-```
-VOLUME mount_point_1 mount_point_2 VOLUME ["mount point 1", "mount point 2"]
-```
+[PRE47]
 
 `VOLUME`指令在给定的挂载点创建数据卷。一旦在构建时声明了数据卷，后续指令对数据卷的任何更改都不会持久保存。此外，在`Dockerfile`或`docker build`中挂载主机目录是不可行的，因为存在可移植性问题：无法保证指定的路径在主机中存在。两种语法形式的效果是相同的；它们只在语法解析上有所不同；第二种形式是 JSON 数组，因此需要转义字符，如`"\"`。
 
 +   `ONBUILD [其他指令]`：`ONBUILD`允许您将一些指令推迟到派生图像的后续构建中。例如，我们可能有以下两个 Dockerfiles：
 
-```
-    --- baseimg ---
-    FROM alpine
-    RUN apk add --no-update git make
-    WORKDIR /usr/src/app
-    ONBUILD COPY . /usr/src/app/
-    ONBUILD RUN git submodule init && \
-              git submodule update && \
-              make
-    --- appimg ---
-    FROM baseimg
-    EXPOSE 80
-    CMD ["/usr/src/app/entry"]
-```
+[PRE48]
 
 然后，指令将按以下顺序在`docker build`中进行评估：
 
-```
-    $ docker build -t baseimg -f baseimg .
-    ---
-    FROM alpine
-    RUN apk add --no-update git make
-    WORKDIR /usr/src/app
-    ---
-    $ docker build -t appimg -f appimg .
-    ---
-    COPY . /usr/src/app/
-    RUN git submodule init   && \
-        git submodule update && \
-        make
-    EXPOSE 80
-    CMD ["/usr/src/app/entry"] 
-```
+[PRE49]
 
 # 组织 Dockerfile
 
@@ -721,32 +406,11 @@ VOLUME mount_point_1 mount_point_2 VOLUME ["mount point 1", "mount point 2"]
 
 假设我们有一个应用程序堆栈，其中包括应用程序代码、数据库和缓存，我们可能会从一个`Dockerfile`开始，例如以下内容：
 
-```
----
-FROM ubuntu
-ADD . /app
-RUN apt-get update 
-RUN apt-get upgrade -y
-RUN apt-get install -y redis-server python python-pip mysql-server
-ADD db/my.cnf /etc/mysql/my.cnf
-ADD db/redis.conf /etc/redis/redis.conf
-RUN pip install -r /app/requirements.txt
-RUN cd /app ; python setup.py
-CMD /app/start-all-service.sh
-```
+[PRE50]
 
 第一个建议是创建一个专门用于一件事情的容器。因此，我们将在这个`Dockerfile`的开头删除`mysql`和`redis`的安装和配置。接下来，代码将被移入容器中，使用`ADD`，这意味着我们很可能将整个代码库移入容器。通常有许多与应用程序直接相关的文件，包括 VCS 文件、CI 服务器配置，甚至构建缓存，我们可能不希望将它们打包到镜像中。因此，建议使用`.dockerignore`来过滤掉这些文件。顺便说一句，由于`ADD`指令，我们可以做的不仅仅是将文件添加到构建容器中。通常情况下，使用`COPY`更为合适，除非确实有不这样做的真正需要。现在我们的`Dockerfile`更简单了，如下面的代码所示：
 
-```
-FROM ubuntu
-COPY . /app
-RUN apt-get update 
-RUN apt-get upgrade -y
-RUN apt-get install -y python python-pip
-RUN pip install -r /app/requirements.txt
-RUN cd /app ; python setup.py
-CMD python app.py
-```
+[PRE51]
 
 在构建镜像时，Docker 引擎将尽可能地重用缓存层，这显著减少了构建时间。在我们的`Dockerfile`中，只要存储库有任何更新，我们就必须经历整个更新和依赖项安装过程。为了从构建缓存中受益，我们将根据一个经验法则重新排序指令：首先运行不太频繁的指令。
 
@@ -764,18 +428,7 @@ CMD python app.py
 
 前三个建议非常直接，旨在消除歧义。最后一个建议是关于应用程序如何终止。当来自 Docker 守护程序的停止请求发送到正在运行的容器时，主进程（PID 1）将接收到一个停止信号（`SIGTERM`）。如果进程在一定时间后仍未停止，Docker 守护程序将发送另一个信号（`SIGKILL`）来终止容器。在这里，exec 形式和 shell 形式有所不同。在 shell 形式中，PID 1 进程是"`/bin/sh -c`"，而不是应用程序。此外，不同的 shell 处理信号的方式也不同。有些将停止信号转发给子进程，而有些则不会。Alpine Linux 的 shell 不会转发它们。因此，为了正确停止和清理我们的应用程序，建议使用`exec`形式。结合这些原则，我们有以下`Dockerfile`：
 
-```
-FROM ubuntu:16.04
-RUN apt-get update && apt-get upgrade -y  \
-&& apt-get install -y python python-pip
-ENTRYPOINT ["python"]
-CMD ["entry.py"]
-EXPOSE 5000
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . /app 
-```
+[PRE52]
 
 还有其他一些实践可以使`Dockerfile`更好，包括从专用和更小的基础镜像开始，例如基于 Alpine 的镜像，而不是通用目的的发行版，使用除`root`之外的用户以提高安全性，并在`RUN`中删除不必要的文件。
 
@@ -795,18 +448,7 @@ COPY . /app
 
 我们知道如何分别启动这些容器，并将它们连接在一起。基于我们之前讨论的内容，我们首先会创建一个桥接网络，并在其中运行容器：
 
-```
-
-$ docker network create kiosk
-$ docker run -d -p 5000:5000 \
-    -e REDIS_HOST=lcredis --network=kiosk kiosk-example 
-$ docker run -d --network-alias lcredis --network=kiosk redis
-$ docker run -d -e REDIS_HOST=lcredis -e MYSQL_HOST=lmysql \
--e MYSQL_ROOT_PASSWORD=$MYPS -e MYSQL_USER=root \
---network=kiosk recorder-example
-$ docker run -d --network-alias lmysql -e MYSQL_ROOT_PASSWORD=$MYPS \ 
- --network=kiosk mysql:5.7 
-```
+[PRE53]
 
 到目前为止一切都运行良好。然而，如果下次我们想再次启动相同的堆栈，我们的应用很可能会在数据库之前启动，并且如果有任何传入连接请求对数据库进行任何更改，它们可能会失败。换句话说，我们必须在启动脚本中考虑启动顺序。此外，脚本还存在一些问题，比如如何处理随机组件崩溃，如何管理变量，如何扩展某些组件等等。
 
@@ -814,27 +456,11 @@ $ docker run -d --network-alias lmysql -e MYSQL_ROOT_PASSWORD=$MYPS \
 
 Docker Compose 是一个非常方便地运行多个容器的工具，它是 Docker CE 发行版中的内置工具。它的作用就是读取`docker-compose.yml`（或`.yaml`）来运行定义的容器。`docker-compose`文件是基于 YAML 的模板，通常是这样的：
 
-```
-version: '3'
-services:
- hello-world:
- image: hello-world
-```
+[PRE54]
 
 启动它非常简单：将模板保存为`docker-compose.yml`，然后使用`docker-compose up`命令启动它。
 
-```
-$ docker-compose up
-Creating network "cwd_default" with the default driver
-Creating cwd_hello-world_1
-Attaching to cwd_hello-world_1
-hello-world_1  |
-hello-world_1  | Hello from Docker!
-hello-world_1  | This message shows that your installation appears to be working correctly.
-...
-cwd_hello-world_1 exited with code 0
-
-```
+[PRE55]
 
 让我们看看`docker-compose`在`up`命令后面做了什么。
 
@@ -850,120 +476,27 @@ Docker Compose 基本上是 Docker 的多个容器功能的混合体。例如，
 
 由于 Docker Compose 在许多方面与 Docker 相同，因此更有效的方法是了解如何使用示例编写`docker-compose.yml`，而不是从`docker-compose`语法开始。现在让我们回到之前的`kiosk-example`，并从`version`定义和四个`services`开始：
 
-```
-version: '3'
-services:
- kiosk-example:
- recorder-example:
- lcredis:
- lmysql:
-```
+[PRE56]
 
 `kiosk-example`的`docker run`参数非常简单，包括发布端口和环境变量。在 Docker Compose 方面，我们相应地填写源镜像、发布端口和环境变量。因为 Docker Compose 能够处理`docker build`，如果本地找不到这些镜像，它将构建镜像。我们很可能希望利用它来进一步减少镜像管理的工作量。
 
-```
-kiosk-example:
- image: kiosk-example
- build: ./kiosk
- ports:
-  - "5000:5000"
-  environment:
-    REDIS_HOST: lcredis
-```
+[PRE57]
 
 以相同的方式转换`recorder-example`和`redis`的 Docker 运行，我们得到了以下模板：
 
-```
-version: '3'
-services:
-  kiosk-example:
-    image: kiosk-example
-    build: ./kiosk
-    ports:
-    - "5000:5000"
-    environment:
-      REDIS_HOST: lcredis
-  recorder-example:
-    image: recorder-example
-    build: ./recorder
-    environment:
-      REDIS_HOST: lcredis
-      MYSQL_HOST: lmysql
-      MYSQL_USER: root
-      MYSQL_ROOT_PASSWORD: mysqlpass
-  lcredis:
-    image: redis
-    ports:
-    - "6379"
-```
+[PRE58]
 
 对于 MySQL 部分，它需要一个数据卷来保存数据以及配置。因此，除了`lmysql`部分之外，我们在`services`级别添加`volumes`，并添加一个空映射`mysql-vol`来声明一个数据卷：
 
-```
- lmysql:
- image: mysql:5.7
-   environment:
-     MYSQL_ROOT_PASSWORD: mysqlpass
-   volumes:
-   - mysql-vol:/var/lib/mysql
-   ports:
-   - "3306"
-  ---
-volumes:
-  mysql-vol:
-```
+[PRE59]
 
 结合所有前述的配置，我们得到了最终的模板，如下所示：
 
-```
-docker-compose.yml
----
-version: '3'
-services:
- kiosk-example:
-    image: kiosk-example
-    build: ./kiosk
-    ports:
-    - "5000:5000"
-    environment:
-      REDIS_HOST: lcredis
- recorder-example:
-    image: recorder-example
-    build: ./recorder
-    environment:
-      REDIS_HOST: lcredis
-      MYSQL_HOST: lmysql
-      MYSQL_USER: root
-      MYSQL_ROOT_PASSWORD: mysqlpass
- lcredis:
- image: redis
-    ports:
-    - "6379"
- lmysql:
-    image: mysql:5.7
-    environment:
-      MYSQL_ROOT_PASSWORD: mysqlpass
-    volumes:
-    - mysql-vol:/var/lib/mysql
-    ports:
-    - "3306"
-volumes:
- mysql-vol: 
-```
+[PRE60]
 
 该文件放在项目的根文件夹中。相应的文件树如下所示：
 
-```
-├── docker-compose.yml
-├── kiosk
-│   ├── Dockerfile
-│   ├── app.py
-│   └── requirements.txt
-└── recorder
- ├── Dockerfile
- ├── process.py
- └── requirements.txt  
-```
+[PRE61]
 
 最后，运行`docker-compose up`来检查一切是否正常。我们可以通过发送`GET /tickets`请求来检查我们的售票亭是否正常运行。
 

@@ -18,9 +18,7 @@
 
 除了资源监控之外，基础设施工程师还会主动为进程和其他实体分配最低资源需求和使用限制。这确保了服务有足够的资源可用。此外，资源管理还确保不良行为或恶意进程不会占用资源并阻止其他进程工作。对于单体部署，诸如 CPU、内存和生成的进程等资源会被限制在不同的进程中。在 Linux 上，可以使用`prlimit`来限制进程的限制：
 
-```
-$prlimit --nproc=2 --pid=18065
-```
+[PRE0]
 
 这个命令设置了父进程可以生成的子进程的限制为`2`。设置了这个限制后，如果一个 PID 为`18065`的进程尝试生成超过`2`个子进程，它将被拒绝。
 
@@ -38,166 +36,41 @@ Kubernetes 提供了主动分配和限制 Kubernetes 对象可用资源的能力
 
 让我们创建一个没有在 `yaml` 规范中指定资源请求的 Pod，如下所示：
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: demo
-spec:
-  containers:
-  - name: demo
-```
+[PRE1]
 
 Pod 将使用部署的默认资源请求：
 
-```
-$kubectl get pod demo —output=yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"v1","kind":"Pod","metadata":{"annotations":{},"name":"demo","namespace":"default"},"spec":{"containers":[{"image":"nginx","name":"demo"}]}}
-    kubernetes.io/limit-ranger: 'LimitRanger plugin set: cpu request for container
-      demo'
-  creationTimestamp: "2020-05-07T21:54:47Z"
-  name: demo
-  namespace: default
-  resourceVersion: "3455"
-  selfLink: /api/v1/namespaces/default/pods/demo
-  uid: 5e783495-90ad-11ea-ae75-42010a800074
-spec:
-  containers:
-  - image: nginx
-    imagePullPolicy: Always
-    name: demo
-    resources:
-      requests:
-        cpu: 100m
-```
+[PRE2]
 
 对于前面的例子，Pod 的默认资源请求是 0.1 CPU 核心。现在让我们向 `.yaml` 规范中添加一个资源请求并看看会发生什么：
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: demo
-spec:
-  containers:
-  - name: demo
-    image: nginx
-    resources:
-      limits:
-          hugepages-2Mi: 100Mi
-      requests:
-        cpu: 500m         memory: 300Mi         hugepages-2Mi: 100Mi 
-```
+[PRE3]
 
 这个规范创建了一个具有 0.5 CPU 核心、300 MB 和 `hugepages-2Mi` 的 100 MB 的资源请求的 Pod。您可以使用以下命令检查 Pod 的资源请求：
 
-```
-$kubectl get pod demo —output=yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  creationTimestamp: "2020-05-07T22:02:16Z"
-  name: demo-1
-  namespace: default
-  resourceVersion: "5030"
-  selfLink: /api/v1/namespaces/default/pods/demo-1
-  uid: 6a276dd2-90ae-11ea-ae75-42010a800074
-spec:
-  containers:
-  - image: nginx
-    imagePullPolicy: Always
-    name: demo
-    resources:
-      limits:
-        hugepages-2Mi: 100Mi
-      requests:
-        cpu: 500m
-        hugepages-2Mi: 100Mi
-        memory: 300Mi
-```
+[PRE4]
 
 从输出中可以看出，Pod 使用了 0.5 CPU 核心、300 MB `内存` 和 100 MB 2 MB `hugepages` 的自定义资源请求，而不是默认的 1 MB。
 
 另一方面，限制是 Pod 可以使用的资源的硬限制。限制指定了 Pod 应该被允许使用的最大资源。如果需要的资源超过了限制中指定的资源，Pod 将受到限制。与资源请求类似，您可以为 CPU、内存和 HugePages 指定限制。让我们看一个限制的例子：
 
-```
-$ cat stress.yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: demo
-spec:
-  containers:
-  - name: demo
-    image: polinux/stress
-    command: ["stress"]
-    args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
-```
+[PRE5]
 
 这个 Pod 启动一个尝试在启动时分配 `150M` 内存的压力进程。如果 `.yaml` 规范中没有指定限制，Pod 将可以正常运行：
 
-```
-$ kubectl create -f stress.yaml pod/demo created
-$ kubectl get pods NAME         READY   STATUS             RESTARTS   AGE demo         1/1     Running            0          3h
-```
+[PRE6]
 
 限制被添加到 Pod 的 `yaml` 规范的容器部分：
 
-```
-containers:
-  - name: demo
-    image: polinux/stress
-    resources:
-      limits:
-        memory: "150Mi"
-    command: ["stress"]
-args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]
-```
+[PRE7]
 
 压力进程无法运行，Pod 进入 `CrashLoopBackOff` 状态：
 
-```
-$ kubectl get pods
-NAME     READY   STATUS             RESTARTS   AGE
-demo     1/1     Running            0          44s
-demo-1   0/1     CrashLoopBackOff   1          5s
-```
+[PRE8]
 
 当您描述 Pod 时，可以看到 Pod 被终止并出现 `OOMKilled` 错误：
 
-```
-$ kubectl describe pods demo
-Name:         demo
-Namespace:    default
-...
-Containers:
-  demo:
-    Container ID:  docker://a43de56a456342f7d53fa9752aa4fa7366 cd4b8c395b658d1fc607f2703750c2
-    Image:         polinux/stress
-    Image ID:      docker-pullable://polinux/stress@sha256:b61 44f84f9c15dac80deb48d3a646b55c7043ab1d83ea0a697c09097aaad21aa
-...
-    Command:
-      stress
-    Args:
-      --vm
-      1
-      --vm-bytes
-      150M
-      --vm-hang
-      1
-    State:          Waiting
-      Reason:       CrashLoopBackOff
-    Last State:     Terminated
-      Reason:       OOMKilled
-      Exit Code:    1
-      Started:      Mon, 04 May 2020 10:48:14 -0700
-      Finished:     Mon, 04 May 2020 10:48:14 -0700
-```
+[PRE9]
 
 资源请求和限制被转换、映射到 `docker` 参数——`—cpu-shares` 和 `—memory` 标志——并传递给容器运行时。
 
@@ -221,83 +94,29 @@ Containers:
 
 默认情况下，云提供商或不同的变体对命名空间应用了标准限制。在**Google Kubernetes Engine**（**GKE**）上，`cpu`请求被设置为 0.1 CPU 核心：
 
-```
-$ kubectl describe namespace default
-Name:         default
-Labels:       <none>
-Annotations:  <none>
-Status:       Active
-Resource Quotas
- Name:                       gke-resource-quotas
- Resource                    Used  Hard
- --------                    ---   ---
- count/ingresses.extensions  0     100
- count/jobs.batch            0     5k
- pods                        2     1500
- services                    1     500
-Resource Limits
- Type       Resource  Min  Max  Default Request  Default Limit  Max Limit/Request Ratio
- ----       --------  ---  ---  ---------------  -------------  -----------------------
- Container  cpu       -    -    100m             -              -
-```
+[PRE10]
 
 让我们看一个例子，当资源配额应用到一个命名空间时会发生什么：
 
 1.  创建一个命名空间演示：
 
-```
-$ kubectl create namespace demo
-namespace/demo created
-```
+[PRE11]
 
 1.  定义一个资源配额。在这个例子中，配额将 CPU 的资源请求限制为`1` CPU：
 
-```
-$ cat quota.yaml
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: compute-resources
-spec:
-  hard:
-    requests.cpu: "1"
-```
+[PRE12]
 
 1.  通过以下命令将配额应用到命名空间：
 
-```
-$ kubectl apply -f quota.yaml --namespace demo
-resourcequota/compute-resources created
-```
+[PRE13]
 
 1.  您可以通过执行以下命令来检查资源配额是否成功应用到命名空间：
 
-```
-$ kubectl describe namespace demo
-Name:         demo
-Labels:       <none>
-Annotations:  <none>
-Status:       Active
-Resource Quotas
- Name:         compute-resources
- Resource      Used  Hard
- --------      ---   ---
- requests.cpu  0     1
- Name:                       gke-resource-quotas
- Resource                    Used  Hard
- --------                    ---   ---
- count/ingresses.extensions  0     100
- count/jobs.batch            0     5k
- pods                        0     1500
- services                    0     500
-```
+[PRE14]
 
 1.  现在，如果我们尝试创建使用`1` CPU 的两个 pod，第二个请求将失败，并显示以下错误：
 
-```
-$ kubectl apply -f nginx-cpu-1.yaml --namespace demo
-Error from server (Forbidden): error when creating "nginx-cpu-1.yaml": pods "demo-1" is forbidden: exceeded quota: compute-resources, requested: requests.cpu=1, used: requests.cpu=1, limited: requests.cpu=1
-```
+[PRE15]
 
 资源配额确保了命名空间中 Kubernetes 对象的服务质量。
 
@@ -307,10 +126,7 @@ Error from server (Forbidden): error when creating "nginx-cpu-1.yaml": pods "dem
 
 要使用限制范围，启用`LimitRanger`准入控制器：
 
-```
-$ ps aux | grep kube-api
-root      3708  6.7  8.7 497216 345256 ?       Ssl  01:44   0:10 kube-apiserver --advertise-address=192.168.99.116 --allow-privileged=true --authorization-mode=Node,RBAC --client-ca-file=/var/lib/minikube/certs/ca.crt --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota
-```
+[PRE16]
 
 使用 LimitRanger，我们可以对存储和计算资源强制执行`default`、`min`和`max`限制。集群管理员为诸如 pod、容器和 PersistentVolumeClaims 等对象创建一个限制范围。对于任何对象创建或更新的请求，LimitRanger 准入控制器会验证请求是否违反了任何限制范围。如果请求违反了任何限制范围，将发送 403 Forbidden 响应。
 
@@ -318,62 +134,23 @@ root      3708  6.7  8.7 497216 345256 ?       Ssl  01:44   
 
 1.  创建一个将应用限制范围的命名空间：
 
-```
-$kubectl create namespace demo
-```
+[PRE17]
 
 1.  为命名空间定义一个`LimitRange`：
 
-```
-$ cat limit_range.yaml
-apiVersion: "v1"
-kind: "LimitRange"
-metadata:
-  name: limit1
-  namespace: demo
-spec:
-  limits:
-  - type: "Container"
-    max:
-      memory: 512Mi
-      cpu: 500m
-    min:
-      memory: 50Mi
-      cpu: 50m
-```
+[PRE18]
 
 1.  验证`limitrange`是否被应用：
 
-```
-$ kubectl get limitrange -n demo
-NAME     CREATED AT
-limit1   2020-04-30T02:06:18Z
-```
+[PRE19]
 
 1.  创建一个违反限制范围的 pod：
 
-```
-$cat nginx-bad.yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx-bad
-spec:
-  containers:
-  - name: nginx-bad
-    image: nginx-bad
-    resources:
-      limits:
-        memory: "800Mi"
-        cpu: "500m"
-```
+[PRE20]
 
 这个请求将被拒绝：
 
-```
-$ kubectl apply -f nginx-bad.yaml -n demo
-Error from server (Forbidden): error when creating "nginx-bad.yaml": pods "nginx-bad" is forbidden: maximum memory usage per Container is 512Mi, but limit is 800M
-```
+[PRE21]
 
 如果 LimitRanger 指定了 CPU 或内存，所有的 pod 和容器都应该有 CPU 或内存的请求或限制。LimitRanger 在 API 服务器接收到创建或更新对象的请求时起作用，但在运行时不起作用。如果一个 pod 在限制被应用之前就违反了限制，它将继续运行。理想情况下，限制应该在命名空间创建时应用。
 
@@ -405,46 +182,19 @@ Kubernetes 仪表板提供了集群管理员在集群中管理资源和对象所
 
 1.  在默认命名空间中创建一个服务账户：
 
-```
-$kubectl create serviceaccount dashboard-admin-sa
-```
+[PRE22]
 
 1.  将 `cluster-admin` 角色与服务账户关联：
 
-```
-$kubectl create clusterrolebinding dashboard-admin-sa --clusterrole=cluster-admin --serviceaccount=default:dashboard-admin-sa
-```
+[PRE23]
 
 1.  获取服务账户的令牌：
 
-```
-$ kubectl describe serviceaccount dashboard-admin-sa
-Name:                dashboard-admin-sa
-Namespace:           default
-Labels:              <none>
-Annotations:         <none>
-Image pull secrets:  <none>
-Mountable secrets:   dashboard-admin-sa-token-5zwpw
-Tokens:              dashboard-admin-sa-token-5zwpw
-Events:              <none>
-```
+[PRE24]
 
 1.  使用以下命令获取服务账户的令牌：
 
-```
-$ kubectl describe secrets dashboard-admin-sa-token-5zwpw
-Name:         dashboard-admin-sa-token-5zwpw
-Namespace:    default
-Labels:       <none>
-Annotations:  kubernetes.io/service-account.name: dashboard-admin-sa
-              kubernetes.io/service-account.uid: 83218a92-915c-11ea-b763-42010a800022
-Type:  kubernetes.io/service-account-token
-Data
-====
-ca.crt:     1119 bytes
-namespace:  7 bytes
-token:      <token>
-```
+[PRE25]
 
 1.  使用服务账户令牌登录到仪表板：
 
@@ -466,21 +216,11 @@ token:      <token>
 
 Kubernetes 仪表板作为一个容器在主节点上运行。您可以通过枚举主节点上的 Docker 容器来查看这一点：
 
-```
-$ docker ps | grep dashboard
-a963e6e6a54b        3b08661dc379           "/metrics-sidecar"       4 minutes ago       Up 4 minutes                            k8s_dashboard-metrics-scraper_dashboard-metrics-scraper-84bfdf55ff-wfxdm_kubernetes-dashboard_5a7ef2a8-b3b4-4e4c-ae85-11cc8b61c1c1_0
-c28f0e2799c1        cdc71b5a8a0e           "/dashboard --insecu…"   4 minutes ago       Up 4 minutes                            k8s_kubernetes-dashboard_kubernetes-dashboard-bc446cc64-czmn8_kubernetes-dashboard_40630c71-3c6a-447b-ae68-e23603686ede_0
-10f0b024a13f        k8s.gcr.io/pause:3.2   "/pause"                 4 minutes ago       Up 4 minutes                            k8s_POD_dashboard-metrics-scraper-84bfdf55ff-wfxdm_kubernetes-dashboard_5a7ef2a8-b3b4-4e4c-ae85-11cc8b61c1c1_0
-f9c1e82174d8        k8s.gcr.io/pause:3.2   "/pause"                 4 minutes ago       Up 4 minutes                            k8s_POD_kubernetes-dashboard-bc446cc64-czmn8_kubernetes-dashboard_40630c71-3c6a-447b-ae68-e23603686ede_0
-```
+[PRE26]
 
 仪表板进程在主节点上以一组参数运行：
 
-```
-$ ps aux | grep dashboard
-dbus     10727  0.9  1.1 136752 46240 ?        Ssl  05:46   0:02 /dashboard --insecure-bind-address=0.0.0.0 --bind-address=0.0.0.0 --namespace=kubernetes-dashboard --enable-skip-login --disable-settings-authorizer
-docker   11889  0.0  0.0  11408   556 pts/0    S+   05:51   0:00 grep dashboard
-```
+[PRE27]
 
 确保仪表板容器使用以下参数运行：
 
@@ -506,27 +246,15 @@ Metrics Server 使用每个节点上的`kubelet`公开的摘要 API 聚合集群
 
 在某些 Kubernetes 发行版上，默认情况下启用了 Metrics Server。您可以使用以下命令在`minikube`上启用它：
 
-```
-$ minikube addons enable metrics-server
-```
+[PRE28]
 
 您可以使用以下命令检查 Metrics Server 是否已启用：
 
-```
-$ kubectl get apiservices | grep metrics
-v1beta1.metrics.k8s.io                 kube-system/metrics-server   True        7m17s
-```
+[PRE29]
 
 启用 Metrics Server 后，需要一些时间来查询摘要 API 并关联数据。您可以使用`kubectl top node`来查看当前的指标：
 
-```
-$ kubectl top node
-NAME       CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
-minikube   156m         7%     1140Mi          30%
-$ kubectl top pod
-NAME         CPU(cores)   MEMORY(bytes)
-nginx-good   0m           2Mi
-```
+[PRE30]
 
 与其他服务和组件类似，Metrics Server 也有配置参数。在生产集群中，请确保 Metrics Server 不使用`--kubelet-insecure-tls`标志，该标志允许 Metrics Server 跳过 CA 对证书的验证。
 
@@ -542,115 +270,27 @@ Prometheus 是由 SoundCloud 开发并被 CNCF 采用的开源仪表和数据收
 
 1.  创建一个命名空间：
 
-```
-$kubectl create namespace monitoring
-```
+[PRE31]
 
 1.  定义一个集群角色来读取 Kubernetes 对象，如 pods、nodes 和 services，并将角色绑定到一个服务账户。在这个例子中，我们使用默认的服务账户：
 
-```
-$ cat prometheus-role.yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
-  name: prometheus
-rules:
-- apiGroups: [""]
-  resources:
-  - nodes
-  - nodes/proxy
-  - services
-  - endpoints
-  - pods
-  verbs: ["get", "list", "watch"]
-- apiGroups:
-  - extensions
-  resources:
-  - ingresses
-  verbs: ["get", "list", "watch"]
-- nonResourceURLs: ["/metrics"]
-  verbs: ["get"]
-$ kubectl create -f prometheus-role.yaml
-clusterrole.rbac.authorization.k8s.io/prometheus created
-```
+[PRE32]
 
 现在，我们创建一个角色绑定，将角色与默认服务账户关联起来：
 
-```
-$ cat prometheus-rolebinding.yaml
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
-metadata:
-  name: prometheus
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: prometheus
-subjects:
-- kind: ServiceAccount
-  name: default
-  namespace: monitoring
-```
+[PRE33]
 
 1.  Prometheus 使用 ConfigMap 来指定抓取规则。以下规则抓取`kube-apiserver`。可以定义多个抓取来获取指标：
 
-```
-$ cat config_prometheus.yaml apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: prometheus-server-conf
-  labels:
-    name: prometheus-server-conf
-  namespace: monitoring
-data:
-  prometheus.yml: |-
-    global:
-      scrape_interval: 5s
-      evaluation_interval: 5s
-  scrape_configs:    - job_name: 'kubernetes-apiservers'
-      kubernetes_sd_configs:
-      - role: endpoints
-      scheme: https
-      tls_config:
-        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-      relabel_configs:
-      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-        action: keep
-        regex: default;kubernetes;https
-```
+[PRE34]
 
 1.  为 Prometheus 创建一个部署：
 
-```
-spec:
-      containers:
-        - name: prometheus
-          image: prom/prometheus:v2.12.0
-          args:
-            - "--config.file=/etc/prometheus/prometheus.yml"
-            - "--storage.tsdb.path=/prometheus/"
-          ports:
-            - containerPort: 9090
-          volumeMounts:
-            - name: prometheus-config-volume
-              mountPath: /etc/prometheus/
-            - name: prometheus-storage-volume
-              mountPath: /prometheus/
-      volumes:
-        - name: prometheus-config-volume
-          configMap:
-            defaultMode: 420
-            name: prometheus-server-conf
-        - name: prometheus-storage-volume
-          emptyDir: {}
-```
+[PRE35]
 
 1.  部署成功后，可以使用端口转发或 Kubernetes 服务来访问仪表板：
 
-```
-$ kubectl port-forward <prometheus-pod> 8080:9090 -n monitoring
-```
+[PRE36]
 
 这样可以为 Prometheus pod 启用端口转发。现在，您可以使用端口`8080`上的集群 IP 来访问它：
 
@@ -664,21 +304,15 @@ $ kubectl port-forward <prometheus-pod> 8080:9090 -n monitoring
 
 +   Kubernetes CPU 使用率：
 
-```
-sum(rate(container_cpu_usage_seconds_total{container_name!="POD",pod_name!=""}[5m]))
-```
+[PRE37]
 
 +   Kubernetes 命名空间的 CPU 使用率：
 
-```
-sum(rate(container_cpu_usage_seconds_total{container_name!="POD",namespace!=""}[5m])) by (namespace)
-```
+[PRE38]
 
 +   按 pod 的 CPU 请求：
 
-```
-sum(kube_pod_container_resource_requests_cpu_cores) by (pod)
-```
+[PRE39]
 
 让我们看一下演示集群的命名空间的 CPU 使用率：
 
@@ -688,19 +322,7 @@ sum(kube_pod_container_resource_requests_cpu_cores) by (pod)
 
 Prometheus 还允许集群管理员使用 ConfigMaps 设置警报：
 
-```
-prometheus.rules: |-
-    groups:
-    - name: Demo Alert
-      rules:
-      - alert: High Pod Memory
-        expr: sum(container_memory_usage_bytes{pod!=""})  by (pod) > 1000000000
-        for: 1m
-        labels:
-          severity: high
-        annotations:
-          summary: High Memory Usage
-```
+[PRE40]
 
 当容器内存使用大于`1000` MB 并持续`1`分钟时，此警报将触发一个带有`high`严重性标签的警报：
 
@@ -716,89 +338,15 @@ Prometheus 与其他增强数据可视化和警报管理的第三方工具很好
 
 1.  Grafana 需要一个数据源进行摄入；在本例中，它是 Prometheus。数据源可以使用 UI 添加，也可以使用 ConfigMap 指定：
 
-```
-$ cat grafana-data.yaml                                   apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-datasources
-  namespace: monitoring
-data:
-  prometheus.yaml: |-
-    {
-        "apiVersion": 1,
-        "datasources": [
-            {
-               "access":"proxy",
-                "editable": true,
-                "name": "prometheus",
-                "orgId": 1,
-                "type": "prometheus",
-                "url": "http://192.168.99.128:30000",
-                "version": 1
-            }
-        ]
-    }
-```
+[PRE41]
 
 1.  为 Grafana 创建一个部署：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: grafana
-  namespace: monitoring
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: grafana
-  template:
-    metadata:
-      name: grafana
-      labels:
-        app: grafana
-    spec:
-      containers:
-      - name: grafana
-        image: grafana/grafana:latest
-        ports:
-        - name: grafana
-          containerPort: 3000
-        volumeMounts:
-          - mountPath: /var/lib/grafana
-            name: grafana-storage
-          - mountPath: /etc/grafana/provisioning/datasources
-            name: grafana-datasources
-            readOnly: false
-      volumes:
-        - name: grafana-storage
-          emptyDir: {}
-        - name: grafana-datasources
-          configMap:
-              name: grafana-datasources
-```
+[PRE42]
 
 1.  然后可以使用端口转发或 Kubernetes 服务来访问仪表板：
 
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: grafana
-  namespace: monitoring
-  annotations:
-      prometheus.io/scrape: 'true'
-      prometheus.io/port:   '3000'
-spec:
-  selector:
-    app: grafana
-  type: NodePort
-  ports:
-    - port: 3000
-      targetPort: 3000
-      nodePort: 32000
-```
+[PRE43]
 
 1.  默认情况下，仪表板的用户名和密码为`admin`。登录后，您可以设置一个新的仪表板，或者从 Grafana 导入一个仪表板。要导入一个仪表板，您可以点击**+ > 导入**，然后会出现以下屏幕。在第一个文本框中输入`315`，以从 Grafana 导入仪表板 315：![图 10.8 – 在 Grafana 中导入仪表板](img/B15566_10_009.jpg)
 

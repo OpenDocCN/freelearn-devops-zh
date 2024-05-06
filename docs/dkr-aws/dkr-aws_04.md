@@ -173,21 +173,7 @@ ECS 容器实例是常规的 Linux 主机，因此您可能期望，连接到您
 
 以下示例演示了如何建立与实例的 SSH 连接，使用`-i`标志引用与实例关联的 EC2 密钥对的私钥。您还需要使用用户名`ec2-user`登录，这是 Amazon Linux 中包含的默认非 root 用户：
 
-```
-> ssh -i ~/.ssh/admin.pem ec2-user@34.201.120.79
-The authenticity of host '34.201.120.79 (34.201.120.79)' can't be established.
-ECDSA key fingerprint is SHA256:c/MniTAq931tJj8bCVtRUP9gixM/ZXZSqDuMENqpod0.
-Are you sure you want to continue connecting (yes/no)? yes
-Warning: Permanently added '34.201.120.79' (ECDSA) to the list of known hosts.
-
-   __| __| __|
-   _| ( \__ \ Amazon ECS-Optimized Amazon Linux AMI 2017.09.g
- ____|\___|____/
-
-For documentation visit, http://aws.amazon.com/documentation/ecs
-5 package(s) needed for security, out of 7 available
-Run "sudo yum update" to apply all updates.
-```
+[PRE0]
 
 首先要注意的是登录横幅指示此实例基于 Amazon ECS-Optimized Amazon Linux AMI，这是创建 ECS 容器实例时默认和推荐的 Amazon Machine Image（AMI）。AWS 定期维护此 AMI，并使用与 ECS 推荐使用的 Docker 和 ECS 代理版本定期更新，因此这是迄今为止最简单的用于 ECS 容器实例的平台，我强烈建议使用此 AMI 作为 ECS 容器实例的基础。
 
@@ -199,32 +185,13 @@ Run "sudo yum update" to apply all updates.
 
 正如您可能期望的那样，您的 ECS 容器实例将运行一个活动的 Docker 引擎，您可以通过运行`docker info`命令来收集有关其信息：
 
-```
-> docker info
-Containers: 1
- Running: 1
- Paused: 0
- Stopped: 0
-Images: 2
-Server Version: 17.09.1-ce
-Storage Driver: devicemapper
- Pool Name: docker-docker--pool
- Pool Blocksize: 524.3kB
- Base Device Size: 10.74GB
- Backing Filesystem: ext4
-...
-...
-```
+[PRE1]
 
 在这里，您可以看到实例正在运行 Docker 版本 17.09.1-ce，使用设备映射器存储驱动程序，并且当前只有一个容器正在运行。
 
 现在让我们通过执行`docker container ps`命令来查看运行的容器：
 
-```
-> docker ps
-CONTAINER ID   IMAGE                            COMMAND    CREATED          STATUS          NAMES
-a1b1a89b5e9e   amazon/amazon-ecs-agent:latest   "/agent"   36 minutes ago   Up 36 minutes   ecs-agent
-```
+[PRE2]
 
 您可以看到 ECS 代理实际上作为一个名为`ecs-agent`的容器运行，这应该始终在您的 ECS 容器实例上运行，以便您的 ECS 容器实例由 ECS 管理。
 
@@ -234,21 +201,7 @@ a1b1a89b5e9e   amazon/amazon-ecs-agent:latest   "/agent"   36 minutes ago   Up 3
 
 在许多命令示例中，我正在将输出传输到`jq`实用程序，这是一个用于在命令行解析 JSON 输出的实用程序。 `jq`不是 Amazon Linux AMI 默认包含的，因此您需要通过运行`sudo yum install jq`命令来安装`jq`。
 
-```
-> docker container inspect ecs-agent --format '{{json .HostConfig.Binds}}' | jq
-[
-  "/var/run:/var/run",
-  "/var/log/ecs:/log",
-  "/var/lib/ecs/data:/data",
-  "/etc/ecs:/etc/ecs",
-  "/var/cache/ecs:/var/cache/ecs",
-  "/cgroup:/sys/fs/cgroup",
-  "/proc:/host/proc:ro",
-  "/var/lib/ecs/dhclient:/var/lib/dhclient",
-  "/lib64:/lib64:ro",
-  "/sbin:/sbin:ro"
-]
-```
+[PRE3]
 
 运行 docker container inspect 命令
 
@@ -260,22 +213,7 @@ ECS 代理包括一个本地 Web 服务器，可用于内省当前的 ECS 代理
 
 以下示例演示了使用`curl`命令内省 ECS 代理：
 
-```
-> curl -s localhost:51678 | jq
-{
-  "AvailableCommands": [
-    "/v1/metadata",
-    "/v1/tasks",
-    "/license"
-  ]
-}
-> curl -s localhost:51678/v1/metadata | jq
-{
-  "Cluster": "test-cluster",
-  "ContainerInstanceArn": "arn:aws:ecs:us-east-1:385605022855:container-instance/f67cbfbd-1497-47c0-b56c-a910c923ba70",
-  "Version": "Amazon ECS Agent - v1.16.2 (998c9b5)"
-}
-```
+[PRE4]
 
 审查 ECS 代理
 

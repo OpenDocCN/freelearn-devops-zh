@@ -20,64 +20,13 @@ Kubernetes 和 Docker 默认使用本地主机磁盘。Docker 应用程序可以
 
 为了理解 Kubernetes 卷管理，您需要了解 Docker 卷的生命周期。以下示例是当容器重新启动时 Docker 的行为：
 
-```
-//run CentOS Container
-$ docker run -it centos
-
-# ls
-anaconda-post.log  dev  home  lib64       media  opt   root  sbin  sys  usr
-bin                etc  lib   lost+found  mnt    proc  run   srv   tmp  var
-
-//create one file (/I_WAS_HERE) at root directory
-# touch /I_WAS_HERE
-# ls /
-I_WAS_HERE         bin  etc   lib    lost+found  mnt  proc  run   srv  tmp  var
-anaconda-post.log  dev  home  lib64  media       opt  root  sbin  sys  usr 
-
-//Exit container
-# exit
-exit 
-
-//re-run CentOS Container
-# docker run -it centos 
-
-//previous file (/I_WAS_HERE) was disappeared
-# ls /
-anaconda-post.log  dev  home  lib64       media  opt   root  sbin  sys  usr
-bin                etc  lib   lost+found  mnt    proc  run   srv   tmp  var  
-```
+[PRE0]
 
 在 Kubernetes 中，还需要关心 pod 的重新启动。在资源短缺的情况下，Kubernetes 可能会停止一个容器，然后在同一个或另一个 Kubernetes 节点上重新启动一个容器。
 
 以下示例显示了当资源短缺时 Kubernetes 的行为。当收到内存不足错误时，一个 pod 被杀死并重新启动：
 
-```
-
-//there are 2 pod on the same Node
-$ kubectl get pods
-NAME                          READY     STATUS    RESTARTS   AGE
-Besteffort                    1/1       Running   0          1h
-guaranteed                    1/1       Running   0          1h 
-
-//when application consumes a lot of memory, one Pod has been killed
-$ kubectl get pods
-NAME                          READY     STATUS    RESTARTS   AGE
-Besteffort                    0/1       Error     0          1h
-guaranteed                    1/1       Running   0          1h 
-
-//clashed Pod is restarting
-$ kubectl get pods
-NAME                          READY     STATUS             RESTARTS   AGE
-Besteffort                    0/1       CrashLoopBackOff   0          1h
-guaranteed                    1/1       Running            0          1h
-
-//few moment later, Pod has been restarted 
-$ kubectl get pods
-NAME                          READY     STATUS    RESTARTS   AGE
-Besteffort                    1/1       Running   1          1h
-guaranteed                    1/1       Running   0          1h
-
-```
+[PRE1]
 
 # 在一个 pod 内部在容器之间共享卷
 
@@ -171,18 +120,7 @@ Kubernetes 还通过支持持久卷的动态配置来帮助这种情况。Kubern
 
 请注意，诸如 kops（[`github.com/kubernetes/kops`](https://github.com/kubernetes/kops)）和 Google 容器引擎（[`cloud.google.com/container-engine/`](https://cloud.google.com/container-engine/)）等 Kubernetes 配置工具默认会创建`StorageClass`。例如，kops 在 AWS 环境上设置了默认的 AWS EBS `StorageClass`。Google 容器引擎在 GKE 上设置了 Google Cloud 持久磁盘。有关更多信息，请参阅第九章，*在 AWS 上使用 Kubernetes*和第十章，*在 GCP 上使用 Kubernetes*：
 
-```
-//default Storage Class on AWS
-$ kubectl get sc
-NAME            TYPE
-default         kubernetes.io/aws-ebs
-gp2 (default)   kubernetes.io/aws-ebs
-
-//default Storage Class on GKE
-$ kubectl get sc
-NAME                 TYPE
-standard (default)   kubernetes.io/gce-pd   
-```
+[PRE2]
 
 # 临时和持久设置的问题案例
 
@@ -306,11 +244,7 @@ Elasticsearch 数据节点负责存储数据。此外，如果需要更大的数
 
 在这种配置中，如果一个数据节点宕机，不会发生任何服务影响，如下面的片段所示：
 
-```
-//simulate to occur one data node down 
-$ kubectl delete pod es-data-0
-pod "es-data-0" deleted
-```
+[PRE3]
 
 ！[](../images/00076.jpeg)
 
@@ -340,24 +274,7 @@ Kubernetes 有**资源 QoS**（**服务质量**）的概念，它可以帮助管
 
 为了配置资源 QoS，您必须在 pod 定义中设置资源请求和/或资源限制。以下示例是 nginx 的资源请求和资源限制的定义：
 
-```
-$ cat burstable.yml  
-apiVersion: v1 
-kind: Pod 
-metadata: 
-  name: burstable-pod 
-spec: 
-  containers: 
-  - name: nginx 
-    image: nginx 
-    resources: 
-      requests: 
-        cpu: 0.1 
-        memory: 10Mi 
-      limits: 
-        cpu: 0.5 
-        memory: 300Mi 
-```
+[PRE4]
 
 此示例指示以下内容：
 
@@ -388,28 +305,7 @@ spec:
 
 另一方面，如果超出了内存限制，Kubernetes 调度程序将确定该 pod 内存不足，然后它将终止一个 pod（`OOMKilled`）：
 
-```
-
-//Pod is reaching to the memory limit
-$ kubectl get pods
-NAME            READY     STATUS    RESTARTS   AGE
-burstable-pod   1/1       Running   0          10m
-
-//got OOMKilled
-$ kubectl get pods
-NAME            READY     STATUS      RESTARTS   AGE
-burstable-pod   0/1       OOMKilled   0          10m
-
-//restarting Pod
-$ kubectl get pods
-NAME            READY     STATUS      RESTARTS   AGE
-burstable-pod   0/1       CrashLoopBackOff   0   11m 
-
-//restarted
-$ kubectl get pods
-NAME            READY     STATUS    RESTARTS   AGE
-burstable-pod   1/1       Running   1          12m  
-```
+[PRE5]
 
 # 配置 BestEffort pod
 
@@ -421,33 +317,7 @@ BestEffort pod 在资源 QoS 配置中具有最低的优先级。因此，在资
 
 在资源短缺的情况下，该 pod 应该将 CPU 和内存资源让给其他优先级更高的 pod。为了将 pod 配置为 BestEffort pod，您需要将资源限制设置为 0，或者不指定资源限制。例如：
 
-```
-//no resource setting
-$ cat besteffort-implicit.yml 
-apiVersion: v1
-kind: Pod
-metadata:
- name: besteffort
-spec:
- containers:
- - name: nginx
- image: nginx
-
-//resource limit setting as 0
-$ cat besteffort-explicit.yml 
-apiVersion: v1
-kind: Pod
-metadata:
- name: besteffort
-spec:
- containers:
- - name: nginx
- image: nginx
- resources:
- limits:
-      cpu: 0
-      memory: 0
-```
+[PRE6]
 
 请注意，资源设置是由`namespace default`设置继承的。因此，如果您打算使用隐式设置将 pod 配置为 BestEffort pod，如果命名空间具有以下默认资源设置，则可能不会配置为 BestEffort：
 
@@ -467,31 +337,7 @@ Guaranteed 是资源 QoS 中的最高优先级。在资源短缺的情况下，K
 
 为了将其配置为 Guaranteed pod，明确设置资源限制和资源请求为相同的值，或者只设置资源限制。然而，再次强调，如果命名空间具有默认资源设置，可能会导致不同的结果：
 
-```
-$ cat guaranteed.yml 
-apiVersion: v1
-kind: Pod
-metadata:
- name: guaranteed-pod
-spec:
- containers:
-   - name: nginx
-     image: nginx
-     resources:
-      limits:
-       cpu: 0.3
-       memory: 350Mi
-      requests:
-       cpu: 0.3
-       memory: 350Mi
-
-$ kubectl get pods
-NAME             READY     STATUS    RESTARTS   AGE
-guaranteed-pod   1/1       Running   0          52s
-
-$ kubectl describe pod guaranteed-pod | grep -i qos
-QoS Class:  Guaranteed
-```
+[PRE7]
 
 因为 Guaranteed pod 必须设置资源限制，如果您对应用程序的必要 CPU/内存资源不是 100%确定，特别是最大内存使用量；您应该使用 Burstable 设置一段时间来监视应用程序的行为。否则，即使节点有足够的内存，Kubernetes 调度程序也可能终止 pod（`OOMKilled`）。
 
@@ -509,68 +355,11 @@ Burstable pod 的优先级高于 BestEffort，但低于 Guaranteed。与 Guarant
 
 以下示例表明未能配置为保证的 pod，最终配置为可突发的：
 
-```
-// supposed nginx is Guaranteed, tomcat as Burstable...
-$ cat guaranteed-fail.yml 
-apiVersion: v1
-kind: Pod
-metadata:
- name: burstable-pod
-spec:
-  containers:
-  - name: nginx
-    image: nginx
-    resources:
-     limits:
-       cpu: 0.3
-       memory: 350Mi
-     requests:
-       cpu: 0.3
-       memory: 350Mi
-  - name: tomcat
-    image: tomcat
-    resources:
-      requests:
-       cpu: 0.2
-       memory: 100Mi
-
-$ kubectl create -f guaranteed-fail.yml 
-pod "guaranteed-fail" created
-
-//at the result, Pod is configured as Burstable
-$ kubectl describe pod guaranteed-fail | grep -i qos
-QoS Class:  Burstable
-```
+[PRE8]
 
 即使改为仅配置资源限制，但如果容器 A 只有 CPU 限制，容器 B 只有内存限制，那么结果也会再次变为可突发，因为 Kubernetes 只知道限制之一：
 
-```
-//nginx set only cpu limit, tomcat set only memory limit
-$ cat guaranteed-fail2.yml 
-apiVersion: v1
-kind: Pod
-metadata:
- name: guaranteed-fail2
-spec:
- containers:
-  - name: nginx
-    image: nginx
-    resources:
-      limits:
-       cpu: 0.3
-  - name: tomcat
-    image: tomcat
-    resources:
-      requests:
-       memory: 100Mi
-
-$ kubectl create -f guaranteed-fail2.yml 
-pod "guaranteed-fail2" created
-
-//result is Burstable again
-$ kubectl describe pod |grep -i qos
-QoS Class:  Burstable
-```
+[PRE9]
 
 因此，如果您打算将 pod 配置为保证的，必须将所有容器设置为保证的。
 

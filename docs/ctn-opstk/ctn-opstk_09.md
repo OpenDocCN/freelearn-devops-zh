@@ -98,9 +98,7 @@ Kolla 安装需要在我们希望运行 OpenStack 的主机上安装一些软件
 
 要快速准备主机，请运行此命令：
 
-```
-$ kolla-ansible -i <inventory_file> bootstrap-servers  
-```
+[PRE0]
 
 # 构建镜像
 
@@ -108,21 +106,15 @@ $ kolla-ansible -i <inventory_file> bootstrap-servers
 
 在 Kolla 中构建镜像就像运行此命令一样简单：
 
-```
-$ kolla-build  
-```
+[PRE1]
 
 此命令默认构建基于 CentOS 的所有镜像。要使用特定的发行版构建镜像，请使用`-b`选项：
 
-```
-$ kolla-build -b ubuntu  
-```
+[PRE2]
 
 要为特定项目构建镜像，请将项目名称传递给命令：
 
-```
-$ kolla-build nova zun  
-```
+[PRE3]
 
 Kolla 中的一个高级功能是镜像配置文件。配置文件用于定义 OpenStack 中一组相关的项目。Kolla 中定义的一些配置文件如下：
 
@@ -136,23 +128,15 @@ Kolla 中的一个高级功能是镜像配置文件。配置文件用于定义 O
 
 也可以在`kolla-build.conf`对象中定义新的配置文件。只需在`.conf`文件的`[profile]`部分下添加一个新的配置文件即可：
 
-```
-[profiles]
-containers=zun,magnum,heat  
-```
+[PRE4]
 
 在上面的示例中，我们设置了一个名为`containers`的新配置文件，用于表示 OpenStack 中与容器化相关的一组项目。还提到并使用了`heat`项目，因为它是`magnum`所需的。此外，您还可以使用此配置文件为这些项目创建镜像：
 
-```
-$ kolla-build -profile containers  
-```
+[PRE5]
 
 还可以使用这些命令将镜像推送到 Docker Hub 或本地注册表：
 
-```
-$ kolla-build -push # push to Docker Hub
-$ kolla-build -registry <URL> --push # push to local registry  
-```
+[PRE6]
 
 Kolla 还提供了更高级的操作，例如从源代码和 Docker 文件自定义构建镜像。您可以参考[`docs.openstack.org/kolla/latest/admin/image-building.html`](https://docs.openstack.org/kolla/latest/admin/image-building.html) [获取更多详细信息。](https://docs.openstack.org/kolla/latest/admin/image-building.html)
 
@@ -162,56 +146,35 @@ Kolla 还提供了更高级的操作，例如从源代码和 Docker 文件自定
 
 用于 OpenStack 部署的所有配置选项和密码分别存储在`/etc/kolla/globals.yml`和`/etc/kolla/passwords.yml`中。手动编辑这些文件以指定您选择的安装，如下所示：
 
-```
-kolla_base_distro: "centos"
-kolla_install_type: "source"  
-```
+[PRE7]
 
 您可以使用以下命令生成密码：
 
-```
-$ kolla-genpwd  
-```
+[PRE8]
 
 您可以在部署目标节点上运行`prechecks`来检查它们是否处于状态：
 
-```
-$ kolla-ansible prechecks -i <inventory-file>  
-```
+[PRE9]
 
 现在我们准备好部署 OpenStack。运行以下命令：
 
-```
-$ kolla-ansible deploy -i <inventory-file>  
-```
+[PRE10]
 
 要验证安装，请查看`docker`中的容器列表：
 
-```
-$ docker ps -a  
-```
+[PRE11]
 
 您应该看到所有运行的 OpenStack 服务容器。现在让我们生成`admin-openrc.sh`文件以使用我们的 OpenStack 集群。生成的文件将存储在`/etc/kolla`目录中：
 
-```
-$ kolla-ansible post-deploy  
-```
+[PRE12]
 
 现在安装`python-openstackclient`：
 
-```
-$ pip install python-openstackclient  
-```
+[PRE13]
 
 要初始化 neutron 网络和 glance 镜像，请运行此命令：
 
-```
-$ . /etc/kolla/admin-openrc.sh
-#On centOS
-$ /usr/share/kolla-ansible/init-runonce
-#ubuntu
-$ /usr/local/share/kolla-ansible/init-runonce  
-```
+[PRE14]
 
 成功部署 OpenStack 后，您可以访问 Horizon 仪表板。Horizon 将在`kolla_external_fqdn`或`kolla_internal_fqdn`中指定的 IP 地址或主机名处提供。如果在部署期间未设置这些变量，则它们默认为`kolla_internal_vip_address`。
 

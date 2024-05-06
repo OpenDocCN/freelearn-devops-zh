@@ -60,17 +60,11 @@
 
 代码块设置如下：
 
-```
-<?xml version="1.0" encoding="utf-8"?> <configuration>
-  <appSettings  configSource="config\appSettings.config"  />
-  <connectionStrings  configSource="config\connectionStrings.config"  /> </configuration>
-```
+[PRE0]
 
 任何命令行输入或输出都以以下方式编写：
 
-```
-> docker version
-```
+[PRE1]
 
 **粗体**：表示一个新术语，一个重要的词，或者你在屏幕上看到的词。例如，菜单或对话框中的单词会以这种方式出现在文本中。这是一个例子：“在你做任何其他事情之前，你需要选择切换到 Windows 容器…”
 

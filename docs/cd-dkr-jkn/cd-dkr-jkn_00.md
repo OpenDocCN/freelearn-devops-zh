@@ -38,35 +38,15 @@ Docker 需要 64 位 Linux 操作系统。本书中的所有示例都是使用 U
 
 代码块设置如下：
 
-```
-      pipeline {
-           agent any
-           stages {
-                stage("Hello") {
-                     steps {
-                          echo 'Hello World'
-                     }
-                }
-           }
-      }
-```
+[PRE0]
 
 当我们希望引起您对代码块的特定部分的注意时，相关行或项目以粗体设置：
 
-```
- FROM ubuntu:16.04
- RUN apt-get update && \
- apt-get install -y python
-```
+[PRE1]
 
 任何命令行输入或输出都以以下方式编写：
 
-```
-$ docker images
-REPOSITORY              TAG     IMAGE ID         CREATED            SIZE
-ubuntu_with_python      latest  d6e85f39f5b7  About a minute ago 202.6 MB
-ubuntu_with_git_and_jdk latest  8464dc10abbb  3 minutes ago      610.9 MB
-```
+[PRE2]
 
 新术语和重要单词以粗体显示。您在屏幕上看到的单词，例如菜单或对话框中的单词，会在文本中显示为这样："点击 新项目"。
 

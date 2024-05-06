@@ -56,31 +56,11 @@ Docker 原生支持这种方法，使用一个名为多阶段构建的功能，�
 
 我们将从在`todobackend`存储库的根目录创建一个`Dockerfile`开始，这意味着您的存储库结构应该看起来像这样：
 
-```
-todobackend> tree -L 2
-.
-├── Dockerfile
-├── README.md
-└── src
-    ├── coverage.xml
-    ├── db.sqlite3
-    ├── manage.py
-    ├── requirements.txt
-    ├── requirements_test.txt
-    ├── todo
-    ├── todobackend
-    └── unittests.xml
-
-3 directories, 8 files
-```
+[PRE0]
 
 现在让我们在新创建的 Dockerfile 中定义一些指令：
 
-```
-# Test stage
-FROM alpine AS test
-LABEL application=todobackend
-```
+[PRE1]
 
 `FROM`指令是您在 Dockerfile 中定义的第一个指令，注意我们使用 Alpine Linux 发行版作为基础镜像。Alpine Linux 是一个极简的发行版，比传统的 Linux 发行版（如 Ubuntu 和 CentOS）的占用空间要小得多，并且自从 Docker 采用 Alpine 作为官方 Docker 镜像的首选发行版以来，在容器世界中变得非常流行。
 
@@ -92,16 +72,7 @@ LABEL application=todobackend
 
 现在我们需要安装各种系统和构建操作系统依赖项，以支持测试和构建应用程序：
 
-```
-# Test stage
-FROM alpine AS test
-LABEL application=todobackend
-
-# Install basic utilities
-RUN apk add --no-cache bash git
-# Install build dependencies RUN apk add --no-cache gcc python3-dev libffi-dev musl-dev linux-headers mariadb-dev
-RUN pip3 install wheel
-```
+[PRE2]
 
 在上面的示例中，我们安装了以下依赖项：
 
@@ -113,26 +84,7 @@ RUN pip3 install wheel
 
 下一步是安装应用程序的依赖项，就像你在上一章中学到的那样，这意味着安装在`src/requirements.txt`和`src/requirements_test.txt`文件中定义的软件包：
 
-```
-# Test stage
-FROM alpine AS test
-LABEL application=todobackend
-
-# Install basic utilities
-RUN apk add --no-cache bash git
-
-# Install build dependencies
-RUN apk add --no-cache gcc python3-dev libffi-dev musl-dev linux-headers mariadb-dev
-RUN pip3 install wheel
-
-# Copy requirements
-COPY /src/requirements* /build/
-WORKDIR /build
-
-# Build and install requirements
-RUN pip3 wheel -r requirements_test.txt --no-cache-dir --no-input
-RUN pip3 install -r requirements_test.txt -f /build --no-index --no-cache-dir
-```
+[PRE3]
 
 首先使用`COPY`指令将`src/requirements.txt`和`src/requirements_test.txt`文件复制到`/build`容器中的一个文件夹中，然后通过`WORKDIR`指令将其指定为工作目录。请注意，`/src/requirements.txt`不是您的 Docker 客户端上的物理路径 - 它是 Docker *构建上下文*中的路径，这是您在执行构建时指定的 Docker 客户端文件系统上的可配置位置。为了确保 Docker 构建过程中所有相关的应用程序源代码文件都可用，一个常见的做法是将应用程序存储库的根目录设置为构建上下文，因此在上面的示例中，`/src/requirements.txt`指的是您的 Docker 客户端上的`<path-to-repository>/src/requirements.txt`。
 
@@ -144,29 +96,7 @@ RUN pip3 install -r requirements_test.txt -f /build --no-index --no-cache-dir
 
 测试阶段的最后步骤是将应用程序源代码复制到容器中，并添加支持运行测试的功能：
 
-```
-# Test stage
-FROM alpine AS test
-LABEL application=todobackend
-
-# Install basic utilities
-RUN apk add --no-cache bash git
-
-# Install build dependencies
-RUN apk add --no-cache gcc python3-dev libffi-dev musl-dev linux-headers mariadb-dev
-RUN pip3 install wheel
-
-# Copy requirements
-COPY /src/requirements* /build/
-WORKDIR /build
-
-# Build and install requirements
-RUN pip3 wheel -r requirements_test.txt --no-cache-dir --no-input
-RUN pip3 install -r requirements_test.txt -f /build --no-index --no-cache-dir
-
-# Copy source code COPY /src /app
-WORKDIR /app # Test entrypoint CMD ["python3", "manage.py", "test", "--noinput", "--settings=todobackend.settings_test"]
-```
+[PRE4]
 
 在前面的例子中，您首先将整个`/src`文件夹复制到一个名为`/app`的文件夹中，然后将工作目录更改为`/app`。您可能会想为什么我们在复制需求文件时没有直接复制所有应用程序源代码。答案是，我们正在实施缓存优化，因为您的需求文件需要构建应用程序依赖项，并且通过在一个单独的较早的层中构建它们，如果需求文件保持不变（它们往往会这样做），Docker 可以利用最近构建的层的缓存版本，而不必每次构建图像时都构建和安装应用程序依赖项。
 
@@ -176,97 +106,13 @@ WORKDIR /app # Test entrypoint CMD ["python3", "manage.py", "test", "--noinput",
 
 到目前为止，我们已经定义了 Docker 构建过程的第一个阶段，它将创建一个准备好进行测试的自包含环境，其中包括所需的操作系统依赖项、应用程序依赖项和应用程序源代码。要构建图像，您可以运行`docker build`命令，并使用名称`todobackend-test`对图像进行标记。
 
-```
-> docker build --target test -t todobackend-test . Sending build context to Docker daemon 311.8kB
-Step 1/12 : FROM alpine AS test
- ---> 3fd9065eaf02
-Step 2/12 : LABEL application=todobackend
- ---> Using cache
- ---> afdd1dee07d7
-Step 3/12 : RUN apk add --no-cache bash git
- ---> Using cache
- ---> d9cd912ffa68
-Step 4/12 : RUN apk add --no-cache gcc python3-dev libffi-dev musl-dev linux-headers mariadb-dev
- ---> Using cache
- ---> 89113207b0b8
-Step 5/12 : RUN pip3 install wheel
- ---> Using cache
- ---> a866d3b1f3e0
-Step 6/12 : COPY /src/requirements* /build/
- ---> Using cache
- ---> efc869447227
-Step 7/12 : WORKDIR /build
- ---> Using cache
- ---> 53ced29de259
-Step 8/12 : RUN pip3 wheel -r requirements_test.txt --no-cache-dir --no-input
- ---> Using cache
- ---> ba6d114360b9
-Step 9/12 : RUN pip3 install -r requirements_test.txt -f /build --no-index --no-cache-dir
- ---> Using cache
- ---> ba0ebdace940
-Step 10/12 : COPY /src /app
- ---> Using cache
- ---> 9ae5c85bc7cb
-Step 11/12 : WORKDIR /app
- ---> Using cache
- ---> aedd8073c9e6
-Step 12/12 : CMD ["python3", "manage.py", "test", "--noinput", "--settings=todobackend.settings_test"]
- ---> Using cache
- ---> 3ed637e47056
-Successfully built 3ed637e47056
-Successfully tagged todobackend-test:latest
-```
+[PRE5]
 
 在前面的例子中，`--target`标志允许您针对多阶段 Dockerfile 中的特定阶段进行构建。尽管我们目前只有一个阶段，但该标志允许我们仅在 Dockerfile 中有多个阶段的情况下构建测试阶段。按照惯例，`docker build`命令会在运行命令的目录中查找`Dockerfile`文件，并且命令末尾的句点指定了当前目录（例如，在本例中是应用程序存储库根目录）作为构建上下文，在构建图像时应将其复制到 Docker 引擎。
 
 使用构建并在本地 Docker Engine 中标记为`todobackend`的映像名称构建的映像，您现在可以从映像启动一个容器，默认情况下将运行`python3 manage.py test`命令，如`CMD`指令所指定的那样：
 
-```
-todobackend>  docker run -it --rm todobackend-test
-Creating test database for alias 'default'...
-
-Ensure we can create a new todo item
-- item has correct title
-- item was created
-- received 201 created status code
-- received location header hyperlink
-
-Ensure we can delete all todo items
-- all items were deleted
-- received 204 no content status code
-
-Ensure we can delete a todo item
-- received 204 no content status code
-- the item was deleted
-
-Ensure we can update an existing todo item using PATCH
-- item was updated
-- received 200 ok status code
-
-Ensure we can update an existing todo item using PUT
-- item was updated
-- received 200 created status code
-----------------------------------------------------------------------
-XML: /app/unittests.xml
-Name                              Stmts   Miss  Cover
------------------------------------------------------
-todo/__init__.py                      0      0   100%
-todo/admin.py                         1      1     0%
-todo/migrations/0001_initial.py       5      0   100%
-todo/migrations/__init__.py           0      0   100%
-todo/models.py                        6      6     0%
-todo/serializers.py                   7      0   100%
-todo/urls.py                          6      0   100%
-todo/views.py                        17      0   100%
------------------------------------------------------
-TOTAL                                42      7    83%
-----------------------------------------------------------------------
-Ran 12 tests in 0.433s
-
-OK
-
-Destroying test database for alias 'default'...
-```
+[PRE6]
 
 `-it`标志指定以交互式终端运行容器，`--rm`标志将在容器退出时自动删除容器。请注意，所有测试都成功通过，因此我们知道映像中构建的应用程序在至少在当前为应用程序定义的测试方面是良好的状态。
 
@@ -280,20 +126,7 @@ Destroying test database for alias 'default'...
 
 要开始创建发布阶段，我们可以在 Dockerfile 的底部添加一个新的`FROM`指令，Docker 将把它视为新阶段的开始：
 
-```
-# Test stage
-FROM alpine AS test
-LABEL application=todobackend
-.........
-...# Test entrypointCMD ["python3", "manage.py", "test", "--noinput", "--settings=todobackend.settings_test"]
-
-# Release stage
-FROM alpine
-LABEL application=todobackend
-
-# Install operating system dependencies
-RUN apk add --no-cache python3 mariadb-client bash
-```
+[PRE7]
 
 在上面的示例中，您可以看到发布映像再次基于 Alpine Linux 映像，这是一个非常好的选择，因为它的占用空间非常小。您可以看到我们安装了更少的操作系统依赖项，其中包括以下内容：
 
@@ -309,21 +142,7 @@ RUN apk add --no-cache python3 mariadb-client bash
 
 下一步是创建一个应用程序用户，我们的应用程序将作为该用户运行。默认情况下，Docker 容器以 root 用户身份运行，这对于测试和开发目的来说是可以的，但是在生产环境中，即使容器提供了隔离机制，作为非 root 用户运行容器仍被认为是最佳实践：
 
-```
-# Test stage
-...
-...
-# Release stage
-FROM alpine
-LABEL application=todobackend
-
-# Install operating system dependencies
-RUN apk add --no-cache python3 mariadb-client bash
-
-# Create app user
-RUN addgroup -g 1000 app && \
- adduser -u 1000 -G app -D app
-```
+[PRE8]
 
 在上面的示例中，我们首先创建了一个名为`app`的组，组 ID 为`1000`，然后创建了一个名为`app`的用户，用户 ID 为`1000`，属于`app`组。
 
@@ -331,31 +150,7 @@ RUN addgroup -g 1000 app && \
 
 最后一步是复制先前在测试阶段构建的应用程序源代码和依赖项，将依赖项安装到发布镜像中，然后删除在此过程中使用的任何临时文件。我们还需要将工作目录设置为`/app`，并配置容器以作为前一节中创建的`app`用户运行：
 
-```
-# Test stage
-...
-...
-# Release stage
-FROM alpine
-LABEL application=todobackend
-
-# Install operating system dependencies
-RUN apk add --no-cache python3 mariadb-client bash
-
-# Create app user
-RUN addgroup -g 1000 app && \
-    adduser -u 1000 -G app -D app
-
-# Copy and install application source and pre-built dependencies
-COPY --from=test --chown=app:app /build /build
-COPY --from=test --chown=app:app /app /app
-RUN pip3 install -r /build/requirements.txt -f /build --no-index --no-cache-dir
-RUN rm -rf /build
-
-# Set working directory and application user
-WORKDIR /app
-USER app
-```
+[PRE9]
 
 您首先使用`COPY`指令和`--from`标志，告诉 Docker 在`--from`标志指定的阶段查找要复制的文件。在这里，我们将测试阶段镜像中的`/build`和`/app`文件夹复制到发布阶段中同名的文件夹，并配置`--chown`标志以将这些复制的文件夹的所有权更改为应用程序用户。然后我们使用`pip3`命令仅安装`requirements.txt`文件中指定的核心要求（您不需要`requirements_test.txt`中指定的依赖项来运行应用程序），使用`--no-index`标志禁用 PIP 连接到互联网下载软件包，而是使用`-f`标志引用的`/build`文件夹来查找先前在测试阶段构建并复制到此文件夹的依赖项。我们还指定`--no-cache-dir`标志以避免在本地文件系统中不必要地缓存软件包，并在安装完成后删除`/build`文件夹。
 
@@ -367,94 +162,13 @@ USER app
 
 要构建镜像，我们可以使用`docker build`命令，因为发布阶段是 Dockerfile 的最后阶段，所以你不需要针对特定阶段进行目标设置，就像我们之前为测试阶段所做的那样：
 
-```
-> docker build -t todobackend-release . Sending build context to Docker daemon 312.8kB
-Step 1/22 : FROM alpine AS test
- ---> 3fd9065eaf02
-...
-...
-Step 13/22 : FROM alpine
- ---> 3fd9065eaf02
-Step 14/22 : LABEL application=todobackend
- ---> Using cache
- ---> afdd1dee07d7
-Step 15/22 : RUN apk add --no-cache python3 mariadb-client bash
- ---> Using cache
- ---> dfe0b6487459
-Step 16/22 : RUN addgroup -g 1000 app && adduser -u 1000 -G app -D app
- ---> Running in d75df9cadb1c
-Removing intermediate container d75df9cadb1c
- ---> ac26efcbfea0
-Step 17/22 : COPY --from=test --chown=app:app /build /build
- ---> 1f177a92e2c9
-Step 18/22 : COPY --from=test --chown=app:app /app /app
- ---> ba8998a31f1d
-Step 19/22 : RUN pip3 install -r /build/requirements.txt -f /build --no-index --no-cache-dir
- ---> Running in afc44357fae2
-Looking in links: /build
-Collecting Django==2.0 (from -r /build/requirements.txt (line 1))
-Collecting django-cors-headers==2.1.0 (from -r /build/requirements.txt (line 2))
-Collecting djangorestframework==3.7.3 (from -r /build/requirements.txt (line 3))
-Collecting mysql-connector-python==8.0.11 (from -r /build/requirements.txt (line 4))
-Collecting pytz==2017.3 (from -r /build/requirements.txt (line 5))
-Collecting uwsgi (from -r /build/requirements.txt (line 6))
-Collecting protobuf>=3.0.0 (from mysql-connector-python==8.0.11->-r /build/requirements.txt (line 4))
-Requirement already satisfied: setuptools in /usr/lib/python3.6/site-packages (from protobuf>=3.0.0->mysql-connector-python==8.0.11->-r /build/requirements.txt (line 4)) (28.8.0)
-Collecting six>=1.9 (from protobuf>=3.0.0->mysql-connector-python==8.0.11->-r /build/requirements.txt (line 4))
-Installing collected packages: pytz, Django, django-cors-headers, djangorestframework, six, protobuf, mysql-connector-python, uwsgi
-Successfully installed Django-2.0 django-cors-headers-2.1.0 djangorestframework-3.7.3 mysql-connector-python-8.0.11 protobuf-3.6.0 pytz-2017.3 six-1.11.0 uwsgi-2.0.17
-Removing intermediate container afc44357fae2
- ---> ab2bcf89fe13
-Step 20/22 : RUN rm -rf /build
- ---> Running in 8b8006ea8636
-Removing intermediate container 8b8006ea8636
- ---> ae7f157d29d1
-Step 21/22 : WORKDIR /app
-Removing intermediate container fbd49835ca49
- ---> 55856af393f0
-Step 22/22 : USER app
- ---> Running in d57b2cb9bb69
-Removing intermediate container d57b2cb9bb69
- ---> 8170e923b09a
-Successfully built 8170e923b09a
-Successfully tagged todobackend-release:latest
-```
+[PRE10]
 
 在这一点上，我们可以运行位于发布镜像中的 Django 应用程序，但是你可能想知道它是如何工作的。当我们之前运行`python3 manage.py runserver`命令时，它启动了一个本地开发 Web 服务器，这在生产用户案例中是不推荐的，所以我们需要一个替代的 Web 服务器来在生产环境中运行我们的应用程序。
 
 你可能已经在`requirements.txt`文件中注意到了一个名为`uwsgi`的包——这是一个非常流行的 Web 服务器，可以在生产中使用，并且对于我们的用例非常方便，可以通过 PIP 安装。这意味着`uwsgi`已经作为 Web 服务器在我们的发布容器中可用，并且可以用来提供示例应用程序。
 
-```
-> docker run -it --rm -p 8000:8000 todobackend-release uwsgi \
-    --http=0.0.0.0:8000 --module=todobackend.wsgi --master *** Starting uWSGI 2.0.17 (64bit) on [Tue Jul 3 11:44:44 2018] ***
-compiled with version: 6.4.0 on 02 July 2018 14:34:31
-os: Linux-4.9.93-linuxkit-aufs #1 SMP Wed Jun 6 16:55:56 UTC 2018
-nodename: 5be4dd1ddab0
-machine: x86_64
-clock source: unix
-detected number of CPU cores: 1
-current working directory: /app
-detected binary path: /usr/bin/uwsgi
-!!! no internal routing support, rebuild with pcre support !!!
-your memory page size is 4096 bytes
-detected max file descriptor number: 1048576
-lock engine: pthread robust mutexes
-thunder lock: disabled (you can enable it with --thunder-lock)
-uWSGI http bound on 0.0.0.0:8000 fd 4
-uwsgi socket 0 bound to TCP address 127.0.0.1:35765 (port auto-assigned) fd 3
-Python version: 3.6.3 (default, Nov 21 2017, 14:55:19) [GCC 6.4.0]
-*** Python threads support is disabled. You can enable it with --enable-threads ***
-Python main interpreter initialized at 0x55e9f66ebc80
-your server socket listen backlog is limited to 100 connections
-your mercy for graceful operations on workers is 60 seconds
-mapped 145840 bytes (142 KB) for 1 cores
-*** Operational MODE: single process ***
-WSGI app 0 (mountpoint='') ready in 0 seconds on interpreter 0x55e9f66ebc80 pid: 1 (default app)
-*** uWSGI is running in multiple interpreter mode ***
-spawned uWSGI master process (pid: 1)
-spawned uWSGI worker 1 (pid: 7, cores: 1)
-spawned uWSGI http 1 (pid: 8)
-```
+[PRE11]
 
 我们使用`-p`标志将容器上的端口`8000`映射到主机上的端口`8000`，并执行`uwsgi`命令，传入各种配置标志，以在端口`8000`上运行应用程序，并指定`todobackend.wsgi`模块作为`uwsgi`提供的应用程序。
 
@@ -466,40 +180,11 @@ Web 服务器网关接口（WSGI）是 Python 应用程序用来与 Web 服务�
 
 问题在于，当你运行 Django 开发 Web 服务器时，Django 会自动生成静态内容，但是当你在生产环境中与外部 Web 服务器一起运行应用程序时，你需要自己生成静态内容。我们将在本章后面学习如何做到这一点，但是现在，你可以使用`curl`来验证 API 是否可用：
 
-```
-> curl -s localhost:8000/todos | jq
-[
- {
- "url": "http://localhost:8000/todos/1",
- "title": "Walk the dog",
- "completed": false,
- "order": 1
- },
- {
- "url": "http://localhost:8000/todos/2",
- "title": "Wash the car",
- "completed": true,
- "order": 2
- }
-]
-```
+[PRE12]
 
 这里需要注意的一点是，尽管我们是从头开始构建 Docker 镜像，但是 todobackend 数据与我们在第一章加载的数据相同。问题在于，第一章中创建的 SQLite 数据库位于`src`文件夹中，名为`db.sqlite3`。显然，在构建过程中我们不希望将此文件复制到我们的 Docker 镜像中，而要实现这一点的一种方法是在存储库的根目录创建一个`.dockerignore`文件：
 
-```
-# Ignore SQLite database files
-**/***.sqlite3
-
-# Ignore test output and private code coverage files
-**/*.xml
-**/.coverage
-
-# Ignore compiled Python source files
-**/*.pyc
-**/pycache# Ignore macOS directory metadata files
-**/.DS_Store
-
-```
+[PRE13]
 
 `.dockerignore`文件的工作方式类似于 Git 存储库中的`.gitignore`，用于从 Docker 构建上下文中排除文件。因为`db.sqlite3`文件位于子文件夹中，我们使用通配符 globing 模式`**`（请注意，这与`.gitignore`的行为不同，默认情况下进行 globing），这意味着我们递归地排除与通配符模式匹配的任何文件。我们还排除任何具有`.xml`扩展名的测试输出文件，代码覆盖文件，`__pycache__`文件夹以及任何具有`.pyc`扩展名的编译 Python 文件，这些文件是打算在运行时动态生成的。
 
@@ -525,20 +210,7 @@ Web 服务器网关接口（WSGI）是 Python 应用程序用来与 Web 服务�
 
 **Docker Compose**是一个工具，允许您使用声明性方法编排多容器环境，使得编排可能需要多个容器的复杂工作流程变得更加容易。按照惯例，Docker Compose 会在当前目录中寻找一个名为`docker-compose.yml`的文件，所以让我们在`todobackend`存储库的根目录下创建这个文件，与我们的`Dockerfile`放在一起。
 
-```
-version: '2.4'
-
-services:
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: test
-  release:
-    build:
-      context: .
-      dockerfile: Dockerfile
-```
+[PRE14]
 
 Docker Compose 文件是用 YAML 格式定义的，需要正确的缩进来推断父对象、同级对象和子对象或属性之间的正确关系。如果您以前没有使用过 YAML，可以查看[Ansible YAML Syntax guide](https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html)，这是一个对 YAML 格式的简要介绍。您也可以使用在线的 YAML linting 工具，比如 http://www.yamllint.com/来检查您的 YAML，或者在您喜欢的文本编辑器中安装 YAML 支持。
 
@@ -550,100 +222,21 @@ Docker Compose 文件是用 YAML 格式定义的，需要正确的缩进来推�
 
 当然，我们需要运行一个命令来实际构建这些服务，您可以在`todobackend`存储库的根目录运行`docker-compose build`命令。
 
-```
-> docker-compose build test
-Building test
-Step 1/12 : FROM alpine AS test
- ---> 3fd9065eaf02
-Step 2/12 : LABEL application=todobackend
- ---> Using cache
- ---> 23e0c2657711
-...
-...
-Step 12/12 : CMD ["python3", "manage.py", "test", "--noinput", "--settings=todobackend.settings_test"]
- ---> Running in 1ac9bded79bf
-Removing intermediate container 1ac9bded79bf
- ---> f42d0d774c23
-
-Successfully built f42d0d774c23
-Successfully tagged todobackend_test:latest
-```
+[PRE15]
 
 你可以看到运行`docker-compose build test`命令实现了我们之前运行的`docker build`命令的等效效果，然而，我们不需要向`docker-compose`命令传递任何构建选项或配置，因为我们所有的特定设置都包含在`docker-compose.yml`文件中。
 
 如果现在要从新构建的镜像运行测试，可以执行`docker-compose run`命令：
 
-```
-> docker-compose run test
-Creating network "todobackend_default" with the default driver
-nosetests --verbosity=2 --nologcapture --with-coverage --cover-package=todo --with-spec --spec-color --with-xunit --xunit-file=./unittests.xml --cover-xml --cover-xml-file=./coverage.xml
-Creating test database for alias 'default'...
-
-Ensure we can create a new todo item
-- item has correct title
-- item was created
-- received 201 created status code
-- received location header hyperlink
-...
-...
-...
-...
-Ran 12 tests in 0.316s
-
-OK
-
-Destroying test database for alias 'default'...
-```
+[PRE16]
 
 您还可以扩展 Docker Compose 文件，以向服务添加端口映射和命令配置，如下例所示：
 
-```
-version: '2.4'
-
-services:
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: test
-  release:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
- - 8000:8000
- command:
- - uwsgi
- - --http=0.0.0.0:8000
- - --module=todobackend.wsgi
- - --master
-```
+[PRE17]
 
 在这里，我们指定当运行发布服务时，它应该在主机的 8000 端口和容器的 8000 端口之间创建静态端口映射，并将我们之前使用的`uwsgi`命令传递给发布容器。如果现在使用`docker-compose up`命令运行发布阶段，请注意 Docker Compose 将自动为服务构建镜像（如果尚不存在），然后启动服务：
 
-```
-> docker-compose up release
-Building release
-Step 1/22 : FROM alpine AS test
- ---> 3fd9065eaf02
-Step 2/22 : LABEL application=todobackend
- ---> Using cache
- ---> 23e0c2657711
-...
-...
-
-Successfully built 5b20207e3e9c
-Successfully tagged todobackend_release:latest
-WARNING: Image for service release was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
-Creating todobackend_release_1 ... done
-Attaching to todobackend_release_1
-...
-...
-release_1 | *** uWSGI is running in multiple interpreter mode ***
-release_1 | spawned uWSGI master process (pid: 1)
-release_1 | spawned uWSGI worker 1 (pid: 6, cores: 1)
-release_1 | spawned uWSGI http 1 (pid: 7)
-```
+[PRE18]
 
 通常，您使用`docker-compose up`命令来运行长时间运行的服务，使用`docker-compose run`命令来运行短暂的任务。您还不能覆盖传递给`docker-compose up`的命令参数，而可以将命令覆盖传递给`docker-compose run`命令。
 
@@ -653,116 +246,19 @@ release_1 | spawned uWSGI http 1 (pid: 7)
 
 我们可以通过使用 Docker Compose 添加一个名为`db`的新服务来实现这一点，该服务基于官方的 MySQL 服务器容器：
 
-```
-version: '2.4'
-
-services:
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: test
-  release:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - 8000:8000
-    command:
-      - uwsgi
-      - --http=0.0.0.0:8000
-      - --module=todobackend.wsgi
-      - --master
-  db:
- image: mysql:5.7
- environment:
- MYSQL_DATABASE: todobackend
- MYSQL_USER: todo
- MYSQL_PASSWORD: password
- MYSQL_ROOT_PASSWORD: password
-```
+[PRE19]
 
 请注意，您可以使用`image`属性指定外部图像，并且环境设置将使用数据库名为 todobackend、用户名、密码和根密码配置 MySQL 容器。
 
 现在，您可能想知道如何配置我们的应用程序以使用 MySQL 和新的`db`服务。todobackend 应用程序包括一个名为`src/todobackend/settings_release.py`的设置文件，该文件配置了 MySQL 作为数据库后端的支持：
 
-```
-# Import base settings
-from .settings import *
-import os
-
-# Disable debug
-DEBUG = True
-
-# Set secret key
-SECRET_KEY = os.environ.get('SECRET_KEY', SECRET_KEY)
-
-# Must be explicitly specified when Debug is disabled
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
-
-# Database settings
-DATABASES = {
-    'default': {
-        'ENGINE': 'mysql.connector.django',
-        'NAME': os.environ.get('MYSQL_DATABASE','todobackend'),
-        'USER': os.environ.get('MYSQL_USER','todo'),
-        'PASSWORD': os.environ.get('MYSQL_PASSWORD','password'),
-        'HOST': os.environ.get('MYSQL_HOST','localhost'),
-        'PORT': os.environ.get('MYSQL_PORT','3306'),
-    },
-    'OPTIONS': {
-      'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-    }
-}
-
-STATIC_ROOT = os.environ.get('STATIC_ROOT', '/public/static')
-MEDIA_ROOT = os.environ.get('MEDIA_ROOT', '/public/media')
-```
+[PRE20]
 
 `DATABASES`设置包括一个配置，指定了`mysql.connector.django`引擎，该引擎提供了对 MySQL 的支持，覆盖了默认的 SQLite 驱动程序，并且您可以看到数据库名称、用户名和密码可以通过`os.environ.get`调用从环境中获取。还要注意`STATIC_ROOT`设置-这是 Django 查找静态内容（如 HTML、CSS、JavaScript 和图像）的位置-默认情况下，如果未定义此环境变量，Django 将在`/public/static`中查找。正如我们之前看到的，目前我们的 Web 应用程序缺少这些内容，因此在以后修复缺少内容问题时，请记住这个设置。
 
 现在您了解了如何配置 todobackend 应用程序以支持 MySQL 数据库，让我们修改 Docker Compose 文件以使用`db`服务：
 
-```
-version: '2.4'
-
-services:
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: test
-  release:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - 8000:8000
- depends_on:
- db:
- condition: service_healthy
-    environment:
- DJANGO_SETTINGS_MODULE: todobackend.settings_release
- MYSQL_HOST: db
- MYSQL_USER: todo
- MYSQL_PASSWORD: password
-    command:
-      - uwsgi
-      - --http=0.0.0.0:8000
-      - --module=todobackend.wsgi
-      - --master
-  db:
-    image: mysql:5.7
- healthcheck:
- test: mysqlshow -u $$MYSQL_USER -p$$MYSQL_PASSWORD
-      interval: 3s
-      retries: 10
-    environment:
-      MYSQL_DATABASE: todobackend
-      MYSQL_USER: todo
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
-```
+[PRE21]
 
 我们首先配置`release`服务上的`environment`属性，该属性配置了将传递给容器的环境变量。请注意，对于 Django 应用程序，您可以配置`DJANGO_SETTINGS_MODULE`环境变量以指定应该使用哪些设置，这使您可以使用添加了 MySQL 支持的`settings_release`配置。此配置还允许您使用环境变量来指定 MySQL 数据库设置，这些设置必须与`db`服务的配置相匹配。
 
@@ -770,39 +266,7 @@ services:
 
 在这一点上，我们可以通过在运行`release`服务的终端中按下*Ctrl* + *C*并输入`docker-compose down -v`命令（`-v`标志还将删除 Docker Compose 创建的任何卷）来拆除当前环境，然后执行`docker-compose up release`命令来测试更改：
 
-```
-> docker-compose down -v
-Removing todobackend_release_1 ... done
-Removing todobackend_test_run_1 ... done
-Removing network todobackend_default
-> docker-compose up release Creating network "todobackend_default" with the default driver
-Pulling db (mysql:5.7)...
-5.7: Pulling from library/mysql
-683abbb4ea60: Pull complete
-0550d17aeefa: Pull complete
-7e26605ddd77: Pull complete
-9882737bd15f: Pull complete
-999c06ab75f6: Pull complete
-c71d695f9937: Pull complete
-c38f847c1491: Pull complete
-74f9c61f40bf: Pull complete
-30b252a90a12: Pull complete
-9f92ebb7da55: Pull complete
-90303981d276: Pull complete
-Digest: sha256:1203dfba2600f140b74e375a354b1b801fa1b32d6f80fdee5f155d1e9f38c841
-Status: Downloaded newer image for mysql:5.7
-Creating todobackend_db_1 ... done
-Creating todobackend_release_1 ... done
-Attaching to todobackend_release_1
-release_1 | *** Starting uWSGI 2.0.17 (64bit) on [Thu Jul 5 07:45:38 2018] ***
-release_1 | compiled with version: 6.4.0 on 04 July 2018 11:33:09
-release_1 | os: Linux-4.9.93-linuxkit-aufs #1 SMP Wed Jun 6 16:55:56 UTC 2018
-...
-... *** uWSGI is running in multiple interpreter mode ***
-release_1 | spawned uWSGI master process (pid: 1)
-release_1 | spawned uWSGI worker 1 (pid: 7, cores: 1)
-release_1 | spawned uWSGI http 1 (pid: 8)
-```
+[PRE22]
 
 在上面的示例中，请注意，Docker Compose 会根据`image`属性自动拉取 MySQL 5.7 镜像，然后启动`db`服务。这将需要 15-30 秒，在此期间，Docker Compose 正在等待 Docker 报告`db`服务的健康状况。每 3 秒，Docker 运行在健康检查中配置的`mysqlshow`命令，不断重复此过程，直到命令返回成功的退出代码（即退出代码为`0`），此时 Docker 将标记容器为健康。只有在这一点上，Docker Compose 才会启动`release`服务，假设`db`服务完全可操作，`release`服务应该会成功启动。
 
@@ -814,19 +278,7 @@ release_1 | spawned uWSGI http 1 (pid: 8)
 
 如果您再次拆除环境，按下*Ctrl* + *C*并运行`docker-compose down -v`，一个方法是使用`docker-compose run`命令：
 
-```
-> docker-compose down -v ...
-...
-> docker-compose run release python3 manage.py migrate
-Creating network "todobackend_default" with the default driver
-Creating todobackend_db_1 ... done
-Traceback (most recent call last):
-  File "/usr/lib/python3.6/site-packages/mysql/connector/network.py", line 515, in open_connection
-    self.sock.connect(sockaddr)
-ConnectionRefusedError: [Errno 111] Connection refused
-...
-...
-```
+[PRE23]
 
 在上面的示例中，请注意，当您使用`docker-compose run`命令时，Docker Compose 不支持我们之前在运行`docker-compose up`时观察到的健康检查行为。这意味着您可以采取以下两种方法：
 
@@ -838,125 +290,17 @@ ConnectionRefusedError: [Errno 111] Connection refused
 
 以下示例演示了我们需要进行的更改，以将迁移作为一个单独的服务运行：
 
-```
-version: '2.4'
-
-services:
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: test
-  release:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      DJANGO_SETTINGS_MODULE: todobackend.settings_release
-      MYSQL_HOST: db
-      MYSQL_USER: todo
-      MYSQL_PASSWORD: password
-  app:
- extends:
- service: release
- depends_on:
- db:
- condition: service_healthy
- ports:
- - 8000:8000
- command:
- - uwsgi
- - --http=0.0.0.0:8000
- - --module=todobackend.wsgi
- - --master
-  migrate:
- extends:
- service: release
- depends_on:
- db:
- condition: service_healthy
- command:
- - python3
- - manage.py
- - migrate
- - --no-input
-  db:
-    image: mysql:5.7
-    healthcheck:
-      test: mysqlshow -u $$MYSQL_USER -p$$MYSQL_PASSWORD
-      interval: 3s
-      retries: 10
-    environment:
-      MYSQL_DATABASE: todobackend
-      MYSQL_USER: todo
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
-```
+[PRE24]
 
 在上面的示例中，请注意，除了`migrate`服务，我们还添加了一个名为`app`的新服务。原因是我们希望从`release`服务扩展`migrate`（如`extends`参数所定义），以便它将继承发布映像和发布服务设置，但是扩展另一个服务的一个限制是您不能扩展具有`depends_on`语句的服务。这要求我们将`release`服务更多地用作其他服务继承的基本配置，并将`depends_on`、`ports`和`command`参数从发布服务转移到新的`app`服务。
 
 有了这个配置，我们可以拆除环境并建立我们的新环境，就像以下示例中演示的那样：
 
-```
-> docker-compose down -v ...
-...
-> docker-compose up migrate
-Creating network "todobackend_default" with the default driver
-Building migrate
-Step 1/24 : FROM alpine AS test
- ---> 3fd9065eaf02
-...
-...
-Successfully built 5b20207e3e9c
-Successfully tagged todobackend_migrate:latest
-WARNING: Image for service migrate was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
-Creating todobackend_db_1 ... done
-Creating todobackend_migrate_1 ... done
-Attaching to todobackend_migrate_1
-migrate_1 | Operations to perform:
-migrate_1 | Apply all migrations: admin, auth, contenttypes, sessions, todo
-migrate_1 | Running migrations:
-migrate_1 | Applying contenttypes.0001_initial... OK
-migrate_1 | Applying auth.0001_initial... OK
-migrate_1 | Applying admin.0001_initial... OK
-migrate_1 | Applying admin.0002_logentry_remove_auto_add... OK
-migrate_1 | Applying contenttypes.0002_remove_content_type_name... OK
-migrate_1 | Applying auth.0002_alter_permission_name_max_length... OK
-migrate_1 | Applying auth.0003_alter_user_email_max_length... OK
-migrate_1 | Applying auth.0004_alter_user_username_opts... OK
-migrate_1 | Applying auth.0005_alter_user_last_login_null... OK
-migrate_1 | Applying auth.0006_require_contenttypes_0002... OK
-migrate_1 | Applying auth.0007_alter_validators_add_error_messages... OK
-migrate_1 | Applying auth.0008_alter_user_username_max_length... OK
-migrate_1 | Applying auth.0009_alter_user_last_name_max_length... OK
-migrate_1 | Applying sessions.0001_initial... OK
-migrate_1 | Applying todo.0001_initial... OK
-todobackend_migrate_1 exited with code 0
-> docker-compose up app
-Building app
-Step 1/24 : FROM alpine AS test
- ---> 3fd9065eaf02
-...
-...
-Successfully built 5b20207e3e9c
-Successfully tagged todobackend_app:latest
-WARNING: Image for service app was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
-todobackend_db_1 is up-to-date
-Creating todobackend_app_1 ... done
-Attaching to todobackend_app_1
-app_1 | *** Starting uWSGI 2.0.17 (64bit) on [Thu Jul 5 11:21:00 2018] ***
-app_1 | compiled with version: 6.4.0 on 04 July 2018 11:33:09
-app_1 | os: Linux-4.9.93-linuxkit-aufs #1 SMP Wed Jun 6 16:55:56 UTC 2018
-...
-...
-```
+[PRE25]
 
 在上面的示例中，请注意 Docker Compose 为每个服务构建新的映像，但是由于每个服务都扩展了`release`服务，因此这些构建非常快速。当您启动`migrate`服务等待`db`服务的健康检查通过时，您将观察到 15-30 秒的延迟，之后将运行迁移，创建 todobackend 应用程序期望的适当模式和表。启动`app`服务后，您应该能够与 todobackend API 交互而不会收到任何错误：
 
-```
-> curl -s localhost:8000/todos | jq
-[]
-```
+[PRE26]
 
 # 生成静态网页内容
 
@@ -972,127 +316,23 @@ app_1 | os: Linux-4.9.93-linuxkit-aufs #1 SMP Wed Jun 6 16:55:56 UTC 2018
 
 要在 Docker Compose 中定义卷，你可以使用顶层的`volumes`参数，它允许你定义一个或多个命名卷。
 
-```
-version: '2.4'
-
-volumes:
- public:
- driver: local
-
-services:
-  test:
-    ...
-    ...
-  release:
-    ...
-    ...
-  app:
-    extends:
-      service: release
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
- - public:/public
-    ports:
-      - 8000:8000
-    command:
-      - uwsgi
-      - --http=0.0.0.0:8000
-      - --module=todobackend.wsgi
-      - --master
- - --check-static=/public
-  migrate:
-    ...
-    ...
-  db:
-    ...
-    ...
-```
+[PRE27]
 
 在上面的例子中，你添加了一个名为`public`的卷，并将驱动程序指定为本地，这意味着它是一个标准的 Docker 卷。然后你在 app 服务中使用`volumes`参数将 public 卷挂载到容器中的`/public`路径，最后你配置`uwsgi`来从`/public`路径为静态内容提供服务，这避免了昂贵的应用程序调用 Python 解释器来提供静态内容。
 
 在销毁当前的 Docker Compose 环境后，生成静态内容只需要使用`docker-compose run`命令。
 
-```
-> docker-compose down -v ...
-...
-> docker-compose up migrate
-...
-...
-> docker-compose run app python3 manage.py collectstatic --no-input
-Starting todobackend_db_1 ... done
-Copying '/usr/lib/python3.6/site-packages/django/contrib/admin/static/admin/js/prepopulate.js'
-Traceback (most recent call last):
-  File "manage.py", line 15, in <module>
-    execute_from_command_line(sys.argv)
-  File "/usr/lib/python3.6/site-packages/django/core/management/__init__.py", line 371, in execute_from_command_line
-    utility.execute()
-...
-...
-PermissionError: [Errno 13] Permission denied: '/public/static'
-```
+[PRE28]
 
 在上面的例子中，`collectstatic`任务失败，因为默认情况下卷是以 root 创建的，而容器是以 app 用户运行的。为了解决这个问题，我们需要在`Dockerfile`中预先创建`/public`文件夹，并将 app 用户设置为该文件夹的所有者。
 
-```
-# Test stage
-...
-...
-# Release stage
-FROM alpine
-LABEL application=todobackend
-...
-...
-# Copy and install application source and pre-built dependencies
-COPY --from=test --chown=app:app /build /build
-COPY --from=test --chown=app:app /app /app
-RUN pip3 install -r /build/requirements.txt -f /build --no-index --no-cache-dir
-RUN rm -rf /build
-
-# Create public volume
-RUN mkdir /public
-RUN chown app:app /public
-VOLUME /public
-
-# Set working directory and application user
-WORKDIR /app
-USER app
-```
+[PRE29]
 
 请注意，上面显示的方法仅适用于使用 Docker 卷挂载创建的卷，这是 Docker Compose 在你没有在 Docker Engine 上指定主机路径时使用的方法。如果你指定了主机路径，卷将被绑定挂载，这会导致卷默认具有 root 所有权，除非你在主机上预先创建具有正确权限的路径。当我们使用弹性容器服务时，我们将在以后遇到这个问题，所以请记住这一点。
 
 因为你修改了 Dockerfile，你需要告诉 Docker Compose 重新构建所有镜像，你可以使用`docker-compose build`命令来实现。
 
-```
-> docker-compose down -v
-...
-...
-> docker-compose build Building test
-Step 1/13 : FROM alpine AS test
-...
-...
-Building release
-...
-...
-Building app
-...
-...
-Building migrate
-...
-...
-> docker-compose up migrate
-...
-...
-> docker-compose run app python3 manage.py collectstatic --no-input
-Copying '/usr/lib/python3.6/site-packages/django/contrib/admin/static/admin/js/prepopulate.js'
-Copying '/usr/lib/python3.6/site-packages/django/contrib/admin/static/admin/js/SelectFilter2.js'
-Copying '/usr/lib/python3.6/site-packages/django/contrib/admin/static/admin/js/change_form.js'
-Copying '/usr/lib/python3.6/site-packages/django/contrib/admin/static/admin/js/inlines.min.js'
-...
-...
-> docker-compose up app
-```
+[PRE30]
 
 如果你现在浏览`http://localhost:8000`，正确的静态内容应该被显示出来。
 
@@ -1106,44 +346,7 @@ Copying '/usr/lib/python3.6/site-packages/django/contrib/admin/static/admin/js/i
 
 要开始使用 BATS，我们需要在**todobackend**存储库的`src`文件夹中使用 BATS 语法创建一个名为`acceptance.bats`的测试脚本，您可以在[`github.com/sstephenson/bats`](https://github.com/sstephenson/bats)上了解更多信息：
 
-```
-setup() {
-  url=${APP_URL:-localhost:8000}
-  item='{"title": "Wash the car", "order": 1}'
-  location='Location: ([^[:space:]]*)'
-  curl -X DELETE $url/todos
-}
-
-@test "todobackend root" {
-  run curl -oI -s -w "%{http_code}" $APP_URL
-  [ $status = 0 ]
-  [ $output = 200 ]
-}
-
-@test "todo items returns empty list" {
-  run jq '. | length' <(curl -s $url/todos)
-  [ $output = 0 ]
-}
-
-@test "create todo item" {
-  run curl -i -X POST -H "Content-Type: application/json" $url/todos -d "$item"
-  [ $status = 0 ]
-  [[ $output =~ "201 Created" ]] || false
-  [[ $output =~ $location ]] || false
-  [ $(curl ${BASH_REMATCH[1]} | jq '.title') = $(echo "$item" | jq '.title') ]
-}
-
-@test "delete todo item" {
-  run curl -i -X POST -H "Content-Type: application/json" $url/todos -d "$item"
-  [ $status = 0 ]
-  [[ $output =~ $location ]] || false
-  run curl -i -X DELETE ${BASH_REMATCH[1]}
-  [ $status = 0 ]
-  [[ $output =~ "204 No Content" ]] || false
-  run jq '. | length' <(curl -s $APP_URL/todos)
-  [ $output = 0 ]
-}
-```
+[PRE31]
 
 BATS 文件包括一个`setup()`函数和一些测试用例，每个测试用例都以`@test`标记为前缀。`setup()`函数是一个特殊的函数，在每个测试用例运行之前都会运行，用于定义公共变量并确保应用程序状态在每个测试之前保持一致。您可以看到我们设置了一些在各种测试用例中使用的变量：
 
@@ -1169,106 +372,17 @@ BATS 文件接下来定义了几个测试用例：
 
 我们首先需要将`curl`，`bats`和`jq`软件包添加到 todobackend 存储库根目录下的`Dockerfile`中。
 
-```
-# Test stage
-FROM alpine AS test
-LABEL application=todobackend
-...
-...
-# Release stage
-FROM alpine
-LABEL application=todobackend
-
-# Install dependencies
-RUN apk add --no-cache python3 mariadb-client bash curl bats jq
-...
-...
-```
+[PRE32]
 
 接下来，我们需要向`docker-compose.yml`文件添加一个名为`acceptance`的新服务，该服务将等待`app`服务健康，然后运行验收测试。
 
-```
-version: '2.4'
-
-volumes:
-  public:
-    driver: local
-
-services:
-  test:
-    ...
-    ...
-  release:
-    ...
-    ...
-  app:
-    extends:
-      service: release
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - public:/public
- healthcheck:
- test: curl -fs localhost:8000
-      interval: 3s
- retries: 10
-    ports:
-      - 8000:8000
-    command:
-      - uwsgi
-      - --http=0.0.0.0:8000
-      - --module=todobackend.wsgi
-      - --master
-      - --check-static=/public
-  acceptance:
- extends:
- service: release
- depends_on:
- app:
- condition: service_healthy
- environment:
- APP_URL: http://app:8000
- command:
- - bats 
- - acceptance.bats
-  migrate:
-    ...
-    ...
-  db:
-    ...
-    ...
-```
+[PRE33]
 
 首先，我们为`app`服务添加了一个`healthcheck`属性，它使用`curl`实用程序来检查与本地 Web 服务器端点的连接。然后，我们定义了接受服务，我们从`release`镜像扩展，并配置了`APP_URL`环境变量，该变量配置了应该针对执行接受测试的正确 URL，而`command`和`depends_on`属性用于在`app`服务健康时运行接受测试。
 
 有了这个配置，现在您需要拆除当前的环境，重建所有镜像，并执行各种步骤来启动应用程序，除非您到了即将运行`docker-compose up app`命令的时候，您现在应该运行`docker-compose up acceptance`命令，因为这将自动在后台启动`app`服务：
 
-```
-> docker-compose down -v
-...
-...
-> docker-compose build
-...
-...
-> docker-compose up migrate
-...
-...
-> docker-compose run app python3 manage.py collectstatic --no-input
-...
-...
-> docker-compose up acceptance todobackend_db_1 is up-to-date
-Creating todobackend_app_1 ... done
-Creating todobackend_acceptance_1 ... done
-Attaching to todobackend_acceptance_1
-acceptance_1 | Processing secrets []...
-acceptance_1 | 1..4
-acceptance_1 | ok 1 todobackend root
-acceptance_1 | ok 2 todo items returns empty list
-acceptance_1 | ok 3 create todo item
-acceptance_1 | ok 4 delete todo item
-todobackend_acceptance_1 exited with code 0
-```
+[PRE34]
 
 正如您所看到的，所有测试都通过了，每个测试都显示了`ok`状态。
 
@@ -1280,22 +394,13 @@ Make 已经存在很长时间了，仍然被认为是许多 C 和 C++应用程�
 
 按照惯例，make 会在当前工作目录中寻找一个名为 Makefile 的文件，您可以创建一个非常简单的 Makefile，就像这里演示的那样：
 
-```
-hello:
-    @ echo "Hello World"
-    echo "How are you?"
-```
+[PRE35]
 
 在前面的示例中，您创建了一个名为`hello`的*目标*，其中包含两个 shell 命令，您可以通过运行`make <target>`或在这个例子中运行`make hello`来执行这些命令。每个目标可以包括一个或多个命令，这些命令按照提供的顺序执行。
 
 需要注意的一点是，make 期望在为给定目标定义各种命令时使用制表符（而不是空格），因此如果你收到缺少分隔符的错误，比如`Makefile:2: *** missing separator. Stop.`，请检查你是否使用了制表符来缩进每个命令。
 
-```
-> make hello
-Hello World
-echo "How are you?"
-How are you?
-```
+[PRE36]
 
 在上面的例子中，你可以看到每个命令的输出都显示在屏幕上。请注意，第一个命令上的特殊字符`@`会抑制每个命令的回显。
 
@@ -1303,13 +408,7 @@ How are you?
 
 在使用 Makefiles 进行任务自动化时，你应该执行一个重要的清理工作，即配置一个名为`.PHONY`的特殊目标，并列出你将要执行的每个目标的名称：
 
-```
-.PHONY: hello
-
-hello:
-    @ echo "Hello World"
-    echo "How are you?"
-```
+[PRE37]
 
 因为`make`实际上是一个用于编译源代码文件的构建工具，所以`.PHONY`目标告诉 make，如果它看到一个名为`hello`的文件，它仍然应该运行该目标。如果你没有指定`.PHONY`，并且本地目录中有一个名为`hello`的文件，make 将退出并声明`hello`文件已经构建完成。当你使用 make 来自动化任务时，这显然没有多大意义，所以你应该始终使用`.PHONY`目标来避免任何奇怪的意外。
 
@@ -1317,14 +416,7 @@ hello:
 
 既然你已经了解了如何制作，让我们修改我们的 Makefile，以执行实际有用的操作，并执行测试阶段执行的各种操作。回想一下，测试阶段涉及构建 Dockerfile 的第一个阶段作为一个名为`test`的服务，然后运行`test`服务，默认情况下将运行`python3 manage.py test`命令，执行应用程序单元测试：
 
-```
-.PHONY: test
-
-test:
-    docker-compose build --pull release
-    docker-compose build
-    docker-compose run test
-```
+[PRE38]
 
 请注意，我们实际上并没有在 Docker Compose 文件中构建`test`服务，而是构建了发布服务并指定了`--pull`标志，这确保 Docker 始终检查 Docker 镜像中的任何更新版本。我们以这种方式构建`release`服务，因为我们只想构建整个`Dockerfile`一次，而不是在每个阶段执行时重新构建`Dockerfile`。
 
@@ -1344,19 +436,7 @@ test:
 
 以下演示了在 Makefile 中创建一个名为`release`的目标：
 
-```
-.PHONY: test release
-
-test:
-    docker-compose build --pull release
-    docker-compose build
-    docker-compose run test
-
-release:
- docker-compose up --abort-on-container-exit migrate
- docker-compose run app python3 manage.py collectstatic --no-input
- docker-compose up --abort-on-container-exit acceptance
-```
+[PRE39]
 
 请注意，我们执行所需命令的每一个时，都会有一个小变化，即在每个`docker-compose up`命令中添加`--abort-on-container-exit`命令。默认情况下，`docker-compose up`命令不会返回非零退出代码，如果命令启动的任何容器失败。这个标志允许您覆盖这一点，并指定任何由`docker-compose up`命令启动的服务失败，那么 Docker Compose 应该以错误退出。如果您希望在出现错误时使您的 make 命令失败，设置此标志是很重要的。
 
@@ -1370,122 +450,25 @@ release:
 
 在构建 Docker 镜像时，您需要注意的另一个方面是孤立或悬空的镜像的概念，这些镜像已经被新版本取代。您可以通过运行`docker images`命令来了解这一点，我已经用粗体标出了哪些镜像是悬空的：
 
-```
-> docker images REPOSITORY            TAG        IMAGE ID        CREATED            SIZEtodobackend_app       latest     ca3e62e168f2    13 minutes ago     137MBtodobackend_migrate   latest     ca3e62e168f2    13 minutes ago     137MB
-todobackend_release   latest     ca3e62e168f2    13 minutes ago     137MB
-<none>                <none>     03cc5d44bd7d    14 minutes ago     253MB
-<none>                <none>     e88666a35577    22 minutes ago     137MB
-<none>                <none>     8909f9001297    23 minutes ago     253MB
-<none>                <none>     3d6f9a5c9322    2 hours ago        137MB todobackend_test      latest     60b3a71946cc    2 hours ago        253MB
-<none>                <none>     53d19a2de60d    9 hours ago        136MB
-<none>                <none>     54f0fb70b9d0    15 hours ago       135MB alpine                latest     11cd0b38bc3c    23 hours ago       4.41MB
-```
+[PRE40]
 
 请注意，每个突出显示的图像都没有存储库和标签，因此它们被称为孤立或悬空。这些悬空图像没有用处，占用资源和存储空间，因此最好定期清理这些图像，以确保 Docker 环境的性能。回到我们的 Dockerfile，我们在每个阶段添加了`LABEL`指令，这允许轻松识别与我们的 todobackend 应用相关的图像。
 
 我们可以利用这些标签来定位为 todobackend 应用构建的悬空图像，因此让我们在 Makefile 中添加一个名为`clean`的新目标，该目标关闭 Docker Compose 环境并删除悬空图像。
 
-```
-.PHONY: test release clean
-
-test:
-    docker-compose build --pull release
-    docker-compose build
-    docker-compose run test
-
-release:
-    docker-compose up --abort-on-container-exit migrate
-    docker-compose run app python3 manage.py collectstatic --no-input
-    docker-compose up --abort-on-container-exit acceptance
-
-clean:
- docker-compose down -v
- docker images -q -f dangling=true -f label=application=todobackend | xargs -I ARGS docker rmi -f --no-prune ARGS
-```
+[PRE41]
 
 使用`-q`标志仅打印出图像 ID，然后使用`-f`标志添加过滤器，指定仅显示具有`application=todobackend`标签的悬空图像。然后将此命令的输出导入到`xargs`命令中，`xargs`捕获过滤图像列表并将其传递给`docker rmi -f --no-prune`命令，根据`-f`标志强制删除图像，并使用`--no-prune`标志确保不删除包含当前标记图像层的未标记图像。我们在这里使用`xargs`是因为它能智能地处理图像列表-例如，如果没有要删除的图像，那么`xargs`会在没有错误的情况下静默退出。
 
 以下演示了运行`make clean`命令的输出：
 
-```
-> make test
-...
-...
-> make release
-...
-...
-> make clean
-docker-compose down -v
-Stopping todobackend_app_1 ... done
-Stopping todobackend_db_1 ... done
-Removing todobackend_app_run_2 ... done
-Removing todobackend_app_1 ... done
-Removing todobackend_app_run_1 ... done
-Removing todobackend_migrate_1 ... done
-Removing todobackend_db_1 ... done
-Removing todobackend_test_run_1 ... done
-Removing network todobackend_default
-Removing volume todobackend_public
-docker images -q -f dangling=true -f label=application=todobackend | xargs -I ARGS docker rmi -f --no-prune ARGS
-Deleted: sha256:03cc5d44bd7dec8d535c083dd5a8e4c177f113bc49f6a97d09f7a1deb64b7728
-Deleted: sha256:6448ea330f415f773fc4cd5fe35862678ac0e35a1bf24f3780393eb73637f765
-Deleted: sha256:baefcaca3929d6fc419eab06237abfb6d9ba9a1ba8d5623040ea4f49b2cc22d4
-Deleted: sha256:b1dca5a87173bfa6a2c0c339cdeea6287e4207f34869a2da080dcef28cabcf6f
-...
-...
-```
+[PRE42]
 
 当运行`make clean`命令时，您可能会注意到一件事，即停止 todobackend 应用服务需要一些时间，实际上，需要大约 10 秒才能停止。这是因为在停止容器时，Docker 首先向容器发送 SIGTERM 信号，这会向容器发出即将被终止的信号。默认情况下，如果容器在 10 秒内没有退出，Docker 会发送 SIGKILL 信号，强制终止容器。
 
 问题在于我们应用容器中运行的`uwsgi`进程默认情况下会忽略 SIGTERM 信号，因此我们需要在配置`uwsgi`的 Docker Compose 文件中添加`--die-on-term`标志，以确保它能够优雅地和及时地关闭，如果收到 SIGTERM 信号。
 
-```
-version: '2.4'
-
-volumes:
-  public:
-    driver: local
-
-services:
-  test:
-    ...
-    ...
-  release:
-    ...
-    ...
-  app:
-    extends:
-      service: release
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - public:/public
-    healthcheck:
-      test: curl -fs localhost:8000
-      interval: 3s
-      retries: 10
-    ports:
-      - 8000:8000
-    command:
-      - uwsgi
-      - --http=0.0.0.0:8000
-      - --module=todobackend.wsgi
-      - --master
-      - --check-static=/public
- - --die-on-term
- - --processes=4
- - --threads=2
-  acceptance:
-    ...
-    ...
-  migrate:
-    ...
-    ...
-  db:
-    ...
-    ...
-```
+[PRE43]
 
 在上面的例子中，我还添加了`--processes`和`--threads`标志，这些标志启用并发处理。您可以在[`uwsgi-docs.readthedocs.io/en/latest/WSGIquickstart.html#adding-concurrency-and-monitoring`](https://uwsgi-docs.readthedocs.io/en/latest/WSGIquickstart.html#adding-concurrency-and-monitoring)中了解更多配置选项。
 
@@ -1497,97 +480,21 @@ services:
 
 要配置动态端口映射，您需要在`docker-compose.yml`文件中的`app`服务中更改端口映射：
 
-```
-version: '2.4'
-
-volumes:
-  public:
-    driver: local
-
-services:
-  test:
-    ...
-    ...
-  release:
-    ...
-    ...
-  app:
-    extends:
-      service: release
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - public:/public
-    healthcheck:
-      test: curl -fs localhost:8000
-      interval: 3s
-      retries: 10
-    ports:
- - 8000
-    command:
-      - uwsgi
-      - --http=0.0.0.0:8000
-      - --module=todobackend.wsgi
-      - --master
-      - --check-static=/public
-      - --die-on-term
-      - --processes=4
-      - --threads=2
-  acceptance:
-    ...
-    ...
-  migrate:
-    ...
-    ...
-  db:
-    ...
-    ...
-```
+[PRE44]
 
 在上面的例子中，我们只是将端口映射从`8000:8000`的静态映射更改为`8000`，这样就可以启用动态端口映射。有了这个配置，一个问题是您事先不知道将分配什么端口，但是您可以使用`docker-compose port <service> <container-port>`命令来确定给定服务在给定容器端口上的当前动态端口映射：
 
-```
-> docker-compose port app 8000
-0.0.0.0:32768
-```
+[PRE45]
 
 当然，与其每次手动输入此命令，我们可以将其纳入自动化工作流程中：
 
-```
-.PHONY: test release clean
-
-test:
-    docker-compose build --pull release
-    docker-compose build
-    docker-compose run test
-
-release:
-    docker-compose up --exit-code-from migrate migrate
-    docker-compose run app python3 manage.py collectstatic --no-input
-    docker-compose up --exit-code-from acceptance acceptance
- @ echo App running at http://$$(docker-compose port app 8000 | sed s/0.0.0.0/localhost/g) clean:
-    docker-compose down -v
-    docker images -q -f dangling=true -f label=application=todobackend | xargs -I ARGS docker rmi -f --no-prune ARGS
-```
+[PRE46]
 
 在上面的例子中，我们使用命令替换来获取当前的端口映射，并将输出传输到一个`sed`表达式，将`0.0.0.0`替换为`localhost`。请注意，因为 GNU Make 将美元符号解释为 Make 变量引用，如果您希望 shell 命令执行时评估单个美元符号，则需要双重转义美元符号（`$$`）。
 
 有了这个配置，`make release`命令的输出现在将完成如下：
 
-```
-> make release
-...
-...
-docker-compose run app bats acceptance.bats
-Starting todobackend_db_1 ... done
-1..4
-ok 1 todobackend root
-ok 2 todo items returns empty list
-ok 3 create todo item
-ok 4 delete todo item
-App running at http://localhost:32771
-```
+[PRE47]
 
 # 添加版本目标
 
@@ -1595,27 +502,7 @@ App running at http://localhost:32771
 
 以下演示了如何在一个 Make 变量中捕获这个，并显示当前版本：
 
-```
-.PHONY: test release clean version
-
-export APP_VERSION ?= $(shell git rev-parse --short HEAD)
-
-version:
- @ echo '{"Version": "$(APP_VERSION)"}'
-
-test:
-    docker-compose build --pull release
-    docker-compose build
-    docker-compose run test
-
-release:
-    docker-compose up --abort-on-container-exit migrate
-    docker-compose run app python3 manage.py collectstatic --no-input
-    docker-compose up --abort-on-container-exit acceptance
-    @ echo App running at http://$$(docker-compose port app 8000 | sed s/0.0.0.0/localhost/g)clean:
-    docker-compose down -v
-    docker images -q -f dangling=true -f label=application=todobackend | xargs -I ARGS docker rmi -f --no-prune ARGS
-```
+[PRE48]
 
 我们首先声明一个名为`APP_VERSION`的变量，并在前面加上`export`关键字，这意味着该变量将在每个目标的环境中可用。然后，我们使用一个名为`shell`的 Make 函数来执行`git rev-parse --short HEAD`命令，该命令返回当前提交的七个字符的短哈希。最后，我们添加一个名为`version`的新目标，它简单地以 JSON 格式打印版本到终端，这在本书后面当我们自动化应用程序的持续交付时将会很有用。请注意，`make`使用美元符号来引用变量，也用来执行 Make 函数，您可以在[`www.gnu.org/software/make/manual/html_node/Functions.html`](https://www.gnu.org/software/make/manual/html_node/Functions.html)了解更多信息。
 
@@ -1623,10 +510,7 @@ release:
 
 以下演示了运行`make version`命令：
 
-```
-> make version
-{"Version": "5cd83c0"}
-```
+[PRE49]
 
 # 测试端到端工作流
 

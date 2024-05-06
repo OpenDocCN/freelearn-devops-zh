@@ -14,11 +14,7 @@
 
 始终了解安装在 Kubernetes 集群上的 Kubernetes 服务器（API）的版本是一个好习惯，因为您可能希望使用该版本中可用的特定功能。要检查服务器版本，请运行以下命令：
 
-```
-$ kubectl version --short
-Client Version: v1.18.1
-Server Version: v1.17.5-gke.9
-```
+[PRE0]
 
 服务器版本为`v1.17.5`，`kubectl`版本为`v1.18.1`。请注意，服务器版本的`-gke.9`部分是内部 GKE 修订版；正如我们之前提到的，为了本书的目的，使用了 GKE 集群。
 
@@ -28,13 +24,7 @@ Server Version: v1.17.5-gke.9
 
 接下来，让我们通过运行以下命令检查集群服务器信息：
 
-```
-$ kubectl cluster-info
-Kubernetes master is running at https://35.223.200.75
-GLBCDefaultBackend is running at https://35.223.200.75/api/v1/namespaces/kube-system/services/default-http-backend:http/proxy
-KubeDNS is running at https://35.223.200.75/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy
-Metrics-server is running at https://35.223.200.75/api/v1/namespaces/kube-system/services/https:metrics-server:/proxy
-```
+[PRE1]
 
 在前面的输出日志中，我们看到了以下内容：
 
@@ -52,9 +42,7 @@ c. `Metrics-server`
 
 最后，让我们使用以下命令检查集群节点信息：
 
-```
-$ kubectl get nodes
-```
+[PRE2]
 
 上述命令的输出如下截图所示：
 
@@ -70,9 +58,7 @@ $ kubectl get nodes
 
 要获取 API 列表，请运行以下命令：
 
-```
-$ kubectl api-versions
-```
+[PRE3]
 
 上面命令的输出给出了 API 列表，如下截屏所示：
 
@@ -88,9 +74,7 @@ $ kubectl api-versions
 
 要获取资源列表，请运行以下命令：
 
-```
-$ kubectl api-resources
-```
+[PRE4]
 
 上面的命令给出了以下资源列表：
 

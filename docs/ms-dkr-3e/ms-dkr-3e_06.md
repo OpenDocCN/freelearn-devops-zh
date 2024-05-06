@@ -88,9 +88,7 @@ Docker 已经成为管理容器的首选工具，具有一组经过验证的 API
 
 点击**切换**按钮，几秒钟后，你现在将管理 Windows 容器。你可以通过打开提示符并运行以下命令来查看：
 
-```
-$ docker version
-```
+[PRE0]
 
 可以从以下输出中看到这一点：
 
@@ -110,23 +108,17 @@ Docker 引擎的`OS/Arch`为`windows/amd64`，而不是我们到目前为止一�
 
 下载并安装后，打开终端，转到`chapter06/docker-machine`存储库文件夹，并运行以下命令：
 
-```
-$ vagrant up --provider virtualbox 2016-box
-```
+[PRE1]
 
 这将下载一个包含运行 Windows 容器所需的所有内容的 VirtualBox Windows Server 2016 核心评估映像。下载文件大小略大于 10 GB，因此请确保您具有足够的带宽和磁盘空间来运行该映像。
 
 Vagrant 将启动映像，配置 VM 上的 Docker，并将所需的证书文件复制到您的本地 Docker 客户端以与主机进行交互。要切换到使用新启动的 Docker Windows 主机，只需运行以下命令：
 
-```
-$ eval $(docker-machine env 2016-box)
-```
+[PRE2]
 
 我们将在下一章节中更详细地介绍 Docker Machine。然而，前面的命令已重新配置了您的本地 Docker 客户端，以便与 Docker Windows 主机通信。您可以通过运行以下命令来查看：
 
-```
-$ docker version
-```
+[PRE3]
 
 如果您不跟着操作，可以查看下面的预期输出：
 
@@ -134,21 +126,15 @@ $ docker version
 
 如您所见，我们现在连接到运行`windows/amd64`的 Docker 引擎。要切换回，您可以重新启动终端会话，或者运行以下命令：
 
-```
-$ eval $(docker-machine env -unset)
-```
+[PRE4]
 
 完成 Docker Windows 主机后，可以运行以下命令来停止它：
 
-```
-$ vagrant halt
-```
+[PRE5]
 
 或者，要完全删除它，请运行以下命令：
 
-```
-$ vagrant destroy
-```
+[PRE6]
 
 前面的命令必须在`chapter06/docker-machine`存储库文件夹中运行。
 
@@ -156,9 +142,7 @@ $ vagrant destroy
 
 正如本章的第一部分所暗示的，使用 Docker 命令行客户端启动和与 Windows 容器交互与我们迄今为止运行的方式没有任何不同。让我们通过运行`hello-world`容器来测试一下：
 
-```
-$ docker container run hello-world
-```
+[PRE7]
 
 就像以前一样，这将下载`hello-world`容器并返回一条消息：
 
@@ -168,15 +152,11 @@ $ docker container run hello-world
 
 现在，让我们来看看在前台运行容器，这次运行 PowerShell：
 
-```
-$ docker container run -it microsoft/windowsservercore  powershell
-```
+[PRE8]
 
 一旦您的 shell 处于活动状态，运行以下命令将为您提供计算机名称，即容器 ID：
 
-```
-$ Get-CimInstance -ClassName Win32_Desktop -ComputerName . 
-```
+[PRE9]
 
 您可以在下面的终端输出中看到上述命令的完整输出：
 
@@ -184,9 +164,7 @@ $ Get-CimInstance -ClassName Win32_Desktop -ComputerName .
 
 一旦您通过运行`exit`退出了 PowerShell，您可以通过运行以下命令查看容器 ID：
 
-```
-$ docker container ls -a
-```
+[PRE10]
 
 您可以在下面的屏幕中看到预期的输出：
 
@@ -198,33 +176,11 @@ $ docker container ls -a
 
 Windows 容器镜像使用与 Linux 容器相同的 Dockerfile 命令格式。以下 Dockerfile 将在容器上下载、安装和启用 IIS Web 服务器：
 
-```
-# escape=`
-FROM microsoft/nanoserver:sac2016
-
-RUN powershell -NoProfile -Command `
-    New-Item -Type Directory C:\install; `
-    Invoke-WebRequest https://az880830.vo.msecnd.net/nanoserver-ga-2016/Microsoft-NanoServer-IIS-Package_base_10-0-14393-0.cab -OutFile C:\install\Microsoft-NanoServer-IIS-Package_base_10-0-14393-0.cab; `
-    Invoke-WebRequest https://az880830.vo.msecnd.net/nanoserver-ga-2016/Microsoft-NanoServer-IIS-Package_English_10-0-14393-0.cab -OutFile C:\install\Microsoft-NanoServer-IIS-Package_English_10-0-14393-0.cab; `
-    dism.exe /online /add-package /packagepath:c:\install\Microsoft-NanoServer-IIS-Package_base_10-0-14393-0.cab & `
-    dism.exe /online /add-package /packagepath:c:\install\Microsoft-NanoServer-IIS-Package_English_10-0-14393-0.cab & `
-    dism.exe /online /add-package /packagepath:c:\install\Microsoft-NanoServer-IIS-Package_base_10-0-14393-0.cab & ;`
-    powershell -NoProfile -Command `
-    Remove-Item -Recurse C:\install\ ; `
-    Invoke-WebRequest https://dotnetbinaries.blob.core.windows.net/servicemonitor/2.0.1.3/ServiceMonitor.exe -OutFile C:\ServiceMonitor.exe; `
-    Start-Service Was; `
-    While ((Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\Services\WAS\Parameters\ -Name NanoSetup -ErrorAction Ignore) -ne $null) {Start-Sleep 1}
-
-EXPOSE 80
-
-ENTRYPOINT ["C:\\ServiceMonitor.exe", "w3svc"]
-```
+[PRE11]
 
 您可以使用以下命令构建镜像：
 
-```
-$ docker image build --tag local:dockerfile-iis .
-```
+[PRE12]
 
 构建后，运行`docker image ls`应该显示以下内容：
 
@@ -234,23 +190,17 @@ $ docker image build --tag local:dockerfile-iis .
 
 使用以下命令运行容器将启动 IIS 镜像：
 
-```
-$ docker container run -d --name dockerfile-iis -p 8080:80 local:dockerfile-iis
-```
+[PRE13]
 
 您可以通过打开浏览器来看到您新启动的容器在运行。但是，您需要通过容器的 NAT IP 访问它，而不是转到`http://localhost``:8080/`。如果您使用的是 Windows 10 专业版，可以通过运行以下命令找到 NAT IP：
 
-```
-$ docker inspect --format="{{.NetworkSettings.Networks.nat.IPAddress}}" dockerfile-iis
-```
+[PRE14]
 
 这将为您提供一个 IP 地址，只需在末尾添加`8080/`；例如，`http://172.31.20.180:8080/`。
 
 macOS 用户可以运行以下命令，使用我们启动的 Vagrant VM 的 IP 地址来打开他们的浏览器：
 
-```
-$ open http://$(docker-machine ip 2016-box):8080/
-```
+[PRE15]
 
 无论您在哪个操作系统上启动了 IIS 容器，您都应该看到以下默认的临时页面：
 
@@ -258,10 +208,7 @@ $ open http://$(docker-machine ip 2016-box):8080/
 
 要停止和删除我们迄今为止启动的容器，请运行以下命令：
 
-```
-$ docker container stop dockerfile-iis
-**$ docker container prune**
-```
+[PRE16]
 
 到目前为止，我相信您会同意，这种体验与使用基于 Linux 的容器的 Docker 没有任何不同。
 
@@ -271,65 +218,25 @@ $ docker container stop dockerfile-iis
 
 Docker Compose 文件如下所示：
 
-```
-version: '2.1'
-
-services:
- db:
- image: microsoft/mssql-server-windows-express
- environment:
- sa_password: "DockerCon!!!"
- ACCEPT_EULA: "Y"
- healthcheck:
- test: [ "CMD", "sqlcmd", "-U", "sa", "-P", "DockerCon!!!", "-Q", "select 1" ]
- interval: 2s
- retries: 10
-
- app:
- image: dockersamples/dotnet-album-viewer
- build:
- context: .
- dockerfile: docker/app/Dockerfile
- environment:
- - "Data:useSqLite=false"
- - "Data:SqlServerConnectionString=Server=db;Database=AlbumViewer;User Id=sa;Password=DockerCon!!!;MultipleActiveResultSets=true;App=AlbumViewer"
- depends_on:
- db:
- condition: service_healthy
- ports:
- - "80:80"
-
-networks:
- default:
- external:
- name: nat
-```
+[PRE17]
 
 正如您所看到的，它使用与我们之前查看的 Docker Compose 文件相同的结构、标志和命令，唯一的区别是我们使用了专为 Windows 容器设计的 Docker Hub 中的镜像。
 
 要构建所需的镜像，只需运行以下命令：
 
-```
-$ docker-compose build
-```
+[PRE18]
 
 然后，一旦构建完成，使用以下命令启动：
 
-```
-$ docker-compose up -d
-```
+[PRE19]
 
 与之前一样，然后您可以使用此命令查找 Windows 上的 IP 地址：
 
-```
-$ docker inspect -f "{{ .NetworkSettings.Networks.nat.IPAddress }}" musicstore_web_1
-```
+[PRE20]
 
 要打开应用程序，您只需要在浏览器中输入您的 Docker 主机的 IP 地址。如果您正在使用 macOS，运行以下命令：
 
-```
-$ open http://$(docker-machine ip 2016-box)/
-```
+[PRE21]
 
 您应该看到以下页面：
 
@@ -337,9 +244,7 @@ $ open http://$(docker-machine ip 2016-box)/
 
 完成应用程序后，您可以运行以下命令来删除它：
 
-```
-$ docker-compose down --rmi all --volumes
-```
+[PRE22]
 
 # 总结
 

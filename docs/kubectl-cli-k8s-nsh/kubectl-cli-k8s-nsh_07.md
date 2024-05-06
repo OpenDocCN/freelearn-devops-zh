@@ -60,26 +60,15 @@ Kubernetes 部署提供了 ReplicaSets 的更新，确保指定数量的 Pod（�
 
 让我们创建一个`nginx`部署：
 
-```
-$ kubectl create deployment
-deployment.apps/nginx created
-```
+[PRE0]
 
 让我们检查创建的`nginx`部署：
 
-```
-$ kubectl get deployment
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   1/1     1            1           19d
-```
+[PRE1]
 
 让我们检查创建的`nginx` pod：
 
-```
-$ kubectl get pods
-NAME                    READY   STATUS    RESTARTS   AGE
-nginx-86c57db685-c9s49  1/1     Running   0          10d
-```
+[PRE2]
 
 上述命令创建了一个带有一个`nginx-86c57db685-c9s49` pod 的`nginx`部署。
 
@@ -93,51 +82,17 @@ nginx-86c57db685-c9s49  1/1     Running   0          10d
 
 1.  我们有一个名为`deployment.yaml`的文件，内容如下：
 
-```
-$ cat deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx
-  labels:
-    app: nginx
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - image: nginx:1.18.0
-        imagePullPolicy: IfNotPresent
-        name: nginx
-```
+[PRE3]
 
 当使用前面的文件与`kubectl`时，它将部署与我们使用`$ kubectl create deployment`命令相同的`nginx`部署，但在这种情况下，稍后我们可以根据需要更新文件并升级部署。
 
 1.  让我们删除之前安装的部署：
 
-```
-$ kubectl delete deployment nginx
-deployment.apps "nginx" deleted
-```
+[PRE4]
 
 1.  这次让我们使用`deployment.yaml`文件重新部署：
 
-```
-$ kubectl apply –f deployment.yaml
-deployment.apps/nginx created
-$ kubectl get deployment
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   1/1     1            1           17s
-$ kubectl get pods
-NAME                    READY   STATUS    RESTARTS   AGE
-nginx-7df9c6ff5-pnnr6   1/1     Running   0          25s
-```
+[PRE5]
 
 从上述命令中可以看出，我们部署了一个安装了一个 pod（副本），但这次我们使用了文件中的模板。
 
@@ -169,34 +124,13 @@ Kubernetes 服务为一组 pod 提供单一稳定的名称和地址。它们充�
 
 1.  让我们从运行以下命令开始：
 
-```
-$ kubectl expose deployment nginx --port=80 --target-port=80
-service/nginx exposed
-```
+[PRE6]
 
 我们使用了端口`80`，并且在该端口上，`nginx`服务被暴露给其他 Kubernetes 应用程序；`target-port=80`是我们的`nginx`容器端口。我们使用端口为`80`的容器，因为我们在*第三章*中部署的官方`nginx`Docker 镜像（[`hub.docker.com/_/nginx`](https://hub.docker.com/_/nginx)）使用端口`80`。
 
 1.  让我们检查创建的`nginx`服务：
 
-```
-$ kubectl get service
-NAME         TYPE        CLUSTER-IP    EXTERNAL-IP   PORT(S)
-kubernetes   ClusterIP   10.16.0.1     <none>        443/TCP
-nginx        ClusterIP   10.16.12.233  <none>        80/TCP
-$ kubectl describe service nginx
-Name:              nginx
-Namespace:         default
-Labels:            app=nginx
-Annotations:       cloud.google.com/neg: {"ingress":true}
-Selector:          app=nginx
-Type:              ClusterIP
-IP:                10.16.12.233
-Port:              <unset>  80/TCP
-TargetPort:        80/TCP
-Endpoints:         10.8.0.133:80
-Session Affinity:  None
-Events:            <none>
-```
+[PRE7]
 
 上述`kubectl get service`命令显示了服务列表，`kubectl describe service nginx`描述了服务。
 
@@ -216,33 +150,13 @@ Events:            <none>
 
 我们有一个名为`service.yaml`的文件，我们将使用它来更新服务：
 
-```
-$ cat service.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx
-  labels:
-    app: nginx
-spec:
-  type: ClusterIP
-  ports:
-  - port: 80
-    protocol: TCP
-    targetPort: 80
-  selector:
-    app: nginx
-```
+[PRE8]
 
 这次，让我们保留使用`kubectl expose`创建的服务，并看看我们是否可以将`service.yaml`文件中的更改应用到我们创建的服务上。
 
 要部署服务，我们运行以下命令：
 
-```
-$ kubectl apply –f service.yaml
-Warning: kubectl apply should be used on resource created by ether kubectl create –save-config or kubetl apply
-service/nginx configured
-```
+[PRE9]
 
 我们收到了一个警告（首先我们使用了`kubectl expose`命令，然后我们尝试从文件更新服务），但我们的更改成功应用到了服务上，从现在开始我们可以使用`service.yaml`来对`nginx`服务进行更改。
 
@@ -252,9 +166,7 @@ service/nginx configured
 
 要导出`nginx`服务，请运行以下命令：
 
-```
-$ kubectl get service nginx -o yaml
-```
+[PRE10]
 
 前述命令的输出如下所示：
 
@@ -286,17 +198,7 @@ $ kubectl get service nginx -o yaml
 
 运行以下命令来扩展我们的部署：
 
-```
-$ kubectl scale deployment nginx –replicas=2
-deployment.apps/nginx scaled
-$ kubectl get deployment nginx
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   2/2     2            2           5d17h
-$ kubectl get pods
-NAME                    READY   STATUS    RESTARTS   AGE
-nginx-7df9c6ff5-chnrk   1/1     Running   0          29s
-nginx-7df9c6ff5-s65dq   1/1     Running   0          5d17h
-```
+[PRE11]
 
 从前述输出中，我们可以看到`$ kubectl get deployment nginx`命令显示`nginx`部署有两个副本。通过`$ kubectl get pods`，我们看到两个 pod；其中一个刚刚不到一分钟。
 
@@ -306,27 +208,11 @@ nginx-7df9c6ff5-s65dq   1/1     Running   0          5d17h
 
 1.  使用三个副本更新`deployment.yaml`：
 
-```
-...
-spec:
-  replicas: 3
-...
-```
+[PRE12]
 
 1.  运行与之前相同的命令：
 
-```
-$ kubectl apply –f deployment.yaml
-deployment.apps/nginx configured
-$ kubectl get deployment nginx
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   3/3     3            3           5d17h
-$ kubectl get pods
-NAME                    READY   STATUS    RESTARTS   AGE
-nginx-7df9c6ff5-chnrk   1/1     Running   0          21m
-nginx-7df9c6ff5-s65dq   1/1     Running   0          5d17h
-nginx-7df9c6ff5-tk7g4   1/1     Running   0          22s
-```
+[PRE13]
 
 很好：我们已经从`deployment.yaml`文件中将`nginx`部署更新为三个副本。
 

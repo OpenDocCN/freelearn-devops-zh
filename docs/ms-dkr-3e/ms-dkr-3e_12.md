@@ -68,9 +68,7 @@ Docker 吸引人的部分原因是其易用性；然而，这种易用性可能�
 
 让我们来看看如何启动一个只读容器，然后分解它的功能，如下所示：
 
-```
-$ docker container run -d --name mysql --read-only -v /var/lib/mysql -v /tmp -v /var/run/mysqld -e MYSQL_ROOT_PASSWORD=password mysql
-```
+[PRE0]
 
 在这里，我们正在运行一个 MySQL 容器，并将整个容器设置为只读，除了以下文件夹：
 
@@ -84,23 +82,17 @@ $ docker container run -d --name mysql --read-only -v /var/lib/mysql -v /tmp -v 
 
 容器内的任何其他位置都不允许你在其中写任何东西。如果你尝试运行以下命令，它将失败：
 
-```
-$ docker container exec mysql touch /trying_to_write_a_file
-```
+[PRE1]
 
 前面的命令将给你以下消息：
 
-```
-touch: cannot touch '/trying_to_write_a_file': Read-only file system
-```
+[PRE2]
 
 如果你想控制容器可以写入的位置（或者不能写入的位置），这可能非常有帮助。一定要明智地使用它。进行彻底测试，因为当应用程序无法写入某些位置时可能会产生后果。
 
 类似于前一个命令`docker container run`，我们将所有内容设置为只读（除了指定的卷），我们可以做相反的操作，只设置一个卷（或者如果你使用更多的`-v`开关，则设置更多卷）为只读。关于卷的一点要记住的是，当你使用一个卷并将其挂载到容器中时，它将作为空卷挂载到容器内的目录上，除非你使用`--volumes-from`开关或在启动后以其他方式向容器添加数据：
 
-```
-$ docker container run -d -v /local/path/to/html/:/var/www/html/:ro nginx
-```
+[PRE3]
 
 这将把 Docker 主机上的`/local/path/to/html/`挂载到`/var/www/html/`，并将其设置为只读。如果您不希望运行的容器写入卷，以保持数据或配置文件的完整性，这可能会很有用。
 
@@ -112,9 +104,7 @@ $ docker container run -d -v /local/path/to/html/:/var/www/html/:ro nginx
 
 让我们看看我们在上一节中启动的 MySQL 容器：
 
-```
-$ docker container diff mysql
-```
+[PRE4]
 
 您会注意到没有返回任何文件。为什么呢？
 
@@ -122,32 +112,15 @@ $ docker container diff mysql
 
 停止并删除 MySQL 容器，然后运行以下命令清理卷：
 
-```
-$ docker container stop mysql
-$ docker container rm mysql
-$ docker volume prune
-```
+[PRE5]
 
 然后，再次启动相同的容器，去掉只读标志和卷；这会给我们带来不同的情况，如下所示：
 
-```
-$ docker container run -d --name mysql -e MYSQL_ROOT_PASSWORD=password mysql
-$ docker container exec mysql touch /trying_to_write_a_file
-$ docker container diff mysql
-```
+[PRE6]
 
 正如您所看到的，创建了两个文件夹并添加了几个文件：
 
-```
-A /trying_to_write_a_file
-C /run
-C /run/mysqld
-A /run/mysqld/mysqld.pid
-A /run/mysqld/mysqld.sock
-A /run/mysqld/mysqld.sock.lock
-A /run/mysqld/mysqlx.sock
-A /run/mysqld/mysqlx.sock.lock
-```
+[PRE7]
 
 这是发现容器内可能发生的任何不当或意外情况的好方法。
 
@@ -243,14 +216,7 @@ Docker 的 CIS 基准可免费下载。你应该注意，它目前是一个 230 
 
 该工具的 GitHub 项目可以在[`github.com/docker/docker-bench-security/`](https://github.com/docker/docker-bench-security/)找到，要在 macOS 或 Windows 机器上运行该工具，您只需将以下内容复制并粘贴到您的终端中。以下命令缺少检查`systemd`所需的行，因为作为 Docker for macOS 和 Docker for Windows 的基础操作系统的 Moby Linux 不运行`systemd`。我们将很快看一下基于`systemd`的系统：
 
-```
-$ docker run -it --net host --pid host --cap-add audit_control \
- -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
- -v /var/lib:/var/lib \
- -v /var/run/docker.sock:/var/run/docker.sock \
- -v /etc:/etc --label docker_bench_security \
- docker/docker-bench-security
-```
+[PRE8]
 
 一旦镜像被下载，它将启动并立即开始审核您的 Docker 主机，打印结果，如下面的屏幕截图所示：
 
@@ -262,57 +228,25 @@ $ docker run -it --net host --pid host --cap-add audit_control \
 
 在我们更详细地查看审核输出之前，我将在 DigitalOcean 上启动一个原始的 Ubuntu 16.04.5 LTS 服务器，并使用 Docker Machine 进行干净的 Docker 安装，如下所示：
 
-```
-$ DOTOKEN=0cb54091fecfe743920d0e6d28a29fe325b9fc3f2f6fccba80ef4b26d41c7224
-$ docker-machine create \
- --driver digitalocean \
- --digitalocean-access-token $DOTOKEN \
- docker-digitalocean
-```
+[PRE9]
 
 安装完成后，我将启动一些容器，所有这些容器都没有非常合理的设置。我将从 Docker Hub 启动以下两个容器：
 
-```
-$ docker container run -d --name root-nginx -v /:/mnt nginx
-$ docker container run -d --name priv-nginx --privileged=true nginx
-```
+[PRE10]
 
 然后，我将基于 Ubuntu 16.04 构建一个自定义镜像，运行 SSH，使用以下`Dockerfile`：
 
-```
-FROM ubuntu:16.04
-
-RUN apt-get update && apt-get install -y openssh-server
-RUN mkdir /var/run/sshd
-RUN echo 'root:screencast' | chpasswd
-RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
-ENV NOTVISIBLE "in users profile"
-RUN echo "export VISIBLE=now" >> /etc/profile
-EXPOSE 22
-CMD ["/usr/sbin/sshd", "-D"]
-```
+[PRE11]
 
 我将使用以下代码构建和启动它：
 
-```
-$ docker image build --tag sshd .
-$ docker container run -d -P --name sshd sshd
-```
+[PRE12]
 
 正如您所看到的，在一个图像中，我们正在使用`root-nginx`容器以完全读/写访问权限挂载我们主机的根文件系统。我们还在`priv-nginx`中以扩展特权运行，并最后在`sshd`中运行 SSH。
 
 要在我们的 Ubuntu Docker 主机上开始审计，我运行了以下命令：
 
-```
-$ docker run -it --net host --pid host --cap-add audit_control \
- -e DOCKER_CONTENT_TRUST=$DOCKER_CONTENT_TRUST \
- -v /var/lib:/var/lib \
- -v /var/run/docker.sock:/var/run/docker.sock \
- -v /usr/lib/systemd:/usr/lib/systemd \
- -v /etc:/etc --label docker_bench_security \
- docker/docker-bench-security
-```
+[PRE13]
 
 由于我们正在运行支持`systemd`的操作系统，我们正在挂载`/usr/lib/systemd`，以便我们可以对其进行审计。
 
@@ -352,18 +286,11 @@ $ docker run -it --net host --pid host --cap-add audit_control \
 
 我的主机配置有五个带有`[WARN]`状态的项目，如下所示：
 
-```
-[WARN] 1.1 - Ensure a separate partition for containers has been created
-```
+[PRE14]
 
 默认情况下，Docker 在主机机器上使用`/var/lib/docker`来存储所有文件，包括默认驱动程序创建的所有镜像、容器和卷。这意味着这个文件夹可能会迅速增长。由于我的主机机器正在运行单个分区（并且取决于您的容器在做什么），这可能会填满整个驱动器，这将使我的主机机器无法使用：
 
-```
-[WARN] 1.5 - Ensure auditing is configured for the Docker daemon
-[WARN] 1.6 - Ensure auditing is configured for Docker files and directories - /var/lib/docker
-[WARN] 1.7 - Ensure auditing is configured for Docker files and directories - /etc/docker
-[WARN] 1.10 - Ensure auditing is configured for Docker files and directories - /etc/default/docker
-```
+[PRE15]
 
 这些警告之所以被标记，是因为未安装`auditd`，并且没有 Docker 守护程序和相关文件的审计规则；有关`auditd`的更多信息，请参阅博客文章[`www.linux.com/learn/customized-file-monitoring-auditd/`](https://www.linux.com/learn/customized-file-monitoring-auditd/)。
 
@@ -371,51 +298,35 @@ $ docker run -it --net host --pid host --cap-add audit_control \
 
 我的 Docker 守护程序配置标记了八个`[WARN]`状态，如下所示：
 
-```
-[WARN] 2.1 - Ensure network traffic is restricted between containers on the default bridge
-```
+[PRE16]
 
 默认情况下，Docker 允许在同一主机上的容器之间无限制地传递流量。可以更改此行为；有关 Docker 网络的更多信息，请参阅[`docs.docker.com/engine/userguide/networking/`](https://docs.docker.com/engine/userguide/networking/)。
 
-```
-[WARN] 2.5 - Ensure aufs storage driver is not used
-```
+[PRE17]
 
 在 Docker 的早期，AUFS 被广泛使用；然而，现在不再被认为是最佳实践，因为它可能导致主机机器的内核出现问题：
 
-```
-[WARN] 2.8 - Enable user namespace support
-```
+[PRE18]
 
 默认情况下，用户命名空间不会被重新映射。尽管可以映射它们，但目前可能会导致几个 Docker 功能出现问题；有关已知限制的更多详细信息，请参阅[`docs.docker.com/engine/reference/commandline/dockerd/`](https://docs.docker.com/engine/reference/commandline/dockerd/)：
 
-```
-[WARN] 2.11 - Ensure that authorization for Docker client commands is enabled
-```
+[PRE19]
 
 Docker 的默认安装允许对 Docker 守护程序进行不受限制的访问；您可以通过启用授权插件来限制对经过身份验证的用户的访问。有关更多详细信息，请参阅[`docs.docker.com/engine/extend/plugins_authorization/`](https://docs.docker.com/engine/extend/plugins_authorization/)：
 
-```
-[WARN] 2.12 - Ensure centralized and remote logging is configured
-```
+[PRE20]
 
 由于我只运行单个主机，我没有使用诸如`rsyslog`之类的服务将我的 Docker 主机日志发送到中央服务器，也没有在我的 Docker 守护程序上配置日志驱动程序；有关更多详细信息，请参阅[`docs.docker.com/engine/admin/logging/overview/`](https://docs.docker.com/engine/admin/logging/overview/)：
 
-```
-[WARN] 2.14 - Ensure live restore is Enabled
-```
+[PRE21]
 
 `--live-restore`标志在 Docker 中启用了对无守护程序容器的全面支持；这意味着，与其在守护程序关闭时停止容器，它们会继续运行，并在重新启动时正确重新连接到容器。由于向后兼容性问题，默认情况下未启用；有关更多详细信息，请参阅[`docs.docker.com/engine/admin/live-restore/`](https://docs.docker.com/engine/admin/live-restore/)：
 
-```
-[WARN] 2.15 - Ensure Userland Proxy is Disabled
-```
+[PRE22]
 
 您的容器可以通过两种方式路由到外部世界：使用 hairpin NAT 或用户态代理。对于大多数安装来说，hairpin NAT 模式是首选模式，因为它利用了 iptables 并具有更好的性能。在这种模式不可用的情况下，Docker 使用用户态代理。大多数现代操作系统上的 Docker 安装都将支持 hairpin NAT；有关如何禁用用户态代理的详细信息，请参阅[`docs.docker.com/engine/userguide/networking/default_network/binding/`](https://docs.docker.com/engine/userguide/networking/default_network/binding/)：
 
-```
-[WARN] 2.18 - Ensure containers are restricted from acquiring new privileges
-```
+[PRE23]
 
 这样可以防止容器内的进程通过设置 suid 或 sgid 位获得任何额外的特权；这可以限制任何试图访问特权二进制文件的危险操作的影响。
 
@@ -427,27 +338,15 @@ Docker 的默认安装允许对 Docker 守护程序进行不受限制的访问�
 
 我在容器映像和构建文件中有三个`[WARN]`状态；您可能会注意到多行警告在状态之后加上了`*`：
 
-```
-[WARN] 4.1 - Ensure a user for the container has been created
-[WARN]     * Running as root: sshd
-[WARN]     * Running as root: priv-nginx
-[WARN]     * Running as root: root-nginx
-```
+[PRE24]
 
 我正在运行的容器中的进程都以 root 用户身份运行；这是大多数容器的默认操作。有关更多信息，请参阅[`docs.docker.com/engine/security/security/`](https://docs.docker.com/engine/security/security/)：
 
-```
-[WARN] 4.5 - Ensure Content trust for Docker is Enabled
-```
+[PRE25]
 
 为 Docker 启用内容信任可以确保您拉取的容器映像的来源，因为在推送它们时它们是数字签名的；这意味着您始终运行您打算运行的映像。有关内容信任的更多信息，请参阅[`docs.docker.com/engine/security/trust/content_trust/`](https://docs.docker.com/engine/security/trust/content_trust/)：
 
-```
-[WARN] 4.6 - Ensure HEALTHCHECK instructions have been added to the container image
-[WARN]     * No Healthcheck found: [sshd:latest]
-[WARN]     * No Healthcheck found: [nginx:latest]
-[WARN]     * No Healthcheck found: [ubuntu:16.04]
-```
+[PRE26]
 
 构建图像时，可以构建`HEALTHCHECK`；这可以确保当容器从您的图像启动时，Docker 会定期检查容器的状态，并在需要时重新启动或重新启动它。更多详细信息可以在[`docs.docker.com/engine/reference/builder/#healthcheck`](https://docs.docker.com/engine/reference/builder/#healthcheck)找到。
 
@@ -455,31 +354,19 @@ Docker 的默认安装允许对 Docker 守护程序进行不受限制的访问�
 
 由于我们在审核的 Docker 主机上启动容器时有点愚蠢，我们知道这里会有很多漏洞，总共有 11 个：
 
-```
-[WARN] 5.2 - Ensure SELinux security options are set, if applicable
-[WARN]     * No SecurityOptions Found: sshd
-[WARN]     * No SecurityOptions Found: root-nginx
-```
+[PRE27]
 
 前面的漏洞是一个误报；我们没有运行 SELinux，因为它是一个 Ubuntu 机器，SELinux 只适用于基于 Red Hat 的机器；相反，`5.1`向我们展示了结果，这是一个`[PASS]`，这是我们想要的：
 
-```
-[PASS] 5.1  - Ensure AppArmor Profile is Enabled
-```
+[PRE28]
 
 接下来的两个`[WARN]`状态是我们自己制造的，如下所示：
 
-```
-[WARN] 5.4 - Ensure privileged containers are not used
-[WARN]     * Container running in Privileged mode: priv-nginx
-```
+[PRE29]
 
 以下也是我们自己制造的：
 
-```
-[WARN] 5.6 - Ensure ssh is not run within containers
-[WARN]     * Container running sshd: sshd
-```
+[PRE30]
 
 这些可以安全地忽略；你很少会需要启动以`Privileged mode`运行的容器。只有当你的容器需要与运行在 Docker 主机上的 Docker 引擎交互时才需要；例如，当你运行一个 GUI（如 Portainer）时，我们在第十一章*, Portainer - A GUI for Docker*中介绍过。
 
@@ -487,66 +374,31 @@ Docker 的默认安装允许对 Docker 守护程序进行不受限制的访问�
 
 接下来的两个`[WARN]`状态被标记，因为在 Docker 上，默认情况下，所有在 Docker 主机上运行的容器共享资源；为你的容器设置内存和 CPU 优先级的限制将确保你希望具有更高优先级的容器不会被优先级较低的容器耗尽资源：
 
-```
-[WARN] 5.10 - Ensure memory usage for container is limited
-[WARN]      * Container running without memory restrictions: sshd
-[WARN]      * Container running without memory restrictions: priv-nginx
-[WARN]      * Container running without memory restrictions: root-nginx [WARN] 5.11 - Ensure CPU priority is set appropriately on the container [WARN]      * Container running without CPU restrictions: sshd
-[WARN]      * Container running without CPU restrictions: priv-nginx
-[WARN]      * Container running without CPU restrictions: root-nginx
-```
+[PRE31]
 
 正如我们在本章前面讨论过的，如果可能的话，你应该以只读模式启动你的容器，并为你知道需要写入数据的地方挂载卷：
 
-```
-[WARN] 5.12 - Ensure the container's root filesystem is mounted as read only
-[WARN]      * Container running with root FS mounted R/W: sshd
-[WARN]      * Container running with root FS mounted R/W: priv-nginx
-[WARN]      * Container running with root FS mounted R/W: root-nginx
-```
+[PRE32]
 
 引发以下标志的原因是我们没有告诉 Docker 将我们的暴露端口绑定到 Docker 主机上的特定 IP 地址：
 
-```
-[WARN] 5.13 - Ensure incoming container traffic is binded to a specific host interface
-[WARN] * Port being bound to wildcard IP: 0.0.0.0 in sshd
-```
+[PRE33]
 
 由于我的测试 Docker 主机只有一个网卡，这并不是太大的问题；然而，如果我的 Docker 主机有多个接口，那么这个容器将暴露给所有网络，如果我有一个外部和内部网络，这可能是一个问题。有关更多详细信息，请参阅[`docs.docker.com/engine/userguide/networking/`](https://docs.docker.com/engine/userguide/networking/)：
 
-```
-[WARN] 5.14 - Ensure 'on-failure' container restart policy is set to '5'
-[WARN]      * MaximumRetryCount is not set to 5: sshd
-[WARN]      * MaximumRetryCount is not set to 5: priv-nginx
-[WARN]      * MaximumRetryCount is not set to 5: root-nginx
-```
+[PRE34]
 
 虽然我还没有使用`--restart`标志启动我的容器，但`MaximumRetryCount`没有默认值。这意味着如果一个容器一次又一次地失败，它会很高兴地坐在那里尝试重新启动。这可能会对 Docker 主机产生负面影响；添加`MaximumRetryCount`为`5`将意味着容器在放弃之前会尝试重新启动五次：
 
-```
-[WARN] 5.25 - Ensure the container is restricted from acquiring additional privileges
-[WARN]      * Privileges not restricted: sshd
-[WARN]      * Privileges not restricted: priv-nginx
-[WARN]      * Privileges not restricted: root-nginx
-```
+[PRE35]
 
 默认情况下，Docker 不会限制进程或其子进程通过 suid 或 sgid 位获得新特权。要了解如何阻止此行为的详细信息，请参阅[`www.projectatomic.io/blog/2016/03/no-new-privs-docker/`](http://www.projectatomic.io/blog/2016/03/no-new-privs-docker/)：
 
-```
-[WARN] 5.26 - Ensure container health is checked at runtime
-[WARN]      * Health check not set: sshd
-[WARN]      * Health check not set: priv-nginx
-[WARN]      * Health check not set: root-nginx
-```
+[PRE36]
 
 再次强调，我们没有使用任何健康检查，这意味着 Docker 不会定期检查容器的状态。要查看引入此功能的拉取请求的 GitHub 问题，请浏览[`github.com/moby/moby/pull/22719/`](https://github.com/moby/moby/pull/22719/)：
 
-```
-[WARN] 5.28 - Ensure PIDs cgroup limit is used
-[WARN]      * PIDs limit not set: sshd
-[WARN]      * PIDs limit not set: priv-nginx
-[WARN]      * PIDs limit not set: root-nginx
-```
+[PRE37]
 
 潜在地，攻击者可以通过容器内的单个命令触发 fork bomb。这有可能导致您的 Docker 主机崩溃，唯一的恢复方法是重新启动主机。您可以使用`--pids-limit`标志来防止这种情况发生。有关更多信息，请参阅拉取请求[`github.com/moby/moby/pull/18697/`](https://github.com/moby/moby/pull/18697/)。
 
@@ -554,31 +406,13 @@ Docker 的默认安装允许对 Docker 守护程序进行不受限制的访问�
 
 这一部分包括有关最佳实践的`[INFO]`，如下所示：
 
-```
-[INFO] 6.1 - Perform regular security audits of your host system and containers
-[INFO] 6.2 - Monitor Docker containers usage, performance and metering
-[INFO] 6.3 - Backup container data
-[INFO] 6.4 - Avoid image sprawl
-[INFO]     * There are currently: 4 images
-[INFO] 6.5 - Avoid container sprawl
-[INFO]     * There are currently a total of 8 containers, with 4 of them currently running
-```
+[PRE38]
 
 # Docker Swarm 配置
 
 这一部分包括`[PASS]`信息，因为我们在主机上没有启用 Docker Swarm：
 
-```
-[PASS] 7.1 - Ensure swarm mode is not Enabled, if not needed
-[PASS] 7.2 - Ensure the minimum number of manager nodes have been created in a swarm (Swarm mode not enabled)
-[PASS] 7.3 - Ensure swarm services are binded to a specific host interface (Swarm mode not enabled)
-[PASS] 7.5 - Ensure Docker's secret management commands are used for managing secrets in a Swarm cluster (Swarm mode not enabled)
-[PASS] 7.6 - Ensure swarm manager is run in auto-lock mode (Swarm mode not enabled)
-[PASS] 7.7 - Ensure swarm manager auto-lock key is rotated periodically (Swarm mode not enabled)
-[PASS] 7.8 - Ensure node certificates are rotated as appropriate (Swarm mode not enabled)
-[PASS] 7.9 - Ensure CA certificates are rotated as appropriate (Swarm mode not enabled)
-[PASS] 7.10 - Ensure management plane traffic has been separated from data plane traffic (Swarm mode not enabled)
-```
+[PRE39]
 
 # 总结 Docker Bench
 
@@ -634,41 +468,23 @@ Clair 并不是一个简单的服务；它只有一个基于 API 的接口，并
 
 这个版本是作为 Docker Compose 文件分发的，所以我们将首先创建我们需要的文件夹，并且还将从项目 GitHub 存储库下载 Docker Compose 和基本配置文件。
 
-```
-$ mkdir anchore anchore/config
-$ cd anchore
-$ curl https://raw.githubusercontent.com/anchore/anchore-engine/master/scripts/docker-compose/docker-compose.yaml -o docker-compose.yaml
-$ curl https://raw.githubusercontent.com/anchore/anchore-engine/master/scripts/docker-compose/config.yaml -o config/config.yaml
-```
+[PRE40]
 
 现在我们已经有了基本设置，您可以按照以下步骤拉取图像并启动容器：
 
-```
-$ docker-compose pull
-$ docker-compose up -d
-```
+[PRE41]
 
 在我们与 Anchore 部署进行交互之前，我们需要安装命令行客户端。如果您使用的是 macOS，则必须运行以下命令，如果已经安装了`pip`，则忽略第一个命令：
 
-```
-$ sudo easy_install pip
-$ pip install --user anchorecli
-$ export PATH=${PATH}:${HOME}/Library/Python/2.7/bin
-```
+[PRE42]
 
 对于 Ubuntu 用户，您应该运行以下命令，如果已经安装了`pip`，则这次忽略前两个命令：
 
-```
-$ sudo apt-get update
-$ sudo apt-get install python-pip
-$ sudo pip install anchorecli
-```
+[PRE43]
 
 安装完成后，您可以运行以下命令来检查安装的状态：
 
-```
-$ anchore-cli --u admin --p foobar system status
-```
+[PRE44]
 
 这将显示您安装的整体状态；从您第一次启动开始，可能需要一两分钟才能显示所有内容为`up`：
 
@@ -676,9 +492,7 @@ $ anchore-cli --u admin --p foobar system status
 
 下一个命令会显示 Anchore 在数据库同步中的位置：
 
-```
-$ anchore-cli --u admin --p foobar system feeds list
-```
+[PRE45]
 
 如您在以下截图中所见，我的安装目前正在同步 CentOS 6 数据库。这个过程可能需要几个小时；但是，对于我们的示例，我们将扫描一个基于 Alpine Linux 的镜像，如下所示：
 
@@ -686,21 +500,15 @@ $ anchore-cli --u admin --p foobar system feeds list
 
 接下来，我们需要获取一个要扫描的镜像；让我们获取一个旧的镜像，如下所示：
 
-```
-$ anchore-cli --u admin --p foobar image add docker.io/russmckendrick/moby-counter:old
-```
+[PRE46]
 
 它将花费一两分钟来运行其初始扫描；您可以通过运行以下命令来检查状态：
 
-```
-$ anchore-cli --u admin --p foobar image list
-```
+[PRE47]
 
 一段时间后，状态应该从`analyzing`变为`analyzed`：
 
-```
-$ anchore-cli --u admin --p foobar image get docker.io/russmckendrick/moby-counter:old
-```
+[PRE48]
 
 这将显示图像的概述，如下所示：
 
@@ -708,9 +516,7 @@ $ anchore-cli --u admin --p foobar image get docker.io/russmckendrick/moby-count
 
 然后，您可以通过运行以下命令查看问题列表（如果有的话）：
 
-```
-$ anchore-cli --u admin --p foobar image vuln docker.io/russmckendrick/moby-counter:old os
-```
+[PRE49]
 
 ![](img/41239fbd-01ca-4dee-a1f0-caf9d81769f0.png)
 
@@ -718,10 +524,7 @@ $ anchore-cli --u admin --p foobar image vuln docker.io/russmckendrick/moby-coun
 
 您可以使用以下命令来删除 Anchore 容器：
 
-```
-$ docker-compose stop
-$ docker-compose rm
-```
+[PRE50]
 
 # 总结
 

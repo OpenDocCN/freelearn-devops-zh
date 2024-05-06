@@ -60,21 +60,11 @@
 
 一块代码设置如下：
 
-```
-digitalocean:
-      image: “docker-1.12-rc4”
-      region: nyc3
-      ssh_key_fingerprint: “your SSH ID”
-      ssh_user: root
-```
+[PRE0]
 
 任何命令行输入或输出都是这样写的：
 
-```
-      **# Set $GOPATH here**
-**      go get https://github.com/chanwit/belt**
-
-```
+[PRE1]
 
 **新术语**和**重要单词**以粗体显示。您在屏幕上看到的单词，例如菜单或对话框中的单词，会在文本中出现，如："UI 具有预期的选项，包括启动容器的模板列表，例如**MySQL**或**私有注册表**，但在撰写本文时尚不支持 Swarm 服务"
 

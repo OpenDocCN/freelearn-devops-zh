@@ -48,30 +48,15 @@
 
 代码块设置如下：
 
-```
-    # Make sure we are fully up to date
-    RUN apt-get update -q && \
-    apt-get dist-upgrade -y && \
-    apt-get clean && \
-    apt-get autoclean
-```
+[PRE0]
 
 当我们希望引起您对代码块的特定部分的注意时，相关行或项目会以粗体显示：
 
-```
-    # Make sure we are fully up to date
-    RUN apt-get update -q && \
- apt-get dist-upgrade -y && \
-    apt-get clean && \
-    apt-get autoclean
-```
+[PRE1]
 
 任何命令行输入或输出都会按照以下方式书写：
 
-```
-$ docker swarm leave --force
-Node left the swarm.
-```
+[PRE2]
 
 **新术语**和**重要单词**以粗体显示。屏幕上显示的单词，例如菜单或对话框中的单词，会以这种方式出现在文本中："为了下载新模块，我们将转到 文件 | 设置 | 项目名称 | 项目解释器。"
 

@@ -54,107 +54,43 @@ Docker Swarm 还使用过滤器来调度容器，例如：
 
 在所有三台机器上安装 Docker 后，我们将从命令行重新启动 Docker 服务，以便可以从本地 TCP 端口 2375（`0.0.0.0:2375`）或特定主机 IP 地址访问，并且可以使用 Unix 套接字在所有 Swarm 节点上允许连接，如下所示：
 
-```
-**$ docker -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock –d &**
-
-```
+[PRE0]
 
 Docker Swarm 镜像需要部署为 Docker 容器在主节点上。在我们的示例中，主节点的 IP 地址是`192.168.59.134`。请将其替换为您的 Swarm 主节点。从 Docker 客户端机器上，我们将使用以下命令在主节点上安装 Docker Swarm：
 
-```
-**$ sudo docker -H tcp://192.168.59.134:2375 run --rm swarm create**
-**Unable to find image 'swarm' locally**
-**Pulling repository swarm**
-**e12f8c5e4c3b: Download complete**
-**cf43a42a05d1: Download complete**
-**42c4e5c90ee9: Download complete**
-**22cf18566d05: Download complete**
-**048068586dc5: Download complete**
-**2ea96b3590d8: Download complete**
-**12a239a7cb01: Download complete**
-**26b910067c5f: Download complete**
-**4fdfeb28bd618291eeb97a2096b3f841**
-
-```
+[PRE1]
 
 在执行命令后生成的 Swarm 令牌应予以注意，因为它将用于 Swarm 设置。在我们的案例中，它是这样的：
 
-```
-**"4fdfeb28bd618291eeb97a2096b3f841"**
-
-```
+[PRE2]
 
 以下是设置两节点 Docker Swarm 集群的步骤：
 
 1.  从 Docker 客户端节点，需要执行以下`docker`命令，使用 Node 1 的 IP 地址（在我们的案例中为`192.168.59.135`）和在前面的代码中生成的 Swarm 令牌，以便将其添加到 Swarm 集群中：
 
-```
-**$ docker -H tcp://192.168.59.135:2375 run -d swarm join --addr=192.168.59.135:2375 token:// 4fdfeb28bd618291eeb97a2096b3f841**
-**Unable to find image 'swarm' locally**
-**Pulling repository swarm**
-**e12f8c5e4c3b: Download complete**
-**cf43a42a05d1: Download complete**
-**42c4e5c90ee9: Download complete**
-**22cf18566d05: Download complete**
-**048068586dc5: Download complete**
-**2ea96b3590d8: Download complete**
-**12a239a7cb01: Download complete**
-**26b910067c5f: Download complete**
-**e4f268b2cc4d896431dacdafdc1bb56c98fed01f58f8154ba13908c7e6fe675b**
-
-```
+[PRE3]
 
 1.  通过用 Node 2 的 IP 地址替换 Node 1 的 IP 地址，重复上述步骤来为 Node 2 执行相同的操作。
 
 1.  需要在 Docker 客户端节点上使用以下命令在主节点上设置 Swarm 管理器：
 
-```
-**$ sudo docker -H tcp://192.168.59.134:2375 run -d -p 5001:2375 swarm manage token:// 4fdfeb28bd618291eeb97a2096b3f841**
-**f06ce375758f415614dc5c6f71d5d87cf8edecffc6846cd978fe07fafc3d05d3**
-
-```
+[PRE4]
 
 Swarm 集群已设置，并且可以使用驻留在主节点上的 Swarm 管理器进行管理。要列出所有节点，可以使用 Docker 客户端执行以下命令：
 
-```
-**$ sudo docker -H tcp://192.168.59.134:2375 run --rm swarm list \ token:// 4fdfeb28bd618291eeb97a2096b3f841**
-**192.168.59.135:2375**
-**192.168.59.136:2375**
-
-```
+[PRE5]
 
 1.  以下命令可用于获取有关集群的信息：
 
-```
-**$ sudo docker -H tcp://192.168.59.134:5001 info**
-**Containers: 0**
-**Strategy: spread**
-**Filters: affinity, health, constraint, port, dependency**
-**Nodes: 2**
-**agent-1: 192.168.59.136:2375**
- **└ Containers: 0**
- **└ Reserved CPUs: 0 / 8**
- **└ Reserved Memory: 0 B / 1.023 GiB**
- **agent-0: 192.168.59.135:2375**
- **└ Containers: 0**
- **└ Reserved CPUs: 0 / 8**
- **└ Reserved Memory: 0 B / 1.023 GiB**
-
-```
+[PRE6]
 
 1.  可以通过指定名称为`swarm-ubuntu`并使用以下命令，在集群上启动测试`ubuntu`容器：
 
-```
-**$ sudo docker -H tcp://192.168.59.134:5001 run -it --name swarm-ubuntu ubuntu /bin/sh**
-
-```
+[PRE7]
 
 1.  可以使用 Swarm 主节点的 IP 地址列出容器：
 
-```
-**$ sudo docker -H tcp://192.168.59.134:5001 ps**
-
-```
+[PRE8]
 
 这样就完成了两节点 Docker Swarm 集群的设置。
 
@@ -166,87 +102,23 @@ Docker Swarm 网络与 libnetwork 集成，甚至支持覆盖网络。libnetwork
 
 1.  我们将使用`docker-machine`提供一个名为`sample-keystore`的 VirtualBox 机器：
 
-```
-**$ docker-machine create -d virtualbox sample-keystore**
-**Running pre-create checks...**
-**Creating machine...**
-**Waiting for machine to be running, this may take a few minutes...**
-**Machine is running, waiting for SSH to be available...**
-**Detecting operating system of created instance...**
-**Provisioning created instance...**
-**Copying certs to the local machine directory...**
-**Copying certs to the remote machine...**
-**Setting Docker configuration on the remote daemon...**
-**To see how to connect Docker to this machine, run: docker-machine.exe env sample-keystore**
-
-```
+[PRE9]
 
 1.  我们还将在`sample-keystore`机器上使用以下命令在端口`8500`部署`progrium/consul`容器：
 
-```
-**$ docker $(docker-machine config sample-keystore) run -d \**
- **-p "8500:8500" \**
- **-h "consul" \**
- **progrium/consul -server –bootstrap**
-**Unable to find image 'progrium/consul:latest' locally**
-**latest: Pulling from progrium/consul**
-**3b4d28ce80e4: Pull complete**
-**e5ab901dcf2d: Pull complete**
-**30ad296c0ea0: Pull complete**
-**3dba40dec256: Pull complete**
-**f2ef4387b95e: Pull complete**
-**53bc8dcc4791: Pull complete**
-**75ed0b50ba1d: Pull complete**
-**17c3a7ed5521: Pull complete**
-**8aca9e0ecf68: Pull complete**
-**4d1828359d36: Pull complete**
-**46ed7df7f742: Pull complete**
-**b5e8ce623ef8: Pull complete**
-**049dca6ef253: Pull complete**
-**bdb608bc4555: Pull complete**
-**8b3d489cfb73: Pull complete**
-**c74500bbce24: Pull complete**
-**9f3e605442f6: Pull complete**
-**d9125e9e799b: Pull complete**
-**Digest: sha256:8cc8023462905929df9a79ff67ee435a36848ce7a10f18d6d0faba9306b97274**
-**Status: Downloaded newer image for progrium/consul:latest**
-**1a1be5d207454a54137586f1211c02227215644fa0e36151b000cfcde3b0df7c**
-
-```
+[PRE10]
 
 1.  将本地环境设置为`sample-keystore`机器：
 
-```
-**$ eval "$(docker-machine env sample-keystore)"**
-
-```
+[PRE11]
 
 1.  我们可以按以下方式列出 consul 容器：
 
-```
-**$ docker ps**
-**CONTAINER ID       IMAGE           COMMAND           CREATED       STATUS        PORTS                                 NAMES**
-**1a1be5d20745   progrium/consul  /bin/start -server  5 minutes ago  Up 5 minutes   53/tcp, 53/udp, 8300-8302/tcp, 8400/tcp, 8301-8302/udp, 0.0.0.0:8500->8500/tcp   cocky_bhaskara**
-
-```
+[PRE12]
 
 1.  使用`docker-machine`创建 Swarm 集群。两台机器可以在 VirtualBox 中创建；一台可以充当 Swarm 主节点。在创建每个 Swarm 节点时，我们将传递 Docker Engine 所需的选项以具有覆盖网络驱动程序：
 
-```
-**$ docker-machine create -d virtualbox --swarm --swarm-image="swarm" --swarm-master --swarm-discovery="consul://$(docker-machine ip sample-keystore):8500" --engine-opt="cluster-store=consul://$(docker-machine ip sample-keystore):8500" --engine-opt="cluster-advertise=eth1:2376" swarm-master**
-**Running pre-create checks...**
-**Creating machine...**
-**Waiting for machine to be running, this may take a few minutes...**
-**Machine is running, waiting for SSH to be available...**
-**Detecting operating system of created instance...**
-**Provisioning created instance...**
-**Copying certs to the local machine directory...**
-**Copying certs to the remote machine...**
-**Setting Docker configuration on the remote daemon...**
-**Configuring swarm...**
-**To see how to connect Docker to this machine, run: docker-machine env swarm-master**
-
-```
+[PRE13]
 
 在前面的命令中使用的参数如下：
 
@@ -260,85 +132,35 @@ Docker Swarm 网络与 libnetwork 集成，甚至支持覆盖网络。libnetwork
 
 1.  还可以创建另一个主机并将其添加到 Swarm 集群，就像这样：
 
-```
-**$ docker-machine create -d virtualbox --swarm --swarm-image="swarm:1.0.0-rc2" --swarm-discovery="consul://$(docker-machine ip sample-keystore):8500" --engine-opt="cluster-store=consul://$(docker-machine ip sample-keystore):8500" --engine-opt="cluster-advertise=eth1:2376" swarm-node-1**
-**Running pre-create checks...**
-**Creating machine...**
-**Waiting for machine to be running, this may take a few minutes...**
-**Machine is running, waiting for SSH to be available...**
-**Detecting operating system of created instance...**
-**Provisioning created instance...**
-**Copying certs to the local machine directory...**
-**Copying certs to the remote machine...**
-**Setting Docker configuration on the remote daemon...**
-**Configuring swarm...**
-**To see how to connect Docker to this machine, run: docker-machine env swarm-node-1**
-
-```
+[PRE14]
 
 1.  可以按以下方式列出机器：
 
-```
-**$ docker-machine ls**
-**NAME            ACTIVE   DRIVER       STATE     URL               SWARM**
-**sample-keystore   -     virtualbox   Running   tcp://192.168.99.100:2376**
-**swarm-master      -     virtualbox   Running   tcp://192.168.99.101:2376  swarm-master (master)**
-**swarm-node-1      -     virtualbox   Running   tcp://192.168.99.102:2376   swarm-master**
-
-```
+[PRE15]
 
 1.  现在，我们将将 Docker 环境设置为`swarm-master`：
 
-```
-**$ eval $(docker-machine env --swarm swarm-master)**
-
-```
+[PRE16]
 
 1.  可以在主节点上执行以下命令以创建覆盖网络并实现多主机网络：
 
-```
-**$ docker network create –driver overlay sample-net**
-
-```
+[PRE17]
 
 1.  可以使用以下命令在主节点上检查网络桥：
 
-```
-**$ docker network ls**
-**NETWORK ID         NAME           DRIVER**
-**9f904ee27bf5      sample-net      overlay**
-**7fca4eb8c647       bridge         bridge**
-**b4234109be9b       none            null**
-**cf03ee007fb4       host            host**
-
-```
+[PRE18]
 
 1.  切换到 Swarm 节点时，我们可以轻松地列出新创建的覆盖网络，就像这样：
 
-```
-**$ eval $(docker-machine env swarm-node-1)**
-**$ docker network ls**
-**NETWORK ID        NAME            DRIVER**
-**7fca4eb8c647      bridge          bridge**
-**b4234109be9b      none             null**
-**cf03ee007fb4      host            host**
-**9f904ee27bf5     sample-net       overlay**
-
-```
+[PRE19]
 
 1.  创建网络后，我们可以在任何主机上启动容器，并且它将成为网络的一部分：
 
-```
-**$ eval $(docker-machine env swarm-master)**
-
-```
+[PRE20]
 
 1.  使用约束环境设置为第一个节点启动示例`ubuntu`容器：
 
-```
-**$ docker run -itd --name=os --net=sample-net --env="constraint:node==swarm-master" ubuntu**
-
-```
+[PRE21]
 
 1.  我们可以使用`ifconfig`命令检查容器是否有两个网络接口，并且可以通过 Swarm 管理器部署的容器在任何其他主机上都可以访问。
 
@@ -378,35 +200,19 @@ Kubernetes 有各种重要组件，如下列表所述：
 
 1.  安装并配置 AWS CLI。在本例中，我们使用以下命令在 Linux 上安装了 AWS CLI：
 
-```
-**$ sudo pip install awscli**
-
-```
+[PRE22]
 
 1.  要配置 AWS CLI，请使用以下命令：
 
-```
-**$ aws configure**
-**AWS Access Key ID [None]: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX**
-**AWS Secret Access Key [None]: YYYYYYYYYYYYYYYYYYYYYYYYYYYY**
-**Default region name [None]: us-east-1**
-**Default output format [None]: text**
-
-```
+[PRE23]
 
 1.  配置 AWS CLI 后，我们将创建一个配置文件并附加一个角色，该角色具有对 S3 和 EC2 的完全访问权限：
 
-```
-**$ aws iam create-instance-profile --instance-profile-name Kube**
-
-```
+[PRE24]
 
 1.  可以使用控制台或 AWS CLI 单独创建角色，并使用定义角色权限的 JSON 文件创建角色：
 
-```
-**$ aws iam create-role --role-name Test-Role --assume-role-policy-document /root/kubernetes/Test-Role-Trust-Policy.json**
-
-```
+[PRE25]
 
 可以将角色附加到上述配置文件，该配置文件将完全访问 EC2 和 S3，如下截图所示：
 
@@ -414,56 +220,19 @@ Kubernetes 有各种重要组件，如下列表所述：
 
 1.  创建角色后，可以使用以下命令将其附加到策略：
 
-```
-**$ aws iam add-role-to-instance-profile --role-name Test-Role --instance-profile-name Kube**
-
-```
+[PRE26]
 
 1.  默认情况下，脚本使用默认配置文件。我们可以按照以下方式进行更改：
 
-```
-**$ export AWS_DEFAULT_PROFILE=Kube**
-
-```
+[PRE27]
 
 1.  Kubernetes 集群可以使用一个命令轻松部署，如下所示：
 
-```
-**$ export KUBERNETES_PROVIDER=aws; wget -q -O - https://get.k8s.io | bash**
-**Downloading kubernetes release v1.1.1 to /home/vkohli/kubernetes.tar.gz**
-**--2015-11-22 10:39:18--  https://storage.googleapis.com/kubernetes-release/release/v1.1.1/kubernetes.tar.gz**
-**Resolving storage.googleapis.com (storage.googleapis.com)... 216.58.220.48, 2404:6800:4007:805::2010**
-**Connecting to storage.googleapis.com (storage.googleapis.com)|216.58.220.48|:443... connected.**
-**HTTP request sent, awaiting response... 200 OK**
-**Length: 191385739 (183M) [application/x-tar]**
-**Saving to: 'kubernetes.tar.gz'**
-**100%[======================================>] 191,385,739 1002KB/s   in 3m 7s**
-**2015-11-22 10:42:25 (1002 KB/s) - 'kubernetes.tar.gz' saved [191385739/191385739]**
-**Unpacking kubernetes release v1.1.1**
-**Creating a kubernetes on aws...**
-**... Starting cluster using provider: aws**
-**... calling verify-prereqs**
-**... calling kube-up**
-**Starting cluster using os distro: vivid**
-**Uploading to Amazon S3**
-**Creating kubernetes-staging-e458a611546dc9dc0f2a2ff2322e724a**
-**make_bucket: s3://kubernetes-staging-e458a611546dc9dc0f2a2ff2322e724a/**
-**+++ Staging server tars to S3 Storage: kubernetes-staging-e458a611546dc9dc0f2a2ff2322e724a/devel**
-**upload: ../../../tmp/kubernetes.6B8Fmm/s3/kubernetes-salt.tar.gz to s3://kubernetes-staging-e458a611546dc9dc0f2a2ff2322e724a/devel/kubernetes-salt.tar.gz**
-**Completed 1 of 19 part(s) with 1 file(s) remaining**
-
-```
+[PRE28]
 
 1.  上述命令将调用`kube-up.sh`，然后使用`config-default.sh`脚本调用`utils.sh`，该脚本包含一个具有四个节点的 K8S 集群的基本配置，如下所示：
 
-```
-**ZONE=${KUBE_AWS_ZONE:-us-west-2a}**
-**MASTER_SIZE=${MASTER_SIZE:-t2.micro}**
-**MINION_SIZE=${MINION_SIZE:-t2.micro}**
-**NUM_MINIONS=${NUM_MINIONS:-4}**
-**AWS_S3_REGION=${AWS_S3_REGION:-us-east-1}**
-
-```
+[PRE29]
 
 1.  实例是运行 Ubuntu OS 的`t2.micro`。该过程需要 5 到 10 分钟，之后主节点和从节点的 IP 地址将被列出，并可用于访问 Kubernetes 集群。
 
@@ -495,148 +264,63 @@ GCE 中的路由允许您在 VM 中实现更高级的网络功能，比如设置
 
 1.  在 Kubernetes 主节点上，创建一个新文件夹：
 
-```
-**$ mkdir nginx_kube_example**
-**$ cd nginx_kube_example**
-
-```
+[PRE30]
 
 1.  在您选择的编辑器中，创建将用于部署 nginx pod 的`.yaml`文件：
 
-```
-**$ vi nginx_pod.yaml**
-
-```
+[PRE31]
 
 将以下内容复制到文件中：
 
-```
-**apiVersion: v1**
-**kind: ReplicationController**
-**metadata:**
- **name: nginx**
-**spec:**
- **replicas: 2**
- **selector:**
- **app: nginx**
- **template:**
- **metadata:**
- **name: nginx**
- **labels:**
- **app: nginx**
- **spec:**
- **containers:**
- **- name: nginx**
- **image: nginx**
- **ports:**
- **- containerPort: 80**
-
-```
+[PRE32]
 
 1.  使用`kubectl`创建 nginx pod：
 
-```
-**$ kubectl create -f nginx_pod.yaml**
-
-```
+[PRE33]
 
 1.  在前面的 pod 创建过程中，我们创建了两个 nginx pod 的副本，并且可以使用以下命令列出其详细信息：
 
-```
-**$ kubectl get pods**
-
-```
+[PRE34]
 
 生成的输出如下：
 
-```
-**NAME          READY     REASON    RESTARTS   AGE**
-**nginx-karne   1/1       Running   0          14s**
-**nginx-mo5ug   1/1       Running   0          14s**
-
-```
+[PRE35]
 
 要列出集群上的复制控制器，请使用`kubectl get`命令：
 
-```
-**$ kubectl get rc**
-
-```
+[PRE36]
 
 生成的输出如下：
 
-```
-**CONTROLLER   CONTAINER(S)   IMAGE(S)   SELECTOR    REPLICAS**
-**nginx        nginx          nginx      app=nginx   2**
-
-```
+[PRE37]
 
 1.  可以使用以下命令列出部署的 minion 上的容器：
 
-```
-**$ docker ps**
-
-```
+[PRE38]
 
 生成的输出如下：
 
-```
-**CONTAINER ID        IMAGE                                   COMMAND                CREATED             STATUS              PORTS               NAMES**
-**1d3f9cedff1d        nginx:latest                            "nginx -g 'daemon of   41 seconds ago      Up 40 seconds       k8s_nginx.6171169d_nginx-karne_default_5d5bc813-3166-11e5-8256-ecf4bb2bbd90_886ddf56**
-**0b2b03b05a8d        nginx:latest                            "nginx -g 'daemon of   41 seconds ago      Up 40 seconds**
-
-```
+[PRE39]
 
 1.  使用以下`.yaml`文件部署 nginx 服务以在主机端口`82`上公开 nginx pod：
 
-```
-**$ vi nginx_service.yaml**
-
-```
+[PRE40]
 
 将以下内容复制到文件中：
 
-```
-**apiVersion: v1**
-**kind: Service**
-**metadata:**
- **labels:**
- **name: nginxservice**
- **name: nginxservice**
-**spec:**
- **ports:**
- **# The port that this service should serve on.**
- **- port: 82**
- **# Label keys and values that must match in order to receive traffic for this service.**
- **selector:**
- **app: nginx**
- **type: LoadBalancer**
-
-```
+[PRE41]
 
 1.  使用`kubectl create`命令创建 nginx 服务：
 
-```
-**$kubectl create -f nginx_service.yaml**
-**services/nginxservice**
-
-```
+[PRE42]
 
 1.  可以使用以下命令列出 nginx 服务：
 
-```
-**$ kubectl get services**
-
-```
+[PRE43]
 
 生成的输出如下：
 
-```
-**NAME           LABELS                                    SELECTOR    IP(S)          PORT(S)**
-**kubernetes     component=apiserver,provider=kubernetes   <none>      192.168.3.1    443/TCP**
-**nginxservice   name=nginxservice                         app=nginx   192.168.3.43   82/TCP**
-
-```
+[PRE44]
 
 1.  现在，可以通过服务在以下 URL 上访问 nginx 服务器的测试页面：
 
@@ -656,58 +340,33 @@ Mesos 可以使用 Marathon 框架来运行和管理 Docker 容器。
 
 1.  使用以下命令安装 Mesosphere 和 Marathon：
 
-```
-**# sudo rpm -Uvh http://repos.mesosphere.com/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm**
-**# sudo yum -y install mesos marathon**
-
-```
+[PRE45]
 
 Apache Mesos 使用 Zookeeper 进行操作。Zookeeper 在 Mesosphere 架构中充当主选举服务，并为 Mesos 节点存储状态。
 
 1.  通过指向 Zookeeper 的 RPM 存储库来安装 Zookeeper 和 Zookeeper 服务器包，如下所示：
 
-```
-**# sudo rpm -Uvh http://archive.cloudera.com/cdh4/one-click-install/redhat/6/x86_64/cloudera-cdh-4-0.x86_64.rpm**
-**# sudo yum -y install zookeeper zookeeper-server**
-
-```
+[PRE46]
 
 1.  通过停止和重新启动 Zookeeper 来验证 Zookeeper：
 
-```
-**# sudo service zookeeper-server stop**
-**# sudo service zookeeper-server start**
-
-```
+[PRE47]
 
 Mesos 使用简单的架构，在集群中智能地分配任务，而不用担心它们被安排在哪里。
 
 1.  通过启动`mesos-master`和`mesos-slave`进程来配置 Apache Mesos，如下所示：
 
-```
-**# sudo service mesos-master start**
-**# sudo service mesos-slave start**
-
-```
+[PRE48]
 
 1.  Mesos 将在端口`5050`上运行。如下截图所示，您可以使用您机器的 IP 地址访问 Mesos 界面，这里是`http://192.168.10.10:5050`：![Docker containers](img/00029.jpeg)
 
 1.  使用`mesos-execute`命令测试 Mesos：
 
-```
-**# export MASTER=$(mesos-resolve `cat /etc/mesos/zk` 2>/dev/null)**
-**# mesos help**
-**# mesos-execute --master=$MASTER --name="cluster-test" --command="sleep 40"**
-
-```
+[PRE49]
 
 1.  运行`mesos-execute`命令后，输入*Ctrl* + *Z*以暂停命令。您可以看到它在 Web UI 和命令行中的显示方式：
 
-```
-**# hit ctrl-z**
-**# mesos ps --master=$MASTER**
-
-```
+[PRE50]
 
 Mesosphere 堆栈使用 Marathon 来管理进程和服务。它用作传统 init 系统的替代品。它简化了在集群环境中运行应用程序。下图显示了带有 Marathon 的 Mesosphere 主从拓扑结构：
 
@@ -717,10 +376,7 @@ Marathon 可以用来启动其他 Mesos 框架；因为它设计用于长时间�
 
 1.  使用以下命令启动 Marathon 服务：
 
-```
-**# sudo service marathon start**
-
-```
+[PRE51]
 
 您可以在`http://192.168.10.10:8080`上查看 Marathon GUI。
 
@@ -730,58 +386,21 @@ Marathon 可以用来启动其他 Mesos 框架；因为它设计用于长时间�
 
 1.  使用以下命令安装 Docker：
 
-```
-**# sudo yum install -y golang git device-mapper-event-libs docker**
-**# sudo chkconfig docker on**
-**# sudo service docker start**
-**# export GOPATH=~/go**
-**# go get github.com/golang/example/outyet**
-**# cd $GOPATH/src/github.com/golang/example/outyet**
-**# sudo docker build -t outyet.**
-
-```
+[PRE52]
 
 1.  在将其添加到 Marathon 之前，使用以下命令测试 Docker 文件：
 
-```
-**# sudo docker run --publish 6060:8080 --name test --rm outyet**
-
-```
+[PRE53]
 
 1.  在浏览器中转到`http://192.168.10.10:6060/`以确认它是否正常工作。一旦确认，您可以按下*CTRL* + *C*退出 Outyet Docker。
 
 1.  使用 Marathon Docker 支持创建 Marathon 应用程序，如下所示：
 
-```
-**# vi /home/user/outyet.json**
-**{**
- **"id": "outyet",**
- **"cpus": 0.2,**
- **"mem": 20.0,**
- **"instances": 1,**
- **"constraints": [["hostname", "UNIQUE", ""]],**
- **"container": {**
- **"type": "DOCKER",**
- **"docker": {**
- **"image": "outyet",**
- **"network": "BRIDGE",**
- **"portMappings": [ { "containerPort": 8080, "hostPort": 0, "servicePort": 0, "protocol": "tcp" }**
- **]**
- **}**
- **}**
-**}**
-
-**# echo 'docker,mesos' | sudo tee /etc/mesos-slave/containerizers**
-**# sudo service mesos-slave restart**
-
-```
+[PRE54]
 
 1.  使用 Marathon Docker 更好地配置和管理容器，如下所示：
 
-```
-**# curl -X POST http://192.168.10.10:8080/v2/apps -d /home/user/outyet.json -H "Content-type: application/json"**
-
-```
+[PRE55]
 
 1.  您可以在 Marathon GUI 上检查所有应用程序，如下截图所示，网址为`http://192.168.10.10:8080`：![使用 Docker 部署 web 应用](img/00031.jpeg)
 
@@ -807,133 +426,33 @@ Marathon 可以用来启动其他 Mesos 框架；因为它设计用于长时间�
 
 1.  现在，我们将在预先安装了 Python（2.7 或 3.4）和 pip 的 Linux 机器上安装 DCOS CLI，使用以下命令：
 
-```
-**$ sudo pip install virtualenv**
-**$ mkdir dcos**
-**$ cd dcos**
-**$ curl -O https://downloads.mesosphere.io/dcos-cli/install.sh**
-**% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current**
- **Dload  Upload   Total   Spent    Left  Speed**
-**100  3654  100  3654    0     0   3631      0  0:00:01  0:00:01 --:--:--  3635**
-**$ ls**
-**install.sh**
-**$ bash install.sh . http://mesos-dco-elasticl-17lqe4oh09r07-1358461817.us-west-1.elb.amazonaws.com**
-**Installing DCOS CLI from PyPI...**
-**New python executable in /home/vkohli/dcos/bin/python**
-**Installing setuptools, pip, wheel...done.**
-**[core.reporting]: set to 'True'**
-**[core.dcos_url]: set to 'http://mesos-dco-elasticl-17lqe4oh09r07-1358461817.us-west-1.elb.amazonaws.com'**
-**[core.ssl_verify]: set to 'false'**
-**[core.timeout]: set to '5'**
-**[package.cache]: set to '/home/vkohli/.dcos/cache'**
-**[package.sources]: set to '[u'https://github.com/mesosphere/universe/archive/version-1.x.zip']'**
-**Go to the following link in your browser:**
-**https://accounts.mesosphere.com/oauth/authorize?scope=&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob&response_type=code&client_id=6a552732-ab9b-410d-9b7d-d8c6523b09a1&access_type=offline**
-**Enter verification code: Skipping authentication.**
-**Enter email address: Skipping email input.**
-**Updating source [https://github.com/mesosphere/universe/archive/version-1.x.zip]**
-**Modify your bash profile to add DCOS to your PATH? [yes/no]  yes**
-**Finished installing and configuring DCOS CLI.**
-**Run this command to set up your environment and to get started:**
-**source ~/.bashrc && dcos help**
-
-```
+[PRE56]
 
 DCOS 帮助文件可以列出如下：
 
-```
-**$ source ~/.bashrc && dcos help**
-**Command line utility for the Mesosphere Datacenter Operating System (DCOS). The Mesosphere DCOS is a distributed operating system built around Apache Mesos. This utility provides tools for easy management of a DCOS installation.**
-**Available DCOS commands:**
-
- **config       Get and set DCOS CLI configuration properties**
- **help         Display command line usage information**
- **marathon     Deploy and manage applications on the DCOS**
- **node         Manage DCOS nodes**
- **package      Install and manage DCOS packages**
- **service      Manage DCOS services**
- **task         Manage DCOS tasks**
-
-```
+[PRE57]
 
 1.  现在，我们将使用 DCOS 包在 Mesos 集群上部署一个 Spark 应用程序，然后更新它。使用`dcos <command> --help`获取详细的命令描述：
 
-```
-**$ dcos config show package.sources**
-**[**
- **"https://github.com/mesosphere/universe/archive/version-1.x.zip"**
-**]**
-**$ dcos package update**
-**Updating source [https://github.com/mesosphere/universe/archive/version-1.x.zip]**
-
-**$ dcos package search**
-**NAME       VERSION            FRAMEWORK     SOURCE             DESCRIPTION**
-**arangodb   0.2.1                True     https://github.com/mesosphere/universe/archive/version-1.x.zip   A distributed free and open-source database with a flexible data model for documents, graphs, and key-values. Build high performance applications using a convenient SQL-like query language or JavaScript extensions.**
-**cassandra  0.2.0-1               True     https://github.com/mesosphere/universe/archive/version-1.x.zip  Apache Cassandra running on Apache Mesos.**
-**chronos    2.4.0                 True     https://github.com/mesosphere/universe/archive/version-1.x.zip  A fault tolerant job scheduler for Mesos which handles dependencies and ISO8601 based schedules.**
-**hdfs       0.1.7                 True     https://github.com/mesosphere/universe/archive/version-1.x.zip  Hadoop Distributed File System (HDFS), Highly Available.**
-**kafka      0.9.2.0               True     https://github.com/mesosphere/universe/archive/version-1.x.zip  Apache Kafka running on top of Apache Mesos.**
-**marathon   0.11.1                True     https://github.com/mesosphere/universe/archive/version-1.x.zip  A cluster-wide init and control system for services in cgroups or Docker containers.**
-**spark      1.5.0-multi-roles-v2  True     https://github.com/mesosphere/universe/archive/version-1.x.zip  Spark is a fast and general cluster computing system for Big Data.**
-
-```
+[PRE58]
 
 1.  Spark 包可以按以下方式安装：
 
-```
-**$ dcos package install spark**
-**Note that the Apache Spark DCOS Service is beta and there may be bugs, incomplete features, incorrect documentation or other discrepancies.**
-**We recommend a minimum of two nodes with at least 2 CPU and 2GB of RAM available for the Spark Service and running a Spark job.**
-**Note: The Spark CLI may take up to 5min to download depending on your connection.**
-**Continue installing? [yes/no] yes**
-**Installing Marathon app for package [spark] version [1.5.0-multi-roles-v2]**
-**Installing CLI subcommand for package [spark] version [1.5.0-multi-roles-v2]**
-
-```
+[PRE59]
 
 1.  部署后，可以在 DCOS UI 的**Services**选项卡下看到，如下图所示：![在 AWS 上使用 DCOS 部署 Mesos](img/00039.jpeg)
 
 1.  为了在前面的 Marathon 集群上部署一个虚拟的 Docker 应用程序，我们可以使用 JSON 文件来定义容器映像、要执行的命令以及部署后要暴露的端口：
 
-```
-**$ nano definition.json**
-**{**
- **"container": {**
- **"type": "DOCKER",**
- **"docker": {**
- **"image": "superguenter/demo-app"**
- **}**
- **},**
- **"cmd":  "python -m SimpleHTTPServer $PORT",**
- **"id": "demo",**
- **"cpus": 0.01,**
- **"mem": 256,**
- **"ports": [3000]**
-**}**
-
-```
+[PRE60]
 
 1.  应用程序可以添加到 Marathon 并列出如下：
 
-```
-**$ dcos marathon app add definition.json**
-**$ dcos marathon app list**
-**ID       MEM    CPUS  TASKS  HEALTH  DEPLOYMENT  CONTAINER  CMD**
-**/demo   256.0   0.01   1/1    ---       ---        DOCKER   python -m SimpleHTTPServer $PORT**
-**/spark  1024.0  1.0    1/1    1/1       ---        DOCKER   mv /mnt/mesos/sandbox/log4j.properties conf/log4j.properties && ./bin/spark-class org.apache.spark.deploy.mesos.MesosClusterDispatcher --port $PORT0 --webui-port $PORT1 --master mesos://zk://master.mesos:2181/mesos --zk master.mesos:2181 --host $HOST --name spark**
-
-```
+[PRE61]
 
 1.  可以按以下方式启动前面的 Docker 应用程序的三个实例：
 
-```
-**$ dcos marathon app update --force demo instances=3**
-**Created deployment 28171707-83c2-43f7-afa1-5b66336e36d7**
-**$ dcos marathon deployment list**
-**APP    ACTION  PROGRESS  ID**
-**/demo  scale     0/1     28171707-83c2-43f7-afa1-5b66336e36d7**
-
-```
+[PRE62]
 
 1.  通过单击**Services**下的**Tasks**选项卡，可以在 DCOS UI 中看到部署的应用程序：![在 AWS 上使用 DCOS 部署 Mesos](img/00040.jpeg)
 

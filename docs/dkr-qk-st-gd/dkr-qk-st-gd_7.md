@@ -60,29 +60,17 @@
 
 现在是克隆投票应用程序项目和可视化器镜像存储库的好时机。
 
-```
-# Clone the sample voting application and the visualizer repos
-git clone https://github.com/EarlWaud/example-voting-app.git
-git clone https://github.com/EarlWaud/docker-swarm-visualizer.git
-```
+[PRE0]
 
 严格来说，您不需要克隆这两个存储库，因为您真正需要的只是投票应用程序的堆栈组合文件。这是因为所有的镜像已经被创建并且可以从 hub.docker.com 公开获取，并且当您部署堆栈时，这些镜像将作为部署的一部分被获取。因此，这是获取堆栈 YAML 文件的命令：
 
-```
-# Use curl to get the stack YAML file
-curl -o docker-stack.yml\
- https://raw.githubusercontent.com/earlwaud/example-voting-app/master/docker-stack.yml
-```
+[PRE1]
 
 当然，如果您想以任何方式自定义应用程序，将项目本地化可以让您构建自己的 Docker 镜像版本，然后使用您的自定义镜像部署应用程序的自定义版本。
 
 一旦您在系统上拥有项目（或至少有`docker-stack.yml`文件），您就可以开始使用 Docker 堆栈命令进行操作。现在，让我们继续使用`docker-stack.yml`文件来部署我们的应用程序。您需要设置好 Docker 节点并启用 swarm 模式才能使其工作，所以如果您还没有这样做，请按照第五章中描述的设置您的 swarm，*Docker Swarm*。然后，使用以下命令来部署您的示例投票应用程序：
 
-```
-# Deploy the example voting application 
-# using the downloaded stack YAML file
-docker stack deploy -c docker-stack.yml voteapp
-```
+[PRE2]
 
 这是它可能看起来的样子：
 
@@ -126,11 +114,7 @@ docker stack deploy -c docker-stack.yml voteapp
 
 如果您回忆一下来自第五章的 Docker 服务的讨论，*Docker Swarm*，那么这里显示的许多键对您来说应该是很熟悉的。现在让我们来检查 redis 服务中的键。首先，我们有`image`键。图像键是服务定义所必需的。这个键告诉 docker 要拉取和运行这个服务的 Docker 镜像是`redis:alpine`。正如您现在应该理解的那样，这意味着我们正在使用来自 hub.docker.com 的官方 redis 镜像，请求标记为`alpine`的版本。接下来使用的键是`ports`。它定义了容器将从主机暴露的端口以及主机的端口。在这种情况下，要映射到容器的暴露端口（`6379`）的主机端口由 Docker 分配。您可以使用`docker container ls`命令找到分配的端口。在我的情况下，redis 服务将主机的端口`30000`映射到容器的端口`6379`。接下来使用的键是`networks`。我们已经看到部署堆栈将为我们创建网络。这个指令告诉 Docker 应该将 redis 副本容器连接到哪些网络；在这种情况下是`frontend`网络。如果我们检查 redis 副本容器，检查网络部分，我们将看到这是准确的。您可以使用这样的命令查看您的部署（请注意，容器名称在您的系统上可能略有不同）：
 
-```
-# Inspect a redis replica container looking at the networks
-docker container inspect voteapp_redis.1.nwy14um7ik0t7ul0j5t3aztu5  \
- --format '{{json .NetworkSettings.Networks}}' | jq
-```
+[PRE3]
 
 在我们的示例中，您应该看到容器连接到两个网络：入口网络和我们的`voteapp_frontend`网络。
 
@@ -164,11 +148,7 @@ db 服务与 redis 服务将有几个相同的键，但值不同。首先，我�
 
 我们在这个堆栈组合文件中以前没有见过的下一个密钥是`labels`密钥。这个密钥的位置很重要，因为它可以作为自己的上层密钥出现，也可以作为 deploy 密钥的子密钥出现。有什么区别？当你将`labels`密钥作为 deploy 密钥的子密钥使用时，标签将仅设置在服务上。当你将`labels`密钥作为自己的上层密钥使用时，标签将被添加到作为服务的一部分部署的每个副本或容器中。在我们的例子中，`APP=VOTING`标签将被应用到服务，因为`labels`密钥是 deploy 密钥的子密钥。再次，在我们的环境中看看这个：
 
-```
-# Inspect the worker service to see its labels
-docker service inspect voteapp_worker \
- --format '{{json .Spec.Labels}}' | jq
-```
+[PRE4]
 
 在我的系统上看起来是这样的：
 
@@ -176,11 +156,7 @@ docker service inspect voteapp_worker \
 
 在工作容器上执行 inspect 命令以查看其标签，将显示`APP=VOTING`标签不存在。如果你想在你的系统上确认这一点，命令将如下（使用不同的容器名称）：
 
-```
-# Inspect the labels on a worker container
-docker container inspect voteapp_worker.1.rotx91qw12d6x8643z6iqhuoj \
- -f '{{json .Config.Labels}}' | jq
-```
+[PRE5]
 
 在我的系统上看起来是这样的：
 
@@ -202,10 +178,7 @@ docker container inspect voteapp_worker.1.rotx91qw12d6x8643z6iqhuoj \
 
 现在，让我们通过我们部署了`voteapp`堆栈的 swarm 的视角快速看一下我们的其他与堆栈相关的命令。首先，我们有列出堆栈的命令：`docker stack ls`。试一下看起来像这样：
 
-```
-# List the stacks deployed in a swarm
-docker stack ls
-```
+[PRE6]
 
 这是示例环境中的样子：
 
@@ -213,10 +186,7 @@ docker stack ls
 
 这表明我们当前部署了一个名为 voteapp 的堆栈，它由六个服务组成，并且正在使用 swarm 模式进行编排。知道部署堆栈的名称可以让我们使用其他堆栈命令来收集更多关于它的信息。接下来是列出堆栈任务的命令。让我们在示例环境中尝试一下这个命令：
 
-```
-# List the tasks for our voteapp stack filtered by desried state
-docker stack ps voteapp --filter desired-state=running
-```
+[PRE7]
 
 这是我当前环境中的结果；你的应该看起来非常相似：
 
@@ -224,10 +194,7 @@ docker stack ps voteapp --filter desired-state=running
 
 现在，让我们来看看堆栈服务命令。这个命令将为我们提供一个关于作为堆栈应用程序一部分部署的服务的简要摘要。命令看起来像这样：
 
-```
-# Look at the services associated with a deployed stack
-docker stack services voteapp
-```
+[PRE8]
 
 这是我们在示例环境中看到的：
 
@@ -243,10 +210,7 @@ docker stack services voteapp
 
 是的，我是一个狗派。还有一个最终的堆栈命令：删除命令。我们可以通过发出`rm`命令来快速轻松地关闭使用堆栈部署的应用程序。看起来是这样的：
 
-```
-# Remove a deploy stack using the rm command
-docker stack rm voteapp
-```
+[PRE9]
 
 现在你看到它了，现在你看不到了：
 
@@ -258,10 +222,7 @@ docker stack rm voteapp
 
 与大多数 Docker 相关的事物一样，有几种不同的方法可以实现应用程序的期望状态。当您使用 Docker 堆栈时，应始终使用与部署应用程序相同的方法来更新应用程序。在堆栈 compose 文件中进行任何期望的状态更改，然后运行与部署堆栈时使用的完全相同的命令。这允许您使用标准源代码控制功能来正确处理您的 compose 文件，例如跟踪和审查更改。而且，它允许 Docker 正确地为您的应用程序进行编排。如果您需要在应用程序中缩放服务，您应该在堆栈 compose 文件中更新 replicas 键，然后再次运行部署命令。在我们的示例中，我们的投票服务有两个副本。如果投票需求激增，我们可以通过将 replica 值从 2 更改为 16 来轻松扩展我们的应用程序，方法是编辑`docker-stack.yml`文件，然后发出与最初用于部署应用程序相同的命令：
 
-```
-# After updating the docker-stack.yml file, scale the app using the same deploy command
-docker stack deploy -c docker-stack.yml voteapp
-```
+[PRE10]
 
 现在，当我们检查服务时，我们可以看到我们正在扩展我们的应用程序：
 

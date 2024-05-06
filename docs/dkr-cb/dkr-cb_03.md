@@ -72,10 +72,7 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 1.  要使用命令行创建一个帐户，请运行以下命令并提交所需的详细信息：
 
-```
-**$ docker login**
-
-```
+[PRE0]
 
 ## 它是如何工作的...
 
@@ -103,19 +100,13 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 1.  要进行提交，请运行以下命令：
 
-```
-**docker commit -a|--author[=""] -m|--message[=""] CONTAINER [REPOSITORY[:TAG]]**
-
-```
+[PRE1]
 
 1.  让我们启动一个容器并使用`install httpd`包创建/修改一些文件：![如何做...](img/image00299.jpeg)
 
 1.  然后，打开一个新的终端并通过提交创建一个新的镜像：
 
-```
-**$ docker commit -a "Neependra Khare" -m "Fedora with HTTPD package" 0a15686588ef nkhare/fedora:httpd**
-
-```
+[PRE2]
 
 ![如何做...](img/image00300.jpeg)
 
@@ -131,22 +122,11 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 +   查找自容器启动以来已更改的文件：
 
-```
-**$ docker diff CONTAINER**
-
-```
+[PRE3]
 
 在我们的情况下，我们将看到类似以下代码的内容：
 
-```
-**$ docker diff 0a15686588ef**
-**.....**
-**C /var/log** 
-**A /var/log/httpd** 
-**C /var/log/lastlog** 
-**.....**
-
-```
+[PRE4]
 
 我们可以在输出的每个条目之前看到一个前缀。以下是这些前缀的列表：
 
@@ -162,10 +142,7 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 +   查看`docker commit`的`help`选项：
 
-```
-**$ docker commit --help**
-
-```
+[PRE5]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#commit`](https://docs.docker.com/reference/commandline/cli/#commit)
 
@@ -181,43 +158,27 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 ## 如何做…
 
-```
-**$ docker push NAME[:TAG]**
-
-```
+[PRE6]
 
 默认情况下，前面的命令将使用`docker info`命令中显示的用户名和注册表来推送镜像。如前面的屏幕截图所示，该命令将使用`nkhare`作为用户名，`https://index.docker.io/v1/`作为注册表。
 
 要推送在上一节中创建的图像，请运行以下命令：
 
-```
-**$ docker push nkhare/fedora:httpd**
-
-```
+[PRE7]
 
 ![如何操作...](img/image00301.jpeg)
 
 假设您想要将图像推送到本地注册表，该注册表托管在名为`local-registry`的主机上。为此，您首先需要使用注册表主机的名称或 IP 地址以及注册表正在运行的端口号对图像进行标记，然后推送图像。
 
-```
-**$ docker tag [-f|--force[=false] IMAGE [REGISTRYHOST/][USERNAME/]NAME[:TAG]**
-**$ docker push [REGISTRYHOST/][USERNAME/]NAME[:TAG]**
-
-```
+[PRE8]
 
 例如，假设我们的注册表配置在`shadowfax.example.com`上，然后使用以下命令标记图像：
 
-```
-**$ docker tag nkhare/fedora:httpd shadowfax.example.com:5000/nkhare/fedora:httpd**
-
-```
+[PRE9]
 
 然后，要推送图像，请使用以下命令：
 
-```
-**$ docker push shadowfax.example.com:5000/nkhare/fedora:httpd**
-
-```
+[PRE10]
 
 ## 它是如何工作的...
 
@@ -233,10 +194,7 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 +   查看`docker push`的`help`选项：
 
-```
-**$ docker push --help**
-
-```
+[PRE11]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#push`](https://docs.docker.com/reference/commandline/cli/#push)
 
@@ -252,17 +210,11 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 1.  要查看图像的历史记录，请考虑以下语法：
 
-```
-**$ docker history [ OPTIONS ] IMAGE**
-
-```
+[PRE12]
 
 以下是使用上述语法的示例：
 
-```
-**$ docker history nkhare/fedora:httpd**
-
-```
+[PRE13]
 
 ![如何操作...](img/image00303.jpeg)
 
@@ -274,11 +226,7 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 查看已提交层的提交消息：
 
-```
-**$ docker inspect --format='{{.Comment}}' nkhare/fedora:httpd**
-**Fedora with HTTPD package** 
-
-```
+[PRE14]
 
 目前，没有直接的方法可以使用一个命令查看每个层的提交消息，但是我们可以使用`inspect`命令，我们之前看到的，对每个层进行查看。
 
@@ -286,10 +234,7 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 +   查看`docker history`的`help`选项：
 
-```
-**$ docker history --help**
-
-```
+[PRE15]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#history`](https://docs.docker.com/reference/commandline/cli/#history)
 
@@ -305,17 +250,11 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 1.  要删除图像，请考虑以下语法：
 
-```
-**$ docker rmi [ OPTIONS ] IMAGE [IMAGE...]**
-
-```
+[PRE16]
 
 在我们的情况下，以下是使用前述语法的示例：
 
-```
-**$ docker rmi nkhare/fedora:httpd**
-
-```
+[PRE17]
 
 ![如何做…](img/image00304.jpeg)
 
@@ -325,33 +264,21 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 +   要停止所有容器，请使用以下命令：
 
-```
-**$ docker stop 'docker ps -q'** 
-
-```
+[PRE18]
 
 +   要删除所有容器，请使用以下命令：
 
-```
-**$ docker rm 'docker ps -a -q'** 
-
-```
+[PRE19]
 
 +   要删除所有图像，请使用以下命令：
 
-```
-**$ docker rmi 'docker images -q'**
-
-```
+[PRE20]
 
 ## 另请参阅
 
 +   查看`docker rmi`的`help`选项：
 
-```
-**$ docker rmi --help**
-
-```
+[PRE21]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#rmi`](https://docs.docker.com/reference/commandline/cli/#rmi)
 
@@ -367,17 +294,11 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 1.  使用以下语法将图像保存在 tar 文件中：
 
-```
-**$ docker save [-o|--output=""] IMAGE [:TAG]**
-
-```
+[PRE22]
 
 例如，要为 Fedora 创建一个 tar 归档，请运行以下命令：
 
-```
-**$ docker save --output=fedora.tar fedora**
-
-```
+[PRE23]
 
 如果指定了标签名称与我们要导出的图像名称，例如`fedora:latest`，那么只有与该标签相关的层将被导出。
 
@@ -385,27 +306,17 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 如果没有使用`--output`或`-o`，输出将被流式传输到`STDOUT`：
 
-```
-**$ docker save fedora:latest > fedora-latest.tar**
-
-```
+[PRE24]
 
 类似地，可以使用以下命令导出容器文件系统的内容：
 
-```
-**$ docker export CONTAINER  > containerXYZ.tar**
-
-```
+[PRE25]
 
 ## 另请参阅
 
 +   查看`docker save`和`docker export`的`help`选项：
 
-```
-**$ docker save -help**
-**$ docker export --help**
-
-```
+[PRE26]
 
 +   Docker 网站上的文档：
 
@@ -425,24 +336,15 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 1.  要导入图像，我们可以使用以下语法：
 
-```
-**$ docker import URL|- [REPOSITORY[:TAG]]**
-
-```
+[PRE27]
 
 以下是使用前述语法的示例：
 
-```
-**$ cat fedora-latest.tar | docker import - fedora:latest**
-
-```
+[PRE28]
 
 或者，您可以考虑以下示例：
 
-```
-**$ docker import http://example.com/example.tar example/image**
-
-```
+[PRE29]
 
 前面的示例将首先创建一个空的文件系统，然后导入内容。
 
@@ -450,10 +352,7 @@ Docker Hub 就像图像的 GitHub。它是一个公共注册表，您可以在�
 
 +   查看`docker import`的`help`选项：
 
-```
-**$ docker import --help**
-
-```
+[PRE30]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#import`](https://docs.docker.com/reference/commandline/cli/#import)
 
@@ -467,42 +366,23 @@ Dockerfile 帮助我们自动化映像创建，并在我们每次需要时获得
 
 +   创建一个空目录：
 
-```
-**$ mkdir sample_image**
-**$ cd sample_image**
-
-```
+[PRE31]
 
 +   创建一个名为`Dockerfile`的文件，内容如下：
 
-```
-**$ cat Dockerfile**
-**# Pick up the base image** 
-**FROM fedora** 
-**# Add author name** 
-**MAINTAINER Neependra Khare** 
-**# Add the command to run at the start of container** 
-**CMD date**
-
-```
+[PRE32]
 
 ## 操作方法...
 
 1.  在创建 Dockerfile 的目录中运行以下命令来构建映像：
 
-```
-**$ docker build .** 
-
-```
+[PRE33]
 
 ![操作方法...](img/image00305.jpeg)
 
 在构建映像时，我们没有指定任何存储库或标签名称。我们可以使用`-t`选项来指定：
 
-```
-**$ docker build -t fedora/test .** 
-
-```
+[PRE34]
 
 ![操作方法...](img/image00306.jpeg)
 
@@ -522,19 +402,13 @@ Dockerfile 帮助我们自动化映像创建，并在我们每次需要时获得
 
 可以在`docker images`命令中使用`-a`选项来查找中间层：
 
-```
-**$ docker images -a**
-
-```
+[PRE35]
 
 ## 还有更多…
 
 Dockerfile 的格式如下：
 
-```
-**INSTRUCTION arguments**
-
-```
+[PRE36]
 
 通常，指令以大写形式给出，但它们不区分大小写。它们按顺序进行评估。以`#`开头的内容被视为注释。
 
@@ -542,49 +416,31 @@ Dockerfile 的格式如下：
 
 +   `FROM`：这必须是任何 Dockerfile 的第一个指令，它为后续指令设置了基础镜像。默认情况下，假定为最新标签：
 
-```
-**FROM  <image>**
-
-```
+[PRE37]
 
 或者，考虑以下标签：
 
-```
-**FROM  <images>:<tag>**
-
-```
+[PRE38]
 
 一个 Dockerfile 中可以有多个`FROM`指令，以创建多个镜像。
 
 如果只提供镜像名称，例如 Fedora 和 Ubuntu，则将从默认的 Docker 注册表（Docker Hub）下载镜像。如果要使用私有或第三方镜像，则必须按以下方式提及：
 
-```
- **[registry_hostname[:port]/]user_name/**
-
-```
+[PRE39]
 
 以下是使用上述语法的示例：
 
-```
-**FROM registry-host:5000/nkhare/f20:httpd**
-
-```
+[PRE40]
 
 +   `MAINTAINER`：这为生成的镜像设置了作者，`MAINTAINER <name>`。
 
 +   `RUN`：我们可以以两种方式执行`RUN`指令——首先，在 shell 中运行（`sh -c`）：
 
-```
-**RUN <command> <param1> ... <pamamN>**
-
-```
+[PRE41]
 
 其次，直接运行可执行文件：
 
-```
-**RUN ["executable", "param1",...,"paramN" ]**
-
-```
+[PRE42]
 
 正如我们所知，使用 Docker，我们创建一个覆盖层——在另一个层之上的一层——以创建最终的镜像。通过每个`RUN`指令，我们创建并提交一个层，放在之前提交的层之上。可以从任何已提交的层启动容器。
 
@@ -594,54 +450,33 @@ Dockerfile 的格式如下：
 
 +   `CMD`：`CMD`指令在启动容器时提供默认可执行文件。如果`CMD`指令没有可执行文件（参数 2），那么它将为`ENTRYPOINT`提供参数。
 
-```
-**CMD  ["executable", "param1",...,"paramN" ]**
-**CMD ["param1", ... , "paramN"]**
-**CMD <command> <param1> ... <pamamN>**
-
-```
+[PRE43]
 
 Dockerfile 中只允许一个`CMD`指令。如果指定了多个指令，则只有最后一个会被采纳。
 
 +   `ENTRYPOINT`：这有助于我们将容器配置为可执行文件。与`CMD`类似，`ENTRYPOINT`最多只能有一条指令；如果指定了多条指令，则只有最后一条会被采纳：
 
-```
-**ENTRYPOINT  ["executable", "param1",...,"paramN" ]**
-**ENTRYPOINT <command> <param1> ... <pamamN>**
-
-```
+[PRE44]
 
 一旦使用`ENTRYPOINT`指令定义了参数，它们就不能在运行时被覆盖。但是，如果我们想要对`ENTRYPOINT`使用不同的参数，可以将`ENTRYPOINT`用作`CMD`。
 
 +   `EXPOSE`：这将在容器上暴露网络端口，容器将在其中运行时监听：
 
-```
-**EXPOSE  <port> [<port> ... ]**
-
-```
+[PRE45]
 
 我们还可以在启动容器时暴露端口。我们在第二章的*在启动容器时暴露端口*中介绍了这一点，*使用 Docker 容器*。
 
 +   `ENV`：这将将环境变量`<key>`设置为`<value>`。它将传递所有未来的指令，并在从生成的镜像运行容器时持久存在：
 
-```
-**ENV <key> <value>**
-
-```
+[PRE46]
 
 +   `ADD`：这将文件从源复制到目的地：
 
-```
-**ADD <src> <dest>** 
-
-```
+[PRE47]
 
 以下是包含空格的路径：
 
-```
-**ADD ["<src>"... "<dest>"]**
-
-```
+[PRE48]
 
 +   `<src>`：这必须是构建目录中的文件或目录，我们正在从中构建图像，也称为构建的上下文。源也可以是远程 URL。
 
@@ -649,54 +484,33 @@ Dockerfile 中只允许一个`CMD`指令。如果指定了多个指令，则只�
 
 +   `COPY`：这类似于`ADD.COPY <src> <dest>`：
 
-```
-**COPY  ["<src>"... "<dest>"]**
-
-```
+[PRE49]
 
 +   `VOLUME`：此指令将使用以下语法创建具有给定名称的挂载点，并将其标记为使用外部卷进行挂载：
 
-```
-**VOLUME ["/data"]**
-
-```
+[PRE50]
 
 或者，您可以使用以下代码：
 
-```
-**VOLUME /data**
-
-```
+[PRE51]
 
 +   `USER`：这将使用以下语法为任何后续的运行指令设置用户名：
 
-```
-**USER  <username>/<UID>**
-
-```
+[PRE52]
 
 +   `WORKDIR`：这为随后的`RUN`、`CMD`和`ENTRYPOINT`指令设置工作目录。它可以在同一个 Dockerfile 中有多个条目。可以给出相对路径，它将相对于之前的`WORKDIR`指令，使用以下语法：
 
-```
-**WORKDIR <PATH>**
-
-```
+[PRE53]
 
 +   `ONBUILD`：这将向图像添加触发指令，稍后将在将此图像用作另一个图像的基本图像时执行。此触发器将作为下游 Dockerfile 中的`FROM`指令的一部分运行，使用以下语法：
 
-```
-**ONBUILD [INSTRUCTION]**
-
-```
+[PRE54]
 
 ## 另请参阅
 
 +   查看`docker build`的`help`选项：
 
-```
-**$ docker build -help**
-
-```
+[PRE55]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/builder/`](https://docs.docker.com/reference/builder/)
 
@@ -710,32 +524,11 @@ Fedora-Dockerfiles GitHub 存储库将具有最新的示例，我强烈建议您
 
 使用以下命令克隆 Fedora-Dockerfiles Git 存储库：
 
-```
-**$ git clone https://github.com/nkhare/Fedora-Dockerfiles.git**
-
-```
+[PRE56]
 
 现在，转到`apache`子目录：
 
-```
-**$ cd Fedora-Dockerfiles/apache/**
-**$ cat Dockerfile**
-**FROM fedora:20** 
-**MAINTAINER "Scott Collier" <scollier@redhat.com>** 
-
-**RUN yum -y update && yum clean all** 
-**RUN yum -y install httpd && yum clean all** 
-**RUN echo "Apache" >> /var/www/html/index.html** 
-
-**EXPOSE 80** 
-
-**# Simple startup script to avoid some issues observed with container restart** 
-**ADD run-apache.sh /run-apache.sh** 
-**RUN chmod -v +x /run-apache.sh** 
-
-**CMD ["/run-apache.sh"]**
-
-```
+[PRE57]
 
 其他支持文件包括：
 
@@ -749,51 +542,7 @@ Fedora-Dockerfiles GitHub 存储库将具有最新的示例，我强烈建议您
 
 使用以下`build`命令，我们可以构建一个新的镜像：
 
-```
-**$ docker build -t fedora/apache .** 
-**Sending build context to Docker daemon 23.55 kB** 
-**Sending build context to Docker daemon** 
-**Step 0 : FROM fedora:20** 
- **---> 6cece30db4f9** 
-**Step 1 : MAINTAINER "Scott Collier" <scollier@redhat.com>** 
- **---> Running in 2048200e6338** 
- **---> ae8e3c258061** 
-**Removing intermediate container 2048200e6338** 
-**Step 2 : RUN yum -y update && yum clean all** 
- **---> Running in df8bc8ee3117** 
-**.... Installing/Update packages ...**
-**Cleaning up everything** 
- **---> 5a6d449e59f6** 
-**Removing intermediate container df8bc8ee3117** 
-**Step 3 : RUN yum -y install httpd && yum clean all** 
- **---> Running in 24449e520f18** 
-**.... Installing HTTPD ...**
-**Cleaning up everything** 
- **---> ae1625544ef6** 
-**Removing intermediate container 24449e520f18** 
-**Step 4 : RUN echo "Apache" >> /var/www/html/index.html** 
- **---> Running in a35cbcd8d97a** 
- **---> 251eea31b3ce** 
-**Removing intermediate container a35cbcd8d97a** 
-**Step 5 : EXPOSE 80** 
- **---> Running in 734e54f4bf58** 
- **---> 19503ae2a8cf** 
-**Removing intermediate container 734e54f4bf58** 
-**Step 6 : ADD run-apache.sh /run-apache.sh** 
- **---> de35d746f43b** 
-**Removing intermediate container 3eec9a46da64** 
-**Step 7 : RUN chmod -v +x /run-apache.sh** 
- **---> Running in 3664efba393f** 
-**mode of '/run-apache.sh' changed from 0644 (rw-r--r--) to 0755 (rwxr-xr-x)** 
- **---> 1cb729521c3f** 
-**Removing intermediate container 3664efba393f** 
-**Step 8 : CMD /run-apache.sh** 
- **---> Running in cd5e7534e815** 
- **---> 5f8041b6002c** 
-**Removing intermediate container cd5e7534e815** 
-**Successfully built 5f8041b6002c** 
-
-```
+[PRE58]
 
 ## 它是如何工作的...
 
@@ -809,10 +558,7 @@ Fedora-Dockerfiles GitHub 存储库将具有最新的示例，我强烈建议您
 
 +   查看`docker build`的`help`选项：
 
-```
-**$ docker build --help**
-
-```
+[PRE59]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/builder/`](https://docs.docker.com/reference/builder/)
 
@@ -824,45 +570,11 @@ Fedora-Dockerfiles GitHub 存储库将具有最新的示例，我强烈建议您
 
 使用以下命令克隆 Fedora-Dockerfiles Git 存储库：
 
-```
-**$ git clone  https://github.com/nkhare/Fedora-Dockerfiles.git**
-
-```
+[PRE60]
 
 然后，转到`firefox`子目录。
 
-```
-**$ cd Fedora-Dockerfiles/firefox**
-**$ cat Dockerfile** 
-**FROM fedora** 
-**MAINTAINER scollier <emailscottcollier@gmail.com>** 
-
-**# Install the appropriate software** 
-**RUN yum -y update && yum clean all** 
-**RUN yum -y install x11vnc \** 
-**firefox xorg-x11-server-Xvfb \** 
-**xorg-x11-twm tigervnc-server \** 
-**xterm xorg-x11-font \** 
-**xulrunner-26.0-2.fc20.x86_64 \** 
-**dejavu-sans-fonts \** 
-**dejavu-serif-fonts \** 
-**xdotool && yum clean all** 
-
-**# Add the xstartup file into the image** 
-**ADD ./xstartup /** 
-
-**RUN mkdir /.vnc** 
-**RUN x11vnc -storepasswd 123456 /.vnc/passwd** 
-**RUN  \cp -f ./xstartup /.vnc/.** 
-**RUN chmod -v +x /.vnc/xstartup** 
-**RUN sed -i '/\/etc\/X11\/xinit\/xinitrc-common/a [ -x /usr/bin/firefox ] && /usr/bin/firefox &' /etc/X11/xinit/xinitrc** 
-
-**EXPOSE 5901** 
-
-**CMD    ["vncserver", "-fg" ]** 
-**# ENTRYPOINT ["vncserver", "-fg" ]**
-
-```
+[PRE61]
 
 支持文件：
 
@@ -876,62 +588,7 @@ Fedora-Dockerfiles GitHub 存储库将具有最新的示例，我强烈建议您
 
 运行以下命令构建镜像：
 
-```
-**$ docker build  -t fedora/firefox .** 
-**Sending build context to Docker daemon 24.58 kB** 
-**Sending build context to Docker daemon** 
-**Step 0 : FROM fedora** 
- **---> 834629358fe2** 
-**Step 1 : MAINTAINER scollier <emailscottcollier@gmail.com>** 
- **---> Running in ae0fd3c2cb2e** 
- **---> 7ffc6c9af827** 
-**Removing intermediate container ae0fd3c2cb2e** 
-**Step 2 : RUN yum -y update && yum clean all** 
- **---> Running in 1c67b8772718** 
-**..... Installing/Update packages ...**
- **---> 075d6ceef3d0** 
-**Removing intermediate container 1c67b8772718** 
-**Step 3 : RUN yum -y install x11vnc firefox xorg-x11-server-Xvfb xorg-x11-twm tigervnc-server xterm xorg-x11-font xulrunner-26.0-2.fc20.x86_64 dejavu-sans-fonts dejavu-serif-fonts xdotool && yum clean all** 
-**..... Installing required packages packages ...**
-**Cleaning up everything** 
- **---> 986be48760a6** 
-**Removing intermediate container c338a1ad6caf** 
-**Step 4 : ADD ./xstartup /** 
- **---> 24fa081dcea5** 
-**Removing intermediate container fe98d86ba67f** 
-**Step 5 : RUN mkdir /.vnc** 
- **---> Running in fdb8fe7e697a** 
- **---> 18f266ace765** 
-**Removing intermediate container fdb8fe7e697a** 
-**Step 6 : RUN x11vnc -storepasswd 123456 /.vnc/passwd** 
- **---> Running in c5b7cdba157f** 
-**stored passwd in file: /.vnc/passwd** 
- **---> e4fcf9b17aa9** 
-**Removing intermediate container c5b7cdba157f** 
-**Step 7 : RUN \cp -f ./xstartup /.vnc/.** 
- **---> Running in 21d0dc4edb4e** 
- **---> 4c53914323cb** 
-**Removing intermediate container 21d0dc4edb4e** 
-**Step 8 : RUN chmod -v +x /.vnc/xstartup** 
- **---> Running in 38f18f07c996** 
-**mode of '/.vnc/xstartup' changed from 0644 (rw-r--r--) to 0755 (rwxr-xr-x)** 
- **---> caa278024354** 
-**Removing intermediate container 38f18f07c996** 
-**Step 9 : RUN sed -i '/\/etc\/X11\/xinit\/xinitrc-common/a [ -x /usr/bin/firefox ] && /usr/bin/firefox &' /etc/X11/xinit/xinitrc** 
- **---> Running in 233e99cab02c** 
- **---> 421e944ac8b7** 
-**Removing intermediate container 233e99cab02c** 
-**Step 10 : EXPOSE 5901** 
- **---> Running in 530cd361cb3c** 
- **---> 5de01995c156** 
-**Removing intermediate container 530cd361cb3c** 
-**Step 11 : CMD vncserver -fg** 
- **---> Running in db89498ae8ce** 
- **---> 899be39b7feb** 
-**Removing intermediate container db89498ae8ce** 
-**Successfully built 899be39b7feb** 
-
-```
+[PRE62]
 
 ## 它是如何工作的...
 
@@ -941,19 +598,13 @@ Fedora-Dockerfiles GitHub 存储库将具有最新的示例，我强烈建议您
 
 +   要启动容器，请运行以下命令：
 
-```
-**$ docker run -it -p 5901:5901 fedora/firefox**
-
-```
+[PRE63]
 
 并输入`123456`作为密码。
 
 +   在运行容器时，我们将主机的`5901`端口映射到容器的`5901`端口。为了连接容器内的 VNC 服务器，只需从另一个终端运行以下命令：
 
-```
-**$ vncviewer localhost:1**
-
-```
+[PRE64]
 
 或者，从网络中的另一台机器上，用 Docker 主机的 IP 地址或 FQDN 替换`localhost`。
 
@@ -961,10 +612,7 @@ Fedora-Dockerfiles GitHub 存储库将具有最新的示例，我强烈建议您
 
 +   查看`docker build`的`help`选项：
 
-```
-**$ docker build --help**
-
-```
+[PRE65]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/builder/`](https://docs.docker.com/reference/builder/)
 
@@ -980,36 +628,11 @@ Docker 只喜欢每个容器中运行的前台一个进程。因此，为了让 
 
 使用以下命令克隆 Fedora-Dockerfiles Git 存储库：
 
-```
-**$ git clone  https://github.com/nkhare/Fedora-Dockerfiles.git**
-
-```
+[PRE66]
 
 然后，转到`wordpress_single_container`子目录：
 
-```
-**$ cd Fedora-Dockerfiles/systemd/wordpress_single_container**
-**$ cat Dockerfile**
-**FROM fedora** 
-**MAINTAINER scollier <scollier@redhat.com>** 
-**RUN yum -y update && yum clean all** 
-**RUN yum -y install httpd php php-mysql php-gd pwgen supervisor bash-completion openssh-server psmisc tar && yum clean all** 
-**ADD ./start.sh /start.sh** 
-**ADD ./foreground.sh /etc/apache2/foreground.sh** 
-**ADD ./supervisord.conf /etc/supervisord.conf** 
-**RUN echo %sudo  ALL=NOPASSWD: ALL >> /etc/sudoers** 
-**ADD http://wordpress.org/latest.tar.gz /wordpress.tar.gz** 
-**RUN tar xvzf /wordpress.tar.gz** 
-**RUN mv /wordpress/* /var/www/html/.** 
-**RUN chown -R apache:apache /var/www/** 
-**RUN chmod 755 /start.sh** 
-**RUN chmod 755 /etc/apache2/foreground.sh** 
-**RUN mkdir /var/run/sshd** 
-**EXPOSE 80** 
-**EXPOSE 22** 
-**CMD ["/bin/bash", "/start.sh"]**
-
-```
+[PRE67]
 
 前面代码中使用的支持文件解释如下：
 
@@ -1025,99 +648,13 @@ Docker 只喜欢每个容器中运行的前台一个进程。因此，为了让 
 
 ## 如何做…
 
-```
-**$ docker build -t fedora/wordpress  .** 
-**Sending build context to Docker daemon 41.98 kB** 
-**Sending build context to Docker daemon** 
-**Step 0 : FROM fedora** 
- **---> 834629358fe2** 
-**Step 1 : MAINTAINER scollier <scollier@redhat.com>** 
- **---> Using cache** 
- **---> f21eaf47c9fc** 
-**Step 2 : RUN yum -y update && yum clean all** 
- **---> Using cache** 
- **---> a8f497a6e57c** 
-**Step 3 : RUN yum -y install httpd php php-mysql php-gd pwgen supervisor bash-completion openssh-server psmisc tar && yum clean all** 
- **---> Running in 303234ebf1e1**
-**.... updating/installing packages ....**
-**Cleaning up everything** 
- **---> cc19a5f5c4aa** 
-**Removing intermediate container 303234ebf1e1** 
-**Step 4 : ADD ./start.sh /start.sh** 
- **---> 3f911077da44** 
-**Removing intermediate container c2bd643236ef** 
-**Step 5 : ADD ./foreground.sh /etc/apache2/foreground.sh** 
- **---> 3799902a60c5** 
-**Removing intermediate container c99b8e910009** 
-**Step 6 : ADD ./supervisord.conf /etc/supervisord.conf** 
- **---> f232433b8925** 
-**Removing intermediate container 0584b945f6f7** 
-**Step 7 : RUN echo %sudo  ALL=NOPASSWD: ALL >> /etc/sudoers** 
- **---> Running in 581db01d7350** 
- **---> ec686e945dfd** 
-**Removing intermediate container 581db01d7350** 
-**Step 8 : ADD http://wordpress.org/latest.tar.gz /wordpress.tar.gz** 
-**Downloading [==================================================>] 6.186 MB/6.186 MB** 
- **---> e4e902c389a4** 
-**Removing intermediate container 6bfecfbe798d** 
-**Step 9 : RUN tar xvzf /wordpress.tar.gz** 
- **---> Running in cd772500a776** 
-**.......... untarring wordpress .........**
-**---> d2c5176228e5** 
-**Removing intermediate container cd772500a776** 
-**Step 10 : RUN mv /wordpress/* /var/www/html/.** 
- **---> Running in 7b19abeb509c** 
- **---> 09400817c55f** 
-**Removing intermediate container 7b19abeb509c** 
-**Step 11 : RUN chown -R apache:apache /var/www/** 
- **---> Running in f6b9b6d83b5c** 
- **---> b35a901735d9** 
-**Removing intermediate container f6b9b6d83b5c** 
-**Step 12 : RUN chmod 755 /start.sh** 
- **---> Running in 81718f8d52fa** 
- **---> 87470a002e12** 
-**Removing intermediate container 81718f8d52fa** 
-**Step 13 : RUN chmod 755 /etc/apache2/foreground.sh** 
- **---> Running in 040c09148e1c** 
- **---> 1c76f1511685** 
-**Removing intermediate container 040c09148e1c** 
-**Step 14 : RUN mkdir /var/run/sshd** 
- **---> Running in 77177a33aee0** 
- **---> f339dd1f3e6b** 
-**Removing intermediate container 77177a33aee0** 
-**Step 15 : EXPOSE 80** 
- **---> Running in f27c0b96d17f** 
- **---> 6078f0d7b70b** 
-**Removing intermediate container f27c0b96d17f** 
-**Step 16 : EXPOSE 22** 
- **---> Running in eb7c7d90b860** 
- **---> 38f36e5c7cab** 
-**Removing intermediate container eb7c7d90b860** 
-**Step 17 : CMD /bin/bash /start.sh** 
- **---> Running in 5635fe4783da** 
- **---> c1a327532355** 
-**Removing intermediate container 5635fe4783da** 
-**Successfully built c1a327532355** 
-
-```
+[PRE68]
 
 ## 它是如何工作的…
 
 与其他示例一样，我们从基本镜像开始，安装所需的软件包，并复制支持文件。然后设置`sudo`、`download`和`untar` WordPress 在 HTTPD 文档根目录内。之后，我们暴露端口并运行 start.sh 脚本，该脚本设置 MySQL、WordPress、HTTPS 权限并将控制权交给 supervisord。在`supervisord.conf`中，您将看到 supervisord 管理的以下服务条目：
 
-```
-**[program:mysqld]** 
-**command=/usr/bin/mysqld_safe** 
-**[program:httpd]** 
-**command=/etc/apache2/foreground.sh** 
-**stopsignal=6** 
-**[program:sshd]** 
-**command=/usr/sbin/sshd -D** 
-**stdout_logfile=/var/log/supervisor/%(program_name)s.log** 
-**stderr_logfile=/var/log/supervisor/%(program_name)s.log** 
-**autorestart=true**
-
-```
+[PRE69]
 
 ## 还有更多…
 
@@ -1129,10 +666,7 @@ Docker 只喜欢每个容器中运行的前台一个进程。因此，为了让 
 
 +   查看`docker build`的`help`选项：
 
-```
-**$ docker build --help**
-
-```
+[PRE70]
 
 +   Docker 网站上的文档[`docs.docker.com/reference/builder/`](https://docs.docker.com/reference/builder/)
 
@@ -1158,54 +692,33 @@ Docker 只喜欢每个容器中运行的前台一个进程。因此，为了让 
 
 1.  要在容器上运行注册表，请运行以下命令：
 
-```
-**$ docker run -p 5000:5000 registry**
-
-```
+[PRE71]
 
 1.  要测试新创建的注册表，请执行以下步骤：
 
 1.  使用以下命令启动容器及其 ID：
 
-```
- **$ ID='docker run -d -i fedora /bin/bash'**
-
-```
+[PRE72]
 
 1.  如果需要，附加到新创建的容器并进行一些更改。然后，将这些更改提交到本地存储库：
 
-```
- **$ docker commit $ID fedora-20**
-
-```
+[PRE73]
 
 1.  要将镜像推送到本地注册表，我们需要使用注册表主机的主机名或 IP 地址对镜像进行标记。假设我们的注册表主机是 `registry-host`；然后，要对其进行标记，请使用以下命令：
 
-```
-**$ docker tag fedora-20 registry-host:5000/nkhare/f20**
-
-```
+[PRE74]
 
 1.  由于我们在启动注册表时没有正确配置 HTTPS，因此我们将收到错误，例如 `ping attempt failed with error: Get https://dockerhost:5000/v1/_ping`，这是预期的。为了使我们的示例工作，我们需要向守护程序添加 `--insecure-registry registry-host:5000` 选项。如果您手动启动了 Docker 守护程序，那么我们必须按照以下方式运行命令以允许不安全的注册表：
 
-```
-**$ docker -d   --insecure-registry registry-host:5000**
-
-```
+[PRE75]
 
 1.  要推送镜像，请使用以下命令：
 
-```
-**$ docker push registry-host:5000/nkhare/f20**
-
-```
+[PRE76]
 
 1.  要从本地注册表中拉取镜像，请运行以下命令：
 
-```
-**$ docker pull registry-host:5000/nkhare/f20**
-
-```
+[PRE77]
 
 ## 工作原理…
 
@@ -1219,51 +732,7 @@ Docker 只喜欢每个容器中运行的前台一个进程。因此，为了让 
 
 让我们看看 docker-registry 的 Dockerfile，以了解注册表镜像是如何创建的，以及如何设置不同的配置选项：
 
-```
-**# VERSION 0.1**
-**# DOCKER-VERSION  0.7.3**
-**# AUTHOR:         Sam Alba <sam@docker.com>**
-**# DESCRIPTION:    Image with docker-registry project and dependencies**
-**# TO_BUILD:       docker build -rm -t registry .**
-**# TO_RUN:         docker run -p 5000:5000 registry**
-
-**# Latest Ubuntu LTS**
-**FROM ubuntu:14.04**
-
-**# Update**
-**RUN apt-get update \**
-**# Install pip**
- **&& apt-get install -y \**
- **swig \**
- **python-pip \**
-**# Install deps for backports.lzma (python2 requires it)**
- **python-dev \**
- **python-mysqldb \**
- **python-rsa \**
- **libssl-dev \**
- **liblzma-dev \**
- **libevent1-dev \**
- **&& rm -rf /var/lib/apt/lists/***
-
-**COPY . /docker-registry**
-**COPY ./config/boto.cfg /etc/boto.cfg**
-
-**# Install core**
-**RUN pip install /docker-registry/depends/docker-registry-core**
-
-**# Install registry**
-**RUN pip install file:///docker-registry#egg=docker-registry[bugsnag,newrelic,cors]**
-
-**RUN patch \**
- **$(python -c 'import boto; import os; print os.path.dirname(boto.__file__)')/connection.py \**
- **< /docker-registry/contrib/boto_header_patch.diff**
-
-**ENV DOCKER_REGISTRY_CONFIG /docker-registry/config/config_sample.yml**
-**ENV SETTINGS_FLAVOR dev**
-**EXPOSE 5000**
-**CMD ["docker-registry"]**
-
-```
+[PRE78]
 
 使用上述 Dockerfile，我们将：
 
@@ -1359,56 +828,33 @@ Supermin 是构建 supermin 应用程序的工具。这些是微型应用程序�
 
 在要构建基础镜像的系统上安装 supermin。您可以使用以下命令在 Fedora 上安装 supermin：
 
-```
-**$ yum install supermin**
-
-```
+[PRE79]
 
 ## 如何做...
 
 1.  使用`prepare`模式在目录中安装`bash`，`coreutils`和相关依赖项。
 
-```
-**$ supermin --prepare -o OUTPUTDIR PACKAGE [PACKAGE ...]**
-
-```
+[PRE80]
 
 以下是使用前述语法的示例：
 
-```
-**$ supermin --prepare bash coreutils -o f21_base**
-
-```
+[PRE81]
 
 1.  现在，使用`build`模式为基础镜像创建一个 chroot 环境：
 
-```
-**$ supermin --build -o OUTPUTDIR -f chroot|ext2 INPUT [INPUT ...]**
-
-```
+[PRE82]
 
 以下是使用前述语法的示例：
 
-```
-**$ supermin --build --format chroot f21_base -o f21_image** 
-
-```
+[PRE83]
 
 1.  如果我们在输出目录上执行`ls`，我们将看到一个类似于任何 Linux 根文件系统的目录树：
 
-```
-**$ ls f21_image/** 
-**bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var** 
-
-```
+[PRE84]
 
 1.  现在我们可以使用以下命令将目录导出为 Docker 镜像：
 
-```
-**$ tar -C f21_image/ -c . | docker import - nkhare/f21_base** 
-**d6db8b798dee30ad9c84480ef7497222f063936a398ecf639e60599eed7f6560** 
-
-```
+[PRE85]
 
 1.  现在，查看`docker images`输出。您应该有一个名为`nkhare/f21_base`的新镜像。
 
@@ -1428,10 +874,7 @@ Supermin 不特定于 Fedora，应该适用于任何 Linux 发行版。
 
 +   使用以下命令查看 supermin 的`man`页面以获取更多信息：
 
-```
-**$ man supermin**
-
-```
+[PRE86]
 
 +   在线文档[`people.redhat.com/~rjones/supermin/`](http://people.redhat.com/~rjones/supermin/)
 
@@ -1445,50 +888,31 @@ Debootstrap 是一种工具，用于将基于 Debian 的系统安装到已安装
 
 在基于 Debian 的系统上使用以下命令安装`debootstrap`：
 
-```
-**$ apt-get install debootstrap**
-
-```
+[PRE87]
 
 ## 如何做…
 
 以下命令可用于使用 Debootstrap 创建基本镜像：
 
-```
-**$ debootstrap [OPTION...]  SUITE TARGET [MIRROR [SCRIPT]]**
-
-```
+[PRE88]
 
 `SUITE`指的是发布代码名称，`MIRROR`是相应的存储库。如果您想创建 Ubuntu 14.04.1 LTS（Trusty Tahr）的基本镜像，则执行以下操作：
 
 1.  在要安装操作系统的目录上创建一个目录。Debootstrap 还创建了 chroot 环境以安装软件包，就像我们之前在 supermin 中看到的那样。
 
-```
-**$ mkdir trusty_chroot**
-
-```
+[PRE89]
 
 1.  现在，使用`debootstrap`在我们之前创建的目录中安装 Trusty Tahr：
 
-```
-**$ debootstrap trusty ./trusty_chroot http://in.archive.ubuntu.com/ubuntu/** 
-
-```
+[PRE90]
 
 1.  您将看到类似于任何 Linux 根文件系统的目录树，位于 Trusty Tahr 安装的目录内。
 
-```
-**$ ls ./trusty_chroot**
-**bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var** 
-
-```
+[PRE91]
 
 1.  现在，我们可以使用以下命令将目录导出为 Docker 镜像：
 
-```
-**$ tar -C trusty_chroot/ -c . |  docker import - nkhare/trusty_base**
-
-```
+[PRE92]
 
 1.  现在，查看`docker images`输出。您应该有一个名为`nkhare/trusty_base`的新镜像。
 
@@ -1510,10 +934,7 @@ Debootstrap 是一种工具，用于将基于 Debian 的系统安装到已安装
 
 1.  运行以下命令以获取图像的树状视图：
 
-```
-**$ docker images -t** 
-
-```
+[PRE93]
 
 ## 工作原理…
 
@@ -1523,11 +944,7 @@ Debootstrap 是一种工具，用于将基于 Debian 的系统安装到已安装
 
 从`--viz`到`docker` `images`，我们可以以图形方式看到依赖关系；要做到这一点，您需要安装`graphviz`软件包：
 
-```
-**$ docker images --viz | dot -Tpng -o /tmp/docker.png**
-**$ display /tmp/docker.png**
-
-```
+[PRE94]
 
 正如在运行上述命令时出现的警告中所述，`-t`和`--viz`选项可能很快就会被弃用。
 

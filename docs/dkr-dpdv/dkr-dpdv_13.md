@@ -158,64 +158,19 @@ Docker 附带了几个内置驱动程序，称为本地驱动程序或*本地驱
 
 以下清单显示了在新安装的 Linux 和 Windows Docker 主机上运行`docker network ls`命令的输出。输出被修剪，只显示每个主机上的默认网络。请注意，网络的名称与用于创建它的驱动程序的名称相同——这是巧合。
 
-```
-//Linux
-$ docker network ls
-NETWORK ID        NAME        DRIVER        SCOPE
-333e184cd343      bridge      bridge        local
-
-//Windows
-> docker network ls
-NETWORK ID        NAME        DRIVER        SCOPE
-095d4090fa32      nat         nat           local 
-```
+[PRE0]
 
 `docker network inspect`命令是一个极好的信息宝库！如果您对底层细节感兴趣，我强烈建议阅读它的输出。
 
-```
-docker network inspect bridge
-[
-    {
-        "Name": "bridge",     << Will be nat on Windows
-        "Id": "333e184...d9e55",
-        "Created": "2018-01-15T20:43:02.566345779Z",
-        "Scope": "local",
-        "Driver": "bridge",   << Will be nat on Windows
-        "EnableIPv6": false,
-        "IPAM": {
-            "Driver": "default",
-            "Options": null,
-            "Config": [
-                {
-                    "Subnet": "172.17.0.0/16"
-                }
-            ]
-        },
-        "Internal": false,
-        "Attachable": false,
-        "Ingress": false,
-        "ConfigFrom": {
-            "Network": ""
-        },
-        <Snip>
-    }
-] 
-```
+[PRE1]
 
 在 Linux 主机上使用`bridge`驱动程序构建的 Docker 网络基于已存在于 Linux 内核中超过 15 年的经过艰苦打磨的*Linux 桥接*技术。这意味着它们具有高性能和极其稳定！这也意味着您可以使用标准的 Linux 实用程序来检查它们。例如。
 
-```
-$ ip link show docker0
-`3`: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu `1500` qdisc...
-    link/ether `02`:42:af:f9:eb:4f brd ff:ff:ff:ff:ff:ff 
-```
+[PRE2]
 
 `在所有基于 Linux 的 Docker 主机上，默认的“bridge”网络映射到内核中称为“**docker0**”的基础*Linux 桥接*。我们可以从`docker network inspect`的输出中看到这一点。
 
-```
-$ docker network inspect bridge `|` grep bridge.name
-`"com.docker.network.bridge.name"`: `"docker0"`, 
-```
+[PRE3]
 
 Docker 默认“bridge”网络与 Linux 内核中的“docker0”桥接之间的关系如图 11.7 所示。
 
@@ -231,24 +186,13 @@ Docker 默认“bridge”网络与 Linux 内核中的“docker0”桥接之间�
 
 让我们使用`docker network create`命令创建一个名为“localnet”的新单主机桥接网络。
 
-```
-//Linux
-$ docker network create -d bridge localnet
-
-//Windows
-> docker network create -d nat localnet 
-```
+[PRE4]
 
 新网络已创建，并将出现在任何未来的`docker network ls`命令的输出中。如果您使用的是 Linux，还将在内核中创建一个新的*Linux 桥接*。
 
 让我们使用 Linux 的`brctl`工具来查看系统上当前的 Linux 桥接。您可能需要手动安装`brctl`二进制文件，使用`apt-get install bridge-utils`，或者您的 Linux 发行版的等效命令。
 
-```
-$ brctl show
-bridge name       bridge id             STP enabled    interfaces
-docker0           `8000`.0242aff9eb4f     no
-br-20c2e8ae4bbb   `8000`.02429636237c     no 
-```
+[PRE5]
 
 输出显示了两个桥接。第一行是我们已经知道的“docker0”桥接。这与 Docker 中的默认“bridge”网络相关。第二个桥接（br-20c2e8ae4bbb）与新的`localnet` Docker 桥接网络相关。它们都没有启用生成树，并且都没有任何设备连接（`interfaces`列）。
 
@@ -260,37 +204,17 @@ br-20c2e8ae4bbb   `8000`.02429636237c     no
 
 让我们创建一个新的容器，并将其连接到新的`localnet`桥接网络。如果您在 Windows 上跟随操作，应该将“`alpine sleep 1d`”替换为“`microsoft/powershell:nanoserver pwsh.exe -Command Start-Sleep 86400`”。
 
-```
-$ docker container run -d --name c1 `\`
-  --network localnet `\`
-  alpine sleep 1d 
-```
+[PRE6]
 
 这个容器现在将位于`localnet`网络上。您可以通过`docker network inspect`来确认。
 
-```
-$ docker network inspect localnet --format `'{{json .Containers}}'`
-`{`
-  `"4edcbd...842c3aa"`: `{`
-    `"Name"`: `"c1"`,
-    `"EndpointID"`: `"43a13b...3219b8c13"`,
-    `"MacAddress"`: `"02:42:ac:14:00:02"`,
-    `"IPv4Address"`: `"172.20.0.2/16"`,
-    `"IPv6Address"`: `""`
-    `}`
-`}`, 
-```
+[PRE7]
 
 输出显示新的“c1”容器位于`localnet`桥接/网络地址转换网络上。
 
 如果我们再次运行 Linux 的`brctl show`命令，我们将看到 c1 的接口连接到`br-20c2e8ae4bbb`桥接上。
 
-```
-$ brctl show
-bridge name       bridge id           STP enabled     interfaces
-br-20c2e8ae4bbb   `8000`.02429636237c   no              vethe792ac0
-docker0           `8000`.0242aff9eb4f   no 
-```
+[PRE8]
 
 这在图 11.10 中显示。
 
@@ -306,44 +230,19 @@ docker0           `8000`.0242aff9eb4f   no
 
 1.  创建一个名为“c2”的新交互式容器，并将其放在与“c1”相同的`localnet`网络中。
 
-```
- //Linux
- $ docker container run -it --name c2 \
-   --network localnet \
-   alpine sh
-
- //Windows
- > docker container run -it --name c2 `
-   --network localnet `
-   microsoft/powershell:nanoserver 
-```
+[PRE9]
 
 您的终端将切换到“c2”容器中。
 
 *从“c2”容器内部，通过名称 ping“c1”容器。
 
-```
- > ping c1
- Pinging c1 [172.26.137.130] with 32 bytes of data:
- Reply from 172.26.137.130: bytes=32 time=1ms TTL=128
- Reply from 172.26.137.130: bytes=32 time=1ms TTL=128
- Control-C 
-```
+[PRE10]
 
 成功了！这是因为 c2 容器正在运行一个本地 DNS 解析器，它会将请求转发到内部 Docker DNS 服务器。该 DNS 服务器维护了所有使用`--name`或`--net-alias`标志启动的容器的映射。`
 
 尝试在仍然登录到容器的情况下运行一些与网络相关的命令。这是了解 Docker 容器网络工作原理的好方法。以下片段显示了先前在“c2”Windows 容器内运行的`ipconfig`命令。您可以将此 IP 地址与`docker network inspect nat`输出中显示的 IP 地址进行匹配。
 
-```
-> ipconfig
-Windows IP Configuration
-Ethernet adapter Ethernet:
-   Connection-specific DNS Suffix  . :
-   Link-local IPv6 Address . . . . . : fe80::14d1:10c8:f3dc:2eb3%4
-   IPv4 Address. . . . . . . . . . . : 172.26.135.0
-   Subnet Mask . . . . . . . . . . . : 255.255.240.0
-   Default Gateway . . . . . . . . . : 172.26.128.1 
-```
+[PRE11]
 
 到目前为止，我们已经说过桥接网络上的容器只能与同一网络上的其他容器通信。但是，您可以使用*端口映射*来解决这个问题。
 
@@ -359,19 +258,11 @@ Ethernet adapter Ethernet:
 
 1.  运行一个新的 Web 服务器容器，并将容器上的端口 80 映射到 Docker 主机上的端口 5000。
 
-```
- $ docker container run -d --name web \
-   --network localnet \
-   --publish 5000:80 \
-   nginx 
-```
+[PRE12]
 
 *验证端口映射。
 
-```
- $ docker port web
- 80/tcp -> 0.0.0.0:5000 
-```
+[PRE13]
 
 这表明容器中的端口 80 被映射到 Docker 主机上所有接口的端口 5000。*通过将 Web 浏览器指向 Docker 主机上的端口 5000 来测试配置。要完成此步骤，您需要知道 Docker 主机的 IP 或 DNS 名称。如果您使用的是 Windows 版 Docker 或 Mac 版 Docker，您可以使用`localhost`或`127.0.0.1`。![图 11.12](img/figure11-12.png)
 
@@ -431,14 +322,7 @@ Docker 提供了一个用于叠加网络的本地驱动程序。这使得创建�
 
 以下命令将创建一个名为“macvlan100”的新 MACVLAN 网络，将容器连接到 VLAN 100。
 
-```
-$ docker network create -d macvlan `\`
-  --subnet`=``10`.0.0.0/24 `\`
-  --ip-range`=``10`.0.00/25 `\`
-  --gateway`=``10`.0.0.1 `\`
-  -o `parent``=`eth0.100 `\`
-  macvlan100 
-```
+[PRE14]
 
 `这将创建“macvlan100”网络和 eth0.100 子接口。配置现在看起来像这样。
 
@@ -452,11 +336,7 @@ MACVLAN 使用标准的 Linux 子接口，并且您必须使用 VLAN 的 ID 对�
 
 `macvlan100`网络已准备好用于容器，让我们使用以下命令部署一个。
 
-```
-$ docker container run -d --name mactainer1 `\`
-  --network macvlan100 `\`
-  alpine sleep 1d 
-```
+[PRE15]
 
 `配置现在看起来像图 11.17。但请记住，底层网络（VLAN 100）看不到任何 MACVLAN 的魔法，它只看到具有 MAC 和 IP 地址的容器。考虑到这一点，“mactainer1”容器将能够 ping 并与 VLAN 100 上的任何其他系统通信。非常棒！
 
@@ -504,14 +384,7 @@ $ docker container run -d --name mactainer1 `\`
 
 `daemon.json`的以下片段启用了调试并将级别设置为`debug`。它适用于所有 Docker 平台。
 
-```
-{
-  <Snip>
-  "debug":true,
-  "log-level":"debug",
-  <Snip>
-} 
-```
+[PRE16]
 
 更改文件后，请务必重新启动 Docker。
 
@@ -537,11 +410,7 @@ $ docker container run -d --name mactainer1 `\`
 
 以下来自`daemon.json`的片段显示了配置为使用`syslog`的 Docker 主机。
 
-```
-{
-  "log-driver": "syslog"
-} 
-```
+[PRE17]
 
 `您可以使用`--log-driver`和`--log-opts`标志配置单个容器或服务以使用特定的日志驱动程序。这将覆盖`daemon.json`中设置的任何内容。
 
@@ -551,19 +420,7 @@ $ docker container run -d --name mactainer1 `\`
 
 以下是针对名为“vantage-db”的容器运行`docker logs`命令的示例，该容器配置为使用`json-file`日志驱动程序。
 
-```
-$ docker logs vantage-db
-`1`:C `2` Feb `09`:53:22.903 `# oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo`
-`1`:C `2` Feb `09`:53:22.904 `# Redis version=4.0.6, bits=64, commit=00000000, modi\`
-`fied``=``0`, `pid``=``1`
-`1`:C `2` Feb `09`:53:22.904 `# Warning: no config file specified, using the defaul\`
-t config.
-`1`:M `2` Feb `09`:53:22.906 * Running `mode``=`standalone, `port``=``6379`.
-`1`:M `2` Feb `09`:53:22.906 `# WARNING: The TCP backlog setting of 511 cannot be e\`
-nforced because...
-`1`:M `2` Feb `09`:53:22.906 `# Server initialized`
-`1`:M `2` Feb `09`:53:22.906 `# WARNING overcommit_memory is set to 0!` 
-```
+[PRE18]
 
 “您很有可能会在守护程序日志或容器日志中发现网络连接错误报告。
 
@@ -603,12 +460,7 @@ nforced because...
 
 以下示例将启动一个新的独立容器，并将臭名昭著的`8.8.8.8` Google DNS 服务器添加到未经验证的查询中附加的搜索域`dockercerts.com`。
 
-```
-$ docker container run -it --name c1 `\`
-  --dns`=``8`.8.8.8 `\`
-  --dns-search`=`dockercerts.com `\`
-  alpine sh 
-```
+[PRE19]
 
 `#### 入口负载平衡
 
@@ -626,11 +478,7 @@ Swarm 支持两种发布模式，使服务可以从集群外部访问：
 
 入口模式是默认模式。这意味着每当您使用`-p`或`--publish`发布服务时，它将默认为*入口模式*。要在*主机模式*下发布服务，您需要使用`--publish`标志的长格式**并且**添加`mode=host`。让我们看一个使用*主机模式*的例子。
 
-```
-$ docker service create -d --name svc1 `\`
-  --publish `published``=``5000`,target`=``80`,mode`=`host `\`
-  nginx 
-```
+[PRE20]
 
 `关于命令的一些说明。`docker service create`允许您使用*长格式语法*或*短格式语法*发布服务。短格式如下：`-p 5000:80`，我们已经看过几次了。但是，您不能使用短格式发布*主机模式*的服务。
 

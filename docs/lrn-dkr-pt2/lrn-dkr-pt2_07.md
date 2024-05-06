@@ -24,98 +24,49 @@
 
 1.  创建一个非常简单的`Dockerfile`，其中包含基础镜像（`ubuntu:14.04`）和数据卷（`/MountPointDemo`）的指令：
 
-```
-FROM ubuntu:14.04
-VOLUME /MountPointDemo
-```
+[PRE0]
 
 1.  使用`docker build`子命令构建名称为`mount-point-demo`的镜像：
 
-```
-**$ sudo docker build -t mount-point-demo .**
-
-```
+[PRE1]
 
 1.  构建完镜像后，让我们使用`docker inspect`子命令快速检查我们的数据卷：
 
-```
-**$ sudo docker inspect mount-point-demo**
-**[{**
- **"Architecture": "amd64",**
-**... TRUNCATED OUTPUT ...** 
- **"Volumes": {**
- **"/MountPointDemo": {}**
- **},**
-**... TRUNCATED OUTPUT ...**
-
-```
+[PRE2]
 
 显然，在前面的输出中，数据卷是直接刻录在镜像中的。
 
 1.  现在，让我们使用先前创建的镜像启动一个交互式容器，如下命令所示：
 
-```
-**$ sudo docker run --rm -it mount-point-demo**
-
-```
+[PRE3]
 
 从容器的提示符中，使用`ls -ld`命令检查数据卷的存在：
 
-```
-**root@8d22f73b5b46:/# ls -ld /MountPointDemo**
-**drwxr-xr-x 2 root root 4096 Nov 18 19:22 /MountPointDemo**
-
-```
+[PRE4]
 
 如前所述，数据卷是 Docker 主机文件系统的一部分，并且会被挂载，如下命令所示：
 
-```
-**root@8d22f73b5b46:/# mount**
-**... TRUNCATED OUTPUT ...**
-**/dev/disk/by-uuid/721cedbd-57b1-4bbd-9488-ec3930862cf5 on /MountPointDemo type ext3 (rw,noatime,nobarrier,errors=remount-ro,data=ordered)**
-**... TRUNCATED OUTPUT ...**
-
-```
+[PRE5]
 
 1.  在本节中，我们检查了镜像，以了解镜像中的数据卷声明。现在我们已经启动了容器，让我们在另一个终端中使用`docker inspect`子命令和容器 ID 作为参数来检查容器的数据卷。我们之前创建了一些容器，为此，让我们直接从容器的提示符中获取容器 ID`8d22f73b5b46`：
 
-```
-**$ sudo docker inspect 8d22f73b5b46**
-**... TRUNCATED OUTPUT ...**
- **"Volumes": {**
- **"/MountPointDemo": "/var/lib/docker/vfs/dir/737e0355c5d81c96a99d41d1b9f540c2a212000661633ceea46f2c298a45f128"**
- **},**
- **"VolumesRW": {**
- **"/MountPointDemo": true**
- **}**
-**}**
-
-```
+[PRE6]
 
 显然，在这里，数据卷被映射到 Docker 主机中的一个目录，并且该目录以读写模式挂载。这个目录是由 Docker 引擎在容器启动时自动创建的。
 
 到目前为止，我们已经看到了`Dockerfile`中`VOLUME`指令的含义，以及 Docker 如何管理数据卷。像`Dockerfile`中的`VOLUME`指令一样，我们可以使用`docker run`子命令的`-v <容器挂载点路径>`选项，如下面的命令所示：
 
-```
-**$ sudo docker run –v /MountPointDemo -it ubuntu:14.04**
-
-```
+[PRE7]
 
 启动容器后，我们鼓励您尝试在新启动的容器中使用`ls -ld /MountPointDemo`和`mount`命令，然后也像前面的步骤 5 中所示那样检查容器。
 
 在这里描述的两种情况中，Docker 引擎会自动在`/var/lib/docker/vfs/`目录下创建目录，并将其挂载到容器中。当使用`docker rm`子命令删除容器时，Docker 引擎不会删除在容器启动时自动创建的目录。这种行为本质上是为了保留存储在目录中的容器应用程序的状态。如果您想删除 Docker 引擎自动创建的目录，可以在删除容器时使用`docker rm`子命令提供`-v`选项来执行，前提是容器已经停止：
 
-```
-**$ sudo docker rm -v 8d22f73b5b46**
-
-```
+[PRE8]
 
 如果容器仍在运行，则可以通过在上一个命令中添加`-f`选项来删除容器以及自动生成的目录：
 
-```
-**$ sudo docker rm -fv 8d22f73b5b46**
-
-```
+[PRE9]
 
 我们已经介绍了在 Docker 主机中自动生成目录并将其挂载到容器数据卷的技术和提示。然而，使用`docker run`子命令的`-v`选项可以将用户定义的目录挂载到数据卷。在这种情况下，Docker 引擎不会自动生成任何目录。
 
@@ -141,11 +92,7 @@ VOLUME /MountPointDemo
 
 1.  首先，让我们使用`docker run`子命令的`-v`选项启动一个交互式容器，将 Docker 主机目录`/tmp/hostdir`挂载到容器的`/MountPoint`：
 
-```
-**$ sudo docker run -v /tmp/hostdir:/MountPoint \**
- **-it ubuntu:14.04**
-
-```
+[PRE10]
 
 ### 注意
 
@@ -153,56 +100,25 @@ VOLUME /MountPointDemo
 
 1.  成功启动容器后，我们可以使用`ls`命令检查`/MountPoint`的存在：
 
-```
-**root@4a018d99c133:/# ls -ld /MountPoint**
-**drwxr-xr-x 2 root root 4096 Nov 23 18:28 /MountPoint**
-
-```
+[PRE11]
 
 1.  现在，我们可以继续使用`mount`命令检查挂载细节：
 
-```
-**root@4a018d99c133:/# mount**
-**... TRUNCATED OUTPUT ...**
-**/dev/disk/by-uuid/721cedbd-57b1-4bbd-9488-ec3930862cf5 on /MountPoint type ext3 (rw,noatime,nobarrier,errors=remount-ro,data=ordered)**
-**... TRUNCATED OUTPUT ...**
-
-```
+[PRE12]
 
 1.  在这里，我们将验证`/MountPoint`，使用`cd`命令切换到`/MountPoint`目录，使用`touch`命令创建一些文件，并使用`ls`命令列出文件，如下脚本所示：
 
-```
-**root@4a018d99c133:/# cd /MountPoint/**
-**root@4a018d99c133:/MountPoint# touch {a,b,c}**
-**root@4a018d99c133:/MountPoint# ls -l**
-**total 0**
-**-rw-r--r-- 1 root root 0 Nov 23 18:39 a**
-**-rw-r--r-- 1 root root 0 Nov 23 18:39 b**
-**-rw-r--r-- 1 root root 0 Nov 23 18:39 c**
-
-```
+[PRE13]
 
 1.  可能值得努力使用新终端上的`ls`命令验证`/tmp/hostdir` Docker 主机目录中的文件，因为我们的容器正在现有终端上以交互模式运行：
 
-```
-**$ sudo  ls -l /tmp/hostdir/**
-**total 0**
-**-rw-r--r-- 1 root root 0 Nov 23 12:39 a**
-**-rw-r--r-- 1 root root 0 Nov 23 12:39 b**
-**-rw-r--r-- 1 root root 0 Nov 23 12:39 c**
-
-```
+[PRE14]
 
 在这里，我们可以看到与第 4 步中相同的一组文件。但是，您可能已经注意到文件的时间戳有所不同。这种时间差异是由于 Docker 主机和容器之间的时区差异造成的。
 
 1.  最后，让我们运行`docker inspect`子命令，以容器 ID`4a018d99c133`作为参数，查看 Docker 主机和容器挂载点之间是否设置了目录映射，如下命令所示：
 
-```
-**$ sudo docker inspect \**
- **--format={{.Volumes}} 4a018d99c133**
-**map[/MountPoint:/tmp/hostdir]**
-
-```
+[PRE15]
 
 显然，在`docker inspect`子命令的先前输出中，Docker 主机的`/tmp/hostdir`目录被挂载到容器的`/MountPoint`挂载点上。
 
@@ -210,61 +126,31 @@ VOLUME /MountPointDemo
 
 1.  为了将文件从 Docker 主机挂载到容器中，文件必须在 Docker 主机上预先存在。否则，Docker 引擎将创建一个具有指定名称的新目录，并将其挂载为目录。我们可以通过使用`touch`命令在 Docker 主机上创建一个文件来开始：
 
-```
-**$ touch /tmp/hostfile.txt**
-
-```
+[PRE16]
 
 1.  使用`docker run`子命令的`-v`选项启动交互式容器，将`/tmp/hostfile.txt` Docker 主机文件挂载到容器上，作为`/tmp/mntfile.txt`：
 
-```
-**$ sudo docker run -v /tmp/hostfile.txt:/mountedfile.txt \**
- **-it ubuntu:14.04**
-
-```
+[PRE17]
 
 1.  成功启动容器后，现在让我们使用`ls`命令检查`/mountedfile.txt`的存在：
 
-```
-**root@d23a15527eeb:/# ls -l /mountedfile.txt**
-**-rw-rw-r-- 1 1000 1000 0 Nov 23 19:33 /mountedfile.txt**
-
-```
+[PRE18]
 
 1.  然后，继续使用`mount`命令检查挂载细节：
 
-```
-**root@d23a15527eeb:/# mount**
-**... TRUNCATED OUTPUT ...**
-**/dev/disk/by-uuid/721cedbd-57b1-4bbd-9488-ec3930862cf5 on /mountedfile.txt type ext3 (rw,noatime,nobarrier,errors=remount-ro,data=ordered)**
-**... TRUNCATED OUTPUT ...**
-
-```
+[PRE19]
 
 1.  然后，使用`echo`命令更新`/mountedfile.txt`中的一些文本：
 
-```
-**root@d23a15527eeb:/# echo "Writing from Container" \**
- **> mountedfile.txt**
-
-```
+[PRE20]
 
 1.  同时，在 Docker 主机中切换到另一个终端，并使用`cat`命令打印`/tmp/hostfile.txt` Docker 主机文件：
 
-```
-**$ cat /tmp/hostfile.txt**
-**Writing from Container**
-
-```
+[PRE21]
 
 1.  最后，运行`docker inspect`子命令，以容器 ID`d23a15527eeb`作为参数，查看 Docker 主机和容器挂载点之间的文件映射：
 
-```
-**$ sudo docker inspect \**
- **--format={{.Volumes}} d23a15527eeb**
-**map[/mountedfile.txt:/tmp/hostfile.txt]**
-
-```
+[PRE22]
 
 从前面的输出可以看出，来自 Docker 主机的`/tmp/hostfile.txt`文件被挂载为容器内的`/mountedfile.txt`。
 
@@ -278,59 +164,29 @@ VOLUME /MountPointDemo
 
 1.  让我们开始启动一个 Apache2 HTTP 服务容器，将 Docker 主机的`/var/log/myhttpd`目录挂载到容器的`/var/log/apache2`目录，使用`docker run`子命令的`-v`选项。在这个例子中，我们正在利用我们在上一章中构建的`apache2`镜像，通过调用以下命令：
 
-```
-**$ sudo docker run -d -p 80:80 \**
- **-v /var/log/myhttpd:/var/log/apache2 apache2**
-**9c2f0c0b126f21887efaa35a1432ba7092b69e0c6d523ffd50684e27eeab37ac**
-
-```
+[PRE23]
 
 如果你还记得第六章中的`Dockerfile`，*在容器中运行服务*，`APACHE_LOG_DIR`环境变量被设置为`/var/log/apache2`目录，使用`ENV`指令。这将使 Apache2 HTTP 服务将所有日志消息路由到`/var/log/apache2`数据卷。
 
 1.  容器启动后，我们可以在 Docker 主机上切换到`/var/log/myhttpd`目录：
 
-```
-**$ cd /var/log/myhttpd**
-
-```
+[PRE24]
 
 1.  也许，在这里适当地快速检查`/var/log/myhttpd`目录中存在的文件：
 
-```
-**$ ls -1**
-**access.log**
-**error.log**
-**other_vhosts_access.log**
-
-```
+[PRE25]
 
 在这里，`access.log`包含了 Apache2 HTTP 服务器处理的所有访问请求。`error.log`是一个非常重要的日志文件，我们的 HTTP 服务器在处理任何 HTTP 请求时记录遇到的错误。`other_vhosts_access.log`文件是虚拟主机日志，在我们的情况下始终为空。
 
 1.  我们可以使用`tail`命令和`-f`选项显示`/var/log/myhttpd`目录中所有日志文件的内容：
 
-```
-**$ tail -f *.log**
-**==> access.log <==**
-
-**==> error.log <==**
-**AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 172.17.0.17\. Set the 'ServerName' directive globally to suppress this message**
-**[Thu Nov 20 17:45:35.619648 2014] [mpm_event:notice] [pid 16:tid 140572055459712] AH00489: Apache/2.4.7 (Ubuntu) configured -- resuming normal operations**
-**[Thu Nov 20 17:45:35.619877 2014] [core:notice] [pid 16:tid 140572055459712] AH00094: Command line: '/usr/sbin/apache2 -D FOREGROUND'**
-**==> other_vhosts_access.log <==** 
-
-```
+[PRE26]
 
 `tail -f` 命令将持续运行并显示文件的内容，一旦它们被更新。在这里，`access.log` 和 `other_vhosts_access.log` 都是空的，并且 `error.log` 文件上有一些错误消息。显然，这些错误日志是由容器内运行的 HTTP 服务生成的。然后，这些日志被储存在 Docker 主机目录中，在容器启动时被挂载。
 
 1.  当我们继续运行 `tail –f *` 时，让我们从容器内运行的 Web 浏览器连接到 HTTP 服务，并观察日志文件：
 
-```
-**==> access.log <==**
-**111.111.172.18 - - [20/Nov/2014:17:53:38 +0000] "GET / HTTP/1.1" 200 3594 "-" "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.65 Safari/537.36"**
-**111.111.172.18 - - [20/Nov/2014:17:53:39 +0000] "GET /icons/ubuntu-logo.png HTTP/1.1" 200 3688 "http://111.71.123.110/" "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.65 Safari/537.36"**
-**111.111.172.18 - - [20/Nov/2014:17:54:21 +0000] "GET /favicon.ico HTTP/1.1" 404 504 "-" "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.65 Safari/537.36"**
-
-```
+[PRE27]
 
 HTTP 服务更新 `access.log` 文件，我们可以通过 `docker run` 子命令的 `–v` 选项挂载的主机目录进行操作。
 
@@ -348,12 +204,7 @@ HTTP 服务更新 `access.log` 文件，我们可以通过 `docker run` 子命�
 
 在以下示例中，我们通过配置 `docker run` 子命令的 `–v` 和 `--name` 选项来启动一个数据专用容器，如下所示：
 
-```
-**$ sudo docker run --name datavol \**
- **-v /DataMount \**
- **busybox:latest /bin/true**
-
-```
+[PRE28]
 
 在这里，容器是从`busybox`镜像启动的，该镜像因其较小的占用空间而被广泛使用。在这里，我们选择执行`/bin/true`命令，因为我们不打算对容器进行任何操作。因此，我们使用`--name`选项命名了容器`datavol`，并使用`docker run`子命令的`-v`选项创建了一个新的`/DataMount`数据卷。`/bin/true`命令立即以退出状态`0`退出，这将停止容器并继续停留在停止状态。
 
@@ -365,39 +216,17 @@ Docker 引擎提供了一个巧妙的接口，可以将一个容器的数据卷�
 
 1.  我们首先启动一个交互式 Ubuntu 容器，通过挂载数据专用容器（`datavol`）中的数据卷来进行操作，如前述所述：
 
-```
-**$ sudo docker run –it \**
- **--volumes-from datavol \**
- **ubuntu:latest /bin/bash**
-
-```
+[PRE29]
 
 1.  现在从容器的提示符中，让我们使用`mount`命令验证数据卷挂载：
 
-```
-**root@e09979cacec8:/# mount**
-**. . . TRUNCATED OUTPUT . . .** 
-**/dev/disk/by-uuid/32a56fe0-7053-4901-ae7e-24afe5942e91 on /DataMount type ext3 (rw,noatime,nobarrier,errors=remount-ro,data=ordered)**
-**. . . TRUNCATED OUTPUT . . .** 
-
-```
+[PRE30]
 
 在这里，我们成功地从`datavol`数据专用容器中挂载了数据卷。
 
 1.  接下来，我们需要使用`docker inspect`子命令从另一个终端检查该容器的数据卷：
 
-```
-**$ sudo docker inspect  e09979cacec8**
-**. . . TRUNCATED OUTPUT . . .**
- **"Volumes": {**
- **"/DataMount": "/var/lib/docker/vfs/dir/62f5a3314999e5aaf485fc692ae07b3cbfacbca9815d8071f519c1a836c0f01e"**
-**},**
- **"VolumesRW": {**
- **"/DataMount": true**
- **}**
-**}**
-
-```
+[PRE31]
 
 显然，来自`datavol`数据专用容器的数据卷被挂载，就好像它们直接挂载到了这个容器上一样。
 
@@ -405,40 +234,21 @@ Docker 引擎提供了一个巧妙的接口，可以将一个容器的数据卷�
 
 1.  让我们重用在上一个示例中启动的容器，并通过向数据卷`/DataMount`写入一些文本来创建一个`/DataMount/testfile`文件，如下所示：
 
-```
-**root@e09979cacec8:/# echo \**
- **"Data Sharing between Container" > \**
- **/DataMount/testfile** 
-
-```
+[PRE32]
 
 1.  只需将一个容器分离出来，以显示我们在上一步中编写的文本，使用`cat`命令：
 
-```
-**$ sudo docker run --rm \**
- **--volumes-from datavol \**
- **busybox:latest cat /DataMount/testfile**
-
-```
+[PRE33]
 
 以下是前述命令的典型输出：
 
-```
-**Data Sharing between Container**
-
-```
+[PRE34]
 
 显然，我们新容器化的`cat`命令的前面输出`容器之间的数据共享`是我们在步骤 1 中写入`/DataMount/testfile`的`datavol`容器中的文本。
 
 很酷，不是吗？您可以通过共享数据卷在容器之间无缝共享数据。在这个例子中，我们使用数据专用容器作为数据共享的基础容器。然而，Docker 允许我们共享任何类型的数据卷，并且可以依次挂载数据卷，如下所示：
 
-```
-**$ sudo docker run --name vol1 --volumes-from datavol \**
- **busybox:latest /bin/true**
-**$ sudo docker run --name vol2 --volumes-from vol1 \**
- **busybox:latest /bin/true**
-
-```
+[PRE35]
 
 在这里，在`vol1`容器中，我们可以挂载来自`datavol`容器的数据卷。然后，在`vol2`容器中，我们挂载了来自`vol1`容器的数据卷，这些数据卷最初来自`datavol`容器。
 
@@ -460,91 +270,39 @@ Docker 引擎提供了一个巧妙的接口，可以将一个容器的数据卷�
 
 1.  在这里，我们首先使用`VOLUME`指令使用`/var/log/apache2`数据卷来制作`Dockerfile`。`/var/log/apache2`数据卷是对`Dockerfile`中第六章中设置的环境变量`APACHE_LOG_DIR`的直接映射，使用`ENV`指令：
 
-```
-#######################################################
-# Dockerfile to build a LOG Volume for Apache2 Service
-#######################################################
-# Base image is BusyBox
-FROM busybox:latest
-# Author: Dr. Peter
-MAINTAINER Dr. Peter <peterindia@gmail.com>
-# Create a data volume at /var/log/apache2, which is
-# same as the log directory PATH set for the apache image
-VOLUME /var/log/apache2
-# Execute command true
-CMD ["/bin/true"]
-```
+[PRE36]
 
 由于这个`Dockerfile`是用来启动数据仅容器的，所以默认的执行命令被设置为`/bin/true`。
 
 1.  我们将继续使用`docker build`从上述`Dockerfile`构建一个名为`apache2log`的 Docker 镜像，如下所示：
 
-```
-**$ sudo docker build -t apache2log .**
-**Sending build context to Docker daemon  2.56 kB**
-**Sending build context to Docker daemon**
-**Step 0 : FROM busybox:latest**
-**... TRUNCATED OUTPUT ...**
-
-```
+[PRE37]
 
 1.  使用`docker run`子命令从`apache2log`镜像启动一个仅数据的容器，并将生成的容器命名为`log_vol`，使用`--name`选项：
 
-```
-**$ sudo docker run --name log_vol apache2log**
-
-```
+[PRE38]
 
 根据上述命令，容器将在`/var/log/apache2`中创建一个数据卷并将其移至停止状态。
 
 1.  与此同时，您可以使用`-a`选项运行`docker ps`子命令来验证容器的状态：
 
-```
-**$ sudo docker ps -a**
-**CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS                      PORTS                NAMES**
-**40332e5fa0ae        apache2log:latest   "/bin/true"            2 minutes ago      Exited (0) 2 minutes ago                        log_vol**
-
-```
+[PRE39]
 
 根据输出，容器以退出值`0`退出。
 
 1.  使用`docker run`子命令启动 Apache2 HTTP 服务。在这里，我们重用了我们在第六章中制作的`apache2`镜像，*在容器中运行服务*。在这个容器中，我们将使用`--volumes-from`选项从我们在第 3 步中启动的数据仅容器`log_vol`挂载`/var/log/apache2`数据卷：
 
-```
-**$ sudo docker run -d -p 80:80 \**
- **--volumes-from log_vol \**
- **apache2**
-**7dfbf87e341c320a12c1baae14bff2840e64afcd082dda3094e7cb0a0023cf42**
-
-```
+[PRE40]
 
 成功启动了从`log_vol`挂载的`/var/log/apache2`数据卷的 Apache2 HTTP 服务后，我们可以使用临时容器访问日志文件。
 
 1.  在这里，我们使用临时容器列出了 Apache2 HTTP 服务存储的文件。这个临时容器是通过从`log_vol`挂载`/var/log/apache2`数据卷而产生的，并且使用`ls`命令列出了`/var/log/apache2`中的文件。此外，`docker run`子命令的`--rm`选项用于在执行完`ls`命令后删除容器：
 
-```
-**$  sudo docker run --rm \**
- **--volumes-from log_vol**
- **busybox:latest ls -l /var/log/apache2**
-**total 4**
-**-rw-r--r--    1 root     root             0 Dec  5 15:27 access.log**
-**-rw-r--r--    1 root     root           461 Dec  5 15:27 error.log**
-**-rw-r--r--    1 root     root             0 Dec  5 15:27 other_vhosts_access.log**
-
-```
+[PRE41]
 
 1.  最后，通过使用`tail`命令访问 Apache2 HTTP 服务生成的错误日志，如下命令所示：
 
-```
-**$ sudo docker run  --rm  \**
- **--volumes-from log_vol \**
- **ubuntu:14.04 \**
- **tail /var/log/apache2/error.log**
-**AH00558: apache2: Could not reliably determine the server's fully qualified domain name, using 172.17.0.24\. Set the 'ServerName' directive globally to suppress this message**
-**[Fri Dec 05 17:28:12.358034 2014] [mpm_event:notice] [pid 18:tid 140689145714560] AH00489: Apache/2.4.7 (Ubuntu) configured -- resuming normal operations**
-**[Fri Dec 05 17:28:12.358306 2014] [core:notice] [pid 18:tid 140689145714560] AH00094: Command line: '/usr/sbin/apache2 -D FOREGROUND'**
-
-```
+[PRE42]
 
 # 避免常见陷阱
 
@@ -578,49 +336,23 @@ CMD ["/bin/true"]
 
 1.  使用`Ubuntu 14.04`作为基础镜像构建镜像：
 
-```
-# Use Ubuntu as the base image
-FROM ubuntu:14.04
-```
+[PRE43]
 
 1.  使用`VOLUME`指令创建一个`/MountPointDemo`数据卷：
 
-```
-VOLUME /MountPointDemo
-```
+[PRE44]
 
 1.  使用`RUN`指令在`/MountPointDemo`数据卷中创建一个文件：
 
-```
-RUN date > /MountPointDemo/date.txt
-```
+[PRE45]
 
 1.  使用`RUN`指令显示`/MountPointDemo`数据卷中的文件：
 
-```
-RUN cat /MountPointDemo/date.txt
-```
+[PRE46]
 
 继续使用`docker build`子命令从这个`Dockerfile`构建一个镜像，如下所示：
 
-```
-**$ sudo docker build -t testvol .**
-**Sending build context to Docker daemon  2.56 kB**
-**Sending build context to Docker daemon**
-**Step 0 : FROM ubuntu:14.04**
- **---> 9bd07e480c5b**
-**Step 1 : VOLUME /MountPointDemo**
- **---> Using cache**
- **---> e8b1799d4969**
-**Step 2 : RUN date > /MountPointDemo/date.txt**
- **---> Using cache**
- **---> 8267e251a984**
-**Step 3 : RUN cat /MountPointDemo/date.txt**
- **---> Running in a3e40444de2e**
-**cat: /MountPointDemo/date.txt: No such file or directory**
-**2014/12/07 11:32:36 The command [/bin/sh -c cat /MountPointDemo/date.txt] returned a non-zero code: 1**
-
-```
+[PRE47]
 
 在`docker build`子命令的先前输出中，您会注意到构建在第 3 步失败，因为它找不到在第 2 步创建的文件。显然，在第 3 步时创建的文件在第 2 步时消失了。这种不良影响是由 Docker 构建其镜像的方法造成的。了解 Docker 镜像构建过程将揭开这个谜团。
 

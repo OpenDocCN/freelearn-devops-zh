@@ -106,15 +106,7 @@ CIS 指南是一份文件（[`benchmarks.cisecurity.org/tools2/docker/cis_docker
 
 要运行该工具，我们只需将以下内容复制并粘贴到我们的 Docker 主机中：
 
-```
-**$ docker run -it --net host --pid host --cap-add audit_control \**
-**-v /var/lib:/var/lib \**
-**-v /var/run/docker.sock:/var/run/docker.sock \**
-**-v /usr/lib/systemd:/usr/lib/systemd \**
-**-v /etc:/etc --label docker_bench_security \**
-**docker/docker-bench-security**
-
-```
+[PRE0]
 
 如果您还没有该镜像，它将首先下载该镜像，然后为您启动该进程。现在我们已经看到了安装和运行它有多么简单，让我们看一个 Docker 主机上的例子，看看它实际上做了什么。然后我们将查看输出并深入分析它。
 
@@ -122,171 +114,43 @@ CIS 指南是一份文件（[`benchmarks.cisecurity.org/tools2/docker/cis_docker
 
 让我们看一个例子，并分解每个部分，如下命令所示：
 
-```
-**# ------------------------------------------------------------------------------**
-**# Docker Bench for Security v1.0.0**
-**#**
-**# Docker, Inc. (c) 2015**
-**#**
-**# Checks for dozens of common best-practices around deploying Docker containers in production.**
-**# Inspired by the CIS Docker 1.6 Benchmark:**
-**# https://benchmarks.cisecurity.org/tools2/docker/CIS_Docker_1.6_Benchmark_v1.0.0.pdf**
-**# ------------------------------------------------------------------------------**
-
-**Initializing Sun Jan 17 19:18:56 UTC 2016**
-
-```
+[PRE1]
 
 ### 运行工具 - 主机配置
 
 让我们看看主机配置运行时的输出：
 
-```
-**[INFO] 1 - Host configuration**
-**[WARN] 1.1  - Create a separate partition for containers**
-**[PASS] 1.2  - Use an updated Linux Kernel**
-**[PASS] 1.5  - Remove all non-essential services from the host - Network**
-**[PASS] 1.6  - Keep Docker up to date**
-**[INFO]       * Using 1.9.1 which is current as of 2015-11-09**
-**[INFO]       * Check with your operating system vendor for support and security maintenance for docker**
-**[INFO] 1.7  - Only allow trusted users to control Docker daemon**
-**[INFO]      * docker:x:100:docker**
-**[WARN] 1.8  - Failed to inspect: auditctl command not found.**
-**[INFO] 1.9  - Audit Docker files and directories - /var/lib/docker**
-**[INFO]      * Directory not found**
-**[WARN] 1.10 - Failed to inspect: auditctl command not found.**
-**[INFO] 1.11 - Audit Docker files and directories - docker-registry.service**
-**[INFO]      * File not found**
-**[INFO] 1.12 - Audit Docker files and directories - docker.service**
-**[INFO]      * File not found**
-**[WARN] 1.13 - Failed to inspect: auditctl command not found.**
-**[INFO] 1.14 - Audit Docker files and directories - /etc/sysconfig/docker**
-**[INFO]      * File not found**
-**[INFO] 1.15 - Audit Docker files and directories - /etc/sysconfig/docker-network**
-**[INFO]      * File not found**
-**[INFO] 1.16 - Audit Docker files and directories - /etc/sysconfig/docker-registry**
-**[INFO]      * File not found**
-**[INFO] 1.17 - Audit Docker files and directories - /etc/sysconfig/docker-storage**
-**[INFO]      * File not found**
-**[INFO] 1.18 - Audit Docker files and directories - /etc/default/docker**
-**[INFO]      * File not found**
-
-```
+[PRE2]
 
 ### 运行工具 - Docker 守护进程配置
 
 让我们看看 Docker 守护进程配置运行时的输出，如下命令所示：
 
-```
-**[INFO] 2 - Docker Daemon Configuration**
-**[PASS] 2.1  - Do not use lxc execution driver**
-**[WARN] 2.2  - Restrict network traffic between containers**
-**[PASS] 2.3  - Set the logging level**
-**[PASS] 2.4  - Allow Docker to make changes to iptables**
-**[PASS] 2.5  - Do not use insecure registries**
-**[INFO] 2.6  - Setup a local registry mirror**
-**[INFO]      * No local registry currently configured**
-**[WARN] 2.7  - Do not use the aufs storage driver**
-**[PASS] 2.8  - Do not bind Docker to another IP/Port or a Unix socket**
-**[INFO] 2.9  - Configure TLS authentication for Docker daemon**
-**[INFO]      * Docker daemon not listening on TCP**
-**[INFO] 2.10 - Set default ulimit as appropriate**
-**[INFO]      * Default ulimit doesn't appear to be set**
-
-```
+[PRE3]
 
 ### 运行工具 - Docker 守护进程配置文件
 
 让我们看看 Docker 守护进程配置文件运行时的输出，如下所示：
 
-```
-**[INFO] 3 - Docker Daemon Configuration Files**
-**[INFO] 3.1  - Verify that docker.service file ownership is set to root:root**
-**[INFO]      * File not found**
-**[INFO] 3.2  - Verify that docker.service file permissions are set to 644**
-**[INFO]      * File not found**
-**[INFO] 3.3  - Verify that docker-registry.service file ownership is set to root:root**
-**[INFO]      * File not found**
-**[INFO] 3.4  - Verify that docker-registry.service file permissions are set to 644**
-**[INFO]      * File not found**
-**[INFO] 3.5  - Verify that docker.socket file ownership is set to root:root**
-**[INFO]      * File not found**
-**[INFO] 3.6  - Verify that docker.socket file permissions are set to 644**
-**[INFO]      * File not found**
-**[INFO] 3.7  - Verify that Docker environment file ownership is set to root:root**
-**[INFO]      * File not found**
-**[INFO] 3.8  - Verify that Docker environment file permissions are set to 644**
-**[INFO]      * File not found**
-**[INFO] 3.9  - Verify that docker-network environment file ownership is set to root:root**
-**[INFO]      * File not found**
-**[INFO] 3.10 - Verify that docker-network environment file permissions are set to 644**
-**[INFO]      * File not found**
-**[INFO] 3.11 - Verify that docker-registry environment file ownership is set to root:root**
-**[INFO]      * File not found**
-**[INFO] 3.12 - Verify that docker-registry environment file permissions are set to 644**
-**[INFO]      * File not found**
-**[INFO] 3.13 - Verify that docker-storage environment file ownership is set to root:root**
-**[INFO]      * File not found**
-**[INFO] 3.14 - Verify that docker-storage environment file permissions are set to 644**
-**[INFO]      * File not found**
-**[PASS] 3.15 - Verify that /etc/docker directory ownership is set to root:root**
-**[PASS] 3.16 - Verify that /etc/docker directory permissions are set to 755**
-**[INFO] 3.17 - Verify that registry certificate file ownership is set to root:root**
-**[INFO]      * Directory not found**
-**[INFO] 3.18 - Verify that registry certificate file permissions are set to 444**
-**[INFO]      * Directory not found**
-**[INFO] 3.19 - Verify that TLS CA certificate file ownership is set to root:root**
-**[INFO]      * No TLS CA certificate found**
-**[INFO] 3.20 - Verify that TLS CA certificate file permissions are set to 444**
-**[INFO]      * No TLS CA certificate found**
-**[INFO] 3.21 - Verify that Docker server certificate file ownership is set to root:root**
-**[INFO]      * No TLS Server certificate found**
-**[INFO] 3.22 - Verify that Docker server certificate file permissions are set to 444**
-**[INFO]      * No TLS Server certificate found**
-**[INFO] 3.23 - Verify that Docker server key file ownership is set to root:root**
-**[INFO]      * No TLS Key found**
-**[INFO] 3.24 - Verify that Docker server key file permissions are set to 400**
-**[INFO]      * No TLS Key found**
-**[PASS] 3.25 - Verify that Docker socket file ownership is set to root:docker**
-**[PASS] 3.26 - Verify that Docker socket file permissions are set to 660**
-
-```
+[PRE4]
 
 ### 运行工具 - 容器镜像和构建文件
 
 让我们看看容器镜像和构建文件运行时的输出，如下命令所示：
 
-```
-**[INFO] 4 - Container Images and Build Files**
-**[INFO] 4.1  - Create a user for the container**
-**[INFO]      * No containers running**
-
-```
+[PRE5]
 
 ### 运行工具 - 容器运行时
 
 让我们看看容器运行时的输出，如下所示：
 
-```
-**[INFO] 5  - Container Runtime**
-**[INFO]      * No containers running, skipping Section 5**
-
-```
+[PRE6]
 
 ### 运行工具 - Docker 安全操作
 
 让我们来看一下 Docker 安全操作运行时的输出，如下命令所示：
 
-```
-**[INFO] 6  - Docker Security Operations**
-**[INFO] 6.5 - Use a centralized and remote log collection service**
-**[INFO]      * No containers running**
-**[INFO] 6.6 - Avoid image sprawl**
-**[INFO]      * There are currently: 23 images**
-**[WARN] 6.7 - Avoid container sprawl**
-**[WARN]      * There are currently a total of 51 containers, with only 1 of them currently running**
-
-```
+[PRE7]
 
 哇！大量的输出和大量的内容需要消化；但这一切意味着什么？让我们来看看并分解每个部分。
 
@@ -320,37 +184,21 @@ CIS 指南是一份文件（[`benchmarks.cisecurity.org/tools2/docker/cis_docker
 
 让我们来看一下主机配置运行时输出：
 
-```
-**[WARN] 1.1 - Create a separate partition for containers**
-
-```
+[PRE8]
 
 对于这一点，您将希望将`/var/lib/docker`映射到一个单独的分区。
 
-```
-**[WARN] 1.8 - Failed to inspect: auditctl command not found.**
-**[WARN] 1.9 - Failed to inspect: auditctl command not found.**
-**[WARN] 1.10 - Failed to inspect: auditctl command not found.**
-**[WARN] 1.13 - Failed to inspect: auditctl command not found.**
-**[WARN] 1.18 - Failed to inspect: auditctl command not found.**
-
-```
+[PRE9]
 
 ### 理解输出 - Docker 守护程序配置
 
 让我们来看一下 Docker 守护程序配置输出：
 
-```
-**[WARN] 2.2 - Restrict network traffic between containers**
-
-```
+[PRE10]
 
 默认情况下，运行在同一 Docker 主机上的所有容器都可以访问彼此的网络流量。要防止这种情况发生，您需要在 Docker 守护程序的启动过程中添加`--icc=false`标志：
 
-```
-**[WARN] 2.7 - Do not use the aufs storage driver**
-
-```
+[PRE11]
 
 同样，您可以在 Docker 守护程序启动过程中添加一个标志，以防止 Docker 使用`aufs`存储驱动程序。在 Docker 守护程序启动时使用`-s <storage_driver>`，您可以告诉 Docker 不要使用`aufs`作为存储。建议您使用适合您所使用的 Docker 主机操作系统的最佳存储驱动程序。
 
@@ -362,11 +210,7 @@ CIS 指南是一份文件（[`benchmarks.cisecurity.org/tools2/docker/cis_docker
 
 让我们来看看容器镜像和构建文件运行时输出的输出：
 
-```
-**[WARN] 4.1 - Create a user for the container**
-**[WARN] * Running as root: suspicious_mccarthy**
-
-```
+[PRE12]
 
 这说明`suspicious_mccarthy`容器正在以 root 用户身份运行，建议创建另一个用户来运行您的容器。
 
@@ -374,82 +218,39 @@ CIS 指南是一份文件（[`benchmarks.cisecurity.org/tools2/docker/cis_docker
 
 让我们来看看容器运行时输出的输出，如下所示：
 
-```
-**[WARN] 5.1: - Verify AppArmor Profile, if applicable**
-**[WARN] * No AppArmorProfile Found: suspicious_mccarthy**
-
-```
+[PRE13]
 
 这说明`suspicious_mccarthy`容器没有`AppArmorProfile`，这是 Ubuntu 中提供的额外安全性。
 
-```
-**[WARN] 5.3 - Verify that containers are running only a single main process**
-**[WARN] * Too many processes running: suspicious_mccarthy**
-
-```
+[PRE14]
 
 这个错误非常直接。您需要确保每个容器只运行一个进程。如果运行多个进程，您需要将它们分布在多个容器中，并使用容器链接，如下命令所示：
 
-```
-**[WARN] 5.4 - Restrict Linux Kernel Capabilities within containers**
-**[WARN] * Capabilities added: CapAdd=[audit_control] to suspicious_mccarthy**
-
-```
+[PRE15]
 
 这说明`audit_control`功能已添加到此运行的容器中。您可以使用`--cap-drop={}`从您的`docker run`命令中删除容器的额外功能，如下所示：
 
-```
-**[WARN] 5.6 - Do not mount sensitive host system directories on containers**
-**[WARN] * Sensitive directory /etc mounted in: suspicious_mccarthy**
-**[WARN] * Sensitive directory /lib mounted in: suspicious_mccarthy**
-**[WARN] 5.7 - Do not run ssh within containers**
-**[WARN] * Container running sshd: suspicious_mccarthy**
-
-```
+[PRE16]
 
 这很直接。不需要在容器内运行 SSH。您可以使用 Docker 提供的工具来对容器进行所有操作。确保任何容器中都没有运行 SSH。您可以使用`docker exec`命令来执行对容器的操作（更多信息请参见：[`docs.docker.com/engine/reference/commandline/exec/`](https://docs.docker.com/engine/reference/commandline/exec/)），如下命令所示：
 
-```
-**[WARN] 5.10 - Do not use host network mode on container**
-**[WARN] * Container running with networking mode 'host':**
-**suspicious_mccarthy**
-
-```
+[PRE17]
 
 这个问题在于，当容器启动时，传递了`--net=host`开关。不建议使用这个开关，因为它允许容器修改网络配置，并打开低端口号，以及访问 Docker 主机上的网络服务，如下所示：
 
-```
-**[WARN] 5.11 - Limit memory usage for the container**
-**[WARN] * Container running without memory restrictions:**
-**suspicious_mccarthy**
-
-```
+[PRE18]
 
 默认情况下，容器没有内存限制。如果在 Docker 主机上运行多个容器，这可能很危险。您可以在发出`docker run`命令时使用`-m`开关来限制容器的内存使用量。值以兆字节为单位（即 512 MB 或 1024 MB），如下命令所示：
 
-```
-**[WARN] 5.12 - Set container CPU priority appropriately**
-**[WARN] * The container running without CPU restrictions:**
-**suspicious_mccarthy**
-
-```
+[PRE19]
 
 与内存选项一样，您还可以在每个容器上设置 CPU 优先级。这可以在发出`docker run`命令时使用`--cpu-shares`开关来完成。CPU 份额基于数字 1,024。因此，一半将是 512，25%将是 256。使用 1,024 作为基本数字来确定 CPU 份额，如下所示：
 
-```
-**[WARN] 5.13 - Mount container's root filesystem as readonly**
-**[WARN] * Container running with root FS mounted R/W:**
-**suspicious_mccarthy**
-
-```
+[PRE20]
 
 您确实希望将容器用作不可变环境，这意味着它们不会在内部写入任何数据。数据应该写入卷。同样，您可以使用`--read-only`开关，如下所示：
 
-```
-**[WARN] 5.16 - Do not share the host's process namespace**
-**[WARN] * Host PID namespace being shared with: suspicious_mccarthy**
-
-```
+[PRE21]
 
 当您使用`--pid=host`开关时会出现此错误。不建议使用此开关，因为它会破坏容器和 Docker 主机之间的进程隔离。
 

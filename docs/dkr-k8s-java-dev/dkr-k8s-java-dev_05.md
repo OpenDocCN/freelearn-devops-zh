@@ -60,10 +60,7 @@ Docker 中的镜像创建流程非常简单，基本上包括两个步骤：
 
 为了我们的目的，让我们选择 `jeanblanchard/java`。这是官方的 Oracle Java 运行在 Alpine Linux 发行版之上。基础镜像小巧且下载速度快。我们的 `FROM` 指令将与此相同：
 
-```
-FROM jeanblanchard/java:8
-
-```
+[PRE0]
 
 如果在您的 Docker 主机上（例如在您的本地计算机上）找不到 `FROM` 镜像，Docker 将尝试从 Docker Hub（或者如果您已经设置了私有仓库，则从私有仓库）中找到并拉取它。`Dockerfile` 中的所有后续指令将使用 `FROM` 中指定的镜像作为基础起点。这就是为什么它是强制性的；一个有效的 `Dockerfile` 必须在顶部有它。
 
@@ -71,10 +68,7 @@ FROM jeanblanchard/java:8
 
 通过使用 `MAINTAINER` 指令，您可以设置生成的镜像的 `Author` 字段。这可以是您的姓名、用户名，或者您希望作为您正在编写的 `Dockerfile` 创建的镜像的作者。这个命令可以放在 `Dockerfile` 的任何位置，但最好的做法是将其放在文件顶部，在 `FROM` 指令之后。这是一个所谓的非执行命令，意味着它不会对生成的镜像进行任何更改。语法非常简单：
 
-```
-MAINTAINER authors_name
-
-```
+[PRE1]
 
 # WORKDIR
 
@@ -84,10 +78,7 @@ MAINTAINER authors_name
 
 `ADD` 的基本作用是将文件从源复制到容器自己的文件系统中的所需目的地。它接受两个参数：源（`<source path or URL>`）和目的地（`<destination path>`）：
 
-```
-ADD <source path or URL> <destination path >
-
-```
+[PRE2]
 
 源可以有两种形式：它可以是文件、目录或 URL 的路径。路径是相对于构建过程将要启动的目录（我们之前提到的构建上下文）的。这意味着您不能将例如 `"../../config.json"` 放置为 `ADD` 指令的源路径参数。
 
@@ -125,19 +116,13 @@ ADD <source path or URL> <destination path >
 
 它与 `ADD` 指令非常相似，甚至语法也没有区别：
 
-```
-COPY <source path or URL> <destination path >
-
-```
+[PRE3]
 
 `COPY` 也适用于 `ADD` 的所有规则：所有源路径必须相对于构建的上下文。再次强调，源路径和目标路径末尾的斜杠的存在很重要：如果存在，路径将被视为文件；否则，它将被视为目录。
 
 当然，就像`ADD`一样，你可以有多个源路径。如果源路径或目标路径包含空格，你需要用方括号括起来：
 
-```
-COPY ["<source path or URL>" "<destination path>"]
-
-```
+[PRE4]
 
 `<destination path>`是一个绝对路径（如果以斜杠开头），或者是相对于`WORKDIR`指令指定的路径的路径。
 
@@ -169,35 +154,15 @@ COPY ["<source path or URL>" "<destination path>"]
 
 考虑以下示例。`RUN`最常见的用例可能是`apt-get`的应用，它是 Ubuntu 上用于下载软件包的包管理器命令。假设我们有以下 Dockerfile，安装 Java 运行时：
 
-```
-FROM ubuntu 
-RUN apt-get update 
-RUN apt-get install -y openjdk-8-jre 
-
-```
+[PRE5]
 
 如果我们从这个`Dockerfile`构建一个镜像，两个`RUN`指令的所有层将被放入层缓存中。但是，过了一会儿，您决定在镜像中加入`node.js`包，所以现在`Dockerfile`看起来和这样一样：
 
-```
-FROM ubuntu 
-RUN apt-get update 
-RUN apt-get install -y openjdk-8-jre 
-RUN apt-get install -y nodejs 
-
-```
+[PRE6]
 
 如果您第二次运行`docker build`，Docker 将通过从缓存中获取它们来重用层。因此，`apt-get update`将不会被执行，因为将使用缓存的版本。实际上，您新创建的镜像可能会有`java`和`node.js`包的过时版本。在创建`RUN`指令时，您应该始终牢记缓存的概念。在我们的例子中，我们应该始终将`RUN apt-get update`与`apt-get install`结合在同一个`RUN`语句中，这将创建一个单独的层；例如：
 
-```
-RUN apt-get update \
-
-&& apt-get install -y openjdk-8-jre \
-
-&& apt-get install -y nodejs \
-
-&& apt-get clean
-
-```
+[PRE7]
 
 比这更好的是，您还可以使用一种称为“版本固定”的技术来避免缓存问题。这只是为要安装的包提供一个具体的版本。
 
@@ -225,21 +190,11 @@ RUN apt-get update \
 
 信不信由你，我们现在可以将我们的 REST 示例微服务容器化。让我们通过在第四章中创建的`pom.xml`文件上执行`mvn clean install`来检查它是否构建成功，*创建 Java 微服务*。构建成功后，我们应该有一个包含`rest-example-0.1.0.jar`文件的`target`目录。`target`目录中的 Spring Boot 应用程序 JAR 是一个可执行的、厚重的 JAR。我们将从 Docker 容器内运行它。让我们编写基本的`Dockerfile`，使用我们已经知道的命令，并将其放在我们项目的根目录（这将是我们`docker build`命令的上下文）：
 
-```
-FROM jeanblanchard/java:8
-
-COPY target/rest-example-0.1.0.jar rest-example-0.1.0.jar
-
-CMD java -jar rest-example-0.1.0.jar
-
-```
+[PRE8]
 
 现在我们可以运行`docker build`命令，使用`rest-example`作为镜像名称，省略标签（你会记得，在构建镜像时省略标签会导致创建`latest`标签）：
 
-```
-$ docker build . -t rest-example
-
-```
+[PRE9]
 
 作为第一个参数的点指定了`docker build`命令的上下文。在我们的情况下，它将只是我们小微服务的根目录。在构建过程中，Docker 将输出所有的步骤和层 ID。请注意，几乎每个`Dockerfile`指令都会创建一个新的层。如果你还记得第一章，*Docker 简介*，Docker 利用了层缓存。如果特定的层可以被重用，它将从缓存中取出。这极大地提高了构建过程的性能。最后，Docker 将输出新创建的镜像的 ID，如下截图所示：
 
@@ -247,10 +202,7 @@ $ docker build . -t rest-example
 
 镜像已经创建，所以应该可以运行。要列出镜像，执行以下 Docker 命令：
 
-```
-$ docker image ls
-
-```
+[PRE10]
 
 如下截图所示，我们的`rest-example`镜像已经准备好可以运行了：
 
@@ -258,10 +210,7 @@ $ docker image ls
 
 到目前为止，一切都很顺利。我们已经构建了我们的镜像的基本形式。虽然运行镜像的过程是第六章的主题，*使用 Java 应用程序运行容器*，让我们现在快速运行它来证明它正在工作。要运行镜像，执行以下命令：
 
-```
-$ docker run -it rest-example
-
-```
+[PRE11]
 
 过一会儿，你应该会看到熟悉的 Spring Boot 横幅，这表明我们的服务是从 Docker 容器内部运行的：
 
@@ -271,26 +220,7 @@ $ docker run -it rest-example
 
 使用 Maven 构建应用程序 jar 存档，然后使用 Dockerfile 的`COPY`指令进行复制就可以了。那么，将构建过程委托给 Docker 守护进程本身呢？嗯，我们可以使用我们已经知道的`Dockerfile`指令来做到这一点。使用 Docker 守护进程构建 Java 应用程序的缺点是镜像将包含所有的 JDK（包括 Java 编译器）、Maven 二进制文件和我们的应用程序源代码。我建议构建一个单一的构件（JAR 或 WAR 文件），进行彻底的测试（使用面向发布的 QA 周期），并将唯一的构件（当然还有它的依赖项）部署到目标机器上。然而，为了了解`Dockerfile`可能实现的功能，让我们看看以下示例，假设我们的应用程序代码在本地磁盘上的`/app`文件夹中：
 
-```
-FROM java:8 
-
-RUN apt-get update
-
-RUN apt-get install -y maven
-
-WORKDIR /app
-
-COPY pom.xml /app/pom.xml
-
-COPY src /app/src
-
-RUN ["mvn", "package"]
-
-CMD ["/usr/lib/jvm/java-8-openjdk-amd64/bin/java", 
-
-"-jar", "target/ rest-example-0.1.0.jar"]
-
-```
+[PRE12]
 
 在前面的例子中，Maven 构建过程将由 Docker 执行。我们只需运行`apt-get`命令来安装 Maven，将我们的应用程序源代码添加到镜像中，执行 Maven 的`package`命令，然后运行我们的服务。它的行为将与我们将已构建的构件复制到镜像文件系统中完全相同。
 
@@ -300,10 +230,7 @@ CMD ["/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
 
 官方的 Docker 文档说`ENTRYPOINT`指令允许您配置一个将作为可执行文件运行的容器。至少在第一次使用时，这并不是很清楚。`ENTRYPOINT`指令与`CMD`指令有关。实际上，起初可能会有些混淆。其原因很简单：`CMD`首先开发，然后为了更多的定制开发了`ENTRYPOINT`，这两个指令之间的一些功能重叠。让我们解释一下。`ENTRYPOINT`指定容器启动时将始终执行的命令。另一方面，`CMD`指定将传递给`ENTRYPOINT`的参数。Docker 有一个默认的`ENTRYPOINT`，即`/bin/sh -c`，但没有默认的`CMD`。例如，考虑这个 Docker 命令：
 
-```
-docker run ubuntu "echo" "hello world"
-
-```
+[PRE13]
 
 在这种情况下，镜像将是最新的`ubuntu`，`ENTRYPOINT`将是默认的`/bin/sh -c`，传递给`ENTRYPOINT`的命令将是`echo "hello world"`。
 
@@ -311,10 +238,7 @@ docker run ubuntu "echo" "hello world"
 
 `ENTRYPOINT ["executable", "parameter1", "parameter2"]`是`exec`形式，首选和推荐。与`CMD`指令的`exec`形式一样，这不会调用命令 shell。这意味着不会发生正常的 shell 处理。例如，`ENTRYPOINT [ "echo", "$HOSTNAME" ]`将不会对`$HOSTNAME`变量进行变量替换。如果您需要 shell 处理，那么您需要使用 shell 形式或直接执行 shell。例如：
 
-```
-ENTRYPOINT [ "sh", "-c", "echo $HOSTNAME" ]
-
-```
+[PRE14]
 
 在 Dockerfile 中使用`ENV`定义的变量（我们稍后会介绍），将被 Dockerfile 解析器替换。
 
@@ -322,39 +246,21 @@ ENTRYPOINT [ "sh", "-c", "echo $HOSTNAME" ]
 
 与`CMD`指令一样，Dockerfile 中的最后一个`ENTRYPOINT`指令才会生效。在 Dockerfile 中覆盖`ENTRYPOINT`允许您在运行容器时有不同的命令处理您的参数。如果您需要更改图像中的默认 shell，可以通过更改`ENTRYPOINT`来实现：
 
-```
-FROM ubuntu 
-
-ENTRYPOINT ["/bin/bash"]
-
-```
+[PRE15]
 
 从现在开始，所有来自`CMD`的参数，或者在使用`docker run`启动容器时提供的参数，将由 Bash shell 处理，而不是默认的`/bin/sh -c`。
 
 考虑这个基于 BusyBox 的简单`Dockerfile`。BusyBox 是一个软件，它在一个可执行文件中提供了几个精简的 Unix 工具。为了演示`ENTRYPOINT`，我们将使用 BusyBox 中的`ping`命令：
 
-```
-FROM busybox 
-
-ENTRYPOINT ["/bin/ping"] 
-
-CMD ["localhost"]
-
-```
+[PRE16]
 
 让我们使用先前的 Dockerfile 构建镜像，执行以下命令：
 
-```
-$ docker build -t ping-example .
-
-```
+[PRE17]
 
 如果现在使用`ping`镜像运行容器，`ENTRYPOINT`指令将处理提供的`CMD`参数：在我们的情况下，默认情况下将是`localhost`。让我们运行它，使用以下命令：
 
-```
-$ docker run ping-example
-
-```
+[PRE18]
 
 因此，您将得到一个`/bin/ping localhost`的命令行响应，如您在以下截图中所见：
 
@@ -366,10 +272,7 @@ $ docker run ping-example
 
 因为命令行参数将被附加到`ENTRYPOINT`参数，我们可以通过传递给`ENTRYPOINT`的不同参数来运行我们的`ping`镜像。让我们尝试一下，通过使用不同的输入来运行我们的 ping 示例：
 
-```
-$ docker run ping-example www.google.com
-
-```
+[PRE19]
 
 这次它的行为会有所不同。提供的参数值`www.google.com`将被附加到`ENTRYPOINT`，而不是 Dockerfile 中提供的默认`CMD`值。将执行的总命令行将是`/bin/ping www.google.com`，如你在下面的截图中所见：
 
@@ -401,23 +304,11 @@ $ docker run ping-example www.google.com
 
 让我们回到我们的`Dockerfile`并暴露一个端口：
 
-```
-FROM jeanblanchard/java:8
-
-COPY target/rest-example-0.1.0.jar rest-example-0.1.0.jar
-
-CMD java -jar rest-example-0.1.0.jar
-
-EXPOSE 8080
-
-```
+[PRE20]
 
 如果你现在使用相同的命令重新构建镜像，`docker build . -t rest-example`，你会注意到 Docker 输出了第四层，表示端口 8080 已经被暴露。暴露的端口将对此 Docker 主机上的其他容器可用，并且如果在运行时映射它们，也对外部世界可用。好吧，让我们尝试一下，使用以下`docker run`命令：
 
-```
-$ docker run -p 8080:8080 -it rest-example
-
-```
+[PRE21]
 
 如果您现在使用`HTTP`请求调用本地主机，比如`POST`（用于保存我们的图书实体）或`GET`（用于获取图书列表或单本图书），就像我们在第四章中所做的那样，*创建 Java 微服务*，使用任何 HTTP 工具，比如 HTTPie 或 Postman，它将像以前一样做出响应。但是，这一次是来自 Docker 容器。现在，这是一件了不起的事情。让我们了解剩下的重要的 Dockerfile 指令。
 
@@ -429,23 +320,13 @@ $ docker run -p 8080:8080 -it rest-example
 
 `VOLUME`的参数可以是 JSON 数组，也可以是一个带有一个或多个参数的普通字符串。例如：
 
-```
-VOLUME ["/var/lib/tomcat8/webapps/"]
-
-VOLUME /var/log/mongodb /var/log/tomcat
-
-```
+[PRE22]
 
 `VOLUME`指令创建一个具有指定名称的挂载点，并将其标记为包含来自本机主机或其他容器的外部挂载卷。
 
 `VOLUME`命令将在容器内部挂载一个目录，并将在该目录内创建或编辑的任何文件存储在容器文件结构之外的主机磁盘上。在`Dockerfile`中使用`VOLUME`让 Docker 知道某个目录包含永久数据。Docker 将为该数据创建一个卷，并且即使删除使用它的所有容器，也不会删除它。它还绕过了联合文件系统，因此该卷实际上是一个实际的目录，它会在所有共享它的容器中（例如，如果它们使用`--volumes-from`选项启动）以正确的方式挂载，无论是读写还是只读。要理解`VOLUME`，让我们看一个简单的 Dockerfile：
 
-```
-FROM ubuntu 
-
-VOLUME /var/myVolume
-
-```
+[PRE23]
 
 如果您现在运行容器并在`/var/myVolume`中保存一些文件，它们将可供其他容器共享。
 
@@ -459,32 +340,15 @@ VOLUME /var/myVolume
 
 `LABEL`指令的语法很简单：
 
-```
-LABEL "key"="value"
-
-```
+[PRE24]
 
 要使用多行值，请使用反斜杠将行分隔开；例如：
 
-```
-LABEL description="This is my \
-
-multiline description of the software."
-
-```
+[PRE25]
 
 您可以在单个镜像中拥有多个标签。用空格或反斜杠分隔它们；例如：
 
-```
-LABEL key1="value1" key2="value2" key3="value3"
-
-LABEL key1="value1" \
-
-key2="value2" \
-
-key3="value3"
-
-```
+[PRE26]
 
 实际上，如果您的镜像中需要有多个标签，建议使用`LABEL`指令的多标签形式，因为这样会在镜像中只产生一个额外的层。
 
@@ -498,37 +362,19 @@ key3="value3"
 
 +   第一个，`ENV <key> <value>` ，将一个单一变量设置为一个值。第一个空格后的整个字符串将被视为 `<value>` 。这将包括任何字符，还有空格和引号。例如：
 
-```
-ENV JAVA_HOME /var/lib/java8
-
-```
+[PRE27]
 
 +   第二个，带有等号的是 `ENV <key>=<value>` 。这种形式允许一次设置多个环境变量。如果需要在值中提供空格，您需要使用引号。如果需要在值中使用引号，使用反斜杠：
 
-```
-ENV CONFIG_TYPE=file CONFIG_LOCATION="home/Jarek/my \app/config.json"
-
-```
+[PRE28]
 
 请注意，您可以使用 `ENV` 更新 `PATH` 环境变量，然后 `CMD` 参数将意识到该设置。这将导致 `Dockerfile` 中 `CMD` 参数的更清晰形式。例如，设置如下：
 
-```
-ENV PATH /var/lib/tomcat8/bin:$PATH
-
-```
+[PRE29]
 
 这将确保 `CMD ["startup.sh"]` 起作用，因为它将在系统 `PATH` 中找到 `startup.sh` 文件。您还可以使用 `ENV` 设置经常修改的版本号，以便更容易处理升级，如下例所示：
 
-```
-ENV TOMCAT_VERSION_MAJOR 8
-
-ENV TOMCAT_VERSION 8.5.4
-
-RUN curl -SL http://apache.uib.no/tomcat/tomcat-$TOMCAT_VERSION_MAJOR/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz | tar zxvf apache-tomcat-$TOMCAT_VERSION.tar.gz -c /usr/Jarek/apache-tomcat-$TOMCAT_VERSION
-
-ENV PATH /usr/Jarek/apache-tomcat-$TOMCAT_VERSION/bin:$PATH
-
-```
+[PRE30]
 
 在上一个示例中，Docker 将下载 `ENV` 变量中指定的 Tomcat 版本，将其提取到具有该版本名称的新目录中，并设置系统 `PATH` 以使其可用于运行。
 
@@ -540,17 +386,11 @@ ENV PATH /usr/Jarek/apache-tomcat-$TOMCAT_VERSION/bin:$PATH
 
 指令的语法只是 `USER <用户名或 UID>` ；例如：
 
-```
-USER tomcat
-
-```
+[PRE31]
 
 如果可执行文件可以在没有特权的情况下运行，可以使用 `USER` 命令。Dockerfile 可以包含与此相同的用户和组创建指令：
 
-```
-RUN groupadd -r tomcat && useradd -r -g tomcat tomcat
-
-```
+[PRE32]
 
 频繁切换用户将增加生成镜像中的层数，并使 Dockerfile 更加复杂。
 
@@ -558,19 +398,11 @@ RUN groupadd -r tomcat && useradd -r -g tomcat tomcat
 
 `ARG` 指令用于在 `docker build` 命令期间向 Docker 守护程序传递参数。`ARG` 变量定义从 `Dockerfile` 中定义的行开始生效。通过使用 `--build-arg` 开关，您可以为已定义的变量分配一个值：
 
-```
-$ docker build --build-arg <variable name>=<value> .
-
-```
+[PRE33]
 
 从`--build-arg`中的值将传递给构建图像的守护程序。您可以使用多个`ARG`指令指定多个参数。如果您指定了未使用`ARG`定义的构建时间参数，构建将失败并显示错误，但可以在`Dockerfile`中指定默认值。您可以通过以下方式指定默认参数值：
 
-```
-FROM ubuntu 
-
-ARG user=jarek
-
-```
+[PRE34]
 
 如果在开始构建之前未指定任何参数，则将使用默认值：
 
@@ -582,36 +414,17 @@ ARG user=jarek
 
 `ONBUILD`指令的语法如下：
 
-```
-ONBUILD <INSTRUCTION>
-
-```
+[PRE35]
 
 在其中，`<INSTRUCTION>`是另一个 Dockerfile 构建指令，稍后将在构建子图像时触发。有一些限制：`ONBUILD`指令不允许链接另一个`ONBUILD`指令，也不允许`FROM`和`MAINTAINER`指令作为`ONBUILD`触发器。
 
 这在构建将用作基础构建其他图像的图像时非常有用。例如，应用程序构建环境或可能使用用户特定配置进行定制的守护程序。`ONBUILD`指令非常有用（[`docs.docker.com/engine/reference/builder/#onbuild`](https://docs.docker.com/engine/reference/builder/#onbuild)和[`docs.docker.com/engine/reference/builder/#maintainer-deprecated`](https://docs.docker.com/engine/reference/builder/#maintainer-deprecated)），用于自动构建所选软件堆栈。考虑以下使用 Maven 构建 Java 应用程序的示例（是的，Maven 也可以作为 Docker 容器使用）。基本上，您项目的 Dockerfile 只需要引用包含`ONBUILD`指令的基础容器即可：
 
-```
- FROM maven:3.3-jdk-8-onbuild 
-
- CMD ["java","-jar","/usr/src/app/target/app-1.0-SNAPSHOT-jar-with-dependencies.jar"] 
-
-```
+[PRE36]
 
 没有魔法，如果您查看父级的 Dockerfile，一切都会变得清晰。在我们的情况下，它将是 GitHub 上可用的`docker-maven` Dockerfile：
 
-```
- FROM maven:3-jdk-8
-
-RUN mkdir -p /usr/src/app
-
-WORKDIR /usr/src/app
-
-ONBUILD ADD . /usr/src/app
-
-ONBUILD RUN mvn install 
-
-```
+[PRE37]
 
 有一个基础镜像，其中安装了 Java 和 Maven，并有一系列指令来复制文件和运行 Maven。
 
@@ -635,17 +448,11 @@ ONBUILD RUN mvn install
 
 `HEALTHCHECK`指令的语法如下：
 
-```
-HEALTHCHECK --interval=<interval> --timeout=<timeout> CMD <command>
-
-```
+[PRE38]
 
 `<interval>`（默认值为 30 秒）和`<timeout>`（同样，默认值为 30 秒）是时间值，分别指定检查间隔和超时时间。`<command>`是实际用于检查应用程序是否仍在运行的命令。`<command>`的退出代码被 Docker 用来确定健康检查是失败还是成功。值可以是`0`，表示容器健康并且可以使用，也可以是`1`，表示出现了问题，容器无法正常工作。Java 微服务的`healthcheck`实现可以是一个简单的`/ping` REST 端点，返回任何内容（如时间戳），甚至可以返回一个空响应和`HTTP 200`状态码，证明它还活着。我们的`HEALTHCHECK`可以执行对这个端点的`GET`方法，检查服务是否响应。
 
-```
-HEALTHCHECK --interval=5m --timeout=2s --retries=3 CMD curl -f http://localhost/ping || exit 1
-
-```
+[PRE39]
 
 在上一个示例中，命令`curl -f http://localhost/ping`将每 5 分钟执行一次，最长超时时间为 2 秒。如果检查的单次运行时间超过 2 秒，则认为检查失败。如果连续三次重试失败，容器将获得`unhealthy`状态。
 
@@ -701,85 +508,11 @@ fabric8 Docker 插件提供了一些 Maven 目标：
 
 这是`fabric8` Maven 插件的 Docker 的配置的最简单的示例：
 
-```
-<plugin>
-
- <groupId>io.fabric8</groupId>
-
- <artifactId>docker-maven-plugin</artifactId>
-
- <version>0.20.1</version>
-
- <configuration>
-
- <dockerHost>http://127.0.0.1:2375</dockerHost>
-
- <verbose>true</verbose>
-
- <images>
-
- <image>
-
- <name>rest-example:${project.version}</name>
-
- <build>
-
- <dockerFile>Dockerfile</dockerFile>
-
- <assembly>
-
- <descriptorRef>artifact</descriptorRef>
-
- </assembly>
-
- </build>
-
- </image>
-
- </images>
-
- </configuration>
-
-</plugin>
-
-```
+[PRE40]
 
 `<dockerHost>`指定正在运行的 Docker 引擎的 IP 地址和端口，因此，当然，要使其构建，您首先需要运行 Docker。在前面的情况下，如果您从 shell 运行`mvn clean package docker:build`命令，Fabric8 Docker 插件将使用您提供的`Dockerfile`构建镜像。但是还有另一种构建图像的方法，根本不使用`Dockerfile`，至少不是显式定义的。要做到这一点，我们需要稍微更改插件配置。看一下修改后的配置：
 
-```
-<configuration>
-
- <images>
-
- <image>
-
- <name>rest-example:${project.version}</name>
-
- <alias>rest-example</alias>
-
- <build>
-
- <from>jeanblanchard/java:8</from>
-
- <assembly>
-
- <descriptorRef>artifact</descriptorRef>
-
- </assembly>
-
- <cmd>java -jar 
-
- maven/${project.name}-${project.version}.jar</cmd>
-
- </build>
-
- </image>
-
- </images>
-
-</configuration>
-
-```
+[PRE41]
 
 正如您所看到的，我们不再提供`Dockerfile`。相反，我们只提供`Dockerfile`指令作为插件配置元素。这非常方便，因为我们不再需要硬编码可执行 jar 名称、版本等。它将从 Maven 构建范围中获取。例如，jar 的名称将被提供给`<cmd>`元素。这将自动导致在`Dockerfile`中生成有效的`CMD`指令。如果我们现在使用`mvn clean package docker:build`命令构建项目，Docker 将使用我们的应用程序构建一个镜像。让我们按字母顺序列出我们可用的配置元素：
 
@@ -825,249 +558,13 @@ fabric8 Docker 插件提供了一些 Maven 目标：
 
 如果您从头开始关注我们的项目，完整的 Maven POM 与以下内容相同：
 
-```
- <?xml version="1.0" encoding="UTF-8"?>
-
-    <project   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
-      <modelVersion>4.0.0</modelVersion>
-
-      <groupId>pl.finsys</groupId>
-
-      <artifactId>rest-example</artifactId>
-
-      <version>0.1.0</version>
-
-      <parent>
-
-        <groupId>org.springframework.boot</groupId>
-
-        <artifactId>spring-boot-starter-
-
-         parent</artifactId>
-
-        <version>1.5.2.RELEASE</version>
-
-      </parent>
-
-      <dependencies>
-
-        <dependency>
-
-          <groupId>org.springframework.boot</groupId>
-
-          <artifactId>spring-boot-starter-web</artifactId>
-
-        </dependency>
-
-        <dependency>
-
-          <groupId>org.springframework.boot</groupId>
-
-          <artifactId>spring-boot-starter-data-
-
-           jpa</artifactId>
-
-        </dependency>
-
-        <dependency>
-
-          <groupId>org.hibernate</groupId>
-
-          <artifactId>hibernate-validator</artifactId>
-
-        </dependency>
-
-        <dependency>
-
-          <groupId>org.hsqldb</groupId>
-
-          <artifactId>hsqldb</artifactId>
-
-          <scope>runtime</scope>
-
-        </dependency>
-
-        <dependency>
-
-          <groupId>io.springfox</groupId>
-
-          <artifactId>springfox-swagger2</artifactId>
-
-          <version>2.6.1</version>
-
-        </dependency>
-
-        <dependency>
-
-          <groupId>io.springfox</groupId>
-
-          <artifactId>springfox-swagger-ui</artifactId>
-
-          <version>2.5.0</version>
-
-        </dependency>
-
-        <!--test dependencies-->
-
-        <dependency>
-
-          <groupId>org.springframework.boot</groupId>
-
-          <artifactId>spring-boot-starter-
-
-           test</artifactId>
-
-          <scope>test</scope>
-
-        </dependency>
-
-        <dependency>
-
-          <groupId>org.springframework.boot</groupId>
-
-          <artifactId>spring-boot-starter-
-
-           test</artifactId>
-
-          <scope>test</scope>
-
-        </dependency>
-
-        <dependency>
-
-          <groupId>com.jayway.jsonpath</groupId>
-
-          <artifactId>json-path</artifactId>
-
-          <scope>test</scope>
-
-        </dependency>
-
-      </dependencies>
-
-      <properties>
-
-        <java.version>1.8</java.version>
-
-      </properties>
-
-      <build>
-
-        <plugins>
-
-          <plugin>
-
-            <groupId>org.springframework.boot</groupId>
-
-            <artifactId>spring-boot-maven-
-
-             plugin</artifactId>
-
-          </plugin>
-
-          <plugin>
-
-            <groupId>org.springframework.boot</groupId>
-
-            <artifactId>spring-boot-maven-
-
-            plugin</artifactId>
-
-          </plugin>
-
-          <plugin>
-
-            <groupId>io.fabric8</groupId>
-
-            <artifactId>docker-maven-plugin</artifactId>
-
-            <version>0.20.1</version>
-
-            <configuration>
-
-              <images>
-
-                <image>
-
-                  <name>rest-example:${project.version}
-
-                  </name>
-
-                  <alias>rest-example</alias>
-
-                  <build>
-
-                    <from>openjdk:latest</from>
-
-                    <assembly>
-
-                      <descriptorRef>artifact</descriptorRef>
-
-                    </assembly>
-
-                    <cmd>java -jar maven/${project.name}-${project.version}.jar</cmd>
-
-                  </build>
-
-                  <run>
-
-                    <wait>
-
-                      <log>Hello World!</log>
-
-                    </wait>
-
-                  </run>
-
-                </image>
-
-              </images>
-
-            </configuration>
-
-          </plugin>
-
-        </plugins>
-
-      </build>
-
-      <repositories>
-
-        <repository>
-
-          <id>spring-releases</id>
-
-          <url>https://repo.spring.io/libs-release</url>
-
-        </repository>
-
-      </repositories>
-
-      <pluginRepositories>
-
-        <pluginRepository>
-
-          <id>spring-releases</id>
-
-          <url>https://repo.spring.io/libs-release</url>
-
-        </pluginRepository>
-
-      </pluginRepositories>
-
-    </project> 
-
-```
+[PRE42]
 
 # 构建镜像
 
 要使用我们的 Spring Boot 构件构建 Docker 镜像，请运行以下命令：
 
-```
-$ mvn clean package docker:build
-
-```
+[PRE43]
 
 `clean` 告诉 Maven 删除 `target` 目录。Maven 将始终使用 `package` 命令编译您的类。使用 `docker:build` 命令运行 `package` 命令非常重要。如果尝试在两个单独的步骤中运行这些命令，将会遇到错误。在构建 Docker 镜像时，您将在控制台中看到以下输出：
 
@@ -1079,46 +576,7 @@ $ mvn clean package docker:build
 
 Fabric8 Maven Docker 插件如果没有管理卷的可能性，就不可能成为一个完整的解决方案。实际上，它提供了两种处理卷的方式：`docker:volume-create`和`docker:volume-remove`。正如你可能还记得的那样，来自第二章的*网络和持久存储*，Docker 在处理卷和它们的驱动程序时使用了类似插件的架构。`fabric8`插件可以配置为将特定的卷驱动程序及其参数传递给 Docker 守护程序。考虑一下插件配置的以下片段：
 
-```
- <plugin> 
-
- <configuration> 
-
-    [...] 
-
-    <volumes> 
-
-    <volume> 
-
-    <name>myVolume</name> 
-
-    <driver>local</driver> 
-
-    <opts> 
-
-    <type>tmpfs</type> 
-
-    <device>tmpfs</device> 
-
-    <o>size=100m,uid=1000</o> 
-
-    </opts> 
-
-    <labels> 
-
-    <volatileData>true</volatileData> 
-
-    </labels> 
-
-    </volume> 
-
-    </volumes> 
-
-    </configuration> 
-
-  </plugin> 
-
-```
+[PRE44]
 
 在上一个例子中，我们使用本地文件系统驱动程序创建了一个命名卷。它可以在容器启动期间挂载，如`pom.xml`文件的`<run>`部分中指定的那样。
 

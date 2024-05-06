@@ -72,175 +72,101 @@ ping www.google.com 是验证服务器或集群节点是否连接到互联网的
 
 1.  打开第一个终端并执行`docker container run`命令来运行一个容器。使用`--name`选项为容器指定一个特定的昵称，例如`testevents`。不要让 Docker 主机为您的容器生成一个随机名称。使用`ubuntu:14.04`镜像和`ping google.com`命令来验证服务器是否在容器上运行：
 
-```
-$docker container run --name testevents ubuntu:14.04 ping google.com
-```
+[PRE0]
 
 输出将如下所示：
 
-```
-PING google.com (172.217.165.142) 56(84) bytes of data.
-64 bytes from lax30s03-in-f14.1e100.net (172.217.165.142):
-icmp_seq=1 ttl=115 time=68.9 ms
-64 bytes from lax30s03-in-f14.1e100.net (172.217.165.142):
-icmp_seq=2 ttl=115 time=349 ms
-64 bytes from lax30s03-in-f14.1e100.net (172.217.165.142):
-icmp_seq=3 ttl=115 time=170 ms
-```
+[PRE1]
 
 如前面的输出所示，ping 已经开始。您将发现数据包正在传输到`google.com`。
 
 1.  将第一个终端用于 ping 输出。现在，通过在另一个终端中执行命令来控制此容器。在第二个终端中，执行`docker container ls`以列出所有正在运行的容器：
 
-```
-$docker container ls
-```
+[PRE2]
 
 查找名称为`testevents`的容器。状态应为`Up`：
 
-```
-CONTAINER ID    IMAGE           COMMAND            CREATED
-   STATUS           PORTS          NAMES
-10e235033813     ubuntu:14.04   "ping google.com"  10 seconds ago
-   Up 5 seconds                    testevents
-```
+[PRE3]
 
 1.  现在，在第二个终端中运行`docker container pause`命令来暂停第一个终端中正在运行的容器：
 
-```
-$docker container pause testevents
-```
+[PRE4]
 
 您将看到 ping 已经停止，不再传输数据包。
 
 1.  再次使用第二个终端中的`docker container ls`列出正在运行的容器：
 
-```
-$docker container ls
-```
+[PRE5]
 
 如下面的输出所示，`testevents`的状态为`Up(Paused)`。这是因为您之前运行了`docker container pause`命令：
 
-```
-CONTAINER ID    IMAGE         COMMAND            CREATED
-   STATUS            PORTS          NAMES
-10e235033813    ubuntu:14.04  "ping google.com"  26 seconds ago
-   Up 20 seconds (Paused)           testevents
-```
+[PRE6]
 
 1.  在第二个终端中使用 `docker container unpause` 来启动暂停的容器，并使其恢复发送数据包：
 
-```
-$docker container unpause testevents
-```
+[PRE7]
 
 您会发现 ping 恢复，并且在第一个终端中传输新的数据包。
 
 1.  在第二个终端中，再次运行 `docker container ls` 命令以查看容器的当前状态：
 
-```
-$docker container ls
-```
+[PRE8]
 
 您将看到 `testevents` 容器的状态是 `Up`：
 
-```
-CONTAINER ID    IMAGE         COMMAND            CREATED
-   STATUS            PORTS          NAMES
-10e235033813    ubuntu:14.04  "ping google.com"  43 seconds ago
-   Up 37 seconds                    testevents
-```
+[PRE9]
 
 1.  现在，运行 `docker container stop` 命令来停止容器：
 
-```
-$docker container stop testevents
-```
+[PRE10]
 
 您将观察到容器退出，并且在第一个终端中返回了 shell 提示符：
 
-```
-64 bytes from lax30s03-in-f14.1e100.net (142.250.64.110):
-icmp_seq = 42 ttl=115 time=19.8 ms
-64 bytes from lax30s03-in-f14.1e100.net (142.250.64.110):
-icmp_seq = 43 ttl=115 time=18.7 ms
-```
+[PRE11]
 
 1.  现在，在任何终端中运行 `docker container ls` 命令：
 
-```
-$docker container ls
-```
+[PRE12]
 
 您会发现 `testevents` 容器不再在列表中，因为 `docker container ls` 子命令只显示正在运行的容器：
 
-```
-CONTAINER ID      IMAGE      COMMAND     CREATED
-        STATUS         PORTS                   NAMES
-```
+[PRE13]
 
 1.  运行 `docker container ls -a` 命令来显示所有容器：
 
-```
-$docker container ls -a
-```
+[PRE14]
 
 您可以看到 `testevents` 容器的状态现在是 `Exited`：
 
-```
-CONTAINER ID    IMAGE         COMMAND            CREATED
-   STATUS            PORTS          NAMES
-10e235033813    ubuntu:14.04  "ping google.com"  1 minute ago
-   Exited (137) 13 seconds ago      testevents
-```
+[PRE15]
 
 1.  使用 `docker container start` 命令来启动容器。另外，添加 `-a` 选项来附加本地标准输入、输出和错误流到容器，并查看其输出：
 
-```
-$docker container start -a testevents
-```
+[PRE16]
 
 如您在以下片段中所见，ping 恢复并在第一个终端中执行：
 
-```
-64 bytes from lax30s03-in-f14.1e100.net (142.250.64.110):
-icmp_seq = 55 ttl=115 time=63.5 ms
-64 bytes from lax30s03-in-f14.1e100.net (142.250.64.110):
-icmp_seq = 56 ttl=115 time=22.2 ms
-```
+[PRE17]
 
 1.  在第二个终端中再次运行 `docker ls` 命令：
 
-```
-$docker container ls
-```
+[PRE18]
 
 您将观察到 `testevents` 返回到列表中，其状态为 `Up`，并且正在运行：
 
-```
-CONTAINER ID    IMAGE         COMMAND            CREATED
-   STATUS            PORTS          NAMES
-10e235033813    ubuntu:14.04  "ping google.com"  43 seconds ago
-   Up 37 seconds                    testevents
-```
+[PRE19]
 
 1.  现在，使用带有 `-f` 选项的 `rm` 命令来删除 `testevents` 容器。 `-f` 选项用于强制删除容器：
 
-```
-$docker container rm -f testevents
-```
+[PRE20]
 
 第一个终端停止执行 `ping` 命令，第二个终端将返回容器的名称：
 
-```
-testevents
-```
+[PRE21]
 
 1.  运行 `ls -a` 命令来检查容器是否正在运行：
 
-```
-$docker container ls -a
-```
+[PRE22]
 
 您将在列表中找不到 `testevents` 容器，因为我们刚刚从系统中删除了它。
 
@@ -248,39 +174,25 @@ $docker container ls -a
 
 1.  运行以下命令以查看`CREATED`状态。使用`docker container run`命令从`ubuntu:14.04`镜像创建一个名为`testcreate`的容器：
 
-```
-$docker container run --name testcreate ubuntu:14.04 time
-```
+[PRE23]
 
 `time`命令将生成一个错误，因为`ubuntu:14.04`中没有这样的命令。
 
 1.  现在，列出正在运行的容器：
 
-```
-$docker container ls
-```
+[PRE24]
 
 您会看到列表是空的：
 
-```
-CONTAINER ID    IMAGE         COMMAND            CREATED
-   STATUS            PORTS          NAMES
-```
+[PRE25]
 
 1.  现在，通过添加`-a`选项列出所有的容器：
 
-```
-$docker container ls -a
-```
+[PRE26]
 
 在列表中查找名为`testcreate`的容器；您会观察到它的状态是`Created`：
 
-```
-CONTAINER ID    IMAGE         COMMAND         CREATED
-   STATUS            PORTS          NAMES
-C262e6718724    ubuntu:14.04  "time"          30 seconds ago
-   Created                          testcreate
-```
+[PRE27]
 
 如果一个容器停留在`CREATED`状态，这表明已经生成了一个错误，并且 Docker 无法使容器运行起来。
 
@@ -294,9 +206,7 @@ C262e6718724    ubuntu:14.04  "time"          30 seconds ago
 
 1.  使用`-it`选项运行`docker container run`命令以创建一个名为`testsize`的容器。`-it`选项用于在运行的容器内部运行命令时具有交互式终端：
 
-```
-$docker container run -it --name testsize ubuntu:14.04
-```
+[PRE28]
 
 提示现在会变成`root@<container ID>:/#`，其中容器 ID 是 Docker Engine 生成的一个数字。因此，当您在自己的机器上运行此命令时，会得到一个不同的数字。如前所述，处于容器内意味着容器将处于`UP`状态。
 
@@ -304,62 +214,37 @@ $docker container run -it --name testsize ubuntu:14.04
 
 现在，验证容器最初是否具有`ubuntu:14.04`基础镜像的大小。使用`docker image ls`命令在第二个终端中列出镜像。检查`ubuntu:14.04`镜像的大小：
 
-```
-$docker image ls
-```
+[PRE29]
 
 如下输出所示，镜像的大小为`188MB`：
 
-```
-REPOSITORY     TAG      IMAGE ID         CREATED
-  SIZE
-ubuntu         14.04    971bb3841501     23 months ago
-  188MB
-```
+[PRE30]
 
 1.  现在，通过运行`docker container ls -s`命令来检查容器的大小：
 
-```
-$docker container ls -s
-```
+[PRE31]
 
 寻找`testsize`容器。您会发现大小为`0B（虚拟 188MB）`：
 
-```
-CONTAINER ID    IMAGE          COMMAND      CREATED
-  STATUS     PORTS    NAMES      SIZE
-9f2d2d1ee3e0    ubuntu:14.04   "/bin/bash"  6 seconds ago
-  Up 6 minutes        testsize   0B (virtual 188MB)
-```
+[PRE32]
 
 `SIZE`列指示容器的薄读/写层的大小，而虚拟大小指示容器中封装的所有先前层的薄读/写层的大小。因此，在这种情况下，薄层的大小为`0B`，虚拟大小等于镜像大小。
 
 1.  现在，安装`wget`软件包。在第一个终端中运行`apt-get update`命令。在 Linux 中，一般建议在安装任何软件包之前运行`apt-get update`以更新系统上当前软件包的最新版本：
 
-```
-root@9f2d2d1ee3e0: apt-get update
-```
+[PRE33]
 
 1.  当容器完成更新后，运行以下命令以在基础镜像上安装`wget`软件包。使用`-y`选项自动回答所有安装问题为是。
 
-```
-root@9f2d2d1ee3e: apt-get install -y wget
-```
+[PRE34]
 
 1.  在在`ubuntu:14.04`上安装`wget`完成后，通过在第二个终端中运行`ls -s`命令来重新检查容器的大小：
 
-```
-$docker container ls -s
-```
+[PRE35]
 
 如下片段所示，`testsize`容器的大小为`27.8MB（虚拟 216MB）`：
 
-```
-CONTAINER ID    IMAGE          COMMAND      CREATED
-  STATUS     PORTS    NAMES      SIZE
-9f2d2d1ee3e0    ubuntu:14.04   "/bin/bash"  9 seconds ago
-  Up 9 minutes        testsize   27.8MB (virtual 216MB)
-```
+[PRE36]
 
 现在，薄层的大小为`27.8MB`，虚拟大小等于所有层的大小。在这个练习中，层包括基础镜像，大小为 188MB；更新；以及`wget`层，大小为 27.8MB。因此，近似后总大小将为 216MB。
 
@@ -397,32 +282,21 @@ Apache 和 NGINX 是无状态服务的示例，而数据库是有状态容器的
 
 1.  在左侧菜单中点击`ADD NEW INSTANCE`来创建一个新节点。从顶部节点信息部分获取节点 IP。现在，使用`docker swarm init`命令创建一个 swarm，并使用`–advertise-addr`选项指定节点 IP。如*图 7.2*所示，Docker 引擎生成一个长令牌，允许其他节点（无论是管理节点还是工作节点）加入集群：
 
-```
-$docker swarm init --advertise-addr <IP>
-```
+[PRE37]
 
 1.  使用`docker service create`命令创建一个服务，并使用`-p`选项指定端口`80`。将`--replicas`选项的副本数设置为`2`，使用`nginx:1.14.2`镜像：
 
-```
-$ docker service create -p 80 --replicas 2 nginx:1.14.2
-```
+[PRE38]
 
 `docker service create`命令从容器内的`nginx:1.14.2`镜像创建了两个副本服务，端口为`80`。Docker 守护程序选择任何可用的主机端口。在这种情况下，它选择了端口`30000`，如*图 7.2*顶部所示。
 
 1.  验证服务是否已创建，使用`docker service ls`命令列出所有可用的服务：
 
-```
-$docker service ls
-```
+[PRE39]
 
 如下输出所示，Docker 守护程序自动生成了一个服务 ID，并为服务分配了一个名为`amazing_hellman`的名称，因为您没有使用`--name`选项指定一个名称：
 
-```
-ID            NAME             MODE        REPLICAS  IMAGE
-     PORTS
-xmnp23wc0m6c  amazing_hellman  replicated  2/2       nginx:1.14.2
-     *:30000->80/tcp
-```
+[PRE40]
 
 注意
 
@@ -430,95 +304,43 @@ xmnp23wc0m6c  amazing_hellman  replicated  2/2       nginx:1.14.2
 
 1.  使用`curl <IP:Port Number>` Linux 命令来查看服务的输出并连接到它，而不使用浏览器：
 
-```
-$curl 192.168.0.223:3000
-```
+[PRE41]
 
 输出是`NGINX`欢迎页面的 HTML 版本。这表明它已经正确安装：
 
-```
-<!DOCTYPE html>
-<html>
-<head>
-<title>Welcome to nginx!</title>
-<style>
-    body {
-        width: 35em;
-        margin: 0 auto;
-        font-family: Tahoma, Verdana, Arial, sans-serif;
-    }
-</style>
-</head>
-</body>
-<h1>Welcome to nginx!<h1>
-<p>If you see this page, the nginx web server is successfully 
-installed and working. Further configuration is required. </p>
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-Commercial support is available at
-<a href="http://nginx.com/">nginx.com</a>.</p>
-<p><em>Thank you for using nginx.</em></p>
-</body>
-<html>
-```
+[PRE42]
 
 1.  假设业务更加繁荣，两个副本已经不够了。您需要将其扩展到五个副本，而不是两个。使用`docker service scale <service name>=<number of replicas>`子命令：
 
-```
-$docker service scale amazing_hellman=5
-```
+[PRE43]
 
 您将获得以下输出：
 
-```
-amazing_hellman scaled to 5
-overall progress: 5 out of 5 tasks
-1/5: running
-2/5: running
-3/5: running
-4/5: running
-5/5: running
-verify: Service converged
-```
+[PRE44]
 
 1.  要验证 Docker Swarm 是否复制了服务，请再次使用`docker service ls`子命令：
 
-```
-$docker service ls
-```
+[PRE45]
 
 输出显示副本数量从`2`增加到`5`个副本：
 
-```
-ID            NAME             MODE        REPLICAS  IMAGE
-     PORTS
-xmnp23wc0m6c  amazing_hellman  replicated  5/5       nginx:1.14.2
-     *:30000->80/tcp
-```
+[PRE46]
 
 1.  使用`docker service rm`子命令删除服务：
 
-```
-$docker service rm amazing_hellman
-```
+[PRE47]
 
 该命令将返回服务的名称：
 
-```
-amazing_hellman
-```
+[PRE48]
 
 1.  要验证服务是否已删除，请再次使用`docker service ls`子命令列出服务：
 
-```
-$docker service ls
-```
+[PRE49]
 
 输出将是一个空列表：
 
-```
-ID       NAME      MODE      REPLICAS      IMAGE      PORTS
-```
+[PRE50]
 
 在这个练习中，您部署了一个无状态服务 NGINX，并使用`docker service scale`命令进行了扩展。然后，您使用了 Docker playground（一个免费的解决方案，您可以使用它来创建一个集群，并使用 Swarm 来初始化一个 Swarm）。
 
@@ -536,59 +358,31 @@ ID       NAME      MODE      REPLICAS      IMAGE      PORTS
 
 1.  使用编辑器粘贴`stack.yml`文件。您可以使用`vi`或`nano` Linux 命令在 Linux 中打开文本编辑器并粘贴 YAML 文件：
 
-```
-$vi stack.yml
-```
+[PRE51]
 
 粘贴以下代码：
 
-```
-# Use root/example as user/password credentials
-version: '3.1'
-services:
-  db:
-    image: mysql
-    command: --default-authentication-plugin=      mysql_native_password
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: example
-  adminer:
-    image: adminer
-    restart: always
-    ports:
-      - 8080:8080
-```
+[PRE52]
 
 在这个 YAML 文件中，您有两个服务：`db`和`adminer`。`db`服务基于`mysql`镜像，而`adminer`镜像是`adminer`服务的基础镜像。`adminer`镜像是一个数据库管理工具。在`db`服务中，您输入命令并设置环境变量，其中包含具有始终重新启动策略的数据库密码，如果出现任何原因失败。同样，在`adminer`服务中，如果出现任何原因失败，策略也被设置为始终重新启动。
 
 1.  在键盘上按*Esc*键。然后，运行以下命令退出并保存代码：
 
-```
-:wq
-```
+[PRE53]
 
 1.  要验证文件是否已正确保存，请使用`cat` Linux 命令显示`stack.yml`的内容：
 
-```
-$cat stack.yml
-```
+[PRE54]
 
 文件将被显示。如果出现错误，请重复上一步。
 
 1.  如果代码正确，请使用`docker stack deploy`子命令部署`YML`文件：
 
-```
-$docker stack deploy -c stack.yml mysql
-```
+[PRE55]
 
 您应该看到如下输出：
 
-```
-Ignoring unsupported options: restart
-Creating network mysql_default
-Creating service mysql_db
-Creating service mysql_adminer
-```
+[PRE56]
 
 要连接到服务，请在 Docker playground 窗口顶部的节点 IP 旁边右键单击端口`8080`，并在新窗口中打开它：
 
@@ -598,30 +392,19 @@ Creating service mysql_adminer
 
 1.  使用`docker stack ls`子命令列出堆栈：
 
-```
-$docker stack ls
-```
+[PRE57]
 
 您应该看到如下输出：
 
-```
-NAME     SERVICES    ORCHESTRATOR
-mysql    2           Swarm
-```
+[PRE58]
 
 1.  使用`docker stack rm`子命令来移除堆栈：
 
-```
-$docker stack rm mysql
-```
+[PRE59]
 
 在移除堆栈时，Docker 将移除两个服务：`db`和`adminer`。它还将移除默认创建的用于连接所有服务的网络：
 
-```
-Removing service mysql_adminer
-Removing service mysql_db
-Removing network mysql_default
-```
+[PRE60]
 
 在这个练习中，您部署了一个有状态的服务 MySQL，并能够从浏览器访问数据库服务。同样，我们使用 Docker playground 作为执行练习的平台。
 
@@ -651,145 +434,91 @@ Removing network mysql_default
 
 1.  使用`docker volume create`命令创建名为`vol1`的卷：
 
-```
-$docker volume create vol1
-```
+[PRE61]
 
 该命令将返回卷的名称，如下所示：
 
-```
-vol1
-```
+[PRE62]
 
 1.  使用`docker volume ls`命令列出所有卷：
 
-```
-$docker volume ls
-```
+[PRE63]
 
 这将导致以下输出：
 
-```
-DRIVER            VOLUME NAME
-Local             vol1
-```
+[PRE64]
 
 1.  使用以下命令检查卷以获取其挂载点：
 
-```
-$docker volume inspect vol1
-```
+[PRE65]
 
 您应该会得到以下输出：
 
-```
-[
-    {
-        "CreatedAt": "2020-06-16T16:44:13-04:00",
-        "Driver": "local",
-        "Labels": {},
-        "Mountpoint: "/var/lib/docker/volumes/vol1/_data",
-        "Name": "vol1",
-        "Options": {},
-        "Scope": "local"
-    }
-]
-```
+[PRE66]
 
 卷检查显示了其创建日期和时间、挂载路径、名称和范围。
 
 1.  将卷挂载到容器并修改其内容。添加到`vol1`的任何数据都将被复制到容器内的卷中：
 
-```
-$ docker container run -it -v vol1:/container_vol --name container1 ubuntu:14.04 bash
-```
+[PRE67]
 
 在上述命令中，您使用`ubuntu:14.04`镜像和`bash`命令创建了一个容器。`bash`命令允许您在容器内部输入命令。`-it`选项用于启用交互式终端。`-v`选项用于在主机和容器内部的`container_vol`之间同步数据。使用`--name`选项为容器命名为`container1`。
 
 1.  提示会改变，表示您现在在容器内。在名为`new_file.txt`的文件中写入单词`hello`到卷中。容器内的卷称为`container_vol`。在这种情况下，该卷在主机和容器之间共享。从主机上，该卷称为`vol1`：
 
-```
-root@acc8900e4cf1:/# echo hello > /container_vol/new_file.txt
-```
+[PRE68]
 
 1.  列出卷的内容以验证文件是否已保存：
 
-```
-root@acc8900e4cf1:/# ls /container_vol
-```
+[PRE69]
 
 1.  使用`exit`命令退出容器：
 
-```
-root@acc8900e4cf1:/# exit
-```
+[PRE70]
 
 1.  通过运行以下命令检查来自主机的新文件的内容：
 
-```
-$ sudo ls /var/lib/docker/volumes/vol1/_data
-```
+[PRE71]
 
 该命令将返回新文件的名称：
 
-```
-new_file.txt
-```
+[PRE72]
 
 1.  通过运行以下命令验证单词`hello`作为文件内容是否也已保存：
 
-```
-$ sudo cat /var/lib/docker/volumes/vol1/_data/new_file.txt
-```
+[PRE73]
 
 1.  使用`-v`选项删除容器以删除在容器范围内创建的任何卷：
 
-```
-$docker container rm -v container1
-```
+[PRE74]
 
 该命令将返回容器的名称：
 
-```
-container1
-```
+[PRE75]
 
 1.  通过列出所有卷来验证卷是否仍然存在：
 
-```
-$docker volume ls
-```
+[PRE76]
 
 卷`vol1`被列出，表明该卷是在容器之外创建的，即使使用`-v`选项，当容器被删除时也不会被删除：
 
-```
-DRIVER        VOLUME NAME
-Local         vol1
-```
+[PRE77]
 
 1.  现在，使用`rm`命令删除卷：
 
-```
-$docker volume rm vol1
-```
+[PRE78]
 
 该命令应返回卷的名称：
 
-```
-vol1
-```
+[PRE79]
 
 1.  通过列出当前的卷列表来验证卷是否已被删除：
 
-```
-$docker volume ls
-```
+[PRE80]
 
 将显示一个空列表，表明卷已被删除：
 
-```
-DRIVER        VOLUME NAME
-```
+[PRE81]
 
 在这个练习中，您学会了如何在 Docker 中创建独立的卷对象，而不在容器的范围内，并且如何将这个卷挂载到容器上。卷在删除容器时没有被删除，因为卷是在容器范围之外创建的。最后，您学会了如何删除这些类型的卷。
 
@@ -801,39 +530,27 @@ DRIVER        VOLUME NAME
 
 1.  使用以下命令创建一个带有匿名卷的容器：
 
-```
-$docker container run -itd -v /newvol --name container2 ubuntu:14.04 bash
-```
+[PRE82]
 
 该命令应返回一个长的十六进制数字，这是卷的 ID。
 
 1.  列出所有卷：
 
-```
-$ docker volume ls
-```
+[PRE83]
 
 请注意，这次 `VOLUME NAME` 是一个长的十六进制数字，而不是一个名称。这种类型的卷被称为匿名卷，可以通过在 `docker container rm` 子命令中添加 `-v` 选项来删除：
 
-```
-DRIVER     VOLUME NAME
-Local      8f4087212f6537aafde7eaca4d9e4a446fe99933c3af3884d
-0645b66b16fbfa4
-```
+[PRE84]
 
 1.  这次删除带有卷的容器。由于它处于分离模式并在后台运行，使用 `-f` 选项强制删除容器。还添加 `v` 选项（使其为 `-fv`）以删除卷。如果这个卷不是匿名的，并且您为其命名了，那么它将不会被此选项删除，您必须使用 `docker volume rm <volume name>` 来删除它：
 
-```
-$docker container rm -fv container2
-```
+[PRE85]
 
 该命令将返回容器的名称。
 
 1.  验证卷已被删除。使用 `docker volume ls` 子命令，您会发现列表为空：
 
-```
-$ docker volume ls
-```
+[PRE86]
 
 与之前的练习相比，使用 `-v` 选项在删除容器时删除了卷。Docker 这次删除了卷，因为卷最初是在容器的范围内创建的。
 
@@ -855,36 +572,25 @@ $ docker volume ls
 
 1.  运行一个带有卷的 PostgreSQL 容器。将容器命名为`db1`。如果您本地没有该镜像，Docker 将为您拉取镜像。从`postgress`镜像创建一个名为`db1`的容器。使用`-v`选项将主机上的`db`卷与容器内的`/var/lib/postgresql/data`共享，并使用`-e`选项将 SQL 回显到标准输出流。使用`POSTGRES_PASSWORD`选项设置数据库密码，并使用`-d`选项以分离模式运行此容器：
 
-```
-$docker container run --name db1 -v db:/var/lib/postgresql/data -e POSTGRES_PASSWORD=password -d postgres
-```
+[PRE87]
 
 1.  使用`exec`命令与容器进行交互，从`bash`中执行命令。`exec`命令不会创建新进程，而是用要执行的命令替换`bash`。在这里，提示将更改为`posgres=#`，表示您在`db1`容器内：
 
-```
-$ docker container exec -it db1 psql -U postgres
-```
+[PRE88]
 
 `psql`命令允许您交互式输入、编辑和执行 SQL 命令。使用`-U`选项输入数据库的用户名，即`postgres`。
 
 1.  创建一个名为`PEOPLE`的表，有两列 - `Name`和`age`：
 
-```
-CREATE TABLE PEOPLE(NAME TEXT, AGE int);
-```
+[PRE89]
 
 1.  向`PEOPLE`表中插入一些值：
 
-```
-INSERT INTO PEOPLE VALUES('ENGY','41');
-INSERT INTO PEOPLE VALUES('AREEJ','12');
-```
+[PRE90]
 
 1.  验证表中的值是否正确插入：
 
-```
-SELECT * FROM PEOPLE;
-```
+[PRE91]
 
 该命令将返回两行，验证数据已正确插入：
 
@@ -894,60 +600,39 @@ SELECT * FROM PEOPLE;
 
 1.  退出容器以退出数据库。shell 提示将返回：
 
-```
-\q
-```
+[PRE92]
 
 1.  使用`volume ls`命令验证您的卷是否是命名卷而不是匿名卷：
 
-```
-$ docker volume ls
-```
+[PRE93]
 
 您应该会得到以下输出：
 
-```
-DRIVER            VOLUME NAME
-Local             db
-```
+[PRE94]
 
 1.  使用`-v`选项删除`db1`容器：
 
-```
-$ docker container rm -fv db1
-```
+[PRE95]
 
 该命令将返回容器的名称：
 
-```
-db1
-```
+[PRE96]
 
 1.  列出卷：
 
-```
-$ docker volume ls
-```
+[PRE97]
 
 列表显示卷仍然存在，并且未随容器一起删除：
 
-```
-DRIVER          VOLUME NAME
-Local           db
-```
+[PRE98]
 
 1.  与*步骤 1*一样，创建一个名为`db2`的新容器，并挂载卷`db`：
 
-```
-$docker container run --name db2 -v db:/var/lib/postgresql/data -e POSTGRES_PASSWORD=password -d postgres
-```
+[PRE99]
 
 1.  运行`exec`命令从`bash`执行命令，并验证即使删除`db1`，数据仍然存在：
 
-```
-$ docker container exec -it db2 psql -U postgres
-postgres=# SELECT * FROM PEOPLE;
-```
+[PRE100]
 
 上述命令将导致以下输出：
 
@@ -957,33 +642,23 @@ postgres=# SELECT * FROM PEOPLE;
 
 1.  退出容器以退出数据库：
 
-```
-\q
-```
+[PRE101]
 
 1.  现在，使用以下命令删除`db2`容器：
 
-```
-$ docker container rm -f db2
-```
+[PRE102]
 
 该命令将返回容器的名称：
 
-```
-db2
-```
+[PRE103]
 
 1.  使用以下命令删除`db`卷：
 
-```
-$ docker volume rm db
-```
+[PRE104]
 
 该命令将返回卷的名称：
 
-```
-db
-```
+[PRE105]
 
 在这个练习中，您使用了一个命名卷来保存您的数据库以保持数据持久。您看到即使在删除容器后数据仍然持久存在。新容器能够追上并访问您在数据库中保存的数据。
 
@@ -995,34 +670,23 @@ db
 
 1.  运行一个没有卷的 PostgreSQL 容器。将容器命名为`db1`：
 
-```
-$ docker container run --name db1 -e POSTGRES_PASSWORD=password -d postgres
-```
+[PRE106]
 
 1.  运行`exec`命令以执行来自`bash`的命令。提示将更改为`posgres=#`，表示您在`db1`容器内：
 
-```
-$ docker container exec -it db1 psql -U postgres
-```
+[PRE107]
 
 1.  创建一个名为`PEOPLE`的表，其中包含两列 - `NAME`和`AGE`：
 
-```
-CREATE TABLE PEOPlE(NAME TEXT, AGE int);
-```
+[PRE108]
 
 1.  在`PEOPLE`表中插入一些值：
 
-```
-INSERT INTO PEOPLE VALUES('ENGY','41');
-INSERT INTO PEOPLE VALUES('AREEJ','12');
-```
+[PRE109]
 
 1.  验证表中的值是否已正确插入：
 
-```
-SELECT * FROM PEOPLE;
-```
+[PRE110]
 
 该命令将返回两行，从而验证数据已正确插入：
 
@@ -1032,47 +696,31 @@ SELECT * FROM PEOPLE;
 
 1.  退出容器以退出数据库。shell 提示将返回：
 
-```
-\q
-```
+[PRE111]
 
 1.  使用以下命令列出卷：
 
-```
-$ docker volume ls
-```
+[PRE112]
 
 Docker 已为`db1`容器创建了一个匿名卷，如下输出所示：
 
-```
-DRIVER     VOLUME NAME
-Local      6fd85fbb83aa8e2169979c99d580daf2888477c654c
-62284cea15f2fc62a42c32
-```
+[PRE113]
 
 1.  使用以下命令删除带有匿名卷的容器：
 
-```
-$ docker container rm -fv db1
-```
+[PRE114]
 
 该命令将返回容器的名称：
 
-```
-db1
-```
+[PRE115]
 
 1.  使用`docker volume ls`命令列出卷，以验证卷是否已删除：
 
-```
-$docker volume ls
-```
+[PRE116]
 
 您将观察到列表是空的：
 
-```
-DRIVER     VOLUME NAME
-```
+[PRE117]
 
 与之前的练习相反，这次练习使用了匿名卷而不是命名卷。因此，该卷在容器的范围内，并且已从容器中删除。
 
@@ -1086,25 +734,15 @@ DRIVER     VOLUME NAME
 
 +   使用`docker system df`命令来查找系统中所有 Docker 对象的大小：
 
-```
-$docker system df
-```
+[PRE118]
 
 如下输出所示，列出了图像、容器和卷的数量及其大小：
 
-```
-TYPE            TOTAL     ACTIVE     SIZE      RECLAIMABLE
-Images          6         2          1.261GB   47.9MB (75%)
-Containers      11        2          27.78MB   27.78MB (99%)
-Local Volumes   2         2          83.26MB   OB (0%)
-Build Cache                          0B        0B
-```
+[PRE119]
 
 +   您可以通过在`docker system df`命令中添加`-v`选项来获取有关 Docker 对象的更详细信息：
 
-```
-$docker system df -v
-```
+[PRE120]
 
 它应该返回以下类似的输出：
 
@@ -1114,33 +752,19 @@ $docker system df -v
 
 +   运行`docker volume ls`子命令来列出系统上所有的卷：
 
-```
-$docker volume ls
-```
+[PRE121]
 
 复制卷的名称，以便用它来获取使用它的容器的名称：
 
-```
-DRIVER    VOLUME NAME
-local     a7675380798d169d4d969e133f9c3c8ac17e733239330397ed
-ba9e0bc05e509fc
-local     db
-```
+[PRE122]
 
 然后，运行`docker ps -a --filter volume=<Volume Name>`命令来获取正在使用该卷的容器的名称：
 
-```
-$docker ps -a --filter volume=db
-```
+[PRE123]
 
 您将获得容器的详细信息，如下所示：
 
-```
-CONTAINER ID    IMAGE     COMMAND                 CREATED
-  STATUS       PORTS         NAMES
-55c60ad38164    postgres  "docker-entrypoint.s…"  2 hours ago
-  Up 2 hours   5432/tcp      db_with
-```
+[PRE124]
 
 到目前为止，我们一直在容器和 Docker 主机之间共享卷。这种共享类型并不是 Docker 中唯一可用的类型。您还可以在容器之间共享卷。让我们在下一节中看看如何做到这一点。
 
@@ -1160,130 +784,85 @@ CONTAINER ID    IMAGE     COMMAND                 CREATED
 
 1.  创建一个名为`c1`的容器，使用一个名为`newvol`的卷，这个卷不与主机共享：
 
-```
-$docker container run -v /newvol --name c1 -it ubuntu:14.04 bash
-```
+[PRE125]
 
 1.  移动到`newvol`卷：
 
-```
-cd newvol/
-```
+[PRE126]
 
 1.  在这个卷内保存一个文件：
 
-```
-echo hello > /newvol/file1.txt
-```
+[PRE127]
 
 1.  按下转义序列，*CTRL* + *P*，然后*CTRL* + *Q*，这样容器就会在后台以分离模式运行。
 
 1.  创建第二个容器`c2`，使用`--volumes-from`选项挂载`c1`容器的卷：
 
-```
-$docker container run --name c2 --volumes-from c1 -it ubuntu:14.04 bash
-```
+[PRE128]
 
 1.  验证`c2`能够通过`ls`命令访问你从`c1`保存的`file1.txt`：
 
-```
-cd newvol/
-ls
-```
+[PRE129]
 
 1.  在`c2`内添加另一个文件`file2.txt`：
 
-```
-echo hello2 > /newvol/file2.txt
-```
+[PRE130]
 
 1.  验证`c2`能够通过`ls`命令访问你从`c1`保存的`file1.txt`和`file2.txt`：
 
-```
-ls
-```
+[PRE131]
 
 你会看到两个文件都被列出：
 
-```
-file1.txt	file2.txt
-```
+[PRE132]
 
 1.  将本地标准输入、输出和错误流附加到`c1`：
 
-```
-docker attach c1
-```
+[PRE133]
 
 1.  检查`c1`能够通过`ls`命令访问这两个文件：
 
-```
-ls
-```
+[PRE134]
 
 你会看到两个文件都被列出：
 
-```
-file1.txt	file2.txt
-```
+[PRE135]
 
 1.  使用以下命令退出`c1`：
 
-```
-exit
-```
+[PRE136]
 
 1.  使用以下命令列出卷：
 
-```
-$ docker volume ls
-```
+[PRE137]
 
 你会发现即使你退出了`c1`，卷仍然存在：
 
-```
-DRIVER    VOLUME NAME
-local     2d438bd751d5b7ec078e9ff84a11dbc1f11d05ed0f82257c
-4e8004ecc5d93350
-```
+[PRE138]
 
 1.  使用`-v`选项移除`c1`：
 
-```
-$ docker container rm -v c1
-```
+[PRE139]
 
 1.  再次列出卷：
 
-```
-$ docker volume ls
-```
+[PRE140]
 
 你会发现`c1`退出后卷并没有被移除，因为`c2`仍在使用它：
 
-```
-DRIVER    VOLUME NAME
-local     2d438bd751d5b7ec078e9ff84a11dbc1f11d05ed0f82257c
-4e8004ecc5d93350
-```
+[PRE141]
 
 1.  现在，使用`-v`选项移除`c2`以及它的卷。你必须同时使用`-f`选项来强制移除容器，因为它正在运行中：
 
-```
-$ docker container rm -fv c2
-```
+[PRE142]
 
 1.  再次列出卷：
 
-```
-$ docker volume ls
-```
+[PRE143]
 
 你会发现卷列表现在是空的：
 
-```
-DRIVER           VOLUME NAME
-```
+[PRE144]
 
 这证实了当使用卷的所有容器被移除时，临时卷也会被移除。
 
@@ -1305,89 +884,59 @@ DRIVER           VOLUME NAME
 
 1.  创建一个带有卷的新容器：
 
-```
-$docker container run --name c1 -v /newvol -it ubuntu:14.04 bash
-```
+[PRE145]
 
 1.  在这个卷中保存一个文件：
 
-```
-echo hello > /newvol/file.txt
-cd newvol
-```
+[PRE146]
 
 1.  导航到`newvol`卷：
 
-```
-cd newvol
-```
+[PRE147]
 
 1.  验证`c1`可以使用`ls`命令访问`file.txt`：
 
-```
-ls
-```
+[PRE148]
 
 你会看到文件已列出：
 
-```
-file.txt
-```
+[PRE149]
 
 1.  使用`cat`命令查看文件的内容：
 
-```
-cat file.txt
-```
+[PRE150]
 
 这将产生以下输出：
 
-```
-hello
-```
+[PRE151]
 
 1.  使用以下命令退出容器：
 
-```
-exit
-```
+[PRE152]
 
 1.  将此容器提交到名为`newimage`的新镜像：
 
-```
-$ docker container commit c1 newimage
-```
+[PRE153]
 
 1.  检查镜像以验证卷是否被刻在其中：
 
-```
-$ docker image inspect newimage --format={{.ContainerConfig.Volumes}}
-```
+[PRE154]
 
 这将产生以下输出：
 
-```
-map[/newvol:{}]
-```
+[PRE155]
 
 1.  根据您刚刚创建的`newimage`镜像创建一个容器：
 
-```
-$ docker container run -it newimage
-```
+[PRE156]
 
 1.  导航到`newvol`并列出卷及其数据中的文件。您会发现文件和单词`hello`没有保存在镜像中：
 
-```
-cd newvol
-ls
-```
+[PRE157]
 
 1.  使用以下命令退出容器：
 
-```
-exit
-```
+[PRE158]
 
 从这个练习中，您了解到卷上的数据不会上传到镜像中。为了解决这个问题，请使用文件系统而不是卷。
 
@@ -1399,104 +948,69 @@ exit
 
 1.  删除之前实验中可能存在的任何容器。您可以将多个 Docker 命令连接在一起：
 
-```
-$ docker container rm -f $(docker container ls -aq)
-```
+[PRE159]
 
 该命令将返回将被移除的容器的 ID。
 
 1.  创建一个没有卷的新容器：
 
-```
-$ docker container run --name c1 -it ubuntu:14.04 bash
-```
+[PRE160]
 
 1.  使用`mkdir`命令创建一个名为`new`的文件夹，并使用`cd`命令打开它：
 
-```
-mkdir new 
-cd new
-```
+[PRE161]
 
 1.  导航到`new`目录，并将单词`hello`保存在一个名为`file.txt`的新文件中：
 
-```
-echo hello > file.txt
-```
+[PRE162]
 
 1.  使用以下命令查看文件的内容：
 
-```
-cat file.txt
-```
+[PRE163]
 
 该命令应返回`hello`：
 
-```
-hello
-```
+[PRE164]
 
 1.  使用以下命令退出`c1`：
 
-```
-exit
-```
+[PRE165]
 
 1.  将此容器提交到名为`newimage`的新镜像中：
 
-```
-$ docker container commit c1 newimage
-```
+[PRE166]
 
 1.  根据您刚刚创建的`newimage`镜像创建一个容器：
 
-```
-$ docker container run -it newimage
-```
+[PRE167]
 
 1.  使用`ls`命令列出文件：
 
-```
-ls
-```
+[PRE168]
 
 这次你会发现`file.txt`被保存了：
 
-```
-bin  boot  dev  etc  home  lib  lib64  media  mnt  new  opt
-proc  root  run sbin  srv  sys  tmp  usr  var
-```
+[PRE169]
 
 1.  导航到`new`目录，并使用`ls`命令验证容器是否可以访问`file.txt`：
 
-```
-cd new/
-ls
-```
+[PRE170]
 
 您会看到文件被列出：
 
-```
-file.txt
-```
+[PRE171]
 
 1.  使用`cat`命令显示`file.txt`的内容：
 
-```
-cat file.txt
-```
+[PRE172]
 
 它将显示单词`hello`已保存：
 
-```
-hello
-```
+[PRE173]
 
 1.  使用以下命令退出容器：
 
-```
-exit
-```
+[PRE174]
 
 在这个练习中，您看到当使用文件系统时数据被上传到镜像中，与我们在数据保存在卷上看到的情况相比。
 
@@ -1530,9 +1044,7 @@ exit
 
 **查询 1**：
 
-```
-SELECT * FROM events WHERE info ->> 'status' = 'pull';
-```
+[PRE175]
 
 您应该得到以下输出：
 
@@ -1542,9 +1054,7 @@ SELECT * FROM events WHERE info ->> 'status' = 'pull';
 
 **查询 2**：
 
-```
-SELECT * FROM events WHERE info ->> 'status' = 'destroy';
-```
+[PRE176]
 
 您将获得类似以下内容的输出：
 
@@ -1554,9 +1064,7 @@ SELECT * FROM events WHERE info ->> 'status' = 'destroy';
 
 **查询 3**：
 
-```
-SELECT info ->> 'id' as id FROM events WHERE info ->> status'     = 'destroy';
-```
+[PRE177]
 
 最终输出应该类似于以下内容：
 
@@ -1584,9 +1092,7 @@ SELECT info ->> 'id' as id FROM events WHERE info ->> status'     = 'destroy';
 
 1.  转到`/var/mylogs`路径。列出该目录中的所有文件。您应该在那里找到两个文件：
 
-```
-access.log       error.log
-```
+[PRE178]
 
 注意
 

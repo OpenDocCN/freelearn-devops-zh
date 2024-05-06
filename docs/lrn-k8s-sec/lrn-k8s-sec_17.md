@@ -58,22 +58,7 @@
 
 1.  Pod 中的进程可以访问主机 PID 命名空间，查看工作节点上运行的所有进程。
 
-```
-kind: NetworkPolicy
-metadata:
-  name: allow-good
-spec:
-  podSelector:
-    matchLabels:
-      app: web
-  policyTypes:
-  - Ingress
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          from: <allowed_label>
-```
+[PRE0]
 
 # 第六章
 
@@ -101,18 +86,7 @@ spec:
 
 1.  拒绝使用`rego`策略创建具有`test.example`端点的 Ingress 如下：
 
-```
-package kubernetes.admission
-import data.kubernetes.namespaces
-operations = {"CREATE", "UPDATE"}
-deny[msg] {
-    input.request.kind.kind == "Ingress"
-    operations[input.request.operation]
-    host := input.request.object.spec.rules[_].host
-    host == "test.example"
-    msg := sprintf("invalid ingress host %q", [host])
-}
-```
+[PRE1]
 
 # 第八章
 
@@ -146,15 +120,7 @@ deny[msg] {
 
 1.  限制内存为 500 mi 的资源配额如下：
 
-```
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-    name: pods-medium
-spec:
-    hard:
-      memory: 500Mi
-```
+[PRE2]
 
 1.  LimitRanger 是一个实施 LimitRanges 的准入控制器。LimitRange 定义了 Kubernetes 资源的约束。限制范围可以应用于 Pod、容器或`persistantvolumeclaim`。命名空间资源配额类似于`LimitRange`，但对整个命名空间进行强制执行。
 

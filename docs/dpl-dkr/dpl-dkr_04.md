@@ -122,24 +122,7 @@ DNS 系统比这里提到的单个句子要复杂得多。虽然 DNS 是任何�
 
 例如，如果我们当前在集群中为一个服务运行了五个任务，并将期望状态更改为只有三个任务，我们的管理/编排系统将看到差异为`-2`，因此选择两个随机任务并无缝地杀死它们。相反，如果我们有三个正在运行的任务，而我们想要五个，管理/编排系统将看到期望的增量为`+2`，因此它将选择两个具有可用资源的位置，并启动两个新任务。对两个状态转换的简要解释也应该有助于澄清这个过程：
 
-```
-Initial State: Service #1 (3 tasks), Service #2 (2 tasks)
-Desired State: Service #1 (1 task),  Service #2 (4 tasks)
-
-Reconciliation:
- - Kill 2 random Service #1 tasks
- - Start 2 Service #2 tasks on available nodes
-
-New Initial State: Service #1 (1 tasks), Service #2 (4 tasks)
-
-New Desired State: Service #1 (2 tasks), Service #2 (0 tasks)
-
-Reconciliation:
- - Start 1 tasks of Service #1 on available node
- - Kill all 4 running tasks of Service #2
-
-Final State: Service #1 (2 tasks), Service #2 (0 tasks)
-```
+[PRE0]
 
 使用这个非常简单但强大的逻辑，我们可以动态地扩展和缩小我们的服务，而不必担心中间阶段（在一定程度上）。在内部，保持和维护状态是一个非常困难的任务，大多数编排框架使用特殊的高速键值存储组件来为它们执行此操作（即`etcd`，`ZooKeeper`和`Consul`）。
 
@@ -199,18 +182,7 @@ Marathon 作为 Mesos 上的应用程序（在非常宽松的意义上）运行�
 
 由于设置 Docker Swarm 集群的所有功能已经包含在 Docker 安装中，这实际上是一件非常容易的事情。让我们看看我们可以使用哪些命令：
 
-```
-$ docker swarm
-<snip>
-Commands:
- init        Initialize a swarm
- join        Join a swarm as a node and/or manager
- join-token  Manage join tokens
- leave       Leave the swarm
- unlock      Unlock swarm
- unlock-key  Manage the unlock key
- update      Update the swarm
-```
+[PRE1]
 
 这里有几件事情需要注意--有些比其他更明显：
 
@@ -228,23 +200,7 @@ Commands:
 
 要创建我们的集群，我们首先需要实例化它：
 
-```
-$ docker swarm init 
-Swarm initialized: current node (osb7tritzhtlux1o9unlu2vd0) is now a manager.
-
-To add a worker to this swarm, run the following command:
-
- docker swarm join \
- --token SWMTKN-1-4atg39hw64uagiqk3i6s3zlv5mforrzj0kk1aeae22tpsat2jj-2zn0ak0ldxo58d1q7347t4rd5 \
- 192.168.4.128:2377
-
-To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
-
-$ # Make sure that our node is operational
-$ docker node ls
-ID                           HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
-osb7tritzhtlux1o9unlu2vd0 *  feather2  Ready   Active        Leader
-```
+[PRE2]
 
 我们已经用那个命令创建了一个集群，并且我们自动注册为管理节点。如果您查看输出，添加工作节点的命令只是 `docker swarm join --token <token> <ip>`，但是我们现在只对单节点部署感兴趣，所以我们不需要担心这个。鉴于我们的管理节点也是工作节点，我们可以直接使用它来部署一些服务。
 
@@ -252,66 +208,21 @@ osb7tritzhtlux1o9unlu2vd0 *  feather2  Ready   Active        Leader
 
 我们最初需要的大多数命令都可以通过`docker services`命令访问：
 
-```
-$ docker service
-<snip>
-Commands:
- create      Create a new service
- inspect     Display detailed information on one or more services
- logs        Fetch the logs of a service or task
- ls          List services
- ps          List the tasks of one or more services
- rm          Remove one or more services
- scale       Scale one or multiple replicated services
- update      Update a service
-```
+[PRE3]
 
 正如你可能怀疑的那样，考虑到这些命令与管理容器的一些命令有多么相似，一旦你转移到编排平台而不是直接操作容器，你的服务的理想管理将通过编排本身完成。我可能会扩展这一点，并且会说，如果你在拥有编排平台的同时过多地使用容器，那么你没有设置好某些东西，或者你没有正确地设置它。
 
 我们现在将尝试在我们的 Swarm 上运行某种服务，但由于我们只是在探索所有这些是如何工作的，我们可以使用一个非常简化（也非常不安全）的我们的 Python Web 服务器的版本。从第二章 *Rolling Up the Sleeves*。创建一个新文件夹，并将其添加到新的`Dockerfile`中：
 
-```
-FROM python:3
-
-ENV SRV_PATH=/srv/www/html
-
-EXPOSE 8000
-
-RUN mkdir -p $SRV_PATH && \
- groupadd -r -g 350 pythonsrv && \
- useradd -r -m -u 350 -g 350 pythonsrv && \
- echo "Test file content" > $SRV_PATH/test.txt && \
- chown -R pythonsrv:pythonsrv $SRV_PATH
-
-WORKDIR $SRV_PATH
-
-CMD [ "python3", "-m", "http.server" ]
-```
+[PRE4]
 
 让我们构建它，以便我们的本地注册表有一个镜像可以从中拉取，当我们定义我们的服务时：
 
-```
-$ docker build -t simple_server .
-```
+[PRE5]
 
 有了这个镜像，让我们在我们的 Swarm 上部署它：
 
-```
-$ docker service create --detach=true \
- --name simple-server \
- -p 8000:8000 \
- simple_server 
-image simple_server could not be accessed on a registry to record
-its digest. Each node will access simple_server independently,
-possibly leading to different nodes running different
-versions of the image.
-
-z0z90wgylcpf11xxbm8knks9m
-
-$ docker service ls
-ID           NAME          MODE       REPLICAS IMAGE         PORTS
-z0z90wgylcpf simple-server replicated 1/1      simple_server *:8000->8000/tcp
-```
+[PRE6]
 
 所显示的警告实际上非常重要：我们构建时服务仅在我们本地机器的 Docker 注册表上可用，因此使用分布在多个节点之间的 Swarm 服务将会出现问题，因为其他机器将无法加载相同的镜像。因此，将镜像注册表从单一来源提供给所有节点对于集群部署是强制性的。随着我们在本章和接下来的章节中的进展，我们将更详细地讨论这个问题。
 
@@ -321,61 +232,11 @@ z0z90wgylcpf simple-server replicated 1/1      simple_server *:8000->8000/tcp
 
 如果我们将这项服务扩展到三个实例，我们可以看到我们的编排工具是如何处理状态转换的：
 
-```
-$ docker service scale simple-server=3 
-image simple_server could not be accessed on a registry to record
-its digest. Each node will access simple_server independently,
-possibly leading to different nodes running different
-versions of the image.
-
-simple-server scaled to 3
-
-$ docker service ls
-ID           NAME          MODE       REPLICAS IMAGE         PORTS
-z0z90wgylcpf simple-server replicated 2/3      simple_server *:8000->8000/tcp
-
-$ # After waiting a bit, let's see if we have 3 instances now
-$ docker service ls
-ID           NAME          MODE       REPLICAS IMAGE         PORTS
-z0z90wgylcpf simple-server replicated 3/3      simple_server *:8000->8000/tcp
-
-$ # You can even use regular container commands to see it
-$ docker ps --format 'table {{.ID}}  {{.Image}}  {{.Ports}}'
-CONTAINER ID  IMAGE  PORTS
-0c9fdf88634f  simple_server:latest  8000/tcp
-98d158f82132  simple_server:latest  8000/tcp
-9242a969632f  simple_server:latest  8000/tcp
-```
+[PRE7]
 
 您可以看到这是如何调整容器实例以适应我们指定的参数的。如果我们现在在其中添加一些在现实生活中会发生的事情-容器死亡：
 
-```
-$ docker ps --format 'table {{.ID}}  {{.Image}}  {{.Ports}}'
-CONTAINER ID  IMAGE  PORTS
-0c9fdf88634f  simple_server:latest  8000/tcp
-98d158f82132  simple_server:latest  8000/tcp
-9242a969632f  simple_server:latest  8000/tcp
-
-$ docker kill 0c9fdf88634f
-0c9fdf88634f
-
-$ # We should only now have 2 containers
-$ docker ps --format 'table {{.ID}}  {{.Image}}  {{.Ports}}'
-CONTAINER ID  IMAGE  PORTS
-98d158f82132  simple_server:latest  8000/tcp
-9242a969632f  simple_server:latest  8000/tcp
-
-$ # Wait a few seconds and try again
-$ docker ps --format 'table {{.ID}}  {{.Image}}  {{.Ports}}'
-CONTAINER ID  IMAGE  PORTS
-d98622eaabe5  simple_server:latest  8000/tcp
-98d158f82132  simple_server:latest  8000/tcp
-9242a969632f  simple_server:latest  8000/tcp
-
-$ docker service ls
-ID           NAME          MODE       REPLICAS IMAGE         PORTS
-z0z90wgylcpf simple-server replicated 3/3      simple_server *:8000->8000/tcp
-```
+[PRE8]
 
 正如你所看到的，集群将像没有发生任何事情一样反弹回来，这正是容器化如此强大的原因：我们不仅可以在许多机器之间分配处理任务并灵活地扩展吞吐量，而且使用相同的服务，如果一些（希望很少）服务死掉，我们并不会太在意，因为框架会使客户端完全无缝地进行处理。借助 Docker Swarm 的内置服务发现，负载均衡器将把连接转移到任何正在运行/可用的容器，因此任何试图连接到我们服务器的人都不应该看到太大的差异。
 
@@ -383,20 +244,7 @@ z0z90wgylcpf simple-server replicated 3/3      simple_server *:8000->8000/tcp
 
 与我们完成的任何服务一样，我们需要确保清理我们迄今为止使用的任何资源。在 Swarm 的情况下，我们可能应该删除我们的服务并销毁我们的集群，直到我们再次需要它。您可以使用`docker service rm`和`docker swarm leave`来执行这两个操作：
 
-```
-$ docker service ls
-ID           NAME          MODE       REPLICAS IMAGE         PORTS
-z0z90wgylcpf simple-server replicated 3/3      simple_server *:8000->8000/tcp
-
-$ docker service rm simple-server
-simple-server
-
-$ docker service ls
-ID           NAME          MODE       REPLICAS IMAGE         PORTS
-
-$ docker swarm leave --force
-Node left the swarm.
-```
+[PRE9]
 
 我们在这里不得不使用`--force`标志的原因是因为我们是管理节点，也是集群中的最后一个节点，所以默认情况下，Docker 会阻止这个操作。在多节点设置中，通常不需要这个标志。
 
@@ -416,61 +264,7 @@ Node left the swarm.
 
 这个文件基本上与上一章的文件相同，但我们将进行一些更改以消除缓存：
 
-```
-'use strict'
-
-const bodyParser = require('body-parser')
-const express = require('express');
-const mongo = require('mongodb')
-
-const DB_NAME = 'word_database';
-const DB_HOST = process.env.DB_HOST || 'localhost:27017';
-const COLLECTION_NAME = 'words';
-const SERVER_PORT = 8000;
-
-const app = express();
-const client = mongo.MongoClient();
-const dbUri = `mongodb://${DB_HOST}/${DB_NAME}`;
-
-app.set('view engine', 'pug')
-app.use(bodyParser.urlencoded({ extended: false }))
-
-function loadWordsFromDatabase() {
-    return client.connect(dbUri).then((db) => {
-        return db.collection(COLLECTION_NAME).find({}).toArray();
-    })
-    .then((docs) => {
-        return docs.map(doc => doc.word);
-    });
-}
-
-app.get('/', (req, res) => {
-    console.info("Loading data from database...");
-    loadWordsFromDatabase().then(words => {
-        console.info("Data loaded, showing the result...");
-        res.render('index', { words: words });
-    });
-});
-
-app.post('/new', (req, res) => {
-    const word = req.body.word;
-
-    console.info(`Got word: ${word}`);
-    if (word) {
-        client.connect(dbUri).then((db) => {
-            db.collection(COLLECTION_NAME).insertOne({ word }, () => {
-                db.close();
-            });
-        });
-    }
-
-    res.redirect('/');
-});
-
-app.listen(SERVER_PORT, () => {
-    console.info("Server started on port %d...", SERVER_PORT);
-});
-```
+[PRE10]
 
 如果您可能已经注意到，许多事情是相似的，但也有根本性的变化：
 
@@ -496,72 +290,17 @@ app.listen(SERVER_PORT, () => {
 
 为了稳健性，我们将使用第二个选项，因此将 Web 服务器从上一章复制到一个新文件夹中，并将其重命名为`nginx_main_site.conf.template`。然后我们将为其添加一个解析器配置和一个名为`$APP_NAME`的变量，用于我们的代理主机端点：
 
-```
-server {
-  listen         8080;
-  server_name    _;  
-
-  resolver $DNS_RESOLVERS;
-
-  root /srv/www/html;
-
-  location ~/\. {
-    deny all;
-  }
-
-  location / { 
-    auth_basic           "Authentication required";
-    auth_basic_user_file /srv/www/html/.htpasswd;
-
-    proxy_pass           http://$APP_NAME:8000;
-  }
-}
-```
+[PRE11]
 
 由于 NGINX 在配置文件中不处理环境变量替换，我们将在其周围编写一个包装脚本。添加一个名为`start_nginx.sh`的新文件，并在其中包含以下内容，以获取主机的解析器并生成新的 main_site 配置：
 
-```
-#!/bin/bash -e
-
-export DNS_RESOLVERS=$(cat /etc/resolv.conf | grep 'nameserver' | awk '{ print $2 }' | xargs echo)
-
-cat /etc/nginx/conf.d/nginx_main_site.conf.template | envsubst '$DNS_RESOLVERS $APP_NAME' > /etc/nginx/conf.d/nginx_main_site.conf
-
-nginx -g 'daemon off;'
-```
+[PRE12]
 
 为了使其运行，我们最终需要确保我们使用此脚本启动 NGINX，而不是内置的脚本，因此我们还需要修改我们的`Dockerfile`。
 
 打开我们的 Dockerfile，并确保它具有以下内容：
 
-```
-FROM nginx:latest
-
-RUN apt-get update -q && \
-    apt-get dist-upgrade -y && \
-    apt-get install openssl && \
-    apt-get clean && \
-    apt-get autoclean
-
-EXPOSE 8080
-
-ENV SRV_PATH /srv/www/html
-
-ARG PASSWORD=test
-
-RUN rm /etc/nginx/conf.d/default.conf
-
-COPY start_nginx.sh /usr/local/bin/
-
-RUN mkdir -p $SRV_PATH && \
-    chown nginx:nginx $SRV_PATH && \
-    printf "user:$(openssl passwd -crypt $PASSWORD)\n" >> $SRV_PATH/.htpasswd && \
-    chmod +x /usr/local/bin/start_nginx.sh
-
-COPY nginx_main_site.conf.template /etc/nginx/conf.d/
-
-CMD ["/usr/local/bin/start_nginx.sh"]
-```
+[PRE13]
 
 在这里，主要的变化是启动脚本`CMD`的覆盖，并将配置转换为模板，其余基本保持不变。
 
@@ -581,75 +320,15 @@ CMD ["/usr/local/bin/start_nginx.sh"]
 
 就像我们为简单的 Web 服务器所做的那样，我们将开始创建另一个 Swarm 集群：
 
-```
-$ docker swarm init
-Swarm initialized: current node (1y1h7rgpxbsfqryvrxa04rvcp) is now a manager.
-
-To add a worker to this swarm, run the following command:
-
- docker swarm join \
- --token SWMTKN-1-36flmf9vnika6x5mbxx7vf9kldqaw6bq8lxtkeyaj4r5s461ln-aiqlw49iufv3s6po4z2fytos1 \
- 192.168.4.128:2377
-```
+[PRE14]
 
 然后，我们需要为服务发现主机名解析创建覆盖网络才能工作。您不需要了解太多关于这个，除了它创建了一个隔离的网络，我们将把所有服务添加到其中：
 
-```
-$ docker network create --driver overlay service_network
-44cyg4vsitbx81p208vslp0rx
-```
+[PRE15]
 
 最后，我们将构建和启动我们的容器：
 
-```
-$ cd ../database
-$ docker build . -t local_database
-$ docker service create -d --replicas 1 \
- --name local-database \
- --network service_network \
- --mount type=volume,source=database_volume,destination=/data/db \
-                           local_database
-<snip>
-pilssv8du68rg0oztm6gdsqse
-
-$ cd ../application_server
-$ docker build -t application_server .
-$ docker service create -d -e DB_HOST=local-database \
- --replicas 3 \
- --network service_network \
- --name application-server \
- application_server
-<snip>
-pue2ant1lg2u8ejocbsovsxy3
-
-$ cd ../web_server
-$ docker build -t web_server .
-$ docker service create -d --name web-server \
- --network service_network \
- --replicas 3 \
- -e APP_NAME=application-server \
- -p 8080:8080 \
- web_server
-<snip>
-swi95q7z38i2wepmdzoiuudv7
-
-$ # Sanity checks
-$ docker service ls
-ID           NAME               MODE       REPLICAS IMAGE                PORTS
-pilssv8du68r local-database     replicated 1/1      local_database 
-pue2ant1lg2u application-server replicated 3/3      application_server
-swi95q7z38i2 web-server         replicated 3/3      web_server            *:8080->8080/tcp
-
-$ docker ps --format 'table {{.ID}}  {{.Image}}\t  {{.Ports}}'
-CONTAINER ID  IMAGE                         PORTS
-8cdbec233de7  application_server:latest     8000/tcp
-372c0b3195cd  application_server:latest     8000/tcp
-6be2d6e9ce77  web_server:latest             80/tcp, 8080/tcp
-7aca0c1564f0  web_server:latest             80/tcp, 8080/tcp
-3d621c697ed0  web_server:latest             80/tcp, 8080/tcp
-d3dad64c4837  application_server:latest     8000/tcp
-aab4b2e62952  local_database:latest         27017/tcp 
-```
+[PRE16]
 
 如果您在启动这些服务时遇到问题，可以使用`docker service logs <service_name>`来查看日志，以找出出了什么问题。如果特定容器出现问题，还可以使用`docker logs <container_id>`。
 
@@ -673,97 +352,17 @@ aab4b2e62952  local_database:latest         27017/tcp
 
 在尝试使用 Docker 堆栈配置之前，我们将清理旧的练习：
 
-```
-$ docker service ls -q | xargs docker service rm
-pilssv8du68r
-pue2ant1lg2u
-swi95q7z38i2
-
-$ docker network rm service_network
-service_network
-```
+[PRE17]
 
 现在我们可以编写我们的 YAML 配置文件--您可以很容易地注意到 CLI 与此配置文件之间的相似之处：
 
 您可以通过访问[`docs.docker.com/docker-cloud/apps/stack-yaml-reference/`](https://docs.docker.com/docker-cloud/apps/stack-yaml-reference)找到有关 Docker 堆栈 YAML 文件中所有可用选项的更多信息。通常，您可以使用 CLI 命令设置的任何内容，也可以在 YAML 配置中执行相同的操作。
 
-```
-version: "3"
-services:
- local-database:
- image: local_database
- networks:
- - service_network
- deploy:
- replicas: 1
- restart_policy:
- condition: on-failure
- volumes:
- - database_volume:/data/db 
- application-server:
- image: application_server
- networks:
- - service_network
- depends_on:
- - local-database
- environment:
- - DB_HOST=local-database
- deploy:
- replicas: 3
- restart_policy:
- condition: on-failure 
- web-server:
- image: web_server
- networks:
- - service_network
- ports:
- - 8080:8080
- depends_on:
- - application-server
- environment:
- - APP_NAME=application-server
- deploy:
- replicas: 3
- restart_policy:
- condition: on-failure
-
-networks:
- service_network:
-
-volumes:
- database_volume:
-```
+[PRE18]
 
 启动我们的堆栈怎么样？这也很容易！堆栈几乎与`docker services`具有相同的命令：
 
-```
-$ docker stack deploy --compose-file swarm_application.yml swarm_test
-Creating network swarm_test_service_network
-Creating service swarm_test_local-database
-Creating service swarm_test_application-server
-Creating service swarm_test_web-server
-
-$ # Sanity checks
-$ docker stack ls
-NAME        SERVICES
-swarm_test  3
-
-$ docker stack services swarm_test
-ID           NAME                          MODE       REPLICAS            IMAGE                PORTS
-n5qnthc6031k swarm_test_application-server replicated 3/3                 application_server 
-v9ho17uniwc4 swarm_test_web-server         replicated 3/3                 web_server           *:8080->8080/tcp
-vu06jxakqn6o swarm_test_local-database     replicated 1/1                 local_database
-
-$ docker ps --format 'table {{.ID}}  {{.Image}}\t  {{.Ports}}'
-CONTAINER ID  IMAGE                         PORTS
-afb936897b0d  application_server:latest     8000/tcp
-d9c6bab2453a  web_server:latest             80/tcp, 8080/tcp
-5e6591ee608b  web_server:latest             80/tcp, 8080/tcp
-c8a8dc620023  web_server:latest             80/tcp, 8080/tcp
-5db03c196fda  application_server:latest     8000/tcp
-d2bf613ecae0  application_server:latest     8000/tcp
-369c86b73ae1  local_database:latest         27017/tcp
-```
+[PRE19]
 
 如果您再次在浏览器中输入`http://127.0.0.1:8080`，您会发现我们的应用程序就像以前一样工作！我们已经成功地使用 Docker Swarm 集群上的单个文件部署了整个集群的镜像！
 
@@ -771,16 +370,7 @@ d2bf613ecae0  application_server:latest     8000/tcp
 
 我们不会留下无用的服务，所以我们将删除我们的堆栈并停止我们的 Swarm 集群，为下一章做准备：
 
-```
-$ docker stack rm swarm_test
-Removing service swarm_test_application-server
-Removing service swarm_test_web-server
-Removing service swarm_test_local-database
-Removing network swarm_test_service_network
-
-$ docker swarm leave --force
-Node left the swarm.
-```
+[PRE20]
 
 我们不需要清理网络或运行的容器，因为一旦我们的堆栈消失，Docker 会自动将它们删除。完成这部分后，我们现在可以以全新的状态进入下一章关于卷。
 

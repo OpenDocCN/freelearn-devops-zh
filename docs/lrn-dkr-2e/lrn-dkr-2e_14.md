@@ -62,23 +62,7 @@ Docker 在处理容器化应用程序时明确推荐使用声明性方法。因�
 
 让我们来看一个简单的`docker-compose.yml`文件的内容：
 
-```
-version: "2.4"
-services:
- web:
-    image: fundamentalsofdocker/ch11-web:2.0
-    build: web
-    ports:
-    - 80:3000
- db:
-    image: fundamentalsofdocker/ch11-db:2.0
-    build: db
-    volumes:
-    - pets-data:/var/lib/postgresql/data
-
-volumes:
- pets-data:
-```
+[PRE0]
 
 文件中的行解释如下：
 
@@ -98,10 +82,7 @@ volumes:
 
 导航到`fods`文件夹的`ch11`子文件夹，然后构建镜像：
 
-```
-$ cd ~/fod/ch11
-$ docker-compose build
-```
+[PRE1]
 
 如果我们输入上述命令，那么工具将假定当前目录中必须有一个名为`docker-compose.yml`的文件，并将使用该文件来运行。在我们的情况下，确实如此，工具将构建镜像。
 
@@ -123,9 +104,7 @@ $ docker-compose build
 
 构建了 db 服务的 Docker 镜像
 
-```
-$ docker-compose up
-```
+[PRE2]
 
 输出将向我们展示应用程序的启动。 我们应该看到以下内容：
 
@@ -157,11 +136,7 @@ Docker Compose 还显示了数据库（蓝色）和 Web 服务（黄色）生成
 
 由于应用程序正在交互模式下运行，因此我们运行 Docker Compose 的终端被阻塞，我们可以通过按*Ctrl*+*C*来取消应用程序。如果我们这样做，我们会看到以下内容：
 
-```
-^CGracefully stopping... (press Ctrl+C again to force)
-Stopping ch11_web_1 ... done
-Stopping ch11_db_1 ... done
-```
+[PRE3]
 
 我们会注意到数据库和 web 服务会立即停止。不过有时，一些服务可能需要大约 10 秒钟才能停止。原因是数据库和 web 服务监听并对 Docker 发送的`SIGTERM`信号做出反应，而其他服务可能不会，因此 Docker 在预定义的 10 秒超时间隔后将它们杀死。
 
@@ -173,9 +148,7 @@ Stopping ch11_db_1 ... done
 
 我们也可以在后台运行应用程序。所有容器将作为守护进程运行。为此，我们只需要使用`-d`参数，如下面的代码所示：
 
-```
-$ docker-compose up -d
-```
+[PRE4]
 
 Docker Compose 为我们提供了许多比`up`更多的命令。我们可以使用这个工具来列出应用程序中的所有服务：
 
@@ -185,34 +158,21 @@ Docker Compose 为我们提供了许多比`up`更多的命令。我们可以使�
 
 要停止和清理应用程序，我们使用`docker-compose down`命令：
 
-```
-$ docker-compose down
-Stopping ch11_web_1 ... done
-Stopping ch11_db_1 ... done
-Removing ch11_web_1 ... done
-Removing ch11_db_1 ... done
-Removing network ch11_default
-```
+[PRE5]
 
 如果我们还想删除数据库的卷，那么我们可以使用以下命令：
 
-```
-$ docker volume rm ch11_pets-data
-```
+[PRE6]
 
 或者，我们可以将`docker-compose down`和`docker volume rm <volume name>`两个命令合并成一个单一的命令：
 
-```
-$ docker-compose down -v
-```
+[PRE7]
 
 在这里，参数`-v`（或`--volumes`）会移除在`compose`文件的`volumes`部分声明的命名卷和附加到容器的匿名卷。
 
 为什么卷的名称中有一个`ch11`前缀？在`docker-compose.yml`文件中，我们已经调用了要使用的卷为`pets-data`。但是，正如我们已经提到的，Docker Compose 会用父文件夹的名称加上下划线作为所有名称的前缀。在这种情况下，父文件夹的名称叫做`ch11`。如果你不喜欢这种方法，你可以显式地定义一个项目名称，例如：
 
-```
-$ docker-compose -p my-app up
-```
+[PRE8]
 
 它使用了一个名为 my-app 的项目名称来运行应用程序。
 
@@ -222,9 +182,7 @@ $ docker-compose -p my-app up
 
 运行更多实例也被称为扩展。我们可以使用这个工具将我们的`web`服务扩展到，比如说，三个实例：
 
-```
-$ docker-compose up --scale web=3
-```
+[PRE9]
 
 如果我们这样做，我们会有一个惊喜。输出将类似于以下的截图：
 
@@ -236,39 +194,15 @@ web 服务的第二个和第三个实例无法启动。错误消息告诉我们�
 
 1.  首先，让我们拆除应用程序：
 
-```
-$ docker-compose down
-```
+[PRE10]
 
 1.  然后，我们修改`docker-compose.yml`文件如下所示：
 
-```
-version: "2.4"
-services:
-  web:
-    image: fundamentalsofdocker/ch11-web:2.0
-    build: web
-    ports:
-      - 3000
-  db:
-    image: fundamentalsofdocker/ch11-db:2.0
-    build: db
-    volumes:
-      - pets-data:/var/lib/postgresql/data
-
-volumes:
-  pets-data:
-```
+[PRE11]
 
 1.  现在，我们可以再次启动应用程序，并立即扩展它：
 
-```
-$ docker-compose up -d
-$ docker-compose up -d --scale web=3
-Starting ch11_web_1 ... done
-Creating ch11_web_2 ... done
-Creating ch11_web_3 ... done
-```
+[PRE12]
 
 1.  如果我们现在执行`docker-compose ps`，我们应该会看到以下的截图：
 
@@ -276,10 +210,7 @@ Creating ch11_web_3 ... done
 
 1.  正如我们所看到的，每个服务都关联到了不同的主机端口。我们可以尝试看看它们是否工作，比如使用`curl`。让我们测试第三个实例，`ch11_web_3`：
 
-```
-$ curl -4 localhost:32772
-Pets Demo Application
-```
+[PRE13]
 
 答案`Pets Demo Application`告诉我们，我们的应用程序确实仍然按预期工作。为了确保，尝试对其他两个实例进行测试。
 
@@ -287,51 +218,25 @@ Pets Demo Application
 
 我们之前已经看到，我们也可以使用`docker-compose build`命令来构建`docker-compose`文件中定义的应用程序的镜像。但是为了使其工作，我们必须将构建信息添加到`docker-compose`文件中。在文件夹中，我们有一个名为`docker-compose.dev.yml`的文件，其中已经添加了这些指令。它基本上是我们迄今为止使用的`docker-compose.yml`文件的副本。
 
-```
-version: "2.4"
-services:
-  web:
-    build: web
-    image: fundamentalsofdocker/ch11-web:2.0
-    ports:
-      - 80:3000
-  db:
-    build: db
-    image: fundamentalsofdocker/ch1-db:2.0
-    volumes:
-      - pets-data:/var/lib/postgresql/data
-
-volumes:
-  pets-data:
-```
+[PRE14]
 
 请注意每个服务的`build`键。该键的值表示 Docker 期望找到`Dockerfile`以构建相应映像的上下文或文件夹。如果我们想要为`web`服务使用命名不同的`Dockerfile`，比如`Dockerfile-dev`，那么`docker-compose`文件中的`build`块将如下所示：
 
-```
-build:
-    context: web
-    dockerfile: Dockerfile-dev
-```
+[PRE15]
 
 现在让我们使用另一个`docker-compose-dev.yml`文件：
 
-```
-$ docker-compose -f docker-compose.dev.yml build
-```
+[PRE16]
 
 `-f`参数将告诉 Docker Compose 应用程序使用哪个`compose`文件。
 
 要将所有映像推送到 Docker Hub，我们可以使用`docker-compose push`。我们需要登录到 Docker Hub，以便成功，否则在推送时会出现身份验证错误。因此，在我的情况下，我执行以下操作：
 
-```
-$ docker login -u fundamentalsofdocker -p <password>
-```
+[PRE17]
 
 假设登录成功，然后我可以推送以下代码：
 
-```
-$ docker-compose -f docker-compose.dev.yml push
-```
+[PRE18]
 
 这可能需要一段时间，具体取决于您的互联网连接带宽。在推送时，您的屏幕可能看起来类似于这样：
 
@@ -347,31 +252,13 @@ $ docker-compose -f docker-compose.dev.yml push
 
 让我们举一个具体的例子。我们可以定义一个基本的 Docker Compose 文件，然后定义特定于环境的覆盖。假设我们有一个名为`docker-compose.base.yml`的文件，内容如下：
 
-```
-version: "2.4"
-services:
-  web:
-    image: fundamentalsofdocker/ch11-web:2.0
-  db:
-    image: fundamentalsofdocker/ch11-db:2.0
-    volumes:
-      - pets-data:/var/lib/postgresql/data
-
-volumes:
-  pets-data:
-```
+[PRE19]
 
 这只定义了在所有环境中应该相同的部分。所有特定的设置都已被移除。
 
 假设我们想要在 CI 系统上运行我们的示例应用程序，但是我们想要为数据库使用不同的设置。我们用来创建数据库映像的`Dockerfile`如下所示：
 
-```
-FROM postgres:12.0-alpine
-COPY init-db.sql /docker-entrypoint-initdb.d/
-ENV POSTGRES_USER dockeruser
-ENV POSTGRES_PASSWORD dockerpass
-ENV POSTGRES_DB pets
-```
+[PRE20]
 
 请注意我们在第 3 到 5 行定义的三个环境变量。`web`服务的`Dockerfile`具有类似的定义。假设在 CI 系统上，我们想要执行以下操作：
 
@@ -383,26 +270,11 @@ ENV POSTGRES_DB pets
 
 然后，相应的覆盖文件将如下所示：
 
-```
-version: "2.4"
-services:
-  web:
-    build: web
-    ports:
-      - 5000:3000
-    environment:
-      POSTGRES_PASSWORD: ci-pass
-  db:
-    build: db
-    environment:
-      POSTGRES_PASSWORD: ci-pass
-```
+[PRE21]
 
 我们可以使用以下命令运行此应用程序：
 
-```
-$ docker-compose -f docker-compose.yml -f docker-compose-ci.yml up -d --build
-```
+[PRE22]
 
 请注意，第一个`-f`参数提供基本的 Docker Compose 文件，第二个参数提供覆盖文件。`--build`参数用于强制`docker-compose`重新构建镜像。
 

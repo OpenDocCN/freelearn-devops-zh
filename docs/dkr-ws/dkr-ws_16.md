@@ -8,26 +8,17 @@
 
 1.  要启动 Postgres Docker 容器，首先确定需要设置数据库的默认用户名和密码凭据的环境变量。通过阅读官方 Docker Hub 页面，您可以看到`POSTGRES_USER`和`POSTGRES_PASSWORD`环境变量的配置选项。使用`-e`标志传递环境变量。启动我们的 Postgres Docker 容器的最终命令如下：
 
-```
-docker run -itd -e "POSTGRES_USER=panoramic" -e "POSTGRES_PASSWORD=trekking" postgres:12
-```
+[PRE0]
 
 运行此命令将启动容器。
 
 1.  执行`docker ps`命令以验证其正在运行并且健康：
 
-```
-$ docker ps
-```
+[PRE1]
 
 该命令应返回如下输出：
 
-```
-CONTAINER ID  IMAGE         COMMAND                 CREATED
-  STATUS              PORTS               NAMES
-29f115af8cdd  postgres:12   "docker-entrypoint.s…"  4 seconds ago
-  Up 2 seconds        5432/tcp            blissful_kapitsa
-```
+[PRE2]
 
 从前面的输出可以看出，具有 ID`29f115af8cdd`的容器正在运行。
 
@@ -39,19 +30,13 @@ CONTAINER ID  IMAGE         COMMAND                 CREATED
 
 1.  使用`docker exec`登录到数据库实例，启动容器内的 PSQL shell，传递`--username`标志并将`--password`标志留空：
 
-```
-$ docker exec -it <containerID> psql --username panoramic --password
-```
+[PRE3]
 
 这应提示您输入密码并启动 PSQL shell。
 
 1.  使用`\l`命令列出所有数据库：
 
-```
-psql (12.2 (Debian 12.2-2.pgdg100+1))
-Type "help" for help.
-panoramic=# \l
-```
+[PRE4]
 
 将返回在容器中运行的数据库列表：
 
@@ -73,90 +58,41 @@ panoramic=# \l
 
 1.  为此活动创建一个名为`activity-02-01`的新目录：
 
-```
-mkdir activity-02-01
-```
+[PRE5]
 
 1.  导航到新创建的`activity-02-01`目录：
 
-```
-cd activity-02-01
-```
+[PRE6]
 
 1.  在`activity-02-01`目录中，创建一个名为`welcome.php`的文件：
 
-```
-touch welcome.php 
-```
+[PRE7]
 
 1.  现在，使用您喜欢的文本编辑器打开`welcome.php`：
 
-```
-vim welcome.php 
-```
+[PRE8]
 
 1.  创建 `welcome.php` 文件，并使用活动开始时提供的内容，然后保存并退出 `welcome.php` 文件：
 
-```
-<?php
-$hourOfDay = date('H');
-if($hourOfDay < 12) {
-    $message = «Good Morning»;
-} elseif($hourOfDay > 11 && $hourOfDay < 18) {
-    $message = «Good Afternoon»;
-} elseif($hourOfDay > 17){
-    $message = «Good Evening»;
-}
-echo $message;
-?>
-```
+[PRE9]
 
 1.  在 `activity-02-01` 目录中，创建一个名为 `Dockerfile` 的文件：
 
-```
-touch Dockerfile
-```
+[PRE10]
 
 1.  现在，使用您喜爱的文本编辑器打开 `Dockerfile`：
 
-```
-vim Dockerfile
-```
+[PRE11]
 
 1.  将以下内容添加到 `Dockerfile` 中，然后保存并退出 `Dockerfile`：
 
-```
-# Start with Ubuntu base image
-FROM ubuntu:18.04
-# Set labels
-LABEL maintainer=sathsara
-LABEL version=1.0 
-# Set environment variables
-ENV DEBIAN_FRONTEND=noninteractive
-# Install Apache, PHP, and other packages
-RUN apt-get update && \
-    apt-get -y install apache2 \
-    php \ 
-    curl
-# Copy all php files to the Docker image
-COPY *.php /var/www/html
-# Set working directory
-WORKDIR /var/www/html
-# Create health check
-HEALTHCHECK --interval=5s --timeout=3s --retries=3 CMD curl -f   http://localhost || exit 1
-# Expose Apache
-EXPOSE 80
-# Start Apache
-ENTRYPOINT ["apache2ctl", "-D", "FOREGROUND"]
-```
+[PRE12]
 
 我们将使用 `ubuntu` 基础镜像开始这个 `Dockerfile`，然后设置一些标签。接下来，将 `DEBIAN_FRONTEND` 环境变量设置为 `noninteractive`，以使包安装变为非交互式。然后安装 `apache2`、`php` 和 `curl` 包，并将 PHP 文件复制到 `/var/www/html` 目录。接下来，配置健康检查并暴露端口 `80`。最后，使用 `apache2ctl` 命令启动 Apache web 服务器。
 
 1.  现在，构建 Docker 镜像：
 
-```
-$ docker image build -t activity-02-01 .
-```
+[PRE13]
 
 运行 `build` 命令后，您应该会得到以下输出：
 
@@ -166,9 +102,7 @@ $ docker image build -t activity-02-01 .
 
 1.  执行 `docker container run` 命令以从您在上一步中构建的 Docker 镜像启动新容器：
 
-```
-$ docker container run -p 80:80 --name activity-02-01-container -d activity-02-01
-```
+[PRE14]
 
 由于您是以分离模式（使用 `-d` 标志）启动 Docker 容器，上述命令将输出生成的 Docker 容器的 ID。
 
@@ -180,15 +114,11 @@ $ docker container run -p 80:80 --name activity-02-01-container -d activity-02-0
 
 1.  现在，清理容器。首先，使用 `docker container stop` 命令停止 Docker 容器：
 
-```
-$ docker container stop activity-02-01-container
-```
+[PRE15]
 
 1.  最后，使用 `docker container rm` 命令移除 Docker 容器：
 
-```
-$ docker container rm activity-02-01-container
-```
+[PRE16]
 
 在这个活动中，我们学习了如何使用本章中迄今为止学到的 `Dockerfile` 指令来将示例 PHP 应用程序 docker 化。我们使用了多个 `Dockerfile` 指令，包括 `FROM`、`LABEL`、`ENV`、`RUN`、`COPY`、`WORKDIR`、`HEALTHCHECK`、`EXPOSE` 和 `ENTRYPOINT`。
 
@@ -202,69 +132,27 @@ $ docker container rm activity-02-01-container
 
 1.  创建一个新的构建脚本。第一行显示设置`–ex`命令，将每个步骤打印到屏幕上，并且如果任何步骤失败，脚本将失败。*第 3 行*和*第 4 行*设置了你的注册表和服务名称的变量：
 
-```
-1 set -ex
-2
-3 REGISTRY=dev.docker.local:5000
-4 SERVICENAME=postgresql
-```
+[PRE17]
 
 1.  在*第 6 行*，将`GIT_VERSION`变量设置为指向你的短 Git 提交哈希。构建脚本然后在*第 7 行*将这个值打印到屏幕上：
 
-```
-6 GIT_VERSION=`git log -1 --format=%h`
-7 echo "version: $GIT_VERSION "
-```
+[PRE18]
 
 1.  在*第 9 行*使用`docker build`命令创建你的新镜像，并在*第 11 行*添加`docker push`命令将镜像推送到你的本地 Docker 注册表：
 
-```
-9 docker build -t $REGISTRY/$SERVICENAME:$GIT_VERSION .
-10
-11 docker push $REGISTRY/$SERVICENAME:$GIT_VERSION
-```
+[PRE19]
 
 脚本文件将如下所示：
 
-```
-1 set -ex
-2
-3 REGISTRY=dev.docker.local:5000
-4 SERVICENAME= postgresql
-5
-6 GIT_VERSION=`git log -1 --format=%h`
-7 echo "version: $GIT_VERSION "
-8
-9 docker build -t $REGISTRY/$SERVICENAME:$GIT_VERSION .
-10
-11 docker push $REGISTRY/$SERVICENAME:$GIT_VERSION
-```
+[PRE20]
 
 1.  运行以下命令来确保脚本已构建并成功运行：
 
-```
-./build.sh
-```
+[PRE21]
 
 你应该会得到以下输出：
 
-```
-./BuildScript.sh 
-++ REGISTRY=dev.docker.local:5000
-++ SERVICENAME=basic-app
-+++ git log -1 --format=%h
-++ GIT_VERSION=49d3a10
-++ echo 'version: 49d3a10 '
-version: 49d3a10 
-++ docker build -t dev.docker.local:5000/basic-app:49d3a10 .
-Sending build context to Docker daemon  3.072kB
-Step 1/1 : FROM postgres
- ---> 873ed24f782e
-Successfully built 873ed24f782e
-Successfully tagged dev.docker.local:5000/basic-app:49d3a10
-++ docker push dev.docker.local:5000/basic-app:49d3a10
-The push refers to repository [dev.docker.local:5000/basic-app]
-```
+[PRE22]
 
 ## 活动 3.02：配置本地 Docker 注册表存储
 
@@ -274,33 +162,23 @@ The push refers to repository [dev.docker.local:5000/basic-app]
 
 1.  在你的主目录中创建`test_registry`目录：
 
-```
-mkdir /home/vincesesto/test_registry/
-```
+[PRE23]
 
 1.  运行本地注册表，但在这种情况下，包括`-v`选项，将你在前一步创建的目录连接到`/var/lib/registry`容器目录。还要使用`:rw`选项确保你可以读写该目录：
 
-```
-docker run -d -p 5000:5000 --restart=always --name registry -v /home/vincesesto/test_registry/registry:/var/lib/registry:rw registry
-```
+[PRE24]
 
 1.  现在，像往常一样将镜像推送到新挂载的注册表中：
 
-```
-docker push dev.docker.local:5000/basic-app:ver1
-```
+[PRE25]
 
 1.  为了验证镜像现在是否存储在你新挂载的目录中，列出`registry/docker/registry/v2/repositories/`目录中的文件。
 
-```
-ls  ~/test_registry/registry/docker/registry/v2/repositories/
-```
+[PRE26]
 
 你应该会看到你刚刚在上一步推送的新镜像：
 
-```
-basic-app
-```
+[PRE27]
 
 这个活动让我们开始使用一些更高级的 Docker 选项。别担心，将会有更多章节专门帮助你理解在运行容器时的卷挂载和存储。
 
@@ -312,98 +190,41 @@ basic-app
 
 1.  为这个活动创建一个名为`activity-04-01`的新目录：
 
-```
-mkdir activity-04-01
-```
+[PRE28]
 
 1.  导航到新创建的`activity-04-01`目录：
 
-```
-cd activity-04-01
-```
+[PRE29]
 
 1.  在`activity-04-01`目录中，创建一个名为`main.go`的文件：
 
-```
-$ touch main.go
-```
+[PRE30]
 
 1.  现在，使用你喜欢的文本编辑器打开`main.go`文件：
 
-```
-$ vim main.go
-```
+[PRE31]
 
 1.  将以下内容添加到`main.go`文件中，然后保存并退出该文件：
 
-```
-package main
-import (
-    "net/http"
-    "fmt"
-    "log"
-    "os"
-)
-func main() {
-    http.HandleFunc("/", defaultHandler)
-    http.HandleFunc("/contact", contactHandler)
-    http.HandleFunc("/login", loginHandler)
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080"
-    }
-
-    log.Println("Service started on port " + port)
-    err := http.ListenAndServe(":"+port, nil)
-    if err != nil {
-        log.Fatal("ListenAndServe: ", err)
-        return
-    }
-}
-func defaultHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "<h1>Home Page</h1>")
-}
-func contactHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "<h1>Contact Us</h1>")
-}
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "<h1>Login Page</h1>")
-}
-```
+[PRE32]
 
 1.  在`activity-04-01`目录中，创建一个名为`Dockerfile`的文件。这个文件将是多阶段`Dockerfile`：
 
-```
-touch Dockerfile
-```
+[PRE33]
 
 1.  现在，使用你喜欢的文本编辑器打开`Dockerfile`：
 
-```
-vim Dockerfile
-```
+[PRE34]
 
 1.  将以下内容添加到`Dockerfile`并保存文件：
 
-```
-FROM golang:1.14.2-alpine AS builder
-WORKDIR /myapp
-COPY main.go .
-RUN go build -o main .
-FROM alpine:latest AS runtime
-WORKDIR /myapp
-COPY --from=builder /myapp/main .
-ENTRYPOINT ["./main"]
-EXPOSE 8080
-```
+[PRE35]
 
 这个`Dockerfile`有两个阶段，名为`builder`和`runtime`。构建阶段使用 Golang Docker 镜像作为父镜像，负责从 Golang 源文件创建可执行文件。运行时阶段使用`alpine` Docker 镜像作为父镜像，并执行从`builder`阶段复制的可执行文件。
 
 1.  现在，使用`docker build`命令构建 Docker 镜像：
 
-```
-docker build -t activity-04-01:v1 .
-```
+[PRE36]
 
 您应该会得到以下输出：
 
@@ -413,9 +234,7 @@ docker build -t activity-04-01:v1 .
 
 1.  使用`docker image` ls 命令列出计算机上所有可用的 Docker 镜像。验证镜像的大小：
 
-```
-docker images
-```
+[PRE37]
 
 该命令将返回所有可用的 Docker 镜像列表：
 
@@ -427,21 +246,15 @@ docker images
 
 1.  执行`docker container run`命令，从您在上一步中构建的 Docker 镜像启动一个新的容器：
 
-```
-$ docker container run -p 8080:8080 --name activity-04-01-container activity-04-01:v1
-```
+[PRE38]
 
 您应该会得到类似以下的输出：
 
-```
-2020/08/30 05:14:10 Service started on port 8080
-```
+[PRE39]
 
 1.  在您喜欢的网络浏览器中查看以下 URL 的应用程序：
 
-```
-http://127.0.0.1:8080/
-```
+[PRE40]
 
 当我们导航到 URL `http://127.0.0.1:8080/`时，以下图片显示了主页：
 
@@ -451,9 +264,7 @@ http://127.0.0.1:8080/
 
 1.  现在，在您喜欢的网络浏览器中浏览以下 URL：
 
-```
-http://127.0.0.1:8080/contact
-```
+[PRE41]
 
 当我们导航到 URL `http://127.0.0.1:8080/contact`时，以下图片显示了联系页面：
 
@@ -463,9 +274,7 @@ http://127.0.0.1:8080/contact
 
 1.  现在，在您喜欢的网络浏览器中输入以下 URL：
 
-```
-http://127.0.0.1:8080/login 
-```
+[PRE42]
 
 当我们导航到 URL `http://127.0.0.1:8080/login`时，以下图片显示了登录页面：
 
@@ -485,41 +294,11 @@ http://127.0.0.1:8080/login
 
 1.  创建所需的目录并使用`cd`命令进入其中：
 
-```
-mkdir wordpress
-cd wordpress
-```
+[PRE43]
 
 1.  创建一个名为`docker-compose.yaml`的文件，内容如下：
 
-```
-version: "3"
-services:
-  database:
-    image: mysql:5.7
-    volumes:
-      - data:/var/lib/mysql
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
-  wordpress:
-    depends_on:
-      - database
-    image: wordpress:latest
-    ports:
-      - "8080:80"
-    restart: always
-    environment:
-      WORDPRESS_DB_HOST: database:3306
-      WORDPRESS_DB_USER: user
-      WORDPRESS_DB_PASSWORD: password
-      WORDPRESS_DB_NAME: db
-volumes:
-     data: {} 
-```
+[PRE44]
 
 1.  使用`docker-compose up --detach`命令启动应用程序：![图 5.22：应用程序的启动](img/B15021_05_22.jpg)
 
@@ -543,40 +322,11 @@ volumes:
 
 1.  创建所需的目录并切换到其中：
 
-```
-mkdir pta-compose
-cd pta-compose
-```
+[PRE45]
 
 1.  创建一个名为`docker-compose.yaml`的文件，内容如下：
 
-```
-version: "3"
-services:
-  db:
-    image: postgres
-    volumes:
-      - db_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_PASSWORD=docker
-  web:
-    image: packtworkshops/the-docker-workshop:chapter5-pta-web
-    volumes:
-      - static_data:/service/static
-    depends_on:
-      - db
-  nginx:
-    image: packtworkshops/the-docker-workshop:chapter5-pta-nginx
-    volumes:
-      - static_data:/service/static
-    ports:
-      - 8000:80
-    depends_on:
-      - web
-volumes:
-  db_data:
-  static_data:
-```
+[PRE46]
 
 1.  使用`docker-compose up --detach`命令启动应用程序。您应该会得到类似以下的输出：![图 5.25：应用程序的启动](img/B15021_05_25.jpg)
 
@@ -620,33 +370,25 @@ volumes:
 
 1.  使用`docker network create`命令为 NGINX Web 服务器创建一个网络。将其命名为`webservernet`，并为其分配子网`192.168.1.0/24`和网关`192.168.1.1`：
 
-```
-$ docker network create webservernet --subnet=192.168.1.0/24 --gateway=192.168.1.1
-```
+[PRE47]
 
 这应该创建`bridge`网络`webservernet`。
 
 1.  使用`docker run`命令创建一个 NGINX Web 服务器。使用`-p`标志将主机上的端口`8080`转发到容器实例上的端口`80`：
 
-```
-$ docker run -itd -p 8080:80 --name webserver1 --network webservernet nginx:latest
-```
+[PRE48]
 
 这将在`webservernet`网络中启动`webserver1`容器。
 
 1.  使用`docker run`命令以`host`网络模式启动名为`monitor`的 Alpine Linux 容器。这样，您将知道容器可以访问主系统的主机端口以及`bridge`网络的 IP 地址：
 
-```
-$ docker run -itd --name monitor --network host alpine:latest
-```
+[PRE49]
 
 这将在`host`网络模式下启动一个 Alpine Linux 容器实例。
 
 1.  使用`docker inspect`查找`webserver1`容器的 IP 地址：
 
-```
-$ docker inspect webserver1
-```
+[PRE50]
 
 容器的详细信息将以 JSON 格式显示；从`IPAddress`参数中获取 IP 地址：
 
@@ -656,39 +398,21 @@ $ docker inspect webserver1
 
 1.  使用`docker exec`命令在监控容器内部启动`sh` shell：
 
-```
-$ docker exec -it monitor /bin/sh
-```
+[PRE51]
 
 这应该将您放入根 shell。
 
 1.  使用`apk install`命令在此容器内安装`curl`命令：
 
-```
-/ # apk add curl
-```
+[PRE52]
 
 这应该安装`curl`实用程序：
 
-```
-fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/main
-/x86_64/APKINDEX.tar.gz
-fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/community
-/x86_64/APKINDEX.tar.gz
-(1/4) Installing ca-certificates (20191127-r1)
-(2/4) Installing nghttp2-libs (1.40.0-r0)
-(3/4) Installing libcurl (7.67.0-r0)
-(4/4) Installing curl (7.67.0-r0)
-Executing busybox-1.31.1-r9.trigger
-Executing ca-certificates-20191127-r1.trigger
-OK: 7 MiB in 18 packages
-```
+[PRE53]
 
 1.  使用`curl`命令验证主机级别的连接是否正常工作，调用主机机器上的端口`8080`：
 
-```
-/ # curl -v http://localhost:8080
-```
+[PRE54]
 
 您应该收到来自 NGINX 的`200 OK`响应，表示在主机级别成功连接：
 
@@ -698,9 +422,7 @@ OK: 7 MiB in 18 packages
 
 1.  同样，使用`curl`命令直接通过端口`80`访问 Docker`bridge`网络中容器的 IP 地址：
 
-```
-/ # curl -v 192.168.1.2:80
-```
+[PRE55]
 
 您应该同样收到另一个`200 OK`响应，表明连接成功：
 
@@ -716,46 +438,31 @@ OK: 7 MiB in 18 packages
 
 1.  在 Docker swarm 集群中的`Machine1`上使用`docker network create`命令创建一个名为`panoramic-net`的 Docker`overlay`网络，通过传递自定义的`subnet`、`gateway`和`overlay`网络驱动程序：
 
-```
-$ docker network create panoramic-net --subnet=10.2.0.0/16 --gateway=10.2.0.1 --driver overlay
-```
+[PRE56]
 
 1.  在`Machine1`上使用`docker service create`命令创建一个名为`trekking-app`的服务，加入`panoramic-net`网络：
 
-```
-$ docker service create -t --name trekking-app --replicas=1 --network panoramic-net alpine:latest
-```
+[PRE57]
 
 这将在`panoramic-net` `overlay`网络中启动一个名为`trekking-app`的服务。
 
 1.  在`Machine1`上使用`docker service create`命令创建一个名为`database-app`的服务，加入`panoramic-net`网络。设置默认凭据并指定`postgres:12`版本的 Docker 镜像：
 
-```
-$ docker service create -t --name database-app --replicas=1 --network panoramic-net -e "POSTGRES_USER=panoramic" -e "POSTGRES_PASSWORD=trekking" postgres:12
-```
+[PRE58]
 
 1.  使用`docker exec`访问`trekking-app`服务容器内的`sh` shell：
 
-```
-$ docker exec -it trekking-app.1.qhpwxol00geedkfa9p6qswmyv /bin/sh
-```
+[PRE59]
 
 这应该将您放入`trekking-app`容器实例内的根 shell 中。
 
 1.  使用`ping`命令验证对`database-app`服务的网络连接：
 
-```
-/ # ping database-app
-```
+[PRE60]
 
 ICMP 回复应指示连接成功：
 
-```
-PING database-app (10.2.0.5): 56 data bytes
-64 bytes from 10.2.0.5: seq=0 ttl=64 time=0.261 ms
-64 bytes from 10.2.0.5: seq=1 ttl=64 time=0.352 ms
-64 bytes from 10.2.0.5: seq=2 ttl=64 time=0.198 ms
-```
+[PRE61]
 
 在这个活动中，我们利用了 Docker 集群中的自定义 Docker`overlay`网络，以说明两个 Docker 集群服务之间的连接性，使用 Docker DNS。在真实的多层应用程序中，许多微服务可以部署在使用`overlay`网络网格直接相互通信的大型 Docker 集群中。了解`overlay`网络如何与 Docker DNS 协同工作对于实现容器化基础设施的高效可扩展性至关重要。
 
@@ -767,32 +474,21 @@ PING database-app (10.2.0.5): 56 data bytes
 
 1.  运行以下命令以删除主机中的所有对象：
 
-```
-$ docker container rm -fv $(docker container ls -aq)
-$docker image rm $(docker image ls -q)
-```
+[PRE62]
 
 1.  获取卷名称，然后使用以下命令删除所有卷：
 
-```
-$docker volume ls
-$docker volume rm <volume names separated by spaces>
-```
+[PRE63]
 
 1.  获取网络名称，然后使用以下命令删除所有网络：
 
-```
-$docker network ls
-$docker network rm <network names separated by spaces>
-```
+[PRE64]
 
 1.  打开两个终端，一个专门用于查看`docker events --format '{{json .}}'`的效果。另一个应该打开以执行先前提到的高级步骤。
 
 1.  在第一个终端中，运行以下命令：
 
-```
-docker events --format '{{json .}}'.
-```
+[PRE65]
 
 您应该得到以下输出：
 
@@ -802,9 +498,7 @@ docker events --format '{{json .}}'.
 
 1.  运行以下命令在第二个终端中启动`ubuntu`容器：
 
-```
-$docker run -d ubuntu:14.04
-```
+[PRE66]
 
 您应该得到以下输出：
 
@@ -814,28 +508,19 @@ $docker run -d ubuntu:14.04
 
 1.  使用第二个终端中的以下命令创建名为`vol1`的卷：
 
-```
-$docker volume create vol1
-```
+[PRE67]
 
 1.  使用第二个终端中的以下命令创建名为`net1`的网络：
 
-```
-$docker network create net1
-```
+[PRE68]
 
 1.  使用以下命令删除容器：
 
-```
-$docker container rm -fv <container ID>
-```
+[PRE69]
 
 1.  使用以下命令删除卷和网络：
 
-```
-$docker volume rm vol1
-$docker network rm net1
-```
+[PRE70]
 
 1.  在`docker events`终端中单击*Ctrl* + *C*以终止它。
 
@@ -843,56 +528,33 @@ $docker network rm net1
 
 **示例 1**：
 
-```
-{"status":"create","id":"43903b966123a7c491b50116b40827daa03
-da5d350f8fef2a690fc4024547ce2","from":"ubuntu:14.04","Type":
-"container","Action":"create","Actor":{"ID":"43903b966123a7c
-491b50116b40827daa03da5d350f8fef2a690fc4024547ce2","Attributes":
-{"image":"ubuntu:14.04","name":"upbeat_johnson"}},"scope":"local",
-"time":1592516703,"timeNano":1592516703507582404}
-```
+[PRE71]
 
 **示例 2**：
 
-```
-{"Type":"network","Action":"connect","Actor":{"ID":"52855e1561
-8e37b7ecc0bb26bc42847af07cae65ddd3b68a029e40006364a9bd",
-"Attributes":{"container":"43903b966123a7c491b50116b40827daa03d
-a5d350f8fef2a690fc4024547ce2","name":"bridge","type":"bridge"}},
-"scope":"local","time":1592516703,"timeNano":1592516703911851347}
-```
+[PRE72]
 
 您会发现根据对象的不同属性和结构而有所不同。
 
 1.  运行带有卷的 PostgreSQL 容器。将容器命名为`db1`：
 
-```
-$docker container run --name db1 -v db:/var/lib/postgresql/data -e POSTGRES_PASSWORD=password -d postgres
-```
+[PRE73]
 
 1.  运行`exec`命令，以便 bash 被要执行的命令替换。shell 将更改为`posgres=#`，表示您在容器内部：
 
-```
-$ docker container exec -it db1 psql -U postgres
-```
+[PRE74]
 
 1.  创建一个具有两列的表：`ID`为`serial`类型，`info`为`json`类型：
 
-```
-CREATE TABLE events (ID serial NOT NULL PRIMARY KEY, info json NOT NULL);
-```
+[PRE75]
 
 1.  将第一个示例的`JSON`输出的第一行插入表中：
 
-```
-INSERT INTO events (info) VALUES ('{"status":"create","id":"43903b966123a7c491b50116b40827daa03da 5d350f8fef2a690fc4024547ce2","from":"ubuntu:14.04","Type":"container","Action":"create","Actor":{"ID":"43903b966123a7c49 1b50116b40827daa03da5d350f8fef2a690fc4024547ce2","Attributes":{"image":"ubuntu:14.04","name":"upbeat_johnson"}},"scope":"local","time":1592516703,"timeNano":1592516703507582404}');
-```
+[PRE76]
 
 1.  通过输入以下 SQL 语句验证数据库中是否保存了行：
 
-```
-select * from events;
-```
+[PRE77]
 
 您应该得到以下输出：
 
@@ -918,9 +580,7 @@ select * from events;
 
 **查询 1**：
 
-```
-SELECT * FROM events WHERE info ->> 'status' = 'pull';
-```
+[PRE78]
 
 输出将如下所示：
 
@@ -930,9 +590,7 @@ SELECT * FROM events WHERE info ->> 'status' = 'pull';
 
 **查询 2**：
 
-```
-SELECT * FROM events WHERE info ->> 'status' = 'destroy';
-```
+[PRE79]
 
 输出将如下所示：
 
@@ -942,9 +600,7 @@ SELECT * FROM events WHERE info ->> 'status' = 'destroy';
 
 **查询 3**：
 
-```
-SELECT info ->> 'id' as id FROM events WHERE info ->> 'status'=     'destroy';
-```
+[PRE80]
 
 输出将如下所示：
 
@@ -960,21 +616,15 @@ SELECT info ->> 'id' as id FROM events WHERE info ->> 'status'=     'destroy';
 
 1.  通过运行以下命令验证您的主机上是否没有`/var/mylogs`文件夹：
 
-```
-$cd /var/mylogs
-```
+[PRE81]
 
 您应该得到以下输出：
 
-```
-Bash: cd: /var/mylogs: No such file or directory
-```
+[PRE82]
 
 1.  基于 NGINX 镜像运行一个容器。在`run`命令中指定主机和容器内共享卷的路径。在容器内，NGINX 使用`/var/log/nginx`路径存储日志文件。在主机上指定路径为`/var/mylogs`：
 
-```
-$docker container run -d -v /var/mylogs:/var/log/nginx nginx
-```
+[PRE83]
 
 如果您本地没有该镜像，Docker 引擎将自动拉取该镜像：
 
@@ -984,29 +634,19 @@ $docker container run -d -v /var/mylogs:/var/log/nginx nginx
 
 1.  进入`/var/mylogs`路径。列出该目录中的所有文件：
 
-```
-$cd /var/mylogs
-$ls
-```
+[PRE84]
 
 您应该在那里找到两个文件：
 
-```
-access.log         error.log
-```
+[PRE85]
 
 1.  （可选）如果没有生成错误，这两个文件将是空的。你可以使用`cat` Linux 命令或者使用`tail` Linux 命令来检查内容。因为我们之前使用了`cat`命令，所以让我们在这个例子中使用`tail`命令：
 
-```
-$tail -f *.log
-```
+[PRE86]
 
 你应该得到以下的输出：
 
-```
-==>  access.log  <==
-==>  error.log   <==
-```
+[PRE87]
 
 由于这个 NGINX 服务器没有生成任何错误或者没有被访问，这些文件目前是空的。然而，如果 NGINX 在任何时刻崩溃，生成的错误将会保存在`error.log`中。
 
@@ -1020,15 +660,11 @@ $tail -f *.log
 
 1.  安装 SonarQube 并使用以下命令作为容器运行：
 
-```
-docker run -d --name sonarqube -p 9000:9000 -p 9092:9092 sonarqube
-```
+[PRE88]
 
 你应该得到容器 ID 作为输出：
 
-```
-4346a99b506b1bec8000e429471dabac57e3f565b154ee921284ec685497bfae
-```
+[PRE89]
 
 1.  使用`admin/admin`凭据登录到 SonarQube：![图 8.38：登录到 SonarQube](img/B15021_08_38.jpg)
 
@@ -1114,9 +750,7 @@ docker run -d --name sonarqube -p 9000:9000 -p 9092:9092 sonarqube
 
 您可以运行`ifconfig`命令来获取您的 IP。您将在输出的`en0`部分找到 IP：
 
-```
-$ ifconfig
-```
+[PRE90]
 
 这是将 Jenkins 与 SonarQube 集成的最后一步。让我们返回到项目中。
 
@@ -1124,22 +758,7 @@ $ ifconfig
 
 1.  现在，点击项目名称，然后点击“配置”。在“构建”步骤中，在“分析属性”字段中输入以下代码：
 
-```
-sonar.projectKey=hit_count
-sonar.projectName=hit_count
-sonar.projectVersion=1.0
-sonar.sources=.
-sonar.language=py
-sonar.sourceEncoding=UTF-8
-# Test Results
-sonar.python.xunit.reportPath=nosetests.xml
-# Coverage
-sonar.python.coverage.reportPath=coverage.xml
-# Linter (https://docs.sonarqube.org/display/PLUG/Pylint+Report)
-#sonar.python.pylint=/usr/local/bin/pylint
-#sonar.python.pylint_config=.pylintrc
-#sonar.python.pylint.reportPath=pylint-report.txt
-```
+[PRE91]
 
 点击“保存”。
 
@@ -1179,22 +798,7 @@ sonar.python.coverage.reportPath=coverage.xml
 
 1.  在“构建”选项卡中，在“分析属性”中输入以下代码：
 
-```
-sonar.projectKey=trekking
-sonar.projectName=trekking
-sonar.projectVersion=1.0
-sonar.sources=.
-sonar.language=py
-sonar.sourceEncoding=UTF-8
-# Test Results
-sonar.python.xunit.reportPath=nosetests.xml
-# Coverage
-sonar.python.coverage.reportPath=coverage.xml
-# Linter (https://docs.sonarqube.org/display/PLUG/Pylint+Report)
-#sonar.python.pylint=/usr/local/bin/pylint
-#sonar.python.pylint_config=.pylintrc
-#sonar.python.pylint.reportPath=pylint-report.txt
-```
+[PRE92]
 
 点击“保存”。
 
@@ -1222,116 +826,49 @@ sonar.python.coverage.reportPath=coverage.xml
 
 1.  为应用程序创建一个目录。在这种情况下，您将创建一个名为`Activity1`的目录，并使用`cd`命令进入新目录：
 
-```
-mkdir Activity1; cd Activity1
-```
+[PRE93]
 
 1.  从其 GitHub 存储库克隆应用程序，以确保您拥有部署到 Swarm 的 Panoramic Trekking App 服务所需的所有相关信息和应用程序：
 
-```
-git clone https://github.com/vincesesto/trekking_app.git
-```
+[PRE94]
 
 1.  您不需要 NGINX 的任何支持目录，但请确保您的 Web 服务和运行的数据库在此处列出，包括`panoramic_trekking_app`和`photo_viewer`目录以及`Dockerfile`、`entrypoint.sh`、`manage.py`和`requirements.txt`脚本和文件：
 
-```
-ls -l
-```
+[PRE95]
 
 该命令应返回类似以下的输出：
 
-```
--rw-r--r--   1 vinces  staff   533 12 Mar 15:02 Dockerfile
--rwxr-xr-x   1 vinces  staff  1077 12 Mar 15:02 entrypoint.sh
--rwxr-xr-x   1 vinces  staff   642 12 Mar 15:02 manage.py
-drwxr-xr-x   9 vinces  staff   288 12 Mar 15:02 
-panoramic_trekking_app
-drwxr-xr-x  12 vinces  staff   384 12 Mar 15:02 photo_viewer
--rw-r--r--   1 vinces  staff   105 12 Mar 15:02 requirements.txt
-```
+[PRE96]
 
 1.  在目录中创建`.env.dev`文件，并添加以下详细信息，供`panoramic_trekking_app`在其`settings.py`文件中使用。这些环境变量将设置数据库名称、用户、密码和其他数据库设置：
 
-```
-SQL_ENGINE=django.db.backends.postgresql
-SQL_DATABASE=pta_database
-SQL_USER=pta_user
-SQL_PASSWORD=pta_password
-SQL_HOST=db
-SQL_PORT=5432
-PGPASSWORD=docker
-```
+[PRE97]
 
 1.  创建一个新的`docker-compose.yml`文件，并用文本编辑器打开它，并添加以下详细信息：
 
-```
-version: '3.3'
-services:
-  web:
-    build: .
-    image: activity_web:latest
-    command: python manage.py runserver 0.0.0.0:8000
-    volumes:
-      - static_volume:/service/static
-    ports:
-      - 8000:8000
-    environment:
-      - PGPASSWORD=docker
-    env_file:
-      - ./.env.dev
-    depends_on:
-      - db
-  db:
-    image: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_PASSWORD=docker
-    ports:
-      - 5432:5432
-volumes:
-  postgres_data:
-  static_volume:
-```
+[PRE98]
 
 如您从`docker-compose.yml`文件中的突出显示的行中所见，`web`服务依赖于`activity_web:latest` Docker 镜像。
 
 1.  运行以下`docker build`命令来构建镜像并适当地标记它：
 
-```
-docker build -t activity_web:latest .
-```
+[PRE99]
 
 1.  现在是时候将堆栈部署到 Swarm 了。使用您创建的`docker-compose.yml`文件运行以下`stack deploy`命令：
 
-```
-docker stack deploy --compose-file docker-compose.yml activity_swarm
-```
+[PRE100]
 
 创建网络后，您应该看到`activity_swarm_web`和`activity_swarm_db`服务可用：
 
-```
-Creating network activity_swarm_default
-Creating service activity_swarm_web
-Creating service activity_swarm_db
-```
+[PRE101]
 
 1.  运行`service ls`命令：
 
-```
-docker service ls
-```
+[PRE102]
 
 验证所有服务是否已成功启动，并显示`1/1`副本，就像我们这里一样：
 
-```
-ID       NAME                MODE         REPLICAS
-  IMAGE
-k6kh…    activity_swarm_db   replicated   1/1
-  postgres:latest
-copa…    activity_swarm_web  replicated   1/1
-  activity_web:latest  
-```
+[PRE103]
 
 1.  最后，打开您的网络浏览器，并验证您能够从`http://localhost:8000/admin/`和`http://localhost:8000/photo_viewer/`访问该网站。
 
@@ -1345,69 +882,39 @@ Panoramic Trekking App 的创建和设置方式与本章中已经完成的一些
 
 1.  如果您没有运行 Swarm，请部署您在*活动 9.01*中创建的`docker-compose.yml`文件，*将 Panoramic Trekking App 部署到单节点 Docker Swarm*：
 
-```
-docker stack deploy --compose-file docker-compose.yml activity_swarm
-```
+[PRE104]
 
 如您所见，现在所有三个服务都在运行：
 
-```
-Creating network activity_swarm_default
-Creating service activity_swarm_web
-Creating service activity_swarm_db
-```
+[PRE105]
 
 1.  在执行`stack deploy`命令的同一目录中，使用文本编辑器打开`photo_viewer/templates/photo_index.html`文件，并将第四行更改为与以下详细信息匹配，基本上是在主标题中添加单词`Patch`：
 
 photo_index.html
 
-```
-1 {% extends "base.html" %}
-2 {% load static %}
-3 {% block page_content %}
-4 <h1>Patch Panoramic Trekking App - Photo Viewer</h1>
-```
+[PRE106]
 
 您可以在此处找到完整的代码[`packt.live/3ceYnta`](https://packt.live/3ceYnta)。
 
 1.  构建一个新图像，这次使用以下命令将图像标记为`patch_1`：
 
-```
-docker build -t activity_web:patch_1 .
-```
+[PRE107]
 
 1.  使用`service update`命令将补丁部署到您的 Swarm Web 服务。还提供要应用更新的图像名称和服务：
 
-```
-docker service update --image activity_web:patch_1 activity_swarm_web
-```
+[PRE108]
 
 输出应如下所示：
 
-```
-…
-activity_swarm_web
-overall progress: 1 out of 1 tasks 
-1/1: running   [=======================================>] 
-verify: Service converged
-```
+[PRE109]
 
 1.  列出正在运行的服务，并验证新图像是否作为`activity_swarm_web`服务的一部分正在运行：
 
-```
-docker service ls
-```
+[PRE110]
 
 从输出中可以看出，Web 服务不再使用`latest`标记。它现在显示`patch_1`图像标记：
 
-```
-ID         NAME                  MODE          REPLICAS
-  IMAGE
-k6kh…      activity_swarm_db     replicated    1/1
-  postgres:latest
-cu5p…      activity_swarm_web    replicated    1/1
-  activity_web:patch_1
-```
+[PRE111]
 
 1.  通过访问`http://localhost:8000/photo_viewer/`并查看标题现在显示为`Patch Panoramic Trekking App`来验证更改是否已应用于图像：![图 9.10：全景徒步应用程序的 Patch 版本](img/B15021_09_10.jpg)
 
@@ -1425,9 +932,7 @@ cu5p…      activity_swarm_web    replicated    1/1
 
 1.  使用以下`helm`命令安装数据库：
 
-```
-helm install database stable/postgresql --set postgresqlPassword=kubernetes
-```
+[PRE112]
 
 这将为 PostgreSQL 安装多个 Kubernetes 资源，并显示摘要如下：
 
@@ -1439,98 +944,35 @@ helm install database stable/postgresql --set postgresqlPassword=kubernetes
 
 1.  创建一个`statefulset.yaml`文件，其中包含以下内容：
 
-```
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: panoramic-trekking-app
-spec:
-  serviceName: panoramic-trekking-app
-  replicas: 1
-  selector:
-    matchLabels:
-      app: panoramic-trekking-app
-  template:
-    metadata:
-      labels:
-        app: panoramic-trekking-app
-    spec:
-      containers:
-      - name: nginx
-        image: packtworkshops/the-docker-workshop:          chapter10-pta-nginx
-        ports:
-        - containerPort: 80
-          name: web
-        volumeMounts:
-        - name: static
-          mountPath: /service/static
-      - name: pta
-        image: packtworkshops/the-docker-workshop:          chapter10-pta-web
-        volumeMounts:
-        - name: static
-          mountPath: /service/static
-  volumeClaimTemplates:
-  - metadata:
-      name: static
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 1Gi
-```
+[PRE113]
 
 此文件创建了一个名为`panoramic-trekking-app`的 Statefulset。在`spec`部分定义了两个名为`nginx`和`pta`的容器。此外，还定义了一个名为`static`的卷索赔，并将其挂载到两个容器上。
 
 1.  使用以下命令部署`panoramic-trekking-app` StatefulSet：
 
-```
-kubectl apply -f statefulset.yaml
-```
+[PRE114]
 
 这将为我们的应用程序创建一个 StatefulSet：
 
-```
-StatefulSet.apps/panoramic-trekking-app created
-```
+[PRE115]
 
 1.  创建一个`service.yaml`文件，内容如下：
 
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: panoramic-trekking-app
-  labels:
-    app: panoramic-trekking-app
-spec:
-  ports:
-  - port: 80
-    name: web
-  type: LoadBalancer
-  selector:
-    app: panoramic-trekking-app
-```
+[PRE116]
 
 此服务定义具有`LoadBalancer`类型，以访问具有标签`app: panoramic-trekking-app`的 Pod。端口`80`将可用于访问 Pod 的`web`端口。
 
 1.  使用以下命令部署`panoramic-trekking-app`服务：
 
-```
-kubectl apply -f service.yaml
-```
+[PRE117]
 
 这将创建以下 Service 资源：
 
-```
-Service/panoramic-trekking-app created
-```
+[PRE118]
 
 1.  使用以下命令获取 Service 的 IP：
 
-```
-minikube service panoramic-trekking-app --url
-http://192.168.64.14:32009
-```
+[PRE119]
 
 在以下步骤中存储 IP 以访问 Panoramic Trekking App。
 
@@ -1560,73 +1002,37 @@ http://192.168.64.14:32009
 
 1.  如果你本地没有`postgres`镜像，请执行以下命令：
 
-```
-docker pull postgres
-```
+[PRE120]
 
 1.  在你的系统上使用`wget`命令获取默认的`seccomp`配置文件的副本。将你下载的文件命名为`activity1.json`：
 
-```
-wget https://raw.githubusercontent.com/docker/docker/v1.12.3/profiles/seccomp/default.json - O activity1.json
-```
+[PRE121]
 
 1.  从配置文件中删除以下三个命令，以允许我们进一步锁定我们的镜像。用你喜欢的文本编辑器打开`activity1.json`文件，并从文件中删除以下行。你应该删除*行 1500*到*1504*以删除`uname`命令，*669*到*673*以删除`mkdir`命令，以及*行 579*到*583*以删除`kill`命令的可用性：
 
-```
-1500                 {
-1501                         "name": "uname",
-1502                         "action": "SCMP_ACT_ALLOW",
-1503                         "args": []
-1504                 },
-
-669                 {
-670                         "name": "mkdir",
-671                         "action": "SCMP_ACT_ALLOW",
-672                         "args": []
-673                 },
-
-579                 {
-580                         "name": "kill",
-581                         "action": "SCMP_ACT_ALLOW",
-582                         "args": []
-583                 },
-```
+[PRE122]
 
 你可以在以下链接找到修改后的`activity1.json`文件：[`packt.live/32BI3PK`](https://packt.live/32BI3PK)。
 
 1.  使用`–-security-opt seccomp=activity1.json`选项在运行镜像时为`postgres`镜像分配一个新配置文件：
 
-```
-docker run --rm -it --security-opt seccomp=activity1.json postgres sh
-```
+[PRE123]
 
 1.  现在你已经登录到正在运行的容器中，测试你已经分配给容器的新配置文件的权限。执行`mkdir`命令在系统上创建一个新目录：
 
-```
-~ $ mkdir test
-```
+[PRE124]
 
 该命令应该显示一个`Operation not permitted`的输出：
 
-```
-mkdir: can't create directory 'test': Operation not permitted
-```
+[PRE125]
 
 1.  为了测试你不再能够杀死正在运行的进程，你需要启动一些东西。启动`top`进程并在后台运行。在命令行中输入`top`，然后添加`&`，然后按*Enter*在后台运行该进程。接下来的命令提供了进程命令(`ps`)，以查看容器上正在运行的进程：
 
-```
-~ $ top & ps
-```
+[PRE126]
 
 如下输出所示，`top`进程正在以`PID 8`运行：
 
-```
-PID   USER         TIME    COMMAND
- 1    20002        0:00    sh
- 8    20002        0:00    top
-10    20002        0:00    ps
-[1]+  Stopped  (tty output)       top
-```
+[PRE127]
 
 注意
 
@@ -1634,27 +1040,19 @@ PID   USER         TIME    COMMAND
 
 1.  使用`kill -9`命令杀死`top`进程，后面跟着你想要杀死的进程的 PID 号。`kill -9`命令将尝试强制停止命令：
 
-```
-~ $ kill -9 8
-```
+[PRE128]
 
 你应该看到`Operation not permitted`：
 
-```
-sh: can't kill pid 8: Operation not permitted
-```
+[PRE129]
 
 1.  测试`uname`命令。这与其他命令有些不同：
 
-```
-~ $ uname
-```
+[PRE130]
 
 你将得到一个`Operation not permitted`的输出：
 
-```
-Operation not permitted
-```
+[PRE131]
 
 这是一个很好的活动，表明如果我们的镜像被攻击者访问，我们仍然可以采取很多措施来限制对它们的操作。
 
@@ -1666,68 +1064,43 @@ Operation not permitted
 
 1.  给镜像打标签并将其推送到您的 Docker Hub 仓库。在这种情况下，使用我们的仓库名称给`postgres-app`镜像打标签，并将其标记为`activity2`。我们还将其推送到我们的 Docker Hub 仓库：
 
-```
-docker tag postgres <your repository namespace>/postgres-app:activity2 ; docker push <your repository name>/postgres-app:activity2
-```
+[PRE132]
 
 1.  您应该仍然拥有您在本章最初使用的`docker-compose.yaml`文件。如果您还没有运行 Anchore，请运行`docker-compose`命令并导出`ANCHORE_CLI_URL`、`ANCHORE_CLI_URL`和`ANCHORE_CLI_URL`变量，就像您之前做的那样，以便我们可以运行`anchore-cli`命令：
 
-```
-docker-compose up -d
-```
+[PRE133]
 
 1.  通过运行`anchore-cli system status`命令来检查 Anchore 应用的状态：
 
-```
-anchore-cli system status
-```
+[PRE134]
 
 1.  使用`feeds list`命令来检查 feeds 列表是否都已更新：
 
-```
-anchore-cli system feeds list
-```
+[PRE135]
 
 1.  一旦所有的 feeds 都已经更新，添加我们推送到 Docker Hub 的`postgres-app`镜像。使用`anchore-cli`提供的`image add`命令，并提供我们想要扫描的镜像的仓库、镜像和标签。这将把镜像添加到我们的 Anchore 数据库中，准备进行扫描：
 
-```
-anchore-cli image add <your repository namespace>/postgres-app:activity2
-```
+[PRE136]
 
 1.  使用`image list`命令来验证我们的镜像是否已经被分析。一旦完成，您应该在`Analysis Status`列中看到`analyzed`这个词：
 
-```
-anchore-cli image list
-```
+[PRE137]
 
 1.  使用我们的镜像名称执行`image vuln`命令，以查看在我们的`postgres-app`镜像上发现的所有漏洞的列表。这个镜像比我们之前测试过的镜像要大得多，也要复杂得多，所以当我们使用`all`选项时，会发现很长的漏洞列表。幸运的是，大多数漏洞要么是`Negligible`，要么是`Unknown`。运行`image vuln`命令并将结果传输到`wc -l`命令：
 
-```
-anchore-cli image vuln <your repository namespace>/postgres-app:activity2 all | wc -l
-```
+[PRE138]
 
 这将给我们一个漏洞数量的统计。在这种情况下有超过 100 个值：
 
-```
-108
-```
+[PRE139]
 
 1.  最后，使用`evaluate check`命令来查看发现的漏洞是否会给我们通过或失败：
 
-```
-anchore-cli evaluate check <your repository namespace>/postgres-app:activity2
-```
+[PRE140]
 
 幸运的是，正如您从以下输出中看到的，我们通过了：
 
-```
-Image Digest: sha256:57d8817bac132c2fded9127673dd5bc7c3a97654
-636ce35d8f7a05cad37d37b7
-Full Tag: docker.io/vincesestodocker/postgres-app:activity2
-Status: pass
-Last Eval: 2019-11-23T06:15:32Z
-Policy ID: 2c53a13c-1765-11e8-82ef-23527761d060
-```
+[PRE141]
 
 由于该镜像由一个大型组织提供，他们有责任确保您可以安全使用它，但由于扫描镜像如此容易，我们仍然应该扫描它们以验证它们是否 100%安全可用。
 
@@ -1741,138 +1114,73 @@ Policy ID: 2c53a13c-1765-11e8-82ef-23527761d060
 
 1.  创建一个脚本，将创建一个新表并用随机值填充它。以下脚本正是我们在这种情况下想要的，因为我们想创建一个长时间的处理查询，并查看它如何影响我们容器上的资源。添加以下细节，并使用您喜欢的编辑器将文件保存为`resource_test.sql`：
 
-```
-1 CREATE TABLE test_data
-2 (
-3     random_value NUMERIC NOT NULL,
-4     row1         NUMERIC NOT NULL,
-5     row2         NUMERIC NOT NULL
-6 );
-7 
-8 INSERT INTO test_data
-9     SELECT random_value.*,
-10     gen.* ,
-11     CEIL(RANDOM()*100)
-12     FROM GENERATE_SERIES(1, 300) random_value,
-13     GENERATE_SERIES(1, 900000) gen
-14     WHERE gen <= random_value * 300;
-```
+[PRE142]
 
 *第 1 行*到*第 6 行*创建新表并设置它包含的三行，而*第 8 行到第 14 行*遍历一个新表，用随机值填充它。
 
 1.  如果您还没有 PostgreSQL Docker 镜像的副本，请使用以下命令从受支持的 PostgreSQL Docker Hub 存储库中拉取镜像：
 
-```
-docker pull postgres
-```
+[PRE143]
 
 1.  进入新的终端窗口并运行`docker stats`命令，查看正在使用的`CPU`百分比，以及正在使用的内存和内存百分比：
 
-```
-docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemPerc}}\t{{.MemUsage}}"
-```
+[PRE144]
 
 在以下命令中，我们没有显示容器 ID，因为我们希望限制输出中显示的数据量：
 
-```
-NAME         CPU %       MEM %      MEM USAGE / LIMIT
-```
+[PRE145]
 
 1.  要简单测试这个镜像，您不需要将运行的容器挂载到特定卷上，以使用您先前为此镜像使用的数据。切换到另一个终端来监视您的 CPU 和内存。启动容器并将其命名为`postgres-test`，确保数据库可以从主机系统访问，通过暴露运行`psql`命令所需的端口。我们还在此示例中使用环境变量（`-e`）选项指定了临时密码为`docker`：
 
-```
-docker run --rm --name postgres-test -v ${PWD}/resource_test.sql:/resource_test.sql -e POSTGRES_PASSWORD=docker -d -p 5432:5432 postgres
-```
+[PRE146]
 
 1.  在运行测试脚本之前，切换到监视 CPU 和内存使用情况的终端。您可以看到我们的容器已经在没有真正做任何事情的情况下使用了一些资源：
 
-```
-NAME            CPU %    MEM %     MEM USAGE / LIMIT
-postgres-test   0.09%    0.47%     9.273MiB / 1.943GiB
-```
+[PRE147]
 
 1.  使用以下命令进入容器内的终端：
 
-```
-docker exec -it postgres-test /bin/bash
-```
+[PRE148]
 
 1.  使用`psql`命令发送`postgres-test`容器命令以创建名为`resource_test`的新数据库：
 
-```
-psql -h localhost -U postgres -d postgres -c 'create database resource_test;'
-Password for user postgres: 
-CREATE DATABASE
-```
+[PRE149]
 
 1.  运行您之前创建的脚本。确保在运行脚本之前包括`time`命令，因为这将允许您查看完成所需的时间：
 
-```
-time psql -h localhost -U postgres -d resource_test -a -f resource_test.sql
-```
+[PRE150]
 
 我们已经减少了以下代码块中命令的输出。用数据填充`resource_database`表花费了 50 秒：
 
-```
-Password for user postgres: 
-…
-INSERT 0 13545000
-real    0m50.446s
-user    0m0.003s
-sys     0m0.008s
-```
+[PRE151]
 
 1.  移动到运行`docker stats`命令的终端。您将看到一个输出，取决于系统运行的核心数量和可用的内存。正在运行的脚本似乎不太耗费内存，但它正在将容器可用的 CPU 推高到 100%：
 
-```
-NAME            CPU %      MEM %    MEM USAGE / LIMIT
-postgres-test   100.66%    2.73%    54.36MiB / 1.943GiB
-```
+[PRE152]
 
 1.  在对 CPU 和内存配置进行更改后运行容器之前，删除正在运行的容器，以确保您有一个新的数据库运行，使用以下命令：
 
-```
-docker kill postgres-test
-```
+[PRE153]
 
 1.  再次运行容器。在这种情况下，您将将可用的 CPU 限制为主机系统上一半的一个核心，并且由于测试不太耗费内存，将内存限制设置为`256MB`：
 
-```
-docker run --rm --name postgres-test -e POSTGRES_PASSWORD=docker -d -p 5432:5432 --cpus 0.5 --memory 256MB postgres
-```
+[PRE154]
 
 1.  使用`exec`命令进入容器：
 
-```
-docker exec -it postgres-test /bin/bash
-```
+[PRE155]
 
 1.  再次，在运行测试之前，创建`resource_test`数据库：
 
-```
-psql -h localhost -U postgres -d postgres -c 'create database resource_test;'
-Password for user postgres: 
-CREATE DATABASE
-```
+[PRE156]
 
 1.  现在，为了查看对我们的资源所做的更改，限制容器可以使用的资源。再次运行`resource_test.sql`脚本，并通过限制资源，特别是 CPU，我们可以看到现在完成需要超过 1 分钟：
 
-```
-time psql -h localhost -U postgres -d resource_test -a -f resource_test.sql
-Password for user postgres: 
-…
-INSERT 0 13545000
-real    1m54.484s
-user    0m0.003s
-sys     0m0.005s
-```
+[PRE157]
 
 1.  移动到运行`docker stats`命令的终端。它看起来也会有所不同，因为可用于使用的 CPU 百分比将减半。您对 CPU 所做的更改减慢了脚本的运行，并且似乎也减少了内存的使用：
 
-```
-NAME            CPU %     MEM %      MEM USAGE / LIMIT
-postgres-test   48.52%    13.38%     34.25MiB / 256MiB
-```
+[PRE158]
 
 这项活动为您提供了一个很好的指示，有时您需要执行平衡的行为，当您监视和配置容器资源时。它确实澄清了您需要了解您的服务正在执行的任务，以及对配置的更改将如何影响您的服务的运行方式。
 
@@ -1884,72 +1192,37 @@ postgres-test   48.52%    13.38%     34.25MiB / 256MiB
 
 1.  使用以下`docker pull`命令从`hadolint`存储库中拉取镜像：
 
-```
-docker pull hadolint/hadolint
-```
+[PRE159]
 
 1.  使用`hadolint`来检查我们在本章中一直在使用的`docker-stress` `Dockerfile`并记录所呈现的警告：
 
-```
-docker run --rm -i hadolint/hadolint < Dockerfile
-```
+[PRE160]
 
 你会收到以下警告：
 
-```
-/dev/stdin:1 DL3006 Always tag the version of an image explicitly
-/dev/stdin:2 DL3008 Pin versions in apt get install. Instead of 
-'apt-get install <package>' use 'apt-get install 
-<package>=<version>'
-/dev/stdin:2 DL3009 Delete the apt-get lists after installing 
-something
-/dev/stdin:2 DL3015 Avoid additional packages by specifying 
-'--no-install-recommends'
-/dev/stdin:2 DL3014 Use the '-y' switch to avoid manual input 
-'apt-get -y install <package>'
-/dev/stdin:3 DL3025 Use arguments JSON notation for CMD 
-and ENTRYPOINT arguments
-```
+[PRE161]
 
 与你最初测试镜像时没有真正的变化。然而，在`Dockerfile`中只有三行代码，所以看看是否可以减少`hadolint`呈现的警告数量。
 
 1.  正如本章前面提到的，`hadolint`维基页面将为你提供如何解决所呈现的每个警告的详细信息。然而，如果你逐行进行，应该能够解决所有这些警告。首先呈现的`DL3006`要求标记你正在使用的 Docker 镜像版本，这是 Ubuntu 镜像的新版本。将你的`Dockerfile`的*行 1*更改为现在包括`18.08`镜像版本，如下所示：
 
-```
-1 FROM ubuntu:18.08
-```
+[PRE162]
 
 1.  接下来的四个警告都与我们`Dockerfile`的第二行有关。`DL3008`要求固定安装的应用程序版本。在下面的情况下，将 stress 应用程序固定到 1.0.3 版本。`DL3009`指出你应该删除任何列表。这就是我们在下面的代码中添加*行 4*和*行 5*的地方。`DL3015`指出你还应该使用`--no-install-recommends`，确保你不安装不需要的应用程序。最后，`DL3014`建议你包括`-y`选项，以确保你不会被提示验证应用程序的安装。编辑`Dockerfile`如下所示：
 
-```
-2 RUN apt-get update \
-3 && apt-get install -y stress=1.0.4 --no-install-recommends \
-4 && apt-get clean \
-5 && rm -rf /var/lib/apt/lists/*
-```
+[PRE163]
 
 1.  `DL3025`是你的最后警告，并且指出你需要将`CMD`指令以 JSON 格式编写。这可能会导致问题，因为你正在尝试在 stress 应用程序中使用环境变量。为了消除这个警告，使用`sh -c`选项运行`stress`命令。这样应该仍然允许你使用环境变量运行命令：
 
-```
-6 CMD ["sh", "-c", "stress ${var}"]
-```
+[PRE164]
 
 你的完整`Dockerfile`，现在遵循最佳实践，应该如下所示：
 
-```
-FROM ubuntu:18.04
-RUN apt-get update \
- && apt-get install -y stress=1.0.4 --no-install-recommends \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
-CMD ["sh", "-c", "stress ${var}"]
-```
+[PRE165]
 
 1.  现在，再次使用`hadolint`对`Dockerfile`进行检查，不再呈现任何警告：
 
-```
-docker run --rm -i hadolint/hadolint < Dockerfile
-```
+[PRE166]
 
 1.  如果你想百分之百确定`Dockerfile`看起来尽可能好，进行最后一次测试。在浏览器中打开`FROM:latest`，你会看到`Dockerfile`显示最新更改时的`没有找到问题或建议！`：![图 12.4：docker-stress Dockerfile 现在遵循最佳实践](img/B15021_12_04.jpg)
 
@@ -1977,9 +1250,7 @@ docker run --rm -i hadolint/hadolint < Dockerfile
 
 1.  在`metrics`部分，添加以下 PromQL 查询，`container_memory_usage_bytes`，仅搜索具有名称值的条目。然后，按每个名称求和，为每个容器提供一条线图：
 
-```
-sum by (name) (container_memory_usage_bytes{name!=""})
-```
+[PRE167]
 
 1.  根据时间序列数据库中可用的数据量进行调整相对时间（如果需要）。也许将相对时间设置为`15m`。前三个步骤如下图所示：![图 13.27：向容器监控仪表板添加新面板](img/B15021_13_27.jpg)
 
@@ -1993,21 +1264,15 @@ sum by (name) (container_memory_usage_bytes{name!=""})
 
 1.  停止运行 Grafana 容器，以便您可以添加到环境中的配置文件。使用以下`docker kill`命令执行此操作：
 
-```
-docker kill grafana
-```
+[PRE168]
 
 1.  您已经在`provisioning/dashboards`目录中有一个名为`ContainerMonitoring.json`的文件。从您的`tmp`目录中复制刚创建的 JSON 文件，并替换`provisioning/dashboards`目录中的原始文件：
 
-```
-cp /tmp/ContainerMonitoring-1579130313205.json provisioning/dashboards/ContainerMonitoring.json
-```
+[PRE169]
 
 1.  再次启动 Grafana 图像，并使用默认管理密码登录应用程序：
 
-```
-docker run --rm -d --name grafana -p 3000:3000 -e "GF_SECURITY_ADMIN_PASSWORD=secret" -v ${PWD}/provisioning:/etc/grafana/provisioning grafana/Grafana
-```
+[PRE170]
 
 1.  再次登录到 Grafana，并转到您一直在配置的“容器监控”仪表板。您现在应该在我们的仪表板顶部看到新创建的“内存容器使用情况”面板，类似于以下屏幕截图：![图 13.29：显示内存使用情况的新仪表板面板](img/B15021_13_24.jpg)
 
@@ -2023,107 +1288,51 @@ docker run --rm -d --name grafana -p 3000:3000 -e "GF_SECURITY_ADMIN_PASSWORD=se
 
 1.  如果您没有全景徒步应用程序在运行，请确保至少 PostgreSQL 容器正在运行，以便您可以完成此活动。您还不需要运行 Prometheus，因为您需要先对配置文件进行一些更改。运行以下命令以验证 PostgreSQL 数据库是否正在运行：
 
-```
-docker run --rm -d --name postgres-test -e POSTGRES_PASSWORD=docker -p 5432:5432 postgres
-```
+[PRE171]
 
 要从您的 PostgreSQL 容器中收集更多指标，您可以在 GitHub 上找到用户`albertodonato`已经创建的导出器。使用其他人已经创建的导出器比自己创建要容易得多。文档和详细信息可以在以下网址找到：[`github.com/albertodonato/query-exporter`](https://github.com/albertodonato)。
 
 1.  上述的 GitHub 帐户有一个很好的分解如何设置配置和指标。设置一个基本的配置文件以开始。通过运行以下`docker inspect`命令找到 PostgreSQL 容器正在运行的 IP 地址。这会给出容器正在运行的内部 IP 地址。您还需要替换您正在运行的容器名称为`<container_name>`：
 
-```
-docker inspect --format '{{ .NetworkSettings.IPAddress }}' <container_name>
-```
+[PRE172]
 
 您的 IP 地址可能与此处的不同：
 
-```
-172.17.0.3
-```
+[PRE173]
 
 1.  对于这个导出器，您需要设置一些额外的配置来输入到导出器中。首先，在您的工作目录中创建一个名为`psql_exporter_config.yml`的配置文件，并用文本编辑器打开该文件。
 
 1.  在下面的配置文件中输入前四行。这是导出器连接到数据库的方式。您需要提供可以访问数据库的密码以及在上一步中获得的 IP 地址，或者如果为数据库分配了域，则需要提供域：
 
-```
-1 databases:
-2   pg:
-3     dsn: postgresql+psycopg2://postgres:<password>@<ip|domain>/        postgres
-4
-```
+[PRE174]
 
 1.  将您的第一个指标添加到配置文件中。输入以下行以添加指标名称、规模类型、描述和标签：
 
-```
-5 metrics:
-6   pg_process:
-7     type: gauge
-8     description: Number of PostgreSQL processes with their         states
-9     labels: [state]
-10
-```
+[PRE175]
 
 1.  设置一个数据库查询，以收集您想要用于`pg_process`规模的指标详细信息。*第 13 行*显示您想要创建一个数据库查询，*第 14*和*15 行*将结果分配给您之前创建的指标。*第 16*至*23 行*是我们想要在数据库上运行的查询，以便为数据库上运行的进程数量创建一个规模：
 
 psql_exporter_config.yml
 
-```
-11 queries:
-12   process_stats:
-13     databases: [pg]
-14     metrics:
-15       - pg_process
-16     sql: >
-17       SELECT
-18         state,
-19         COUNT(*) AS pg_process
-20       FROM pg_stat_activity
-21       WHERE state IS NOT NULL
-22       GROUP BY state
-23       FROM pg_stat_database
-```
+[PRE176]
 
 您可以在此处找到完整的代码[`packt.live/32C47K3`](https://packt.live/32C47K3)。
 
 1.  保存配置文件并从命令行运行导出器。导出器将在端口`9560`上公开其指标。挂载您在此活动中创建的配置文件。您还将获得`adonato/query-exporter`图像的最新版本：
 
-```
-docker run -p 9560:9560/tcp -v --name postgres-exporter ${PWD}/psql_exporter_config.yml:/psql_exporter_config.yml --rm -itd adonato/query-exporter:latest -- /psql_exporter_config.yml
-```
+[PRE177]
 
 1.  打开一个网络浏览器，使用 URL`http://0.0.0.0:9560/metrics`来查看您为全景徒步应用程序运行的 PostgreSQL 容器设置的新指标：
 
-```
-# HELP database_errors_total Number of database errors
-# TYPE database_errors_total counter
-# HELP queries_total Number of database queries
-# TYPE queries_total counter
-queries_total{database="pg",status="success"} 10.0
-queries_total{database="pg",status="error"} 1.0
-# TYPE queries_created gauge
-queries_created{database="pg",status="success"} 
-1.5795789188074727e+09
-queries_created{database="pg",status="error"} 
-1.57957891880902e+09
-# HELP pg_process Number of PostgreSQL processes with their states
-# TYPE pg_process gauge
-pg_process{database="pg",state="active"} 1.0
-```
+[PRE178]
 
 1.  进入您安装了 Prometheus 的目录，用您喜欢的文本编辑器打开`prometheus.yml`文件，并添加导出器详细信息，以允许 Prometheus 开始收集数据：
 
-```
-45   - job_name: 'postgres-web'
-46     scrape_interval: 5s
-47     static_configs:
-48     - targets: ['0.0.0.0:9560']
-```
+[PRE179]
 
 1.  保存您对`prometheus.yml`文件所做的更改，并再次从命令行启动 Prometheus 应用程序，如下所示：
 
-```
-./prometheus --config.file=prometheus.yml
-```
+[PRE180]
 
 1.  如果一切都按照应该的方式进行了，您现在应该在 Prometheus 的`Targets`页面上看到`postgres-web`目标，如图所示：![图 13.30：在 Prometheus 上显示的新的 postgres-web 目标页面](img/B15021_13_25.jpg)
 
@@ -2145,64 +1354,27 @@ pg_process{database="pg",state="active"} 1.0
 
 1.  从您喜欢的`Docker Compose`版本开始，并创建要用于挂载`var`和`ext`目录的卷：
 
-```
-1 version: '3'
-2
-3 volumes:
-4   testsplunk:
-5   testsplunkindex:
-6
-```
+[PRE181]
 
 1.  使用`splunk`作为主机名和`splunk/splunk`作为您安装的镜像来设置 Splunk 安装的服务。此外，设置`SPLUNK_START_ARGS`和`SPLUNK_PASSWORD`的环境变量，如下所示：
 
-```
-7 services:
-8   splunk:
-9     hostname: splunk
-10    image: splunk/splunk
-11    environment:
-12      SPLUNK_START_ARGS: --accept-license
-13      SPLUNK_PASSWORD: changeme
-```
+[PRE182]
 
 1.  最后，挂载卷并公开安装所需的访问 Web 界面和从转发器和容器转发数据的端口：
 
-```
-14    volumes:
-15      - ./testsplunk:/opt/splunk/etc
-16      - ./testsplunkindex:/opt/splunk/var
-17    ports:
-18      - "8000:8000"
-19      - "9997:9997"
-20      - "8088:8088"
-```
+[PRE183]
 
 1.  运行`docker-compose up`命令，确保一切都正常工作。使用`-d`选项确保它作为后台守护程序在我们系统中运行：
 
-```
-docker-compose up -d
-```
+[PRE184]
 
 该命令应返回类似以下的输出：
 
-```
-Creating network "chapter14_default" with the default driver
-Creating chapter14_splunk_1 ... done
-```
+[PRE185]
 
 1.  一旦您的 Splunk 安装再次运行，就该是让 Panoramic Trekking App 中的一个服务运行起来，这样您就可以将日志转发到 Splunk 进行索引。在使用`docker run`命令时，添加日志驱动程序的详细信息，就像您在本章中之前所做的那样，并确保您包括了正确的`HTTP 事件收集器`的令牌：
 
-```
-docker run --rm -d --name postgres-test \
--e POSTGRES_PASSWORD=docker -p 5432:5432 \
---log-driver=splunk \
---log-opt splunk-url=http://127.0.0.1:8088 \
---log-opt splunk-token=5c051cdb-b1c6-482f-973f-2a8de0d92ed8 \
---log-opt splunk-insecureskipverify=true \
---log-opt tag="{{.Name}}/{{.FullID}}" \
-postgres -c log_statement=all 
-```
+[PRE186]
 
 请注意
 
@@ -2266,70 +1438,35 @@ postgres -c log_statement=all
 
 1.  使用以下命令创建一个网络：
 
-```
-docker network create  \
---driver=store/weaveworks/net-plugin:2.5.2 \
---attachable \
-wp-network
-```
+[PRE187]
 
 这个命令使用 Weave Net 插件创建一个网络，并使用`driver`标志进行指定。此外，卷被指定为`attachable`，这意味着您可以在将来连接到 Docker 容器。最后，容器的名称将是`wp-network`。您应该得到以下输出：
 
-```
-mk0pmhpb2gx3f6s00o57j2vd
-```
+[PRE188]
 
 1.  使用以下命令创建一个卷：
 
-```
-docker volume create -d vieux/sshfs \
---name wp-content \
--o sshcmd=root@localhost:/tmp \
--o password=root \
--o port=2222
-```
+[PRE189]
 
 这个命令使用`vieux/sshfs`插件通过 SSH 创建一个卷。卷的名称是`wp-content`，并传递了`ssh`命令、端口和密码的额外选项：
 
-```
-wp-content
-```
+[PRE190]
 
 1.  使用以下命令创建`mysql`容器：
 
-```
-docker run --name mysql -d \
--e MYSQL_ROOT_PASSWORD=wordpress \
--e MYSQL_DATABASE=wordpress \
--e MYSQL_USER=wordpress \
--e MYSQL_PASSWORD=wordpress \
---network=wp-network \
-mysql:5.7
-```
+[PRE191]
 
 这个命令以分离模式运行`mysql`容器，并使用环境变量和`wp-network`连接。
 
 1.  使用以下命令创建`wordpress`容器：
 
-```
-docker run --name wordpress -d \
--v wp-content:/var/www/html/wp-content \
--e WORDPRESS_DB_HOST=mysql:3306 \
--e WORDPRESS_DB_USER=wordpress \
--e WORDPRESS_DB_PASSWORD=wordpress \
--e WORDPRESS_DB_NAME=wordpress \
---network=wp-network \
--p 8080:80 \
-wordpress
-```
+[PRE192]
 
 这个命令以分离模式运行`wordpress`容器，并使用环境变量和`wp-network`连接。此外，容器的端口`80`在主机系统的端口`8080`上可用。
 
 成功启动后，您将有两个运行中的`mysql`和`wordpress`容器：
 
-```
-docker ps
-```
+[PRE193]
 
 ![图 15.17：WordPress 和数据库容器](img/B15021_15_15.jpg)
 

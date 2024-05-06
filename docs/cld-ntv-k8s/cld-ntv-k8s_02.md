@@ -166,9 +166,7 @@ Kubernetes API 有三种可能的请求类型 - 与常规用户关联的请求�
 
 例如，您可以使用以下内容：
 
-```
-openssl req -new -key myuser.pem -out myusercsr.pem -subj "/CN=myuser/0=dev/0=staging"
-```
+[PRE0]
 
 这将为名为`myuser`的用户创建一个 CSR，该用户属于名为`dev`和`staging`的组。
 
@@ -188,17 +186,7 @@ Kubernetes 提供了几种授权方法：节点、webhooks、RBAC 和 ABAC。在
 
 只读角色.yaml
 
-```
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: default
-  name: read-only-role
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list"]
-```
+[PRE1]
 
 `Role` 和 `ClusterRole` 之间唯一的区别是，`Role` 限定于特定的命名空间（在本例中是默认命名空间），而 `ClusterRole` 可以影响集群中该类型的所有资源的访问，以及集群范围的资源，如节点。
 
@@ -206,21 +194,7 @@ rules:
 
 只读-rb.yaml
 
-```
-apiVersion: rbac.authorization.k8s.io/v1namespace.
-kind: RoleBinding
-metadata:
-  name: read-only
-  namespace: default
-subjects:
-- kind: User
-  name: readonlyuser
-  apiGroup: rbac.authorization.k8s.io
-roleRef:
-  kind: Role
-  name: read-only-role
-  apiGroup: rbac.authorization.k8s.io
-```
+[PRE2]
 
 `subjects` 键包含要将角色与的所有实体的列表；在本例中是用户 `alex`。`roleRef` 包含要关联的角色的名称和类型（`Role` 或 `ClusterRole`）。
 
@@ -248,27 +222,7 @@ kubectl 是官方支持的命令行工具，用于访问 Kubernetes API。它可
 
 示例-kubeconfig
 
-```
-apiVersion: v1
-kind: Config
-preferences: {}
-clusters:
-- cluster:
-    certificate-authority: fake-ca-file
-    server: https://1.2.3.4
-  name: development
-users:
-- name: alex
-  user:
-    password: mypass
-    username: alex
-contexts:
-- context:
-    cluster: development
-    namespace: frontend
-    user: developer
-  name: development
-```
+[PRE3]
 
 该文件以 YAML 编写，与我们即将介绍的其他 Kubernetes 资源规范非常相似 - 只是该文件仅驻留在您的本地计算机上。
 
@@ -322,18 +276,7 @@ kubectl 的`get`命令返回当前集群中的 Kubernetes 资源列表。我们�
 
 resource.yaml
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: my-pod
-spec:
-  containers:
-  - name: ubuntu
-    image: ubuntu:trusty
-    command: ["echo"]
-    args: ["Hello Readers"]
-```
+[PRE4]
 
 有效的 Kubernetes YAML 文件至少有四个顶级键。它们是 `apiVersion`、`kind`、`metadata` 和 `spec`。
 

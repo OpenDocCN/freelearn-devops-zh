@@ -28,24 +28,15 @@
 
 1.  列出当前在您的 Docker 环境中配置的网络，使用`docker network ls`命令：
 
-```
-$ docker network ls
-```
+[PRE0]
 
 显示的输出将显示系统中所有配置的 Docker 网络。它应该类似于以下内容：
 
-```
-NETWORK ID      NAME      DRIVER     SCOPE
-0774bdf6228d    bridge    bridge     local
-f52b4a5440ad    host      host       local
-9bed60b88784    none      null       local
-```
+[PRE1]
 
 1.  在 Docker 中创建容器时，如果没有指定网络或网络驱动程序，Docker 将使用`bridge`网络创建容器。这个网络存在于您的主机操作系统中配置的`bridge`网络接口后面。在 Linux 或 macOS 的 Bash shell 中使用`ifconfig`，或在 Windows PowerShell 中使用`ipconfig`，来查看 Docker 桥接口配置为哪个接口。通常被称为`docker0`：
 
-```
-$ ifconfig 
-```
+[PRE2]
 
 此命令的输出将列出环境中所有可用的网络接口，如下图所示：
 
@@ -57,32 +48,21 @@ $ ifconfig
 
 1.  使用`docker run`命令创建一个简单的 NGINX Web 服务器容器，使用`latest`镜像标签。使用`-d`标志将容器设置为在后台启动，并使用`--name`标志为其指定一个可读的名称`webserver1`：
 
-```
-$ docker run -d –-name webserver1 nginx:latest 
-```
+[PRE3]
 
 如果命令成功，终端会没有返回任何输出。
 
 1.  执行`docker ps`命令来检查容器是否正在运行：
 
-```
-$ docker ps
-```
+[PRE4]
 
 如您所见，`webserver1`容器正在如预期地运行：
 
-```
-CONTAINER ID  IMAGE         COMMAND                 CREATED
-  STATUS                   PORTS               NAMES
-0774bdf6228d  nginx:latest  "nginx -g 'daemon of…"  4 seconds ago
-  Up 3 seconds             80/tcp              webserver1
-```
+[PRE5]
 
 1.  执行`docker inspect`命令来检查这个容器默认的网络配置：
 
-```
-$ docker inspect webserver1
-```
+[PRE6]
 
 Docker 将以 JSON 格式返回有关正在运行的容器的详细信息。在这个练习中，重点关注`NetworkSettings`块。特别注意`networks`子块下面的`Gateway`、`IPAddress`、`Ports`和`NetworkID`参数：
 
@@ -98,62 +78,25 @@ Docker 将以 JSON 格式返回有关正在运行的容器的详细信息。在�
 
 1.  或者，使用`curl`命令查看类似的输出，尽管是以文本格式：
 
-```
-$ curl 172.17.0.2:80
-```
+[PRE7]
 
 以下 HTML 响应表示您已从正在运行的 NGINX 容器收到响应：
 
-```
-<!DOCTYPE html>
-<html>
-<head>
-<title>Welcome to nginx!</title>
-<style>
-    body {
-        width: 35em;
-        margin: 0 auto;
-        font-family: Tahoma, Verdana, Arial, sans-serif;
-    }
-</style>
-</head>
-<body>
-<h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully 
-installed and working. Further configuration is required.</p>
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-Commercial support is available at
-<a href="http://nginx.com/">nginx.com</a>.</p>
-<p><em>Thank you for using nginx.</em></p>
-</body>
-</html>
-```
+[PRE8]
 
 1.  访问本地`bridge`子网中容器的 IP 地址对于测试本地容器非常有效。要将您的服务暴露给其他用户或服务器的网络，请在`docker run`命令中使用`-p`标志。这将允许您将主机上的端口映射到容器上的公开端口。这类似于路由器或其他网络设备上的端口转发。要通过端口向外部世界暴露容器，请使用`docker run`命令，后跟`-d`标志以在后台启动容器。`-p`标志将使您能够指定主机上的端口，用冒号分隔，并指定要公开的容器上的端口。还要为此容器指定一个唯一的名称，`webserver2`：
 
-```
-$ docker run -d -p 8080:80 –-name webserver2 nginx:latest
-```
+[PRE9]
 
 成功启动容器后，您的 shell 将不会返回任何内容。但是，某些版本的 Docker 可能会显示完整的容器 ID。
 
 1.  运行`docker ps`命令，检查是否有两个正在运行的 NGINX 容器：
 
-```
-$ docker ps
-```
+[PRE10]
 
 将显示两个正在运行的容器，`webserver1`和`webserver2`：
 
-```
-CONTAINER ID IMAGE         COMMAND                 CREATED
-  STATUS              PORTS                  NAMES
-b945fa75b59a nginx:latest  "nginx -g 'daemon of…"  1 minute ago
-  Up About a minute   0.0.0.0:8080->80/tcp   webserver2
-3267bf4322ed nginx:latest  "nginx -g 'daemon of…"  2 minutes ago
-  Up 2 minutes        80/tcp                 webserver1
-```
+[PRE11]
 
 在`PORTS`列中，您将看到 Docker 现在正在将`webserver`容器上的端口`80`转发到主机上的端口`8080`。这是从输出的`0.0.0.0:8080->80/tcp`部分推断出来的。
 
@@ -167,9 +110,7 @@ b945fa75b59a nginx:latest  "nginx -g 'daemon of…"  1 minute ago
 
 1.  现在，在相同的 Docker 环境中运行两个 NGINX 实例，具有略有不同的网络配置。`webserver1`实例仅在 Docker 网络上运行，没有任何端口暴露。使用`docker inspect`命令检查`webserver2`实例的配置，后跟容器名称或 ID：
 
-```
-$ docker inspect webserver2
-```
+[PRE12]
 
 JSON 输出底部的`NetworkSettings`部分将类似于以下内容。请特别注意`networks`子块下面的参数（`Gateway`、`IPAddress`、`Ports`和`NetworkID`）：
 
@@ -181,21 +122,15 @@ JSON 输出底部的`NetworkSettings`部分将类似于以下内容。请特别�
 
 1.  由于这两个容器都位于同一个子网上，您可以在 Docker`bridge`网络内测试容器之间的通信。运行`docker exec`命令以访问`webserver1`容器上的 shell：
 
-```
-docker exec -it webserver1 /bin/bash
-```
+[PRE13]
 
 提示符应明显更改为根提示符，表示您现在在`webserver1`容器的 Bash shell 中：
 
-```
-root@3267bf4322ed:/#
-```
+[PRE14]
 
 1.  在根 shell 提示符下，使用`apt`软件包管理器在此容器中安装`ping`实用程序：
 
-```
-root@3267bf4322ed:/# apt-get update && apt-get install -y inetutils-ping
-```
+[PRE15]
 
 然后，aptitude 软件包管理器将在`webserver1`容器中安装`ping`实用程序。请注意，`apt`软件包管理器将安装`ping`以及运行`ping`命令所需的其他依赖项：
 
@@ -205,23 +140,15 @@ root@3267bf4322ed:/# apt-get update && apt-get install -y inetutils-ping
 
 1.  安装`ping`实用程序后，使用它来 ping 另一个容器的 IP 地址：
 
-```
-root@3267bf4322ed:/# ping 172.17.0.3
-```
+[PRE16]
 
 输出应显示 ICMP 响应数据包，表明容器可以通过 Docker`bridge`网络成功 ping 通彼此：
 
-```
-PING 172.17.0.1 (172.17.0.3): 56 data bytes
-64 bytes from 172.17.0.3: icmp_seq=0 ttl=64 time=0.221 ms
-64 bytes from 172.17.0.3: icmp_seq=1 ttl=64 time=0.207 ms
-```
+[PRE17]
 
 1.  您还可以使用`curl`命令访问 NGINX 默认的 Web 界面。使用`apt`软件包管理器安装`curl`：
 
-```
-root@3267bf4322ed:/# apt-get install -y curl
-```
+[PRE18]
 
 接下来的输出应显示，正在安装`curl`实用程序和所有必需的依赖项：
 
@@ -231,37 +158,11 @@ root@3267bf4322ed:/# apt-get install -y curl
 
 1.  安装`curl`后，使用它来 curl`webserver2`的 IP 地址：
 
-```
-root@3267bf4322ed:/# curl 172.17.0.3
-```
+[PRE19]
 
 您应该看到以 HTML 格式显示的“欢迎使用 nginx！”页面，这表明您能够通过 Docker`bridge`网络成功联系到`webserver2`容器的 IP 地址：
 
-```
-<!DOCTYPE html>
-<html>
-<head>
-<title>Welcome to nginx!</title>
-<style>
-    body {
-        width: 35em;
-        margin: 0 auto;
-        font-family: Tahoma, Verdana, Arial, sans-serif;
-    }
-</style>
-</head>
-<body>
-<h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully 
-installed and working. Further configuration is required.</p>
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-Commercial support is available at
-<a href="http://nginx.com/">nginx.com</a>.</p>
-<p><em>Thank you for using nginx.</em></p>
-</body>
-</html>
-```
+[PRE20]
 
 由于您正在使用`curl`导航到 NGINX 欢迎页面，它将以原始 HTML 格式呈现在您的终端显示器上。
 
@@ -291,83 +192,53 @@ Commercial support is available at
 
 1.  首先，在默认的 Docker `bridge`网络上创建两个 Alpine Linux 容器，它们将使用`--link`标志相互通信。Alpine 是这个练习的一个很好的基础镜像，因为它默认包含`ping`实用程序。这将使您能够快速测试各种情况下容器之间的连接。要开始，请创建一个名为`containerlink1`的容器，以指示您是使用传统的链接方法创建了这个容器。
 
-```
-$ docker run -itd --name containerlink1 alpine:latest
-```
+[PRE21]
 
 这将在名为`containerlink1`的默认 Docker 网络中启动一个容器。
 
 1.  在默认的 Docker 桥接网络中启动另一个名为`containerlink2`的容器，它将创建一个到`containerlink1`的链接以启用基本的 DNS：
 
-```
-$ docker run -itd --name containerlink2 --link containerlink1 alpine:latest
-```
+[PRE22]
 
 这将在名为`containerlink2`的默认 Docker 网络中启动一个容器。
 
 1.  运行`docker exec`命令以访问`containerlink2`容器内部的 shell。这将允许您调查链接功能的工作方式。由于此容器正在运行 Alpine Linux，默认情况下您无法访问 Bash shell。而是使用`sh` shell 进行访问：
 
-```
-$ docker exec -it containerlink2 /bin/sh
-```
+[PRE23]
 
 这应该将您放入`containerlink2`容器中的 root `sh` shell 中。
 
 1.  从`containerlink2`容器的 shell 中，ping `containerlink1`：
 
-```
-/ # ping containerlink1
-```
+[PRE24]
 
 您将收到`ping`请求的回复：
 
-```
-PING container1 (172.17.0.2): 56 data bytes
-64 bytes from 172.17.0.2: seq=0 ttl=64 time=0.307 ms
-64 bytes from 172.17.0.2: seq=1 ttl=64 time=0.162 ms
-64 bytes from 172.17.0.2: seq=2 ttl=64 time=0.177 ms
-```
+[PRE25]
 
 1.  使用`cat`实用程序查看`containerlink2`容器的`/etc/hosts`文件。`hosts`文件是 Docker 可以维护和覆盖的可路由名称到 IP 地址的列表：
 
-```
-/ # cat /etc/hosts
-```
+[PRE26]
 
 `hosts`文件的输出应该显示并类似于以下内容：
 
-```
-127.0.0.1  localhost
-::1  localhost ip6-localhost ip6-loopback
-fe00::0    ip6-localnet
-ff00::0    ip6-mcastprefix
-ff02::1    ip6-allnodes
-ff02::2    ip6-allrouters
-172.17.0.2    containerlink1 032f038abfba
-172.17.0.3    9b62c4a57ce3
-```
+[PRE27]
 
 从`containerlink2`容器的`hosts`文件输出中，观察到 Docker 正在为`containerlink1`容器名称以及其容器 ID 添加条目。这使得`containerlink2`容器可以知道名称，并且容器 ID 映射到 IP 地址`172.17.0.2`。输入`exit`命令将终止`sh` shell 会话，并将您带回到您环境的主终端。
 
 1.  运行`docker exec`命令以访问`containerlink1`容器内部的`sh` shell：
 
-```
-$ docker exec -it containerlink1 /bin/sh
-```
+[PRE28]
 
 这应该将您放入`containerlink1`容器的 shell 中。
 
 1.  使用`ping`实用程序对`containerlink2`容器进行 ping 测试：
 
-```
-/ # ping containerlink2
-```
+[PRE29]
 
 您应该看到以下输出：
 
-```
-ping: bad address 'containerlink2'
-```
+[PRE30]
 
 由于容器之间的链接只能单向工作，所以无法对`containerlink2`容器进行 ping 测试。`containerlink1`容器不知道`containerlink2`容器的存在，因为在`containerlink1`容器实例中没有创建`hosts`文件条目。
 
@@ -377,9 +248,7 @@ ping: bad address 'containerlink2'
 
 1.  由于使用传统链接方法存在限制，Docker 还支持使用用户创建的 Docker 网络来支持本机 DNS。为了利用这个功能，创建一个名为`dnsnet`的 Docker 网络，并在该网络中部署两个 Alpine 容器。首先，使用`docker network create`命令创建一个新的 Docker 网络，使用`192.168.56.0/24`子网和 IP 地址`192.168.54.1`作为默认网关：
 
-```
-$ docker network create dnsnet --subnet 192.168.54.0/24 --gateway 192.168.54.1
-```
+[PRE31]
 
 根据您使用的 Docker 版本，成功执行此命令可能会返回您创建的网络的 ID。
 
@@ -389,25 +258,15 @@ $ docker network create dnsnet --subnet 192.168.54.0/24 --gateway 192.168.54.1
 
 1.  使用`docker network ls`命令列出此环境中可用的 Docker 网络：
 
-```
-$ docker network ls
-```
+[PRE32]
 
 应返回 Docker 网络列表，包括您刚刚创建的`dnsnet`网络：
 
-```
-NETWORK ID      NAME       DRIVER     SCOPE
-ec5b91e88a6f    bridge     bridge     local
-c804e768413d    dnsnet     bridge     local
-f52b4a5440ad    host       host       local
-9bed60b88784    none       null       local
-```
+[PRE33]
 
 1.  运行`docker network inspect`命令查看此网络的配置：
 
-```
-$ docker network inspect dnsnet
-```
+[PRE34]
 
 应显示`dnsnet`网络的详细信息。特别注意`子网`和`网关`参数。这些是您在*步骤 8*中用来创建 Docker 网络的相同参数：
 
@@ -417,9 +276,7 @@ $ docker network inspect dnsnet
 
 1.  由于这是一个 Docker“桥接”网络，Docker 还将为此网络创建一个相应的桥接网络接口。桥接网络接口的 IP 地址将与您在创建此网络时指定的默认网关地址相同。使用`ifconfig`命令在 Linux 或 macOS 上查看配置的网络接口。如果您使用 Windows，请使用`ipconfig`命令：
 
-```
-$ ifconfig
-```
+[PRE35]
 
 这应该显示所有可用网络接口的输出，包括新创建的`bridge`接口：
 
@@ -429,17 +286,13 @@ $ ifconfig
 
 1.  现在已经创建了一个新的 Docker 网络，使用`docker run`命令在此网络中启动一个新的容器（`alpinedns1`）。使用`docker run`命令，使用`--network`标志指定刚刚创建的`dnsnet`网络，并使用`--network-alias`标志为容器指定自定义 DNS 名称：
 
-```
-$ docker run -itd --network dnsnet --network-alias alpinedns1 --name alpinedns1 alpine:latest
-```
+[PRE36]
 
 成功执行命令后，应显示完整的容器 ID，然后返回到正常的终端提示符。
 
 1.  使用相同的`--network`和`--network-alias`设置启动第二个容器（`alpinedns2`）：
 
-```
-$ docker run -itd --network dnsnet --network-alias alpinedns2 --name alpinedns2 alpine:latest
-```
+[PRE37]
 
 注意
 
@@ -447,26 +300,15 @@ $ docker run -itd --network dnsnet --network-alias alpinedns2 --name alpinedns2 
 
 1.  使用`docker ps`命令验证容器是否按预期运行：
 
-```
-$ docker ps 
-```
+[PRE38]
 
 输出将显示正在运行的容器实例：
 
-```
-CONTAINER ID    IMAGE           COMMAND      CREATED 
-  STATUS              PORTS             NAMES
-69ecb9ad45e1    alpine:latest   "/bin/sh"    4 seconds ago
-  Up 2 seconds                          alpinedns2
-9b57038fb9c8    alpine:latest   "/bin/sh"    6 minutes ago
-  Up 6 minutes                          alpinedns1
-```
+[PRE39]
 
 1.  使用`docker inspect`命令验证容器实例的 IP 地址是否来自指定的子网（`192.168.54.0/24`）：
 
-```
-$ docker inspect alpinedns1
-```
+[PRE40]
 
 以下输出被截断以显示相关细节：
 
@@ -478,9 +320,7 @@ $ docker inspect alpinedns1
 
 1.  以类似的方式执行`docker network inspect`命令，针对`alpinedns2`容器：
 
-```
-$ docker inspect alpinedns2
-```
+[PRE41]
 
 输出再次被截断以显示相关的网络细节：
 
@@ -492,47 +332,31 @@ $ docker inspect alpinedns2
 
 1.  运行`docker exec`命令以访问`alpinedns1`容器中的 shell：
 
-```
-$ docker exec -it alpinedns1 /bin/sh
-```
+[PRE42]
 
 这应该将您放入容器内的 root shell 中。
 
 1.  进入`alpinedns1`容器后，使用`ping`实用程序对`alpinedns2`容器进行 ping 测试：
 
-```
-/ # ping alpinedns2
-```
+[PRE43]
 
 `ping`输出应显示与`alpinedns2`容器实例的成功网络连接：
 
-```
-PING alpinedns2 (192.168.54.3): 56 data bytes
-64 bytes from 192.168.54.3: seq=0 ttl=64 time=0.278 ms
-64 bytes from 192.168.54.3: seq=1 ttl=64 time=0.233 ms
-```
+[PRE44]
 
 1.  使用`exit`命令返回到主要终端。使用`docker exec`命令访问`alpinedns2`容器内的 shell：
 
-```
-$ docker exec -it alpinedns2 /bin/sh
-```
+[PRE45]
 
 这将使您进入`alpinedns2`容器内的 shell。
 
 1.  使用`ping`实用程序通过名称 ping`alpinedns1`容器：
 
-```
-$ ping alpinedns1
-```
+[PRE46]
 
 输出应显示来自`alpinedns1`容器的成功响应：
 
-```
-PING alpinedns1 (192.168.54.2): 56 data bytes
-64 bytes from 192.168.54.2: seq=0 ttl=64 time=0.115 ms
-64 bytes from 192.168.54.2: seq=1 ttl=64 time=0.231 ms
-```
+[PRE47]
 
 注意
 
@@ -540,57 +364,25 @@ PING alpinedns1 (192.168.54.2): 56 data bytes
 
 1.  在任何`alpinedns`容器内使用`cat`实用程序来揭示 Docker 正在使用真正的 DNS，而不是容器内的`/etc/hosts`文件条目：
 
-```
-# cat /etc/hosts
-```
+[PRE48]
 
 这将显示各自容器内`/etc/hosts`文件的内容：
 
-```
-127.0.0.1  localhost
-::1  localhost ip6-localhost ip6-loopback
-fe00::0    ip6-localnet
-ff00::0    ip6-mcastprefix
-ff02::1    ip6-allnodes
-ff02::2    ip6-allrouters
-192.168.54.2    9b57038fb9c8
-```
+[PRE49]
 
 使用`exit`命令终止`alpinedns2`容器内的 shell 会话。
 
 1.  使用`docker stop`命令停止所有正在运行的容器来清理您的环境：
 
-```
-$ docker stop  containerlink1
-$ docker stop  containerlink2
-$ docker stop  alpinedns1
-$ docker stop  alpinedns2
-```
+[PRE50]
 
 1.  使用`docker system prune -fa`命令清理剩余的已停止容器和网络：
 
-```
-$ docker system prune -fa
-```
+[PRE51]
 
 成功执行此命令应清理`dnsnet`网络以及容器实例和镜像：
 
-```
-Deleted Containers:
-69ecb9ad45e16ef158539761edc95fc83b54bd2c0d2ef55abfba1a300f141c7c
-9b57038fb9c8cf30aaebe6485e9d223041a9db4e94eb1be9392132bdef632067
-Deleted Networks:
-dnsnet
-Deleted Images:
-untagged: alpine:latest
-untagged: alpine@sha256:9a839e63dad54c3a6d1834e29692c8492d93f90c
-    59c978c1ed79109ea4fb9a54
-deleted: sha256:f70734b6a266dcb5f44c383274821207885b549b75c8e119
-    404917a61335981a
-deleted: sha256:3e207b409db364b595ba862cdc12be96dcdad8e36c59a03b
-    b3b61c946a5741a
-Total reclaimed space: 42.12M
-```
+[PRE52]
 
 系统清理输出的每个部分都将识别并删除不再使用的 Docker 资源。在这种情况下，它将删除`dnsnet`网络，因为当前在该网络中没有部署容器实例。
 
@@ -624,9 +416,7 @@ Total reclaimed space: 42.12M
 
 1.  首先，您需要了解在您的 Docker 环境中如何设置网络。从 Bash 或 PowerShell 终端，在 Windows 上使用`ifconfig`或`ipconfig`命令。这将显示您的 Docker 环境中的所有网络接口：
 
-```
-$ ifconfig
-```
+[PRE53]
 
 这将显示您可用的所有网络接口。您应该看到一个名为`docker0`的`bridge`接口。这是 Docker 的`bridge`接口，用作默认 Docker 网络的入口（或入口点）：
 
@@ -636,24 +426,15 @@ $ ifconfig
 
 1.  使用`docker network ls`命令查看您的 Docker 环境中可用的网络：
 
-```
-$ docker network ls
-```
+[PRE54]
 
 这应该列出之前定义的三种基本网络类型，显示网络 ID、Docker 网络的名称和与网络类型相关联的驱动程序：
 
-```
-NETWORK ID       NAME      DRIVER     SCOPE
-50de4997649a     bridge    bridge     local
-f52b4a5440ad     host      host       local
-9bed60b88784     none      null       local
-```
+[PRE55]
 
 1.  使用`docker network inspect`命令查看这些网络的详细信息，然后跟上要检查的网络的 ID 或名称。在这一步中，您将查看`bridge`网络的详细信息：
 
-```
-$ docker network inspect bridge
-```
+[PRE56]
 
 Docker 将以 JSON 格式显示`bridge`网络的详细输出：
 
@@ -665,9 +446,7 @@ Docker 将以 JSON 格式显示`bridge`网络的详细输出：
 
 1.  使用`docker network inspect`命令查看`host`网络的详细信息：
 
-```
-$ docker network inspect host
-```
+[PRE57]
 
 这将以 JSON 格式显示`host`网络的详细信息：
 
@@ -679,9 +458,7 @@ $ docker network inspect host
 
 1.  接下来调查`none`网络。使用`docker network inspect`命令查看`none`网络的详细信息：
 
-```
-docker network inspect none
-```
+[PRE58]
 
 详细信息将以 JSON 格式显示：
 
@@ -697,32 +474,21 @@ docker network inspect none
 
 1.  现在在 `none` 网络中创建一个容器以观察其操作。在您的终端或 PowerShell 会话中，使用 `docker run` 命令使用 `--network` 标志在 `none` 网络中启动一个 Alpine Linux 容器。将此容器命名为 `nonenet`，以便我们知道它部署在 `none` 网络中：
 
-```
-$ docker run -itd --network none --name nonenet alpine:latest 
-```
+[PRE59]
 
 这将在 `none` 网络中拉取并启动一个 Alpine Linux Docker 容器。
 
 1.  使用 `docker ps` 命令验证容器是否按预期运行：
 
-```
-$ docker ps 
-```
+[PRE60]
 
 输出应显示 `nonenet` 容器已启动并运行：
 
-```
-CONTAINER ID    IMAGE            COMMAND      CREATED 
-  STATUS              PORTS              NAMES
-972a80984703    alpine:latest    "/bin/sh"    9 seconds ago
-  Up 7 seconds                           nonenet
-```
+[PRE61]
 
 1.  执行 `docker inspect` 命令，以及容器名称 `nonenet`，以更深入地了解此容器的配置：
 
-```
-$ docker inspect nonenet
-```
+[PRE62]
 
 `docker inspect` 的输出将以 JSON 格式显示完整的容器配置。这里提供了一个突出显示 `NetworkSettings` 部分的缩略版本。请特别注意 `IPAddress` 和 `Gateway` 设置：
 
@@ -734,46 +500,29 @@ $ docker inspect nonenet
 
 1.  使用 `docker exec` 命令访问此容器内部的 `sh` shell：
 
-```
-$ docker exec -it nonenet /bin/sh
-```
+[PRE63]
 
 成功执行此命令后，您将进入容器实例中的 root shell：
 
-```
-/ #
-```
+[PRE64]
 
 1.  执行 `ip a` 命令查看容器中可用的网络接口：
 
-```
-/ $ ip a 
-```
+[PRE65]
 
 这将显示在此容器中配置的所有网络接口：
 
-```
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state 
-UNKNOWN qlen 1000
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-    inet 127.0.0.1/8 scope host lo
-    valid_lft forever preferred_lft forever
-```
+[PRE66]
 
 此容器可用的唯一网络接口是其 `LOOPBACK` 接口。由于此容器未配置 IP 地址或默认网关，常见的网络命令将无法使用。
 
 1.  使用 Alpine Linux Docker 镜像中默认提供的 `ping` 实用程序测试网络连接的缺失。尝试 ping IP 地址为 `8.8.8.8` 的谷歌 DNS 服务器：
 
-```
-/ # ping 8.8.8.8
-```
+[PRE67]
 
 `ping` 命令的输出应显示它没有网络连接：
 
-```
-PING 8.8.8.8 (8.8.8.8): 56 data bytes
-ping: sendto: Network unreachable
-```
+[PRE68]
 
 使用`exit`命令返回到主终端会话。
 
@@ -781,9 +530,7 @@ ping: sendto: Network unreachable
 
 1.  要开始以`host`模式运行容器，请执行`ifconfig`（如果在 macOS 或 Linux 上运行）或使用`ipconfig`（如果在 Windows 上运行）来列出主机机器上可用的网络接口清单：
 
-```
-$ ifconfig
-```
+[PRE69]
 
 这应该输出主机机器上可用的网络接口列表：
 
@@ -799,17 +546,13 @@ $ ifconfig
 
 1.  使用`docker run`命令在`host`网络中启动一个 Alpine Linux 容器。将其命名为`hostnet1`以区分其他容器：
 
-```
-docker run -itd --network host --name hostnet1 alpine:latest
-```
+[PRE70]
 
 Docker 将使用`host`网络在后台启动此容器。
 
 1.  使用`docker inspect`命令查看刚创建的`hostnet1`容器的网络配置：
 
-```
-$ docker inspect hostnet1
-```
+[PRE71]
 
 这将以 JSON 格式显示运行容器的详细配置，包括网络详细信息：
 
@@ -821,17 +564,13 @@ $ docker inspect hostnet1
 
 1.  使用`docker exec`访问此容器内的`sh` shell，提供名称`hostnet1`：
 
-```
-$ docker exec -it hostnet1 /bin/sh
-```
+[PRE72]
 
 这应该会将您放入`hostnet1`容器内的 root shell 中。
 
 1.  在`hostnet1`容器内，执行`ifconfig`命令列出可用的网络接口：
 
-```
-/ # ifconfig
-```
+[PRE73]
 
 应该显示此容器内可用的完整网络接口列表：
 
@@ -845,9 +584,7 @@ $ docker exec -it hostnet1 /bin/sh
 
 1.  为了更充分地了解 Docker 中共享网络模型的工作原理，以“主机”网络模式启动一个 NGINX 容器。NGINX 容器会自动暴露端口`80`，以前我们必须将其转发到主机机器上的一个端口。使用`docker run`命令在主机机器上启动一个 NGINX 容器：
 
-```
-$ docker run -itd --network host --name hostnet2 nginx:latest
-```
+[PRE74]
 
 这个命令将在“主机”网络模式下启动一个 NGINX 容器。
 
@@ -859,34 +596,19 @@ $ docker run -itd --network host --name hostnet2 nginx:latest
 
 1.  使用`docker run`命令在`host`网络模式下创建另一个 NGINX 实例。将此容器命名为`hostnet3`，以便与其他两个容器实例区分开来：
 
-```
-$ docker run -itd --network host --name hostnet3 nginx:latest
-```
+[PRE75]
 
 1.  现在使用`docker ps -a`命令列出所有容器，包括运行和停止状态的容器：
 
-```
-$ docker ps -a
-```
+[PRE76]
 
 将显示运行中的容器列表：
 
-```
-CONTAINER ID  IMAGE         COMMAND                CREATED
-  STATUS                        PORTS           NAMES
-da56fcf81d02  nginx:latest  "nginx -g 'daemon of…" 4 minutes ago
-  Exited (1) 4 minutes ago                      hostnet3
-5786dac6fd27  nginx:latest  "nginx -g 'daemon of…" 37 minutes ago
-  Up 37 minutes                                 hostnet2
-648b291846e7  alpine:latest "/bin/sh"              38 minutes ago
-  Up 38 minutes                                 hostnet
-```
+[PRE77]
 
 1.  根据上述输出，您可以看到`hostnet3`容器已退出并当前处于停止状态。要更充分地了解原因，使用`docker logs`命令查看容器日志：
 
-```
-$ docker logs hostnet3
-```
+[PRE78]
 
 日志输出应显示如下：
 
@@ -906,56 +628,35 @@ $ docker logs hostnet3
 
 1.  在之前的`ifconfig`或`ipconfig`输出中，你看到`enp1s0`接口是机器上的主要网络接口。替换你的机器的主要网络接口的名称。由于你正在使用主机机器的主要网络接口作为父接口，为我们的容器的网络连接指定相同的子网（或者在该空间内更小的子网）。在这里使用`192.168.122.0/24`子网，因为它是主要网络接口的相同子网。同样，你想要指定与父接口相同的默认网关。使用主机机器的相同子网和网关：
 
-```
-$ docker network create -d macvlan --subnet=192.168.122.0/24 --gateway=192.168.122.1 -o parent=enp1s0 macvlan-net1
-```
+[PRE79]
 
 这个命令应该创建一个名为`macvlan-net1`的网络。
 
 1.  使用`docker network ls`命令来确认网络已经被创建，并且正在使用`macvlan`网络驱动程序：
 
-```
-$ docker network ls
-```
+[PRE80]
 
 这个命令将输出当前在你的环境中定义的所有网络。你应该会看到`macvlan-net1`网络：
 
-```
-NETWORK ID       NAME            DRIVER     SCOPE
-f4c9408f22e2     bridge          bridge     local
-f52b4a5440ad     host            host       local
-b895c821b35f     macvlan-net1    macvlan    local
-9bed60b88784     none            null       local
-```
+[PRE81]
 
 1.  现在`macvlan`网络已经在 Docker 中定义，创建一个在这个网络中的容器，并从主机的角度调查网络连接。使用`docker run`命令在`macvlan`网络`macvlan-net1`中创建另一个名为`macvlan1`的 Alpine Linux 容器：
 
-```
-$ docker run -itd --name macvlan1 --network macvlan-net1 alpine:latest
-```
+[PRE82]
 
 这应该会在后台启动一个名为`macvlan1`的 Alpine Linux 容器实例。
 
 1.  使用`docker ps -a`命令来检查并确保这个容器实例正在运行：
 
-```
-$ docker ps -a
-```
+[PRE83]
 
 这应该显示名为`macvlan1`的容器正在按预期运行：
 
-```
-CONTAINER ID   IMAGE           COMMAND      CREATED
-  STATUS              PORTS              NAMES
-cd3c61276759   alpine:latest   "/bin/sh"    3 seconds ago
-  Up 1 second                            macvlan1
-```
+[PRE84]
 
 1.  使用`docker inspect`命令来调查这个容器实例的网络配置：
 
-```
-$ docker inspect macvlan1
-```
+[PRE85]
 
 容器配置的详细输出应该被显示出来。以下输出已经被截断，只显示了 JSON 格式的网络设置部分：
 
@@ -967,17 +668,13 @@ $ docker inspect macvlan1
 
 1.  使用`docker run`创建`macvlan-net1`网络内的第二个容器实例命名为`macvlan2`：
 
-```
-$ docker run -itd --name macvlan2 --network macvlan-net1 alpine:latest
-```
+[PRE86]
 
 这应该在`macvlan-net1`网络中启动另一个容器实例。
 
 1.  运行`docker inspect`命令以查看`macvlan-net2`容器实例的 MAC 地址：
 
-```
-$ docker inspect macvlan2
-```
+[PRE87]
 
 这将以 JSON 格式输出`macvlan2`容器实例的详细配置，此处仅显示相关的网络设置。
 
@@ -989,91 +686,49 @@ $ docker inspect macvlan2
 
 1.  运行`docker exec`命令以访问此容器内的`sh` shell：
 
-```
-$ docker exec -it macvlan1 /bin/sh
-```
+[PRE88]
 
 这应该将您放入容器内的 root 会话。
 
 1.  在容器内使用`ifconfig`命令观察在`macvlan1`容器的`docker inspect`输出中看到的 MAC 地址是否存在于容器的主要网络接口的 MAC 地址中：
 
-```
-/ # ifconfig
-```
+[PRE89]
 
 在`eth0`接口的详细信息中，查看`HWaddr`参数。您还可以注意`inet addr`参数下列出的 IP 地址，以及通过此网络接口传输和接收的字节数-`RX 字节`（接收的字节数）和`TX 字节`（传输的字节数）：
 
-```
-eth0      Link encap:Ethernet  HWaddr 02:42:C0:A8:7A:02
-          inet addr:192.168.122.2  Bcast:192.168.122.255
-                                   Mask:255.255.255.0
-          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
-          RX packets:353 errors:0 dropped:0 overruns:0 frame:0
-          TX packets:188 errors:0 dropped:0 overruns:0 carrier:0
-          collisions:0 txqueuelen:0 
-          RX bytes:1789983 (1.7 MiB)  TX bytes:12688 (12.3 KiB)
-```
+[PRE90]
 
 1.  使用 Alpine Linux 容器中可用的`apk`软件包管理器安装`arping`实用程序。这是一个用于向 MAC 地址发送`arp`消息以检查第 2 层连接的工具：
 
-```
-/ # apk add arping
-```
+[PRE91]
 
 `arping`实用程序应该安装在`macvlan1`容器内：
 
-```
-fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/main
-/x86_64/APKINDEX.tar.gz
-fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/community
-/x86_64/APKINDEX.tar.gz
-(1/3) Installing libnet (1.1.6-r3)
-(2/3) Installing libpcap (1.9.1-r0)
-(3/3) Installing arping (2.20-r0)
-Executing busybox-1.31.1-r9.trigger
-OK: 6 MiB in 17 packages
-```
+[PRE92]
 
 1.  将`macvlan2`容器实例的第 3 层 IP 地址指定为`arping`的主要参数。现在，`arping`将自动查找 MAC 地址并检查与其的第 2 层连接：
 
-```
-/ # arping 192.168.122.3
-```
+[PRE93]
 
 `arping`实用程序应该报告`macvlan2`容器实例的正确 MAC 地址，表明成功的第 2 层网络连接：
 
-```
-ARPING 192.168.122.3
-42 bytes from 02:42:c0:a8:7a:03 (192.168.122.3): index=0 
-time=8.563 usec
-42 bytes from 02:42:c0:a8:7a:03 (192.168.122.3): index=1 
-time=18.889 usec
-42 bytes from 02:42:c0:a8:7a:03 (192.168.122.3): index=2 
-time=15.917 use
-type exit to return to the shell of your primary terminal. 
-```
+[PRE94]
 
 1.  使用`docker ps -a`命令检查容器的状态：
 
-```
-$ docker ps -a 
-```
+[PRE95]
 
 此命令的输出应显示环境中所有正在运行和停止的容器实例。
 
 1.  接下来，使用`docker stop`停止所有正在运行的容器，然后是容器名称或 ID：
 
-```
-$ docker stop hostnet1
-```
+[PRE96]
 
 对您环境中的所有运行容器重复此步骤。
 
 1.  使用 `docker system prune` 命令清理容器镜像和未使用的网络：
 
-```
-$ docker system prune -fa 
-```
+[PRE97]
 
 这个命令将清理您的机器上剩余的所有未使用的容器镜像、网络和卷。
 
@@ -1099,27 +754,19 @@ Docker `overlay` 网络用于在 Docker 集群中的机器之间创建网格网�
 
 1.  在第一台机器 `Machine1` 上运行 `docker --version` 来查找当前正在运行的 Docker 版本。
 
-```
-Machine1 ~$ docker --version
-```
+[PRE98]
 
 将显示 `Machine1` 的 Docker 安装的版本细节：
 
-```
-Docker version 19.03.6, build 369ce74a3c
-```
+[PRE99]
 
 然后，您可以对 `Machine2` 执行相同的操作：
 
-```
-Machine2 ~$ docker --version
-```
+[PRE100]
 
 将显示 `Machine2` 的 Docker 安装的版本细节：
 
-```
-Docker version 19.03.6, build 369ce74a3c
-```
+[PRE101]
 
 在继续之前，验证已安装的 Docker 版本是否相同。
 
@@ -1129,112 +776,63 @@ Docker 版本可能会因系统而异。
 
 1.  在 `Machine1` 上，运行 `docker swarm init` 命令来初始化 Docker 集群：
 
-```
-Machine1 ~$ docker swarm init
-```
+[PRE102]
 
 这应该打印出您可以在其他节点上使用的命令，以加入 Docker 集群，包括 IP 地址和 `join` 令牌：
 
-```
-docker swarm join --token SWMTKN-1-57n212qtvfnpu0ab28tewiorf3j9fxzo9vaa7drpare0ic6ohg-5epus8clyzd9xq7e7ze1y0p0n 
-192.168.122.185:2377
-```
+[PRE103]
 
 1.  在 `Machine2` 上，运行由 `Machine1` 提供的 `docker swarm join` 命令，以加入 Docker 集群：
 
-```
-Machine2 ~$  docker swarm join --token SWMTKN-1-57n212qtvfnpu0ab28tewiorf3j9fxzo9vaa7drpare0ic6ohg-5epus8clyzd9xq7e7ze1y0p0n 192.168.122.185:2377
-```
+[PRE104]
 
 `Machine2` 应成功加入 Docker 集群：
 
-```
-This node joined a swarm as a worker.
-```
+[PRE105]
 
 1.  在两个节点上执行 `docker info` 命令，以确保它们已成功加入集群：
 
 `Machine1`：
 
-```
-Machine1 ~$ docker info
-```
+[PRE106]
 
 `Machine2`：
 
-```
-Machine2 ~$ docker info
-```
+[PRE107]
 
 以下输出是 `docker info` 输出的 `swarm` 部分的截断。从这些细节中，您将看到这些 Docker 节点配置在一个集群中，并且集群中有两个节点，一个是单个管理节点（`Machine1`）。这些参数在两个节点上应该是相同的，除了 `Is Manager` 参数，其中 `Machine1` 将是管理节点。默认情况下，Docker 将为默认的 Docker 集群 `overlay` 网络分配一个默认子网 `10.0.0.0/8`：
 
-```
- swarm: active
-  NodeID: oub9g5383ifyg7i52yq4zsu5a
-  Is Manager: true
-  ClusterID: x7chp0w3two04ltmkqjm32g1f
-  Managers: 1
-  Nodes: 2
-  Default Address Pool: 10.0.0.0/8  
-  SubnetSize: 24
-  Data Path Port: 4789
-  Orchestration:
-    Task History Retention Limit: 5
-```
+[PRE108]
 
 1.  从 `Machine1` 中，使用 `docker network create` 命令创建一个 `overlay` 网络。由于这是一个将跨越简单集群中的多个节点的网络，因此需要将 `overlay` 驱动程序指定为网络驱动程序。将此网络命名为 `overlaynet1`。使用尚未被 Docker 主机上的任何网络使用的子网和网关，以避免子网冲突。使用 `172.45.0.0/16` 和 `172.45.0.1` 作为网关：
 
-```
-Machine1 ~$ docker network create overlaynet1 --driver overlay --subnet 172.45.0.0/16 --gateway 172.45.0.1
-```
+[PRE109]
 
 将创建 `overlay` 网络。
 
 1.  使用 `docker network ls` 命令来验证网络是否成功创建并且是否使用了正确的 `overlay` 驱动程序：
 
-```
-Machine1 ~$ docker network ls
-```
+[PRE110]
 
 将显示 Docker 主机上可用的网络列表：
 
-```
-NETWORK ID       NAME              DRIVER     SCOPE
-54f2af38e6a8     bridge            bridge     local
-df5ebd75303e     docker_gwbridge   bridge     local
-f52b4a5440ad     host              host       local
-8hm1ouvt4z7t     ingress           overlay    swarm
-9bed60b88784     none              null       local
-60wqq8ewt8zq     overlaynet1       overlay    swarm
-```
+[PRE111]
 
 1.  使用`docker service create`命令创建一个将跨多个节点的 swarm 集群的服务。将容器部署为服务允许您指定一个容器实例的多个副本，以进行水平扩展或在集群中的节点之间扩展容器实例以实现高可用性。为了保持这个例子简单，创建一个 Alpine Linux 的单个容器服务。将此服务命名为`alpine-overlay1`：
 
-```
-Machine1 ~$ docker service create -t --replicas 1 --network overlaynet1 --name alpine-overlay1 alpine:latest
-```
+[PRE112]
 
 一个基于文本的进度条将显示`alpine-overlay1`服务部署的进度：
 
-```
-overall progress: 1 out of 1 tasks 
-1/1: running   [===========================================>]
-verify: Service converged 
-```
+[PRE113]
 
 1.  重复相同的`docker service create`命令，但现在将`alpine-overlay2`指定为服务名称：
 
-```
-Machine1 ~$ docker service create -t --replicas 1 --network overlaynet1 --name alpine-overlay2 alpine:latest
-```
+[PRE114]
 
 一个基于文本的进度条将再次显示服务部署的进度：
 
-```
-overall progress: 1 out of 1 tasks 
-1/1: running   [===========================================>]
-verify: Service converged
-```
+[PRE115]
 
 注意
 
@@ -1242,25 +840,15 @@ verify: Service converged
 
 1.  从`Machine1`节点，执行`docker ps`命令以查看此节点上正在运行的服务：
 
-```
-Machine1 ~$ docker ps 
-```
+[PRE116]
 
 正在运行的容器将被显示。Docker 将在 Docker swarm 集群中的节点之间智能地扩展容器。在本例中，`alpine-overlay1`服务的容器落在了`Machine1`上。根据 Docker 部署服务的方式，您的环境可能会有所不同：
 
-```
-CONTAINER ID    IMAGE           COMMAND     CREATED
-  STATUS              PORTS             NAMES
-4d0f5fa82add    alpine:latest   "/bin/sh"   59 seconds ago
-  Up 57 seconds                         alpine-overlay1.1.
-r0tlm8w0dtdfbjaqyhobza94p
-```
+[PRE117]
 
 1.  运行`docker inspect`命令以查看正在运行的容器的详细信息：
 
-```
-Machine1 ~$ docker inspect alpine-overlay1.1.r0tlm8w0dtdfbjaqyhobza94p
-```
+[PRE118]
 
 将显示正在运行的容器实例的详细信息。以下输出已被截断以显示`docker inspect`输出的`NetworkSettings`部分：
 
@@ -1272,38 +860,21 @@ Machine1 ~$ docker inspect alpine-overlay1.1.r0tlm8w0dtdfbjaqyhobza94p
 
 1.  在`Machine2`实例上，执行`docker network ls`命令以查看主机上可用的 Docker 网络：
 
-```
-Machine2 ~$ docker network ls
-```
+[PRE119]
 
 将显示 Docker 主机上所有可用的 Docker 网络的列表：
 
-```
-NETWORK ID       NAME              DRIVER     SCOPE
-8c7755be162f     bridge            bridge     local
-28055e8c63a0     docker_gwbridge   bridge     local
-c62fb7ac090f     host              host       local
-8hm1ouvt4z7t     ingress           overlay    swarm
-6182d77a8f62     none              null       local
-60wqq8ewt8zq     overlaynet1       overlay    swarm
-```
+[PRE120]
 
 注意，`Machine1`上定义的`overlaynet1`网络也可在`Machine2`上使用。这是因为使用`overlay`驱动程序创建的网络可用于 Docker swarm 集群中的所有主机。这使得可以使用此网络部署容器以在集群中的所有主机上运行。
 
 1.  使用`docker ps`命令列出此 Docker 实例上正在运行的容器：
 
-```
-Machine2 ~$ docker ps
-```
+[PRE121]
 
 将所有正在运行的容器列出。在这个例子中，`alpine-overlay2` 服务中的容器落在了 `Machine2` 集群节点上：
 
-```
-CONTAINER ID   IMAGE           COMMAND      CREATED
-  STATUS              PORTS               NAMES
-53747ca9af09   alpine:latest   "/bin/sh"    33 minutes ago
-  Up 33 minutes                           alpine-overlay2.1.ui9vh6zn18i48sxjbr8k23t71
-```
+[PRE122]
 
 注意
 
@@ -1311,9 +882,7 @@ CONTAINER ID   IMAGE           COMMAND      CREATED
 
 1.  使用 `docker inspect` 来调查该容器的网络配置：
 
-```
-Machine2 ~$ docker inspect alpine-overlay2.1.ui9vh6zn18i48sxjbr8k23t71
-```
+[PRE123]
 
 将显示详细的容器配置。此输出已被截断，以 JSON 格式显示输出的 `NetworkSettings` 部分：
 
@@ -1325,54 +894,33 @@ Machine2 ~$ docker inspect alpine-overlay2.1.ui9vh6zn18i48sxjbr8k23t71
 
 1.  由于两个服务都部署在同一个 `overlay` 网络中，但存在于两个独立的主机中，您可以看到 Docker 正在使用 `underlay` 网络来代理 `overlay` 网络的流量。通过尝试从一个服务到另一个服务的 ping 来检查服务之间的网络连接。需要注意的是，类似于部署在同一网络中的静态容器，部署在同一网络上的服务可以使用 Docker DNS 通过名称解析彼此。在 `Machine2` 主机上使用 `docker exec` 命令访问 `alpine-overlay2` 容器内的 `sh` shell：
 
-```
-Machine2 ~$ docker exec -it alpine-overlay2.1.ui9vh6zn18i48sxjbr8k23t71 /bin/sh
-```
+[PRE124]
 
 这应该将您放入 `alpine-overlay2` 容器实例的 root shell。使用 `ping` 命令发起与 `alpine-overlay1` 容器的网络通信：
 
-```
-/ # ping alpine-overlay1
-PING alpine-overlay1 (172.45.0.10): 56 data bytes
-64 bytes from 172.45.0.10: seq=0 ttl=64 time=0.314 ms
-64 bytes from 172.45.0.10: seq=1 ttl=64 time=0.274 ms
-64 bytes from 172.45.0.10: seq=2 ttl=64 time=0.138 ms
-```
+[PRE125]
 
 请注意，即使这些容器部署在两个独立的主机上，它们也可以通过名称使用共享的 `overlay` 网络进行通信。
 
 1.  从 `Machine1` 主机，您可以尝试与 `alpine-overlay2` 服务容器进行相同的通信。使用 `docker exec` 命令在 `Machine1` 主机上访问 `alpine-overlay2` 容器内的 `sh` shell：
 
-```
-Machine1 ~$ docker exec -it alpine-overlay1.1.r0tlm8w0dtdfbjaqyhobza94p /bin/sh
-```
+[PRE126]
 
 这应该将您放入容器内的 root shell。使用 `ping` 命令发起与 `alpine-overlay2` 容器实例的网络通信：
 
-```
-/ # ping alpine-overlay2
-PING alpine-overlay2 (172.45.0.13): 56 data bytes
-64 bytes from 172.45.0.13: seq=0 ttl=64 time=0.441 ms
-64 bytes from 172.45.0.13: seq=1 ttl=64 time=0.227 ms
-64 bytes from 172.45.0.13: seq=2 ttl=64 time=0.282 ms
-```
+[PRE127]
 
 再次注意，通过使用 Docker DNS，可以使用 `overlay` 网络驱动程序在主机之间解析 `alpine-overlay2` 容器的 IP 地址。
 
 1.  使用 `docker service rm` 命令从 `Machine1` 节点中删除这两个服务：
 
-```
-Machine1 ~$ docker service rm alpine-overlay1
-Machine1 ~$ docker service rm alpine-overlay2
-```
+[PRE128]
 
 对于这些命令中的每一个，服务名称将会短暂地显示，表明命令执行成功。在两个节点上，`docker ps` 将显示当前没有正在运行的容器。
 
 1.  使用 `docker rm` 命令并指定名称 `overlaynet1` 删除 `overlaynet1` Docker 网络。
 
-```
-Machine1 ~$ docker network rm overlaynet1
-```
+[PRE129]
 
 `overlaynet1` 网络将被删除。
 
@@ -1394,213 +942,103 @@ Machine1 ~$ docker network rm overlaynet1
 
 1.  在`Machine1`节点上使用`docker plugin install`命令从 Docker Hub 安装 Weave Net 驱动程序：
 
-```
-Machine1 ~$ docker plugin install store/weaveworks/net-plugin:2.5.2
-```
+[PRE130]
 
 这将提示您在安装它的机器上授予 Weave Net 权限。授予请求的权限是安全的，因为 Weave Net 需要这些权限才能在主机操作系统上正确设置网络驱动程序：
 
-```
-Plugin "store/weaveworks/net-plugin:2.5.2" is requesting 
-the following privileges:
- - network: [host]
- - mount: [/proc/]
- - mount: [/var/run/docker.sock]
- - mount: [/var/lib/]
- - mount: [/etc/]
- - mount: [/lib/modules/]
- - capabilities: [CAP_SYS_ADMIN CAP_NET_ADMIN CAP_SYS_MODULE]
-Do you grant the above permissions? [y/N]
-```
+[PRE131]
 
 通过按下*y*键来回答提示。Weave Net 插件应该安装成功。
 
 1.  在`Machine2`节点上运行相同的`docker plugin install`命令。Docker 集群中的所有节点都应该安装了插件，因为所有节点都将参与到集群网格网络中：
 
-```
-Machine2 ~$ docker plugin install store/weaveworks/net-plugin:2.5.2
-```
+[PRE132]
 
 权限提示将被显示。在提示继续安装时回答*y*：
 
-```
-Plugin "store/weaveworks/net-plugin:2.5.2" is requesting 
-the following privileges:
- - network: [host]
- - mount: [/proc/]
- - mount: [/var/run/docker.sock]
- - mount: [/var/lib/]
- - mount: [/etc/]
- - mount: [/lib/modules/]
- - capabilities: [CAP_SYS_ADMIN CAP_NET_ADMIN CAP_SYS_MODULE]
-Do you grant the above permissions? [y/N]
-```
+[PRE133]
 
 1.  在`Machine1`节点上使用`docker network create`命令创建一个网络。将 Weave Net 驱动程序指定为主驱动程序，网络名称为`weavenet1`。对于子网和网关参数，请使用之前练习中尚未使用的唯一子网：
 
-```
-Machine1 ~$  docker network create --driver=store/weaveworks/net-plugin:2.5.2 --subnet 10.1.1.0/24 --gateway 10.1.1.1 weavenet1
-```
+[PRE134]
 
 这应该在 Docker 集群中创建一个名为`weavenet1`的网络。
 
 1.  使用`docker network ls`命令列出 Docker 集群中可用的网络：
 
-```
-Machine1 ~$ docker network ls 
-```
+[PRE135]
 
 `weavenet1`网络应该显示在列表中：
 
-```
-NETWORK ID     NAME             DRIVER
-  SCOPE
-b3f000eb4699   bridge           bridge
-  local
-df5ebd75303e   docker_gwbridge  bridge
-  local
-f52b4a5440ad   host             host
-  local
-8hm1ouvt4z7t   ingress          overlay
-  swarm
-9bed60b88784   none             null
-  local
-q354wyn6yvh4   weavenet1        store/weaveworks/net-plugin:2.5.2
-  swarm
-```
+[PRE136]
 
 1.  在`Machine2`节点上执行`docker network ls`命令，以确保`weavenet1`网络也存在于该机器上：
 
-```
-Machine2 ~$ docker network ls 
-```
+[PRE137]
 
 `weavenet1`网络应该被列出：
 
-```
-NETWORK ID    NAME              DRIVER
-  SCOPE
-b3f000eb4699  bridge            bridge
-  local
-df5ebd75303e  docker_gwbridge   bridge
-  local
-f52b4a5440ad  host              host
-  local
-8hm1ouvt4z7t  ingress           overlay
-  swarm
-9bed60b88784  none              null
-  local
-q354wyn6yvh4  weavenet1         store/weaveworks/net-plugin:2.5.2
-  swarm
-```
+[PRE138]
 
 1.  在`Machine1`节点上，使用`docker service create`命令创建一个名为`alpine-weavenet1`的服务，该服务使用`weavenet1`网络：
 
-```
-Machine1 ~$ docker service create -t --replicas 1 --network weavenet1 --name alpine-weavenet1 alpine:latest
-```
+[PRE139]
 
 文本进度条将显示服务的部署状态。它应该在没有任何问题的情况下完成：
 
-```
-overall progress: 1 out of 1 tasks 
-1/1: running   [===========================================>]
-verify: Service converged 
-```
+[PRE140]
 
 1.  再次使用`docker service create`命令在`weavenet1`网络中创建另一个名为`alpine-weavenet2`的服务：
 
-```
-Machine1 ~$ docker service create -t --replicas 1 --network weavenet1 --name alpine-weavenet2 alpine:latest
-```
+[PRE141]
 
 文本进度条将再次显示，指示服务创建的状态：
 
-```
-overall progress: 1 out of 1 tasks 
-1/1: running   [===========================================>]
-verify: Service converged 
-```
+[PRE142]
 
 1.  运行`docker ps`命令验证集群中每个节点上是否成功运行了 Alpine 容器：
 
 `Machine1`：
 
-```
-Machine1 ~$ docker ps
-```
+[PRE143]
 
 `Machine2`：
 
-```
-Machine2 ~$ docker ps
-```
+[PRE144]
 
 其中一个服务容器应该在两台机器上都正常运行：
 
 `Machine1`：
 
-```
-CONTAINER ID    IMAGE           COMMAND      CREATED
-  STATUS              PORTS               NAMES
-acc47f58d8b1    alpine:latest   "/bin/sh"    7 minutes ago
-  Up 7 minutes                            alpine-weavenet1.1.zo5folr5yvu6v7cwqn23d2h97
-```
+[PRE145]
 
 `Machine2`：
 
-```
-CONTAINER ID    IMAGE           COMMAND     CREATED
-  STATUS              PORTS        NAMES
-da2a45d8c895    alpine:latest   "/bin/sh"   4 minutes ago
-  Up 4 minutes                     alpine-weavenet2.1.z8jpiup8yetj
-rqca62ub0yz9k
-```
+[PRE146]
 
 1.  使用`docker exec`命令访问`weavenet1.1`容器实例内部的`sh` shell。确保在运行此容器的 swarm 集群中的节点上运行此命令：
 
-```
-Machine1 ~$ docker exec -it alpine-weavenet1.1.zo5folr5yvu6v7cwqn23d2h97 /bin/sh
-```
+[PRE147]
 
 这应该将您带入容器内部的 root shell：
 
-```
-/ #
-```
+[PRE148]
 
 1.  使用`ifconfig`命令查看此容器内部存在的网络接口：
 
-```
-/ # ifconfig
-```
+[PRE149]
 
 这将显示一个名为`ethwe0`的新命名网络接口。Weave Net 核心网络策略的核心部分是在容器内创建自定义命名的接口，以便进行简单识别和故障排除。需要注意的是，此接口被分配了一个 IP 地址，该地址来自我们提供的子网作为配置参数：
 
-```
-ethwe0  Link encap:Ethernet  HWaddr AA:11:F2:2B:6D:BA  
-        inet addr:10.1.1.3  Bcast:10.1.1.255  Mask:255.255.255.0
-        UP BROADCAST RUNNING MULTICAST  MTU:1376  Metric:1
-        RX packets:37 errors:0 dropped:0 overruns:0 frame:0
-        TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
-        collisions:0 txqueuelen:0 
-        RX bytes:4067 (3.9 KiB)  TX bytes:0 (0.0 B)
-```
+[PRE150]
 
 1.  从容器内部，使用`ping`实用程序通过名称 ping`alpine-weavenet2`服务：
 
-```
-ping alpine-weavenet2
-```
+[PRE151]
 
 您应该看到来自`alpine-weavenet2`服务的解析 IP 地址的响应：
 
-```
-64 bytes from 10.1.1.4: seq=0 ttl=64 time=3.430 ms
-64 bytes from 10.1.1.4: seq=1 ttl=64 time=1.541 ms
-64 bytes from 10.1.1.4: seq=2 ttl=64 time=1.363 ms
-64 bytes from 10.1.1.4: seq=3 ttl=64 time=1.850 ms
-```
+[PRE152]
 
 注意
 
@@ -1608,34 +1046,21 @@ ping alpine-weavenet2
 
 1.  还可以尝试从这些容器中通过开放的互联网 ping Google DNS 服务器（`8.8.8.8`）以确保这些容器具有互联网访问权限：
 
-```
-ping 8.8.8.8
-```
+[PRE153]
 
 您应该看到返回的响应，表明这些容器具有互联网访问权限：
 
-```
-/ # ping 8.8.8.8
-PING 8.8.8.8 (8.8.8.8): 56 data bytes
-64 bytes from 8.8.8.8: seq=0 ttl=51 time=13.224 ms
-64 bytes from 8.8.8.8: seq=1 ttl=51 time=11.840 ms
-type exit to quit the shell session in this container.
-```
+[PRE154]
 
 1.  使用`docker service rm`命令从`Machine1`节点中删除两个服务：
 
-```
-Machine1 ~$ docker service rm alpine-weavenet1
-Machine1 ~$ docker service rm alpine-weavenet2
-```
+[PRE155]
 
 这将删除两个服务，停止并删除容器实例。
 
 1.  通过运行以下命令删除 Weave Net 网络：
 
-```
-Machine1 ~$ docker network rm weavenet1
-```
+[PRE156]
 
 应删除和移除 Weave Net 网络。
 
@@ -1689,12 +1114,7 @@ Machine1 ~$ docker network rm weavenet1
 
 `trekking-app`服务应能够与`database-app`服务通信，可以通过 ICMP 回复进行验证，例如：
 
-```
-PING database-app (10.2.0.5): 56 data bytes
-64 bytes from 10.2.0.5: seq=0 ttl=64 time=0.261 ms
-64 bytes from 10.2.0.5: seq=1 ttl=64 time=0.352 ms
-64 bytes from 10.2.0.5: seq=2 ttl=64 time=0.198 ms
-```
+[PRE157]
 
 注意
 

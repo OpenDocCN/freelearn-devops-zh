@@ -316,23 +316,13 @@ Docker 在 2016 年初宣布推出了 Docker for Mac 和 Docker for Windows 的�
 
 我们将在本书中广泛使用 Machine，因此请确保您已经通过 Docker for Mac 或 Windows 或 Docker Toolbox 安装了它。如果您在桌面上使用 Linux，请使用您的软件包系统（apt 或 rpm）安装 Docker 客户端。您还需要下载裸机二进制文件，只需使用 curl 并为其分配执行权限；请按照[`docs.docker.com/machine/install-machine/`](https://docs.docker.com/machine/install-machine/)上的说明进行操作。当前稳定版本为 0.8.1。
 
-```
-**$ curl -L 
-https://github.com/docker/machine/releases/download/v0.8.1/docker-
-machine-uname -s-uname -m > /usr/local/bin/docker-machine**
-**$ chmod +x /usr/local/bin/docker-machine`**
-
-```
+[PRE0]
 
 ## 检查 Docker Machine 是否可用-所有系统
 
 您可以通过命令行检查机器是否准备好使用以下命令：
 
-```
-**$ docker-machine --version**
-**docker-machine version 0.8.1, build 41b3b25**
-
-```
+[PRE1]
 
 如果您遇到问题，请检查系统路径或为您的架构下载正确的二进制文件。
 
@@ -380,28 +370,19 @@ Boot2Docker 绝不适用于生产工作负载。它仅用于开发和测试目�
 
 如果我们执行：
 
-```
-**$ docker-machine ls**
-
-```
+[PRE2]
 
 在我们的新安装中列出可用的机器时，我们看到没有正在运行的机器。
 
 因此，让我们从创建一个开始，使用以下命令：
 
-```
-**$ docker-machine create --driver virtualbox node0**
-
-```
+[PRE3]
 
 此命令明确要求使用 VirtualBox 驱动程序（-d 简称）并将机器命名为 node0。Docker Machines 可以在数十个不同的公共和私人提供商上提供机器，例如 AWS，DigitalOcean，Azure，OpenStack，并且有很多选项。现在，我们使用标准设置。第一个集群节点将在一段时间后准备就绪。
 
 在这一点上，发出以下命令以控制此主机（以便远程访问）：
 
-```
-**$ docker-machine env node0**
-
-```
+[PRE4]
 
 这将打印一些 shell 变量。只需复制最后一行，即带有 eval 的那一行，粘贴并按 Enter。配置了这些变量后，您将不再操作本地守护程序（如果有的话），而是操作`node0`的 Docker 守护程序。
 
@@ -409,24 +390,13 @@ Boot2Docker 绝不适用于生产工作负载。它仅用于开发和测试目�
 
 如果再次检查机器列表，您将看到图像名称旁边有一个`*`，表示它是当前正在使用的机器。或者，您可以输入以下命令以打印当前活动的机器：
 
-```
-**$ docker-machine active**
-
-```
+[PRE5]
 
 ![使用 Docker Machine 创建 4 个集群节点](img/image_01_013.jpg)
 
 守护程序正在此机器上运行，并具有一些标准设置（例如在端口`tcp/2376`上启用了 TLS）。您可以通过 SSH 到节点并验证运行的进程来确保这一点：
 
-```
-**$ docker-machine ssh node0 ps aux | grep docker**
-**1320 root  /usr/local/bin/docker daemon -D -g /var/lib/docker -H 
-    unix:// -H tcp://0.0.0.0:2376 --label provider=virtualbox --
-    tlsverify --tlscacert=/var/lib/boot2docker/ca.pem -- 
-    tlscert=/var/lib/boot2docker/server.pem -- 
-    tlskey=/var/lib/boot2docker/server-key.pem -s aufs**
-
-```
+[PRE6]
 
 因此，您可以通过立即启动容器并检查 Docker 状态来启动 Docker 守护程序：
 
@@ -434,12 +404,7 @@ Boot2Docker 绝不适用于生产工作负载。它仅用于开发和测试目�
 
 完美！现在我们以完全相同的方式为其他三个主机进行配置，将它们命名为`node1`、`node2`和`node3`：
 
-```
-**$ docker-machine create --driver virtualbox node1**
-**$ docker-machine create --driver virtualbox node2**
-**$ docker-machine create --driver virtualbox node3**
-
-```
+[PRE7]
 
 当它们完成时，您将有四个可用的 Docker 主机。使用 Docker Machine 检查。
 
@@ -463,25 +428,15 @@ Boot2Docker 绝不适用于生产工作负载。它仅用于开发和测试目�
 
 我们有四个主机在端口`tcp/2376`上运行 Docker，并且使用 TLS，因为 Docker Machine 默认创建它们。我们必须重新配置它们以将守护程序端口更改为`tls/2375`并删除 TLS。因此，我们登录到每个主机，使用以下命令：
 
-```
-**$ docker-machine ssh node0**
-
-```
+[PRE8]
 
 然后，我们获得了 root 权限：
 
-```
-**$ sudo su -**
-
-```
+[PRE9]
 
 并通过修改文件`/var/lib/boot2docker/profile`来配置`boot2docker`：
 
-```
-**# cp /var/lib/boot2docker/profile /var/lib/boot2docker/profile-bak**
-**# vi /var/lib/boot2docker/profile**
-
-```
+[PRE10]
 
 我们删除了具有 CACERT、SERVERKEY 和 SERVERCERT 的行，并将守护程序端口配置为`tcp/2375`，将`DOCKER_TLS`配置为`no`。实际上，这将是我们的配置：
 
@@ -489,27 +444,15 @@ Boot2Docker 绝不适用于生产工作负载。它仅用于开发和测试目�
 
 完成后退出 SSH 会话并重新启动机器：
 
-```
-**$ docker-machine restart node0**
-
-```
+[PRE11]
 
 Docker 现在在端口`tcp/2375`上运行，没有安全性。您可以使用以下命令检查：
 
-```
-**$ docker-machine ssh node0 ps aux | grep docker**
- **1127 root  /usr/local/bin/docker daemon -D -g /var/lib/docker -H 
-     unix:// -H tcp://0.0.0.0:2375 --label provider=virtualbox -s aufs**
-
-```
+[PRE12]
 
 最后，在您的本地桌面计算机上，取消设置`DOCKER_TLS_VERIFY`并重新导出`DOCKER_HOST`，以便使用在`tcp/2375`上监听且没有 TLS 的守护程序：
 
-```
-**$ unset DOCKER_TLS_VERIFY**
-**$ export DOCKER_HOST="tcp://192.168.99.103:2375"** 
-
-```
+[PRE13]
 
 我们必须为我们的第一个 Swarm 中的每个四个节点重复这些步骤。
 
@@ -517,26 +460,17 @@ Docker 现在在端口`tcp/2375`上运行，没有安全性。您可以使用以
 
 要开始使用 Swarm v1（毫不意外），必须从 Docker hub 拉取`swarm`镜像。打开四个终端，在第一个终端中为每台机器的环境变量设置环境变量，在第一个终端中设置 node0（`docker-machine env node0`，并将`env`变量复制并粘贴到 shell 中），在第二个终端中设置`node1`，依此类推 - ，并在完成更改标准端口和禁用 TLS 的步骤后，对每个终端执行以下操作：
 
-```
-**$ docker pull swarm**
-
-```
+[PRE14]
 
 ![启动 Docker Swarm](img/image_01_017.jpg)
 
 我们将在第一个示例中不使用发现服务，而是使用最简单的机制，例如`nodes://`。使用`nodes://`，Swarm 集群节点是手动连接的，以形成对等网格。操作员所需做的就是简单地定义一个节点 IP 和守护进程端口的列表，用逗号分隔，如下所示：
 
-```
-**nodes://192.168.99.101:2375,192.168.99.102:2375,192.168.99.103:2375,192.168.99.107:2375**
-
-```
+[PRE15]
 
 要使用 Swarm，您只需使用一些参数运行 swarm 容器。要在线显示帮助，您可以输入：
 
-```
-**$ docker run swarm --help**
-
-```
+[PRE16]
 
 ![启动 Docker Swarm](img/image_01_018.jpg)
 
@@ -562,15 +496,7 @@ Docker 现在在端口`tcp/2375`上运行，没有安全性。您可以使用以
 
 因此，在每个终端上，您连接到每台机器，执行以下操作：
 
-```
-**$ docker run \**
-**-d \**
-**-p 3376:2375 \**
-**swarm manage \** 
- **nodes://192.168.99.101:2375,192.168.99.102:2375,
-    192.168.99.103:2375,192.168.99.107:2375**
-
-```
+[PRE17]
 
 ### 提示
 
@@ -578,17 +504,11 @@ Docker 现在在端口`tcp/2375`上运行，没有安全性。您可以使用以
 
 现在，作为下一步，我们将连接到它并在开始运行容器之前检查其信息。为了方便起见，打开一个新的终端。我们现在连接的不再是我们的一个节点上的 Docker 引擎，而是 Docker Swarm。因此，我们将连接到`tcp/3376`而不再是`tcp/2375`。为了详细展示我们正在做什么，让我们从`node0`变量开始：
 
-```
-**$ docker-machine env node0**
-
-```
+[PRE18]
 
 复制并粘贴 eval 行，正如您已经知道的那样，并使用以下命令检查导出的 shell 变量：
 
-```
-**$ export | grep DOCKER_**
-
-```
+[PRE19]
 
 我们现在需要做以下事情：
 
@@ -610,12 +530,7 @@ Docker 现在在端口`tcp/2375`上运行，没有安全性。您可以使用以
 
 此外，您可以获取有关此 Swarm 集群调度程序行为的一些额外信息：
 
-```
-**Strategy: spread**
-**Filters: health, port, containerslots, dependency, affinity, 
-    constraint**
-
-```
+[PRE20]
 
 spread 调度策略意味着 Swarm 将尝试将容器放置在使用较少的主机上，并且在创建容器时提供了列出的过滤器，因此允许您决定手动建议一些选项。例如，您可能希望使您的 Galera 集群容器在地理上靠近但位于不同的主机上。
 
@@ -629,11 +544,7 @@ spread 调度策略意味着 Swarm 将尝试将容器放置在使用较少的主
 
 现在我们有了一个 Swarm 集群，是时候开始使用它了。我们将展示扩展策略算法将决定将容器放置在负载较轻的主机上。在这个例子中，这很容易，因为我们从四个空节点开始。所以，我们连接到 Swarm，Swarm 将在主机上放置容器。我们启动一个 nginx 容器，将其端口 tcp/80 映射到主机（机器）端口`tcp/80`。
 
-```
-**$ docker run -d -p 80:80 nginx**
-**2c049db55f9b093d19d575704c28ff57c4a7a1fb1937bd1c20a40cb538d7b75c**
-
-```
+[PRE21]
 
 在这个例子中，我们看到 Swarm 调度程序决定将这个容器放到`node1`上：
 
@@ -641,15 +552,7 @@ spread 调度策略意味着 Swarm 将尝试将容器放置在使用较少的主
 
 由于我们必须将端口`tcp/80`绑定到任何主机，我们只有四次机会，四个不同主机上的四个容器。让我们创建新的 nginx 容器，看看会发生什么：
 
-```
-**$ docker run -d -p 80:80 nginx**
-**577b06d592196c34ebff76072642135266f773010402ad3c1c724a0908a6997f**
-**$ docker run -d -p 80:80 nginx**
-**9fabe94b05f59d01dd1b6b417f48155fc2aab66d278a722855d3facc5fd7f831**
-**$ docker run -d -p 80:80 nginx**
-**38b44d8df70f4375eb6b76a37096f207986f325cc7a4577109ed59a771e6a66d**
-
-```
+[PRE22]
 
 现在我们有 4 个 nginx 容器放置在我们的 4 个 Swarm 主机上：
 
@@ -657,14 +560,7 @@ spread 调度策略意味着 Swarm 将尝试将容器放置在使用较少的主
 
 现在我们尝试创建一个新的 nginx：
 
-```
-**$ docker run -d -p 80:80 nginx**
-**docker: Error response from daemon: Unable to find a node that 
-    satisfies the following conditions**
-**[port 80 (Bridge mode)].**
-**See 'docker run --help'.**
-
-```
+[PRE23]
 
 发生的事情只是 Swarm 无法找到一个合适的主机来放置一个新的容器，因为在所有主机上，端口`tcp/80`都被占用。在运行了这 4 个 nginx 容器之后，再加上四个 Swarm 容器（用于基础设施管理），正如我们所预期的那样，我们在这个 Swarm 集群上有八个正在运行的容器：
 
@@ -694,16 +590,7 @@ Docker 还在 DockerCon 2016 上宣布了 Docker for AWS 和 Docker for Azure。
 
 首先，我们将为在 DigitalOcean 上进行配置准备一个模板文件。您的`.belt.yaml`将如下所示：
 
-```
-**$ cat .belt.yaml**
-**---**
-**digitalocean:**
- **region: sgp1**
- **image: 18153887**
- **ssh_user: root**
- **ssh_key_fingerprint: 816630**
-
-```
+[PRE24]
 
 请注意，我的镜像编号`18153887`是包含 Docker 1.12 的快照。DigitalOcean 通常会在每次发布后提供最新的 Docker 镜像。为了让您能够控制您的集群，需要有 SSH 密钥。对于字段`ssh_key_fingerprint`，您可以放置指纹以及密钥 ID。
 
@@ -719,34 +606,15 @@ Docker 还在 DockerCon 2016 上宣布了 Docker for AWS 和 Docker for Azure。
 
 所以，现在让我们看看如何使用 Belt：
 
-```
-**$ export DIGITALOCEAN_ACCESS_TOKEN=1b207 .. snip .. b6581c**
-
-```
+[PRE25]
 
 现在我们创建一个包含 512M 内存的四个节点的 Swarm：
 
-```
-**$ belt create 512mb node[1:4]**
-**ID              Name    Public IPv4     Memory  VCPUs   Disk**
-**18511682        node1                   512     1       20** 
-**18511683        node4                   512     1       20** 
-**18511684        node3                   512     1       20** 
-**18511681        node2                   512     1       20** 
-
-```
+[PRE26]
 
 您可以看到，我们可以使用类似的语法 node[1:4]指定一组节点。此命令在 DigitalOcean 上创建了四个节点。请等待大约 55 秒，直到所有节点都被配置。然后您可以列出它们：
 
-```
-**$ belt ls**
-**ID              Name    Public IPv4       Status  Tags**
-**18511681        node2   128.199.105.119   active**
-**18511682        node1   188.166.183.86    active**
-**18511683        node4   188.166.183.103   active**
-**18511684        node3   188.166.183.157   active**
-
-```
+[PRE27]
 
 它们的状态现在已从“新”更改为“活动”。所有 IP 地址都已分配。目前一切都进行得很顺利。
 
@@ -754,49 +622,17 @@ Docker 还在 DockerCon 2016 上宣布了 Docker for AWS 和 Docker for Azure。
 
 在此之前，请确保我们正在运行 Docker 1.12。我们在`node1`上检查这一点。
 
-```
-**$ belt active node1**
-**node1**
-**$ belt docker version**
-**Client:**
- **Version:      1.12.0-rc2**
- **API version:  1.24**
- **Go version:   go1.6.2**
- **Git commit:   906eacd**
- **Built:        Fri Jun 17 21:02:41 2016**
- **OS/Arch:      linux/amd64**
- **Experimental: true**
-**Server:**
- **Version:      1.12.0-rc2**
- **API version:  1.24**
- **Go version:   go1.6.2**
- **Git commit:   906eacd**
- **Built:        Fri Jun 17 21:02:41 2016**
- **OS/Arch:      linux/amd64**
- **Experimental: true**
-
-```
+[PRE28]
 
 `belt docker`命令只是一个薄包装命令，它将整个命令行通过 SSH 发送到您的 Docker 主机。因此，这个工具不会妨碍您的 Docker 引擎始终处于控制状态。
 
 现在我们将使用 Swarm Mode 初始化第一个节点。
 
-```
-**$ belt docker swarm init**
-**Swarm initialized: current node (c0llmsc5t1tsbtcblrx6ji1ty) is now 
-    a manager.**
-
-```
+[PRE29]
 
 然后我们将其他三个节点加入到这个新形成的集群中。加入一个大集群是一项繁琐的任务。我们将让`belt`代替我们手动执行此操作，而不是逐个节点进行 docker swarm join：
 
-```
-**$ belt swarm join node1 node[2:4]**
-**node3: This node joined a Swarm as a worker.**
-**node2: This node joined a Swarm as a worker.**
-**node4: This node joined a Swarm as a worker.**
-
-```
+[PRE30]
 
 ### 提示
 
@@ -804,54 +640,25 @@ Docker 还在 DockerCon 2016 上宣布了 Docker for AWS 和 Docker for Azure。
 
 然后您将看到集群的这个视图：
 
-```
-**$ belt docker node ls**
-**ID          NAME   MEMBERSHIP  STATUS  AVAILABILITY  MANAGER STATUS**
-**4m5479vud9qc6qs7wuy3krr4u    node2  Accepted    Ready   Active**
-**4mkw7ccwep8pez1jfeok6su2o    node4  Accepted    Ready   Active**
-**a395rnht2p754w1beh74bf7fl    node3  Accepted    Ready   Active**
-**c0llmsc5t1tsbtcblrx6ji1ty *  node1  Accepted    Ready   Active        Leader**
-
-```
+[PRE31]
 
 恭喜！您刚在 DigitalOcean 上安装了一个 Swarm 集群。
 
 我们现在为`nginx`创建一个服务。这个命令将创建一个 Nginx 服务，其中包含 2 个容器实例，发布在 80 端口。
 
-```
-**$ belt docker service create --name nginx --replicas 2 -p 80:80 
-    nginx**
-**d5qmntf1tvvztw9r9bhx1hokd**
-
-```
+[PRE32]
 
 我们开始吧：
 
-```
-**$ belt docker service ls**
-**ID            NAME   REPLICAS  IMAGE  COMMAND**
-**d5qmntf1tvvz  nginx  2/2       nginx**
-
-```
+[PRE33]
 
 现在让我们将其扩展到 4 个节点。
 
-```
-**$ belt docker service scale nginx=4**
-**nginx scaled to 4**
-**$ belt docker service ls**
-**ID            NAME   REPLICAS  IMAGE  COMMAND**
-**d5qmntf1tvvz  nginx  4/4       nginx**
-
-```
+[PRE34]
 
 类似于 Docker Swarm，您现在可以使用`belt ip`来查看节点的运行位置。您可以使用任何 IP 地址来浏览 NGINX 服务。它在每个节点上都可用。
 
-```
-**$ belt ip node2**
-**128.199.105.119**
-
-```
+[PRE35]
 
 这就是 Docker 1.12 开始的 Swarm 模式的样子。
 

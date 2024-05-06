@@ -88,25 +88,7 @@
 
 我登录到 Docker 主机时，总是首先检查 Docker 是否正在运行。
 
-```
-$ docker version
-Client:
- Version:      `17`.05.0-ce
- API version:  `1`.29
- Go version:   go1.7.5
- Git commit:   89658be
- Built:        Thu May  `4` `22`:10:54 `2017`
- OS/Arch:      linux/amd64
-
-Server:
- Version:      `17`.05.0-ce
- API version:  `1`.29 `(`minimum version `1`.12`)`
- Go version:   go1.7.5
- Git commit:   89658be
- Built:        Thu May  `4` `22`:10:54 `2017`
- OS/Arch:      linux/amd64
- Experimental: `false` 
-```
+[PRE0]
 
 只要在 `Client` 和 `Server` 部分得到响应，你就可以继续。如果在 `Server` 部分得到错误代码，很可能是 docker 守护程序（服务器）没有运行，或者你的用户账户没有权限访问它。
 
@@ -114,22 +96,7 @@ Server:
 
 如果你的用户账户已经是本地 `docker` 组的成员，问题可能是 Docker 守护程序没有运行。要检查 Docker 守护程序的状态，请根据 Docker 主机的操作系统运行以下命令之一。
 
-```
-//Run this command on Linux systems not using Systemd
-$ service docker status
-docker start/running, process 29393
-
-//Run this command on Linux systems that are using Systemd
-$ systemctl is-active docker
-active
-
-//Run this command on Windows Server 2016 systems from a PowerShell window
-> Get-Service docker
-
-Status    Name      DisplayName
-------    ----      -----------
-Running   Docker    docker 
-```
+[PRE1]
 
 如果 Docker 守护程序正在运行，你可以继续。
 
@@ -139,25 +106,11 @@ Running   Docker    docker
 
 以下命令启动一个简单的容器，将运行 Ubuntu Linux 的容器化版本。
 
-```
-`$` `docker` `container` `run` `-``it` `ubuntu``:``latest` `/``bin``/``bash`
-`Unable` `to` `find` `image` `'``ubuntu``:``latest``'` `locally`
-`latest``:` `Pulling` `from` `library``/``ubuntu`
-`952132``ac251a``:` `Pull` `complete`
-`82659f8f``1``b76``:` `Pull` `complete`
-`c19118ca682d``:` `Pull` `complete`
-`8296858250f``e``:` `Pull` `complete`
-`24e0251``a0e2c``:` `Pull` `complete`
-`Digest``:` `sha256``:``f4691c96e6bbaa99d9``...``e95a60369c506dd6e6f6ab`
-`Status``:` `Downloaded` `newer` `image` `for` `ubuntu``:``latest`
-`root``@3027``eb644874``:``/``#` 
-```
+[PRE2]
 
 Windows 的一个例子可能是
 
-```
-docker container run -it microsoft/powershell:nanoserver pwsh.exe 
-```
+[PRE3]
 
 命令的格式基本上是 `docker container run <options> <image>:<tag> <app>`。
 
@@ -175,33 +128,7 @@ docker container run -it microsoft/powershell:nanoserver pwsh.exe
 
 尝试在容器内执行一些基本命令。你可能会注意到一些命令无法使用。这是因为我们使用的镜像，就像几乎所有的容器镜像一样，都是针对容器高度优化的。这意味着它们并没有安装所有正常的命令和软件包。下面的例子展示了一些命令 - 一个成功，另一个失败。
 
-```
-`root``@3027``eb644874``:``/``#` `ls` `-``l`
-`total` `64`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Aug` `19` `00``:``50` `bin`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Apr` `12` `20``:``14` `boot`
-`drwxr``-``xr``-``x`   `5` `root` `root`  `380` `Sep` `13` `00``:``47` `dev`
-`drwxr``-``xr``-``x`  `45` `root` `root` `4096` `Sep` `13` `00``:``47` `etc`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Apr` `12` `20``:``14` `home`
-`drwxr``-``xr``-``x`   `8` `root` `root` `4096` `Sep` `13`  `2015` `lib`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Aug` `19` `00``:``50` `lib64`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Aug` `19` `00``:``50` `media`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Aug` `19` `00``:``50` `mnt`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Aug` `19` `00``:``50` `opt`
-`dr``-``xr``-``xr``-``x` `129` `root` `root`    `0` `Sep` `13` `00``:``47` `proc`
-`drwx``------`   `2` `root` `root` `4096` `Aug` `19` `00``:``50` `root`
-`drwxr``-``xr``-``x`   `6` `root` `root` `4096` `Aug` `26` `18``:``50` `run`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Aug` `26` `18``:``50` `sbin`
-`drwxr``-``xr``-``x`   `2` `root` `root` `4096` `Aug` `19` `00``:``50` `srv`
-`dr``-``xr``-``xr``-``x`  `13` `root` `root`    `0` `Sep` `13` `00``:``47` `sys`
-`drwxrwxrwt`   `2` `root` `root` `4096` `Aug` `19` `00``:``50` `tmp`
-`drwxr``-``xr``-``x`  `11` `root` `root` `4096` `Aug` `26` `18``:``50` `usr`
-`drwxr``-``xr``-``x`  `13` `root` `root` `4096` `Aug` `26` `18``:``50` `var`
-
-`root``@3027``eb644874``:``/``#` `ping` `www``.``docker``.``com`
-`bash``:` `ping``:` `command` `not` `found`
-`root``@3027``eb644874``:``/``#` 
-```
+[PRE4]
 
 `如上所示，`ping`实用程序不包含在官方 Ubuntu 镜像中。
 
@@ -209,12 +136,7 @@ docker container run -it microsoft/powershell:nanoserver pwsh.exe
 
 当我们在上一节中启动 Ubuntu 容器时，我们告诉它运行 Bash shell（`/bin/bash`）。这使得 Bash shell 成为**容器内唯一运行的进程**。你可以通过在容器内运行`ps -elf`来看到这一点。
 
-```
-`root``@3027``eb644874``:``/``#` `ps` `-``elf`
-`F` `S` `UID`   `PID`  `PPID`   `NI` `ADDR` `SZ` `WCHAN`  `STIME` `TTY`     `TIME`      `CMD`
-`4` `S` `root`    `1`     `0`    `0` `-`  `4558` `wait`   `00``:``47` `?`     `00``:``00``:``00`  `/``bin``/``bash`
-`0` `R` `root`   `11`     `1`    `0` `-`  `8604` `-`      `00``:``52` `?`     `00``:``00``:``00`  `ps` `-``elf` 
-```
+[PRE5]
 
 `虽然在上面的输出中看起来有两个进程在运行，但实际上并没有。列表中的第一个进程，PID 为 1，是我们告诉容器运行的 Bash shell。第二个进程是我们运行的`ps -elf`命令来生成列表。这是一个短暂的进程，在输出显示时已经退出。长话短说，这个容器正在运行一个单一的进程 - `/bin/bash`。
 
@@ -224,18 +146,11 @@ docker container run -it microsoft/powershell:nanoserver pwsh.exe
 
 按下`Ctrl-PQ`退出容器而不终止它。这样做会将你放回 Docker 主机的 shell，并将容器保持在后台运行。你可以使用`docker container ls`命令查看系统上正在运行的容器列表。
 
-```
-$ docker container ls
-CNTNR ID  IMAGE          COMMAND    CREATED  STATUS    NAMES
-`302`...74  ubuntu:latest  /bin/bash  `6` mins   Up 6mins  sick_montalcini 
-```
+[PRE6]
 
 重要的是要理解，这个容器仍在运行，你可以使用`docker container exec`命令重新连接你的终端。
 
-```
-`$` `docker` `container` `exec` `-``it` `3027``eb644874` `bash`
-`root``@3027``eb644874``:``/``#` 
-```
+[PRE7]
 
 重新连接到 Windows Nano Server PowerShell 容器的命令将是`docker container exec -it <container-name-or-ID> pwsh.exe`。
 
@@ -245,13 +160,7 @@ CNTNR ID  IMAGE          COMMAND    CREATED  STATUS    NAMES
 
 如果您正在自己的 Docker 主机上跟着示例操作，您应该使用以下两个命令停止并删除容器（您需要替换您的容器的 ID）。
 
-```
-$ docker container stop 3027eb64487
-3027eb64487
-
-$ docker container rm 3027eb64487
-3027eb64487 
-```
+[PRE8]
 
 在前面的示例中启动的容器将不再存在于您的系统中。
 
@@ -265,10 +174,7 @@ $ docker container rm 3027eb64487
 
 我们已经看到如何使用`docker container run`命令启动容器。让我们启动另一个，以便我们可以完整地了解其生命周期。以下示例将来自运行 Ubuntu 容器的 Linux Docker 主机。但是，所有示例都将适用于我们在先前示例中使用的 Windows PowerShell 容器 - 尽管您将不得不用其等效的 Windows 命令替换 Linux 命令。
 
-```
-`$` `docker` `container` `run` `--``name` `percy` `-``it` `ubuntu``:``latest` `/``bin``/``bash`
-`root``@9``cb2d2fd1d65``:``/``#` 
-```
+[PRE9]
 
 这就是我们创建的容器，我们将其命名为“percy”以表示持久:-S
 
@@ -276,80 +182,39 @@ $ docker container rm 3027eb64487
 
 在新容器的 shell 中，按照以下步骤将一些数据写入`tmp`目录中的新文件，并验证写入操作是否成功。
 
-```
-`root``@9``cb2d2fd1d65``:``/``#` `cd` `tmp`
-
-`root``@9``cb2d2fd1d65``:``/``tmp``#` `ls` `-``l`
-`total` `0`
-
-`root``@9``cb2d2fd1d65``:``/``tmp``#` `echo` `"DevOps FTW"` `>` `newfile`
-
-`root``@9``cb2d2fd1d65``:``/``tmp``#` `ls` `-``l`
-`total` `4`
-`-``rw``-``r``--``r``--` `1` `root` `root` `14` `May` `23` `11``:``22` `newfile`
-
-`root``@9``cb2d2fd1d65``:``/``tmp``#` `cat` `newfile`
-`DevOps` `FTW` 
-```
+[PRE10]
 
 按`Ctrl-PQ`退出容器而不杀死它。
 
 现在使用`docker container stop`命令停止容器并将其放在*休假*中。
 
-```
-$ docker container stop percy
-percy 
-```
+[PRE11]
 
 您可以使用`docker container stop`命令的容器名称或 ID。格式为`docker container stop <container-id 或 container-name>`。
 
 现在运行`docker container ls`命令以列出所有正在运行的容器。
 
-```
-$ docker container ls
-CONTAINER ID   IMAGE   COMMAND   CREATED  STATUS  PORTS   NAMES 
-```
+[PRE12]
 
 容器未在上面的输出中列出，因为您使用`docker container stop`命令将其置于停止状态。再次运行相同的命令，只是这次添加`-a`标志以显示所有容器，包括那些已停止的容器。
 
-```
-$ docker container ls -a
-CNTNR ID  IMAGE          COMMAND    CREATED  STATUS      NAMES
-9cb...65  ubuntu:latest  /bin/bash  `4` mins   Exited `(``0``)`  percy 
-```
+[PRE13]
 
 现在我们可以看到容器显示为`Exited (0)`。停止容器就像停止虚拟机一样。尽管它目前没有运行，但它的整个配置和内容仍然存在于 Docker 主机的文件系统中，并且可以随时重新启动。
 
 让我们使用`docker container start`命令将其从休假中带回来。
 
-```
-$ docker container start percy
-percy
-
-$ docker container ls
-CONTAINER ID  IMAGE          COMMAND      CREATED  STATUS     NAMES
-9cb2d2fd1d65  ubuntu:latest  `"/bin/bash"`  `4` mins   Up `3` secs  percy 
-```
+[PRE14]
 
 停止的容器现在已重新启动。是时候验证我们之前创建的文件是否仍然存在了。使用`docker container exec`命令连接到重新启动的容器。
 
-```
-`$` `docker` `container` `exec` `-``it` `percy` `bash`
-`root``@9``cb2d2fd1d65``:``/``#` 
-```
+[PRE15]
 
 您的 shell 提示符将更改以显示您现在正在容器的命名空间中操作。
 
 验证您之前创建的文件是否仍然存在，并且包含您写入其中的数据。
 
-```
-`root``@9``cb2d2fd1d65``:``/``#` `cd` `tmp`
-`root``@9``cb2d2fd1d65``:``/``#` `ls` `-``l`
-`-``rw``-``r``--``r``--` `1` `root` `root` `14` `Sep` `13` `04``:``22` `newfile`
-`root``@9``cb2d2fd1d65``:``/``#`
-`root``@9``cb2d2fd1d65``:``/``#` `cat` `newfile`
-`DevOps` `FTW` 
-```
+[PRE16]
 
 就像魔术一样，您创建的文件仍然存在，并且其中包含的数据与您离开时完全相同！这证明停止容器不会销毁容器或其中的数据。
 
@@ -363,16 +228,7 @@ CONTAINER ID  IMAGE          COMMAND      CREATED  STATUS     NAMES
 
 下一个例子将停止`percy`容器，删除它，并验证操作。如果您的终端仍然连接到 percy 容器，您需要通过按`Ctrl-PQ`返回到 Docker 主机的终端。
 
-```
-$ docker container stop percy
-percy
-
-$ docker container rm percy
-percy
-
-$ docker container ls -a
-CONTAINER ID    IMAGE      COMMAND    CREATED  STATUS     PORTS      NAMES 
-```
+[PRE17]
 
 “容器现在已被删除 - 在地球上被彻底抹去。如果它是一个好容器，它将成为*无服务器函数*在来世。如果它是一个淘气的容器，它将成为一个愚蠢的终端:-D
 
@@ -410,210 +266,4 @@ CONTAINER ID    IMAGE      COMMAND    CREATED  STATUS     PORTS      NAMES
 
 如果你在 Windows 上进行操作，请用以下命令替换示例中的`docker container run`命令：`docker container run --name neversaydie -it --restart always microsoft/powershell:nanoserver`。
 
-```
-$ docker container run --name neversaydie -it --restart always alpine sh
-
-//Wait a few seconds before typing the ````exit```` `command`
-
-/# `exit`
-
-$ docker container ls
-CONTAINER ID    IMAGE     COMMAND    CREATED           STATUS
-0901afb84439    alpine    `"sh"`       `35` seconds ago    Up `1` second 
-```
-
- `Notice that the container was created 35 seconds ago, but has only been up for 1 second. This is because we killed it when we issued the `exit` command from within the container, and Docker has had to restart it.
-
-An interesting feature of the `--restart always` policy is that a stopped container will be restarted when the Docker daemon starts. For example, you start a new container with the `--restart always` policy and then stop it with the `docker container stop` command. At this point the container is in the `Stopped (Exited)` state. However, if you restart the Docker daemon, the container will be automatically restarted when the daemon comes back up.
-
-The main difference between the **always** and **unless-stopped** policies is that containers with the `--restart unless-stopped` policy will not be restarted when the daemon restarts if they were in the `Stopped (Exited)` state. That might be a confusing sentence, so let’s walk through an example.
-
-We’ll create two new containers. One called “always” with the `--restart always` policy, and one called “unless-stopped” with the `--restart unless-stopped` policy. We’ll stop them both with the `docker container stop` command and then restart Docker. The “always” container will restart, but the “unless-stopped” container will not.
-
-1.  Create the two new containers
-
-    ```
-     $ docker container run -d --name always \
-       --restart always \
-       alpine sleep 1d
-
-     $ docker container run -d --name unless-stopped \
-       --restart unless-stopped \
-       alpine sleep 1d
-
-     $ docker container ls
-     CONTAINER ID   IMAGE     COMMAND       STATUS       NAMES
-     3142bd91ecc4   alpine    "sleep 1d"    Up 2 secs    unless-stopped
-     4f1b431ac729   alpine    "sleep 1d"    Up 17 secs   always 
-    ```
-
- `We now have two containers running. One called “always” and one called “unless-stopped”.
-
-1.  Stop both containers
-
-    ```
-     $ docker container stop always unless-stopped
-
-     $ docker container ls -a
-     CONTAINER ID   IMAGE     STATUS                        NAMES
-     3142bd91ecc4   alpine    Exited (137) 3 seconds ago    unless-stopped
-     4f1b431ac729   alpine    Exited (137) 3 seconds ago    always 
-    ```
-
-`*   Restart Docker.`
-
- `The process for restarting Docker is different on different Operating Systems. This example shows how to stop Docker on Linux hosts running `systemd`. To restart Docker on Windows Server 2016 use `restart-service Docker`.
-
-```
- $ systemlctl restart docker 
-```
-
- `1.  Once Docker has restarted, you can check the status of the containers.
-
-    ```
-     $ docker container ls -a
-     CONTAINER   CREATED             STATUS                       NAMES
-     314..cc4    2 minutes ago      Exited (137) 2 minutes ago    unless-stopped
-     4f1..729    2 minutes ago      Up 9 seconds                  always 
-    ```
-
- `Notice that the “always” container (started with the `--restart always` policy) has been restarted, but the “unless-stopped” container (started with the `--restart unless-stopped` policy) has not.
-
-The **on-failure** policy will restart a container if it exits with a non-zero exit code. It will also restart containers when the Docker daemon restarts, even containers that were in the stopped state.
-
-If you are working with Docker Compose or Docker Stacks, you can apply the restart policy to a `service` object as follows:
-
-```
-version: "3"
-services:
-  myservice:
-    <Snip>
-    restart_policy:
-      condition: always | unless-stopped | on-failure 
-```
-
- `#### Web server example
-
-So far, we’ve seen how to start a simple container and interact with it. We’ve also seen how to stop, restart and delete containers. Now let’s take a look at a Linux web server example.
-
-In this example, we’ll start a new container from an image I use in a few of my [Pluralsight video courses](https://www.pluralsight.com/search?q=nigel%20poulton%20docker&categories=all). The image runs an insanely simple web server on port 8080.
-
-Use the `docker container stop` and `docker container rm` commands to clean up any existing containers on your system. Then run the following `docker container run` command.
-
-```
-$ docker container run -d --name webserver -p `80`:8080 `\`
-  nigelpoulton/pluralsight-docker-ci
-
-Unable to find image `'nigelpoulton/pluralsight-docker-ci:latest'` locally
-latest: Pulling from nigelpoulton/pluralsight-docker-ci
-a3ed95caeb02: Pull `complete`
-3b231ed5aa2f: Pull `complete`
-7e4f9cd54d46: Pull `complete`
-929432235e51: Pull `complete`
-6899ef41c594: Pull `complete`
-0b38fccd0dab: Pull `complete`
-Digest: sha256:7a6b0125fe7893e70dc63b2...9b12a28e2c38bd8d3d
-Status: Downloaded newer image `for` nigelpoulton/plur...docker-ci:latest
-6efa1838cd51b92a4817e0e7483d103bf72a7ba7ffb5855080128d85043fef21 
-```
-
- `Notice that your shell prompt hasn’t changed. This is because we started this container in the background with the `-d` flag. Starting a container in the background does not attach it to your terminal.
-
-This example threw a few more arguments at the `docker container run` command, so let’s take a quick look at them.
-
-We know `docker container run` starts a new container. But this time we give it the `-d` flag instead of `-it`. `-d` stands for **d**aemon mode, and tells the container to run in the background.
-
-After that, we name the container and then give it `-p 80:8080`. The `-p` flag maps ports on the Docker host to ports inside the container. This time we’re mapping port 80 on the Docker host to port 8080 inside the container. This means that traffic hitting the Docker host on port 80 will be directed to port 8080 inside of the container. It just so happens that the image we’re using for this container defines a web service that listens on port 8080\. This means our container will come up running a web server listening on port 8080.
-
-Finally, we tell it which image to use: `nigelpoulton/pluralsight-docker-ci`. This image is not kept up-to-date and **will** contain vulnerabilities!
-
-Running a `docker container ls` command will show the container as running and show the ports that are mapped. It’s important to know that port mappings are expressed as `host-port:container-port`.
-
-```
-$ docker container ls
-CONTAINER ID  COMMAND        STATUS       PORTS               NAMES
-6efa1838cd51  /bin/sh -c...  Up `2` mins  `0`.0.0.0:80->8080/tcp  webserver 
-```
-
- `> **Note:** We’ve removed some of the columns from the output above to help with readability.
-
-Now that the container is running and ports are mapped, we can connect to the container by pointing a web browser at the IP address or DNS name of the **Docker host** on port 80\. Figure 7.4 shows the web page that is being served up by the container.
-
-![Figure 7.4](img/figure7-4.png)
-
-Figure 7.4
-
-The same `docker container stop`, `docker container pause`, `docker container start`, and `docker container rm` commands can be used on the container. Also, the same rules of persistence apply — stopping or pausing the container does not destroy the container or any data stored in it.
-
-#### Inspecting containers
-
-In the previous example, you might have noticed that we didn’t specify an app for the container when we issued the `docker container run` command. Yet the container ran a simple web service. How did this happen?
-
-When building a Docker image, it’s possible to embed an instruction that lists the default app you want containers using the image to run. If we run a `docker image inspect` against the image we used to run our container, we’ll be able to see the app that the container will run when it starts.
-
-```
-$ docker image inspect nigelpoulton/pluralsight-docker-ci
-
-`[`
-    `{`
-        `"Id"`: `"sha256:07e574331ce3768f30305519...49214bf3020ee69bba1"`,
-        `"RepoTags"`: `[`
-            `"nigelpoulton/pluralsight-docker-ci:latest"`
-
-            <Snip>
-
-            `]`,
-            `"Cmd"`: `[`
-                `"/bin/sh"`,
-                `"-c"`,
-                `"#(nop) CMD [\"/bin/sh\" \"-c\" \"cd /src \u0026\u0026 node \`
-`./app.js\"]"`
-            `]`,
-<Snip> 
-```
-
- `We’ve snipped the output to make it easier to find the information we’re interested in.
-
-The entries after `Cmd` show the command/app that the container will run unless you override with a different one when you launch the container with `docker container run`. If you remove all of the shell escapes in the example, you get the following command `/bin/sh -c "cd /src && node ./app.js"`. That’s the default app a container based on this image will run.
-
-It’s common to build images with default commands like this, as it makes starting containers easier. It also forces a default behavior and is a form of self documentation for the image — i.e. we can *inspect* the image and know what app it’s supposed to run.
-
-That’s us done for the examples in this chapter. Let’s see a quick way to tidy our system up.
-
-#### Tidying up
-
-Let’s look at the simplest and quickest way to get rid of **every running container** on your Docker host. Be warned though, the procedure will forcible destroy **all** containers without giving them a chance to clean up. **This should never be performed on production systems or systems running important containers.**
-
-Run the following command from the shell of your Docker host to delete all containers.
-
-```
-$ docker container rm `$(`docker container ls -aq`)` -f
-6efa1838cd51 
-```
-
- `In this example, we only had a single container running, so only one was deleted (6efa1838cd51). However, the command works the same way as the `docker image rm $(docker image ls -q)` command we used in the previous chapter to delete all images on a single Docker host. We already know the `docker container rm` command deletes containers. Passing it `$(docker container ls -aq)` as an argument, effectively passes it the ID of every container on the system. The `-f` flag forces the operation so that running containers will also be destroyed. Net result… all containers, running or stopped, will be destroyed and removed from the system.
-
-The above command will work in a PowerShell terminal on a Windows Docker host.
-
-### Containers - The commands
-
-*   `docker container run` is the command used to start new containers. In its simplest form, it accepts an *image* and a *command* as arguments. The image is used to create the container and the command is the application you want the container to run. This example will start an Ubuntu container in the foreground, and tell it to run the Bash shell: `docker container run -it ubuntu /bin/bash`.
-*   `Ctrl-PQ` will detach your shell from the terminal of a container and leave the container running `(UP)` in the background.
-*   `docker container ls` lists all containers in the running `(UP)` state. If you add the `-a` flag you will also see containers in the stopped `(Exited)` state.
-*   `docker container exec` lets you run a new process inside of a running container. It’s useful for attaching the shell of your Docker host to a terminal inside of a running container. This command will start a new Bash shell inside of a running container and connect to it: `docker container exec -it <container-name or container-id> bash`. For this to work, the image used to create your container must contain the Bash shell.
-*   `docker container stop` will stop a running container and put it in the `Exited (0)` state. It does this by issuing a `SIGTERM` to the process with PID 1 inside of the container. If the process has not cleaned up and stopped within 10 seconds, a SIGKILL will be issued to forcibly stop the container. `docker container stop` accepts container IDs and container names as arguments.
-*   `docker container start` will restart a stopped `(Exited)` container. You can give `docker container start` the name or ID of a container.
-*   `docker container rm` will delete a stopped container. You can specify containers by name or ID. It is recommended that you stop a container with the `docker container stop` command before deleting it with `docker container rm`.
-*   `docker container inspect` will show you detailed configuration and runtime information about a container. It accepts container names and container IDs as its main argument.
-
-### Chapter summary
-
-In this chapter, we compared and contrasted the container and VM models. We looked at the *OS tax* problem inherent in the VM model, and saw how the container model can bring huge advantages in much the same way as the VM model brought huge advantages over the physical model.
-
-We saw how to use the `docker container run` command to start a couple of simple containers, and we saw the difference between interactive containers in the foreground versus containers running in the background.
-
-We know that killing the PID 1 process inside of a container will kill the container. And we’ve seen how to start, stop, and delete containers.
-
-We finished the chapter using the `docker container inspect` command to view detailed container metadata.
-
-So far so good!````````````````````````````
+[PRE18]`exit[PRE19][PRE20]`

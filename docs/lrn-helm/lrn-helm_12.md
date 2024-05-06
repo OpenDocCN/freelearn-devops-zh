@@ -26,9 +26,7 @@ Minikube、Kubectl 和 Helm 的安装和配置在*第二章*，*准备 Kubernete
 
 我们还将利用 Packt 仓库中的`guestbook`图表，位于[`github.com/PacktPublishing/-Learn-Helm`](https://github.com/PacktPublishing/-Learn-Helm)，在本章的后续示例中。如果你还没有克隆这个仓库，请使用以下命令进行克隆。
 
-```
-$ git clone https://github.com/PacktPublishing/-Learn-Helm.git Learn-Helm
-```
+[PRE0]
 
 # 数据溯源和完整性
 
@@ -70,31 +68,23 @@ $ git clone https://github.com/PacktPublishing/-Learn-Helm.git Learn-Helm
 
 +   对于 Windows，您可以使用 Chocolatey 软件包管理器，如下命令所示：
 
-```
-> choco install gnupg
-```
+[PRE1]
 
 您还可以从 https://gpg4win.org/download.html 下载 Win 的安装程序。
 
 +   对于 macOS，您可以使用 Homebrew 软件包管理器，使用以下命令：
 
-```
-$ brew install gpg
-```
+[PRE2]
 
 您还可以从 https://sourceforge.net/p/gpgosx/docu](https://sourceforge.net/p/gpgosx/docu/Download/)下载基于 macOS 的安装程序。
 
 +   对于基于 Debian 的 Linux 发行版，您可以使用`apt`软件包管理器，如下所示：
 
-```
-$ sudo apt install gnupg
-```
+[PRE3]
 
 +   对于基于 RPM 的 Linux 发行版，您可以使用`dnf`软件包管理器，如下所示：
 
-```
-$ sudo dnf install gnupg
-```
+[PRE4]
 
 安装了 GPG 之后，您可以创建自己的 GPG 密钥对，我们将在数据来源和完整性讨论中使用它。
 
@@ -102,9 +92,7 @@ $ sudo dnf install gnupg
 
 1.  运行以下命令创建新的密钥对。此命令可以从任何目录运行：
 
-```
-$ gpg --generate-key
-```
+[PRE5]
 
 1.  按照提示输入您的姓名和电子邮件地址。这些将用于标识您作为密钥对的所有者，并且将是接收您的公钥的人看到的名称和电子邮件地址。
 
@@ -152,10 +140,7 @@ $ gpg --generate-key
 
 下载完这两个文件后，您应该在命令行的同一目录中看到两个类似的文件：
 
-```
-helm-v3.0.0-linux-amd64.tar.gz
-helm-v3.0.0-linux-amd64.tar.gz.asc
-```
+[PRE6]
 
 下一步涉及将 Helm 维护人员的公钥导入到您的本地`gpg`密钥环中。这样可以解密`.asc`文件中包含的数字签名，以验证您下载的内容的来源和完整性。可以通过转到其 keybase 帐户来检索维护人员的公钥。将鼠标悬停在`keybase 帐户`一词上，即可找到该链接。在*图 9.2*的示例中，此位置解析为[`keybase.io/bacongobbler`](https://keybase.io/bacongobbler)。然后，可以通过在末尾添加`/pgp_keys.asc`来下载公钥，生成的链接为[`keybase.io/bacongobbl`](https://keybase.io/bacongobbler/pgp_keys.asc)er/pgp_keys.asc。
 
@@ -165,41 +150,23 @@ helm-v3.0.0-linux-amd64.tar.gz.asc
 
 1.  使用命令行，下载与 Helm 发布签名对应的公钥：
 
-```
-$ curl -o **release_key.asc** https://keybase.io/bacongobbler/pgp_keys.asc
-```
+[PRE7]
 
 1.  下载完成后，您需要将公钥导入到您的 gpg 密钥环中。通过运行以下命令来完成：
 
-```
-$ gpg --import release_key.asc
-```
+[PRE8]
 
 如果导入成功，您将看到以下消息：
 
-```
-gpg: key 92AA783CBAAE8E3B: public key 'Matthew Fisher <matt.fisher@microsoft.com>' imported
-gpg: Total number processed: 1
-gpg:               imported: 1
-```
+[PRE9]
 
 1.  现在已经导入了数字签名的公钥，您可以通过利用 GPG 的`--verify`子命令来验证 Helm 安装的发布。这应该针对`helm*.asc`文件运行：
 
-```
-$ gpg --verify helm-v3.0.0-linux-amd64.tar.gz.asc
-```
+[PRE10]
 
 该命令将尝试解密`.asc`文件中包含的数字签名。如果成功，这意味着 Helm 下载（以`.tar.gz`结尾的文件）是由您期望的人（本次发布的`Matthew Fisher`）签名的，并且下载没有被修改或以任何方式更改。成功的输出如下：
 
-```
-gpg: assuming signed data in 'helm-v3.0.0-linux-amd64.tar.gz'
-gpg: Signature made Wed 13 Nov 2019 08:05:01 AM CST
-gpg:                using RSA key 967F8AC5E2216F9F4FD270AD92AA783CBAAE8E3B
-gpg: Good signature from 'Matthew Fisher <matt.fisher@microsoft.com>' [unknown]
-gpg: WARNING: This key is not certified with a trusted signature!
-gpg:          There is no indication that the signature belongs to the owner.
-Primary key fingerprint: 967F 8AC5 E221 6F9F 4FD2  70AD 92AA 783C BAAE 8E3B
-```
+[PRE11]
 
 在进一步检查此输出时，您可能会注意到“警告”消息，指示该密钥未经认证，这可能会让您对此是否真正成功产生疑问。验证是成功的，但您尚未指示 gpg 维护者的公钥已获得认证，属于他们声称的人。
 
@@ -207,32 +174,17 @@ Primary key fingerprint: 967F 8AC5 E221 6F9F 4FD2  70AD 92AA 783C BAAE 8E3B
 
 1.  检查输出末尾显示的主密钥指纹的最后 64 位（8 个字符），与 Helm 发布页面显示的 64 位指纹匹配。正如您从*图 9.2*中记得的那样，指纹是这样显示的：
 
-```
-This release was signed with 92AA 783C BAAE 8E3B and **can be found** at @bacongobbler's keybase account.
-```
+[PRE12]
 
 1.  从前面的代码中可以看出，Helm 发布页面显示了**主密钥指纹**的最后 64 位，因此我们知道这个公钥确实属于我们期望的人。因此，我们可以安全地认证维护者的公钥。可以通过使用自己的`gpg`密钥对对公钥进行签名来完成此步骤。使用以下命令执行此步骤：
 
-```
-$ gpg --sign-key 92AA783CBAAE8E3B # Last 64 bits of fingerprint
-```
+[PRE13]
 
 1.  在“真的要签名吗？”提示中，输入`y`。
 
 现在您已经签署了维护者的公钥，该密钥现在已经获得认证。现在可以在不显示“警告”消息的情况下运行验证：
 
-```
-$ gpg --verify helm-v3.0.0-linux-amd64.tar.gz.asc
-gpg: assuming signed data in 'helm-v3.0.0-linux-amd64.tar.gz'
-gpg: Signature made Wed 13 Nov 2019 08:05:01 AM CST
-gpg:                using RSA key 967F8AC5E2216F9F4FD270AD92AA783CBAAE8E3B
-gpg: checking the trustdb
-gpg: marginals needed: 3  completes needed: 1  trust model: pgp
-gpg: depth: 0  valid:   2  signed:   1  trust: 0-, 0q, 0n, 0m, 0f, 2u
-gpg: depth: 1  valid:   1  signed:   0  trust: 1-, 0q, 0n, 0m, 0f, 0u
-gpg: next trustdb check due at 2022-03-11
-gpg: Good signature from 'Matthew Fisher <matt.fisher@microsoft.com>' [full]
-```
+[PRE14]
 
 数字签名还在验证 Helm 图表的来源和完整性中发挥作用。我们将在下一节中继续讨论这个问题。
 
@@ -250,19 +202,11 @@ gpg: Good signature from 'Matthew Fisher <matt.fisher@microsoft.com>' [full]
 
 1.  通过运行以下命令来查找您的`gpg`版本：
 
-```
-$ gpg --version
-gpg (GnuPG) 2.2.9
-libgcrypt 1.8.3
-Copyright (C) 2018 Free Software Foundation, Inc.
-```
+[PRE15]
 
 1.  如果您的`gpg`版本是`2`或更高版本，请使用以下命令导出您的公钥和秘钥环：
 
-```
-$ gpg --export > ~/.gnupg/pubring.gpg
-$ gpg --export-secret-keys > ~/.gnupg/secring.gpg
-```
+[PRE16]
 
 一旦您的密钥环被导出，您就可以对 Helm 图表进行签名和打包。`helm package`命令提供了三个关键（双关语）标志，允许您对图表进行签名和打包：
 
@@ -276,18 +220,13 @@ $ gpg --export-secret-keys > ~/.gnupg/secring.gpg
 
 1.  运行以下`helm package`命令：
 
-```
-$ helm package --sign --key '$KEY_NAME' --keyring ~/.gnupg/secring.gpg guestbook
-```
+[PRE17]
 
 `$KEY_NAME`变量可以指代与所需密钥相关的电子邮件、姓名或指纹。这些细节可以通过利用`gpg --list-keys`命令来发现。
 
 在不签名的情况下使用`helm package`命令，您预计会看到一个文件作为输出——包含 Helm 图表的`tgz`存档。在这种情况下，当签名和打包`guestbook`Helm 图表时，您将看到以下两个文件被创建：
 
-```
-guestbook-1.0.0.tgz
-guestbook-1.0.0.tgz.prov
-```
+[PRE18]
 
 `guestbook-1.0.0.tgz.prov`文件称为**来源**文件。来源文件包含一个来源记录，显示以下内容：
 
@@ -303,9 +242,7 @@ Helm 图表的用户将利用来源文件来验证图表的数据来源和完整
 
 1.  将您的公钥导出为`ascii-armor`格式，使用以下命令：
 
-```
-$ gpg --armor --export $KEY_NAME > pubkey.asc
-```
+[PRE19]
 
 如果您公开发布`guestbook`图表，那么该密钥可以被您的图表用户保存到可下载的位置，例如 Keybase。然后用户可以利用本章节*验证 Helm 发布*部分描述的`gpg --import`命令导入此公钥。
 
@@ -313,9 +250,7 @@ $ gpg --armor --export $KEY_NAME > pubkey.asc
 
 1.  以下命令提供了针对`guestbook`Helm 图表运行此过程的示例，并假定您的公钥已导入到名为`~/.gnupg/pubring.gpg`的密钥环中：
 
-```
-$ helm verify --keyring ~/.gnupg/pubring.gpg guestbook-1.0.0.tgz
-```
+[PRE20]
 
 如果验证成功，将不会显示任何输出。否则，将返回错误消息。验证可能因多种原因失败，包括以下情况：
 
@@ -331,9 +266,7 @@ $ helm verify --keyring ~/.gnupg/pubring.gpg guestbook-1.0.0.tgz
 
 以下命令描述了如何使用`helm install --verify`命令：
 
-```
-$ helm install my-guestbook $CHART_REPO/guestbook --verify --keyring ~/.gnupg/pubring.gpg
-```
+[PRE21]
 
 通过使用本节描述的签名和验证 Helm 图表的方法，您和您的用户都可以确保您安装的图表既属于您自己，又未经修改。
 
@@ -371,63 +304,25 @@ $ helm install my-guestbook $CHART_REPO/guestbook --verify --keyring ~/.gnupg/pu
 
 许多图表允许将部署的`resources`字段声明为 Helm 值。图表开发人员可以在`values.yaml`文件中默认设置`resources`字段，设置开发人员认为应用程序应该需要的资源量。以下代码显示了一个示例：
 
-```
-resources:
-  limits:
-    cpu: 500m
-    memory: 2Gi
-```
+[PRE22]
 
 如果保持默认设置，此示例值将用于将 pod 的 CPU 限制设置为`500m`，内存限制设置为`2Gi`。在`values.yaml`文件中设置此默认值可以防止 pod 耗尽节点资源，同时为所需的应用程序资源量提供建议值。用户可以选择在必要时覆盖资源限制。请注意，图表开发人员还可以为资源请求设置默认值，但这不会阻止 pod 耗尽节点资源。
 
 虽然您应该考虑在`values.yaml`文件中设置默认资源限制，但您也可以在将要安装图表的 Kubernetes 命名空间中设置限制范围和资源配额。这些资源通常不包括在 Helm 图表中，而是在应用部署之前由集群管理员创建。限制范围用于确定容器在命名空间内允许使用的资源数量。限制范围还用于为每个部署到尚未定义资源限制的命名空间的容器设置默认资源限制。以下是由`LimitRange`对象定义的示例限制范围：
 
-```
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: limits-per-container
-spec:
-  limits:
-    - max:
-        cpu: 1
-        memory: 4Gi
-      default:
-        cpu: 500m
-        memory: 2Gi
-      type: Container
-```
+[PRE23]
 
 `LimitRange`在创建`LimitRange`对象的命名空间中强制执行指定的限制。它将允许容器资源的最大数量设置为`1`个`cpu`核心和`4Gi`的`内存`。如果未定义资源限制，它会自动将资源限制设置为`500m`的`cpu`和`2Gi`的`内存`。通过将`type`字段设置为`Pod`，还可以在 Pod 级别应用限制范围。这将确保 Pod 中所有容器的资源利用总和在指定限制之下。除了设置对 CPU 和内存利用的限制，您还可以通过将`type`字段设置为`PersistentVolumeClaim`来设置`LimitRange`对象以默认声明`PersistentVolumeClaim`对象的存储。
 
 这将允许您创建以下资源，以设置单个 PVC 的存储限制：
 
-```
-apiVersion: v1
-kind: LimitRange
-metadata:
-  name: limits-per-pvc
-spec:
-  - max:
-      storage: 4Gi
-    type: PersistentVolumeClaim
-```
+[PRE24]
 
 当然，您也可以在 Helm 图表的`values.yaml`文件中设置默认存储量。在`values.yaml`文件中设置的默认值反映了您认为默认安装所需的存储量，`LimitRange`对象强制执行用户可以覆盖的绝对最大值。
 
 除了限制范围，您还可以设置资源配额以对命名空间的资源使用添加额外限制。虽然限制范围强制执行每个容器、Pod 或 PVC 级别的资源，资源配额则强制执行每个命名空间级别的资源使用。它们用于定义命名空间可以利用的资源的最大数量。以下是一个资源配额的示例：
 
-```
-apiVersion: v1
-kind: ResourceQuota
-metadata:
-  name: pod-and-pvc-quota
-spec:
-  hard:
-    limits.cpu: '4'
-    limits.memory: 8Gi
-    requests.storage: 20Gi
-```
+[PRE25]
 
 前面的`ResourceQuota`对象在应用于 Kubernetes 命名空间时，将最大 CPU 利用率设置为`4`核，最大内存利用率设置为`8Gi`，并将命名空间中所有工作负载的最大存储请求设置为`20Gi`。资源配额还可以用于设置每个命名空间中`secrets`、`ConfigMaps`和其他 Kubernetes 资源的最大数量。通过使用`资源配额`，您可以防止单个命名空间过度利用集群资源。
 
@@ -445,9 +340,7 @@ spec:
 
 用户可以通过利用加密工具加密包含秘密的`values`文件来避免泄露秘密。这将继续允许用户应用`--values`标志并将`values`文件推送到远程位置，例如 git 存储库。然后，只有具有适当密钥的用户才能解密`values`文件，并且对于所有其他用户，它将保持加密状态，只允许受信任的成员访问数据。用户可以简单地利用 GPG 加密`values`文件，或者他们可以利用特殊工具如**Sops**。**Sops** (https://github.com/mozilla/sops) 是一个设计用于加密 YAML 或 JSON 文件的值但保留密钥未加密的工具。以下代码显示了来自 Sops 加密文件的秘密键/值对：
 
-```
-password:ENC[AES256GCM,data:xhdUx7DVUG8bitGnqjGvPMygpw==,iv:3LR9KcttchCvZNpRKqE5LcXRyWD1I00v2kEAIl1ttco=,tag:9HEwxhT9s1pxo9lg19wyNg==,type:str]
-```
+[PRE26]
 
 请注意`password`键是未加密的，但值是加密的。这样可以让您轻松地查看文件中包含的值的类型，而不会暴露它们的机密信息。
 
@@ -485,70 +378,49 @@ password:ENC[AES256GCM,data:xhdUx7DVUG8bitGnqjGvPMygpw==,iv:3LR9KcttchCvZNpRKqE5
 
 1.  使用 `kubectl` CLI 创建一个名为 `guestbook-pod-viewer` 的新角色：
 
-```
-$ kubectl create role guestbook-pod-viewer --resource=pods --verb=get,list -n chapter9
-```
+[PRE27]
 
 有了这个新角色，它需要与用户或服务账户关联。由于我们想要将其与在 Kubernetes 中运行的应用程序关联起来，我们将把角色应用到一个服务账户上。当创建一个 pod 时，它会使用一个名为`default`的服务账户。在尝试遵守最小特权访问原则时，建议使用一个单独的服务账户。这是为了确保在与`guestbook`应用程序相同的命名空间中没有部署其他工作负载，因为它也会继承相同的权限。
 
 1.  通过执行以下命令创建一个名为`guestbook`的新服务账户：
 
-```
-$ kubectl create sa guestbook -n chapter9
-```
+[PRE28]
 
 1.  接下来，创建一个名为`guestbook-pod-viewers`的角色绑定，将`guestbook-pod-viewer`与`guestbook ServiceAccount`关联起来：
 
-```
-$ kubectl create rolebinding guestbook-pod-viewers --role=guestbook-pod-viewer --serviceaccount=chapter9:guestbook -n chapter9
-```
+[PRE29]
 
 最后，要使用新创建的`guestbook` `ServiceAccount`来运行`guestbook`应用程序本身，需要将服务账户的名称应用到部署中。
 
 以下显示了在部署 YAML 中`serviceAccount`配置的外观：
 
-```
-serviceAccountName: guestbook
-```
+[PRE30]
 
 您可以通过使用您在*第五章*中创建的图表，或者通过使用[位于 Packt 存储库中的图表](https://github.com/PacktPublishing/-Learn-Helm/tree/master/helm-charts/charts/guestbook)来轻松安装`guestbook`应用程序。该图表公开了一组用于配置部署服务账户的值。
 
 1.  通过运行以下命令安装`guestbook` Helm 图表：
 
-```
-$ helm install my-guestbook Learn-Helm/helm-charts/charts/guestbook \
---set serviceAccount.name=guestbook \
---set serviceAccount.create=false \
--n chapter9
-```
+[PRE31]
 
 请注意，在*步骤 4*中，`serviceAccount.create`的值设置为`false`。当您在*第五章*中使用`helm create`命令创建 Helm 图表时，提供了在图表安装时创建服务账户的能力。由于您之前已经使用`kubectl`创建了一个服务账户，这是不需要的。然而，在图表安装期间创建与 RBAC 相关的其他资源的能力并不需要止步于创建服务账户。实际上，如果您的 Helm 图表包含创建角色和角色绑定所需的 YAML 资源，您可以在单个图表安装中执行步骤 1、2 和 3。
 
 1.  此时，`guestbook`应用程序具有列出和获取 pod 所需的权限。为了验证这一假设，`kubectl`有一个命令可以查询用户或服务账户是否有权执行某个操作。执行以下命令来验证`ServiceAccount` guestbook 是否有权限查询`guestbook`命名空间中的所有 pod：
 
-```
-$ kubectl auth can-i list pods --as=system:serviceaccount:chapter9:guestbook -n chapter9
-```
+[PRE32]
 
 `--as`标志利用了 Kubernetes 中的用户模拟功能，允许调试授权策略。
 
 1.  该命令的结果应该打印`yes`作为输出。为了确认服务账户不能访问不应该能够访问的资源，比如列出部署，执行以下命令：
 
-```
-$ kubectl can-i list deployments --as=system:serviceaccount:guestbook:guestbook -n chapter9
-```
+[PRE33]
 
 1.  可以使用`helm uninstall`命令随意删除您的发布：
 
-```
-$ helm uninstall my-guestbook -n chapter9
-```
+[PRE34]
 
 您还可以停止 Minikube 实例，这在本章的其余部分中是不需要的：
 
-```
-$ minikube stop
-```
+[PRE35]
 
 从`no`的输出中可以看到，预期的策略已经就位。
 
@@ -566,9 +438,7 @@ $ minikube stop
 
 虽然大多数公共 Helm 存储库不需要任何形式的身份验证，但 Helm 确实允许用户对受保护的图表存储库执行基本和基于证书的身份验证。对于基本身份验证，可以在使用`helm repo add`命令添加存储库时提供用户名和密码，通过使用`--username`和`--password`标志。例如，如果您想访问受基本身份验证保护的存储库，则添加存储库将采取以下形式：
 
-```
-$ helm repo add $REPO_URL --username=<username> --password=<password>
-```
+[PRE36]
 
 然后，存储库可以进行交互，而无需重复提供凭据。
 
@@ -580,9 +450,7 @@ $ helm repo add $REPO_URL --username=<username> --password=<password>
 
 到目前为止我们使用的每个 Helm 存储库都使用了由公开可用的 CA 签名的证书，这些证书存储在您的 Web 浏览器和底层操作系统中。许多大型组织都有自己的 CA，可以用来生成图表存储库中配置的证书。由于这个证书可能不是来自公开可用的 CA，Helm CLI 可能不信任该证书，添加存储库会导致以下错误：
 
-```
-Error: looks like '$REPO_URL' is not a valid chart repository or cannot be reached: Get $REPO_URL/index.yaml: x509: certificate signed by unknown authority
-```
+[PRE37]
 
 为了让 Helm CLI 信任图表存储库的证书，CA 证书或包含多个证书的 CA 捆绑包可以添加到操作系统的信任存储中，或者可以在`helm repo add`命令的`--ca-file`标志中明确指定。这样可以使命令在没有错误的情况下执行。
 

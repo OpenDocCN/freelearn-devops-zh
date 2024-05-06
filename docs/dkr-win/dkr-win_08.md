@@ -38,18 +38,7 @@ Docker 为服务提供了与容器相同的可发现性。消费者通过名称�
 
 Docker Compose 文件通常被称为`docker-compose.yml`，并且以 API 版本的明确声明开头；最新版本是 3.7。应用程序资源在顶层定义 - 这是一个模板 Compose 文件，包含了服务、网络和卷的部分：
 
-```
- version: '3.7'
-
-  services:
-    ...
-
-  networks:
-    ...
-
-  volumes:
-    ...
-```
+[PRE0]
 
 Docker Compose 规范在 Docker 网站[`docs.docker.com/compose/compose-file/`](https://docs.docker.com/compose/compose-file/)上有文档。这列出了所有支持的版本的完整规范，以及版本之间的更改。
 
@@ -61,12 +50,7 @@ Docker Compose 规范在 Docker 网站[`docs.docker.com/compose/compose-file/`](
 
 我拥有的最简单的服务是消息队列**NATS**，它没有任何依赖关系。每个服务都需要一个名称和一个镜像名称来启动容器。可选地，您可以包括您在`docker container run`中使用的参数。对于 NATS 消息队列，我添加了一个网络名称，这意味着为此服务创建的任何容器都将连接到`nd-net`网络：
 
-```
-message-queue:
-  image: dockeronwindows/ch05-nats:2e
- networks:
- - nd-net 
-```
+[PRE1]
 
 在这个服务定义中，我拥有启动消息队列容器所需的所有参数：
 
@@ -82,16 +66,7 @@ message-queue:
 
 下一个基础设施服务是 Elasticsearch，它也不依赖于其他服务。它将被消息处理程序使用，该处理程序还使用 NATS 消息队列，因此我需要将所有这些服务加入到相同的 Docker 网络中。对于 Elasticsearch，我还希望限制其使用的内存量，并使用卷来存储数据，以便它存储在容器之外：
 
-```
-  elasticsearch:
-  image: sixeyed/elasticsearch:5.6.11-windowsservercore-ltsc2019
- environment: 
-  - ES_JAVA_OPTS=-Xms512m -Xmx512m
-  volumes:
-     - **es-data:C:\data**
-   networks:
-    - nd-net
-```
+[PRE2]
 
 在这里，`elasticsearch`是服务的名称，`sixeyed/elasticsearch`是镜像的名称，这是我在 Docker Hub 上的公共镜像。我将服务连接到相同的`nd-net`网络，并且还挂载一个卷到容器中的已知位置。当 Elasticsearch 将数据写入容器上的`C:\data`时，实际上会存储在一个卷中。
 
@@ -101,17 +76,7 @@ message-queue:
 
 接下来是反向代理 Traefik。代理从标签中构建其路由规则，当容器创建时，它需要连接到 Docker API：
 
-```
-reverse-proxy:
-  image: sixeyed/traefik:v1.7.8-windowsservercore-ltsc2019
-  command: --docker --docker.endpoint=npipe:////./pipe/docker_engine --api
- ports:
-   - **"80:80"**
- **- "8080:8080"**
-  volumes: - type: npipe source: \\.\pipe\docker_engine target: \\.\pipe\docker_engine 
-  networks:
-   - nd-net
-```
+[PRE3]
 
 Traefik 容器发布到主机上的端口`80`，连接到应用程序网络，并使用卷用于 Docker API 命名管道。这些是我在使用`docker container run`启动 Traefik 时使用的相同选项；通常，您可以将运行命令复制到 Docker Compose 文件中。
 
@@ -125,15 +90,7 @@ Docker Compose 还支持扩展定义，我正在使用`volume`规范。我将卷
 
 **Kibana**是第一个依赖于其他服务的服务——它需要 Elasticsearch 运行，以便它可以连接到数据库。Docker Compose 不会对创建容器的顺序做出任何保证，因此如果服务之间存在启动依赖关系，您需要在服务定义中捕获该依赖关系：
 
-```
-kibana:
-  image: sixeyed/kibana:5.6.11-windowsservercore-ltsc2019
-  labels:
-   - "traefik.frontend.rule=Host:kibana.nerddinner.local"
-   depends_on:
-   - elasticsearch  networks:
-   - nd-net
-```
+[PRE4]
 
 `depends_on`属性显示了如何捕获服务之间的依赖关系。在这种情况下，Kibana 依赖于 Elasticsearch，因此 Docker 将确保在启动`kibana`服务之前，`elasticsearch`服务已经启动并运行。
 
@@ -153,18 +110,7 @@ Kibana 镜像按照惯例使用主机名`elasticsearch`连接到 Elasticsearch�
 
 index-dinner 消息处理程序服务订阅 NATS 消息队列并在 Elasticsearch 中插入文档，因此它需要连接到相同的 Docker 网络，并且还依赖于这些服务。我可以在 Compose 文件中捕获这些依赖关系，并指定应用程序的配置。
 
-```
-nerd-dinner-index-handler:
-  image: dockeronwindows/ch05-nerd-dinner-index-handler:2e
-  environment:
-   - Elasticsearch:Url=http://elasticsearch:9200
-   - **MessageQueue:Url=nats://message-queue:4222**
-  depends_on:
-   - elasticsearch
-   - message-queue
-  networks:
-   - nd-net
-```
+[PRE5]
 
 在这里，我使用`environment`部分来指定两个环境变量——每个都有一个键值对——来配置消息队列和 Elasticsearch 的 URL。这实际上是默认值内置到消息处理程序镜像中的，所以我不需要在 Compose 文件中包含它们，但明确设置它们可能会有用。
 
@@ -172,24 +118,11 @@ nerd-dinner-index-handler:
 
 将配置变量存储为明文对于简单的应用程序设置来说是可以的，但对于敏感值，最好使用单独的环境文件，这是我在上一章中使用的方法。这也受到 Compose 文件格式的支持。对于数据库服务，我可以使用一个环境文件来指定管理员密码，使用`env-file`属性：
 
-```
-nerd-dinner-db:
-  image: dockeronwindows/ch03-nerd-dinner-db:2e
- env_file:
-   - **db-credentials.env**
-  volumes:
-   - db-data:C:\data
-  networks:
-   - nd-net
-```
+[PRE6]
 
 当数据库服务启动时，Docker 将从名为`db-credentials.env`的文件中设置环境变量。我使用了相对路径，所以该文件需要与 Compose 文件在同一位置。与之前一样，该文件的内容是每个环境变量一行的键值对。在这个文件中，我包括了应用程序的连接字符串，以及数据库的密码，所以凭据都在一个地方：
 
-```
-sa_password=4jsZedB32!iSm__
-ConnectionStrings:UsersContext=Data Source=nerd-dinner-db,1433;Initial Catalog=NerdDinner...
-ConnectionStrings:NerdDinnerContext=Data Source=nerd-dinner-db,1433;Initial Catalog=NerdDinner...
-```
+[PRE7]
 
 敏感数据仍然是明文的，但通过将其隔离到一个单独的文件中，我可以做两件事：
 
@@ -201,63 +134,19 @@ ConnectionStrings:NerdDinnerContext=Data Source=nerd-dinner-db,1433;Initial Cata
 
 对于 save-dinner 消息处理程序，我可以利用相同的环境文件来获取数据库凭据。处理程序依赖于消息队列和数据库服务，但在这个定义中没有新的属性：
 
-```
-nerd-dinner-save-handler:
-  image: dockeronwindows/ch05-nerd-dinner-save-handler:2e
-  depends_on:
-   - nerd-dinner-db
-   - message-queue
-  env_file:
-   - db-credentials.env
-  networks:
-   - nd-net
-```
+[PRE8]
 
 接下来是我的前端服务，它们由 Traefik 代理——REST API、新的主页和传统的 NerdDinner 网页应用。REST API 使用相同的凭据文件来配置 SQL Server 连接，并包括 Traefik 路由规则：
 
-```
-nerd-dinner-api:
-  image: dockeronwindows/ch05-nerd-dinner-api:2e
-  labels:
-   - "traefik.frontend.rule=Host:api.nerddinner.local"
-  env_file:
-   - db-credentials.env
-  networks:
-   - nd-net
-```
+[PRE9]
 
 主页包括 Traefik 路由规则，还有一个高优先级值，以确保在 NerdDinner 网页应用使用的更一般的规则之前评估此规则：
 
-```
-nerd-dinner-homepage:
-  image: dockeronwindows/ch03-nerd-dinner-homepage:2e
-  labels:
-   - "traefik.frontend.rule=Host:nerddinner.local;Path:/,/css/site.css"
-   - "traefik.frontend.priority=10"
-  networks:
-   - nd-net
-```
+[PRE10]
 
 最后一个服务是网站本身。在这里，我正在使用环境变量和环境文件的组合。通常在各个环境中保持一致的变量值可以明确地说明配置，我正在为功能标志做到这一点。敏感数据可以从单独的文件中读取，本例中包含数据库凭据和 API 密钥：
 
-```
-nerd-dinner-web:
-  image: dockeronwindows/ch05-nerd-dinner-web:2e
-  labels:
-   - "traefik.frontend.rule=Host:nerddinner.local;PathPrefix:/"
-   - "traefik.frontend.priority=1"
- environment: 
-   - HomePage:Enabled=false
-   - DinnerApi:Enabled=true
-  env_file:
-   - api-keys.env
-   - **db-credentials.env**
-  depends_on:
-   - nerd-dinner-db
-   - message-queue
-  networks:
-    - nd-net
-```
+[PRE11]
 
 网站容器不需要对外公开，因此不需要发布端口。应用程序需要访问其他服务，因此连接到同一个网络。
 
@@ -271,20 +160,11 @@ Docker Compose 将网络和卷的定义与服务的定义分开，这允许在�
 
 Docker Compose 可以在运行时创建网络，或者您可以定义资源以使用主机上已经存在的外部网络。这个 NerdDinner 网络的规范使用了 Docker 在安装时创建的默认`nat`网络，因此这个设置将适用于所有标准的 Docker 主机：
 
-```
-networks:
-  nd-net:
-   external:
-     name: nat
-```
+[PRE12]
 
 卷也需要指定。我的两个有状态服务，Elasticsearch 和 SQL Server，都使用命名卷进行数据存储：分别是`es-data`和`nd-data`。与其他网络一样，卷可以被指定为外部，因此 Docker Compose 将使用现有卷。Docker 不会创建任何默认卷，因此如果我使用外部卷，我需要在每个主机上运行应用程序之前创建它。相反，我将指定卷而不带任何选项，这样 Docker Compose 将为我创建它们：
 
-```
-volumes:
-  es-data:
-  db-data:
-```
+[PRE13]
 
 这些卷将在主机上存储数据，而不是在容器的可写层中。它们不是主机挂载的卷，因此尽管数据存储在本地磁盘上，但我没有指定位置。每个卷将在 Docker 数据目录`C:\ProgramData\Docker`中写入其数据。我将在本章后面看一下如何管理这些卷。
 
@@ -302,19 +182,7 @@ Compose 将 Compose 文件中的所有资源视为单个应用程序，并为了
 
 我在`ch06-docker-compose`目录中有 NerdDinner 的第一个 Compose 文件，该目录还包含环境变量文件。从该目录，我可以使用单个`docker-compose`命令启动整个应用程序：
 
-```
-> docker-compose up -d
-Creating ch06-docker-compose_message-queue_1        ... done
-Creating ch06-docker-compose_nerd-dinner-api_1      ... done
-Creating ch06-docker-compose_nerd-dinner-db_1            ... done
-Creating ch06-docker-compose_nerd-dinner-homepage_1 ... done
-Creating ch06-docker-compose_elasticsearch_1        ... done
-Creating ch06-docker-compose_reverse-proxy_1        ... done
-Creating ch06-docker-compose_kibana_1                    ... done
-Creating ch06-docker-compose_nerd-dinner-index-handler_1 ... done
-Creating ch06-docker-compose_nerd-dinner-web_1           ... done
-Creating ch06-docker-compose_nerd-dinner-save-handler_1  ... done
-```
+[PRE14]
 
 让我们看一下前面命令的描述：
 
@@ -328,21 +196,7 @@ Creating ch06-docker-compose_nerd-dinner-save-handler_1  ... done
 
 当您运行`docker-compose up`命令并完成后，您可以使用 Docker Compose 或标准的 Docker CLI 来管理容器。这些容器只是普通的 Docker 容器，compose 使用一些额外的元数据来将它们作为一个整体单元进行管理。列出容器会显示由`compose`创建的所有服务容器：
 
-```
-> docker container ls
-CONTAINER ID   IMAGE                                      COMMAND                     
-c992051ba468   dockeronwindows/ch05-nerd-dinner-web:2e   "powershell powershe…"
-78f5ec045948   dockeronwindows/ch05-nerd-dinner-save-handler:2e          "NerdDinner.MessageH…"      
-df6de70f61df  dockeronwindows/ch05-nerd-dinner-index-handler:2e  "dotnet NerdDinner.M…"      
-ca169dd1d2f7  sixeyed/kibana:5.6.11-windowsservercore-ltsc2019   "powershell ./init.p…"      
-b490263a6590  dockeronwindows/ch03-nerd-dinner-db:2e             "powershell -Command…"      
-82055c7bfb05  sixeyed/elasticsearch:5.6.11-windowsservercore-ltsc2019   "cmd /S /C \".\\bin\\el…"   
-22e2d5b8e1fa  dockeronwindows/ch03-nerd-dinner-homepage:2e       "dotnet NerdDinner.H…"     
- 058248e7998c dockeronwindows/ch05-nerd-dinner-api:2e            "dotnet NerdDinner.D…"      
-47a9e4d91682  sixeyed/traefik:v1.7.8-windowsservercore-ltsc2019  "/traefik --docker -…"      
-cfd1ef3f5414  dockeronwindows/ch05-nats:2e              "gnatsd -c gnatsd.co…"
-... 
-```
+[PRE15]
 
 运行 Traefik 的容器将端口`80`发布到本地计算机，并且我的 hosts 文件中有本地 NerdDinner 域的条目。NerdDinner 应用程序及其新首页、REST API 和 Kibana 分析将按预期运行，因为所有配置都包含在 Compose 文件中，并且所有组件都由 Docker Compose 启动。
 
@@ -362,21 +216,7 @@ Web 应用程序通常在设计时支持横向扩展时可以很好地扩展。�
 
 扩展消息处理程序是我在高峰时期可以做的事情，以增加消息处理的吞吐量。我可以使用`up`命令和`--scale`选项来做到这一点，指定服务名称和所需的实例数量：
 
-```
-> docker-compose up -d --scale nerd-dinner-save-handler=3
-
-ch06-docker-compose_elasticsearch_1 is up-to-date
-ch06-docker-compose_nerd-dinner-homepage_1 is up-to-date
-ch06-docker-compose_message-queue_1 is up-to-date
-ch06-docker-compose_nerd-dinner-db_1 is up-to-date
-ch06-docker-compose_reverse-proxy_1 is up-to-date
-ch06-docker-compose_nerd-dinner-api_1 is up-to-date
-Starting ch06-docker-compose_nerd-dinner-save-handler_1 ...
-ch06-docker-compose_kibana_1 is up-to-date
-ch06-docker-compose_nerd-dinner-web_1 is up-to-date
-Creating ch06-docker-compose_nerd-dinner-save-handler_2 ... done
-Creating ch06-docker-compose_nerd-dinner-save-handler_3 ... done
-```
+[PRE16]
 
 Docker Compose 将运行应用程序的状态与 Compose 文件中的配置和命令中指定的覆盖进行比较。在这种情况下，除了 save-dinner 处理程序之外，所有服务都保持不变，因此它们被列为`up-to-date`。save-handler 具有新的服务级别，因此 Docker Compose 创建了两个更多的容器。
 
@@ -384,42 +224,11 @@ Docker Compose 将运行应用程序的状态与 Compose 文件中的配置和�
 
 我可以通过 web 应用程序创建多个晚餐，当事件消息被发布时，消息处理程序将共享负载。我可以在日志中看到不同的处理程序处理不同的消息，并且没有重复处理事件：
 
-```
-> docker container logs ch06-docker-compose_nerd-dinner-save-handler_1
-Connecting to message queue url: nats://message-queue:4222
-Listening on subject: events.dinner.created, queue: save-dinner-handler
-Received message, subject: events.dinner.created
-Saving new dinner, created at: 2/12/2019 11:22:47 AM; event ID: 60f8b653-f456-4bb1-9ccd-1253e9a222b6
-Dinner saved. Dinner ID: 1; event ID: 60f8b653-f456-4bb1-9ccd-1253e9a222b6
-...
-
-> docker container logs ch06-docker-compose_nerd-dinner-save-handler_2
-Connecting to message queue url: nats://message-queue:4222
-Listening on subject: events.dinner.created, queue: save-dinner-handler
-Received message, subject: events.dinner.created
-Saving new dinner, created at: 2/12/2019 11:25:00 AM; event ID: 5f6d017e-a66b-4887-8fd5-ac053a639a6d
-Dinner saved. Dinner ID: 5; event ID: 5f6d017e-a66b-4887-8fd5-ac053a639a6d
-
-> docker container logs ch06-docker-compose_nerd-dinner-save-handler_3
-Connecting to message queue url: nats://message-queue:4222
-Listening on subject: events.dinner.created, queue: save-dinner-handler
-Received message, subject: events.dinner.created
-Saving new dinner, created at: 2/12/2019 11:24:55 AM; event ID: 8789179b-c947-41ad-a0e4-6bde7a1f2614
-Dinner saved. Dinner ID: 4; event ID: 8789179b-c947-41ad-a0e4-6bde7a1f2614
-```
+[PRE17]
 
 我正在单个 Docker 引擎上运行，所以无法扩展 Traefik 服务，因为只能发布一个容器到端口`80`。但我可以扩展 Traefik 代理的前端容器，这是测试我的应用程序在扩展到多个实例时是否正常工作的好方法。我将再添加两个原始 NerdDinner web 应用程序的实例：
 
-```
-> docker-compose up -d --scale nerd-dinner-web=3
-ch06-docker-compose_message-queue_1 is up-to-date
-...
-Stopping and removing ch06-docker-compose_nerd-dinner-save-handler_2 ... done
-Stopping and removing ch06-docker-compose_nerd-dinner-save-handler_3 ... done
-Creating ch06-docker-compose_nerd-dinner-web_2                       ... done
-Creating ch06-docker-compose_nerd-dinner-web_3                       ... done
-Starting ch06-docker-compose_nerd-dinner-save-handler_1              ... done
-```
+[PRE18]
 
 仔细看这个输出——发生了一些正确的事情，但并不是我想要的。Compose 已经创建了两个新的 NerdDinner web 容器，以满足我指定的规模为 3，但它也停止并移除了两个 save-handler 容器。
 
@@ -427,9 +236,7 @@ Starting ch06-docker-compose_nerd-dinner-save-handler_1              ... done
 
 混合 Compose 文件定义和命令的更改是不推荐的，正是因为这种情况。Compose 文件本身应该是应用程序的期望状态。但在这种情况下，您无法在 Compose 文件中指定规模选项（在旧版本中可以，但从规范的 v3 开始不行），因此您需要显式地为所有服务添加规模级别：
 
-```
-docker-compose up -d --scale nerd-dinner-web=3 --scale nerd-dinner-save-handler=3
-```
+[PRE19]
 
 现在我有三个 save-handler 容器，它们正在共享消息队列的工作，还有三个 web 容器。Traefik 将在这三个 web 容器之间负载均衡请求。我可以从 Traefik 仪表板上检查该配置，我已经发布在端口`8080`上：
 
@@ -443,25 +250,11 @@ Traefik 在左侧以蓝色框显示前端路由规则，以绿色框显示它们
 
 该错误消息告诉我，NerdDinner 希望一个用户的所有请求都由 web 应用程序的同一实例处理。Traefik 支持粘性会话，正是为了解决这种情况，因此要解决这个问题，我只需要在 Compose 文件中的 web 服务定义中添加一个新的标签。这将为 NerdDinner 后端启用粘性会话：
 
-```
-nerd-dinner-web:
-  image: dockeronwindows/ch05-nerd-dinner-web:2e
-  labels:
-   - "traefik.frontend.rule=Host:nerddinner.local;PathPrefix:/"
-   - "traefik.frontend.priority=1"
-   - "traefik.backend.loadbalancer.stickiness=true"
-```
+[PRE20]
 
 现在我可以再次部署，确保包括我的规模参数：
 
-```
-> docker-compose up -d --scale nerd-dinner-web=3 --scale nerd-dinner-save-handler=3
-ch06-docker-compose_message-queue_1 is up-to-date
-...
-Recreating ch06-docker-compose_nerd-dinner-web_1 ... done
-Recreating ch06-docker-compose_nerd-dinner-web_2 ... done
-Recreating ch06-docker-compose_nerd-dinner-web_3 ... done
-```
+[PRE21]
 
 Compose 重新创建 web 服务容器，删除旧容器，并使用新配置启动新容器。现在，Traefik 正在使用粘性会话，因此我的浏览器会话中的每个请求都将发送到相同的容器。Traefik 使用自定义 cookie 来实现这一点，该 cookie 指定请求应路由到的容器 IP 地址：
 
@@ -481,32 +274,13 @@ Docker Compose 中有几个管理容器生命周期的命令。重要的是要�
 
 停止的容器保留其所有配置和数据，但它们不使用任何计算资源。启动和停止容器是在多个项目上工作时切换上下文的非常有效的方式。如果我在 NerdDinner 上开发，当另一个工作作为优先级而来时，我可以停止整个 NerdDinner 应用程序来释放我的开发环境：
 
-```
-> docker-compose stop
-Stopping ch06-docker-compose_nerd-dinner-web_2           ... done
-Stopping ch06-docker-compose_nerd-dinner-web_1           ... done
-Stopping ch06-docker-compose_nerd-dinner-web_3           ... done
-Stopping ch06-docker-compose_nerd-dinner-save-handler_3  ... done
-Stopping ch06-docker-compose_nerd-dinner-save-handler_2  ... done
-Stopping ch06-docker-compose_nerd-dinner-save-handler_1  ... done
-Stopping ch06-docker-compose_nerd-dinner-index-handler_1 ... done
-Stopping ch06-docker-compose_kibana_1                    ... done
-Stopping ch06-docker-compose_reverse-proxy_1             ... done
-Stopping ch06-docker-compose_nerd-dinner-homepage_1      ... done
-Stopping ch06-docker-compose_nerd-dinner-db_1            ... done
-Stopping ch06-docker-compose_nerd-dinner-api_1           ... done
-Stopping ch06-docker-compose_elasticsearch_1             ... done
-Stopping ch06-docker-compose_message-queue_1             ... done
-```
+[PRE22]
 
 现在我没有运行的容器，我可以切换到另一个项目。当工作完成时，我可以通过运行`docker-compose start`再次启动 NerdDinner。
 
 您还可以通过指定名称来停止单个服务，如果您想测试应用程序如何处理故障，这将非常有用。我可以通过停止 Elasticsearch 服务来检查索引晚餐处理程序在无法访问 Elasticsearch 时的行为：
 
-```
-> docker-compose stop elasticsearch
-Stopping ch06-docker-compose_elasticsearch_1 ... done
-```
+[PRE23]
 
 所有这些命令都是通过将 Compose 文件与在 Docker 中运行的服务进行比较来处理的。你需要访问 Docker Compose 文件才能运行任何 Docker Compose 命令。这是在单个主机上使用 Docker Compose 运行应用程序的最大缺点之一。另一种选择是使用相同的 Compose 文件，但将其部署为 Docker Swarm 的堆栈，我将在下一章中介绍。
 
@@ -520,31 +294,13 @@ Stopping ch06-docker-compose_elasticsearch_1 ... done
 
 我在同一个`ch06-docker-compose`目录中有第二个 Compose 文件，名为`docker-compose-db-upgrade.yml`。升级文件不是完整的应用程序定义；它只包含数据库服务定义的一个部分，使用新的镜像标签：
 
-```
-version: '3.7' services:
-  nerd-dinner-db:
-  image: dockeronwindows/ch06-nerd-dinner-db:2e
-```
+[PRE24]
 
 Docker Compose 支持覆盖文件。你可以运行`docker-compose`命令并将多个 Compose 文件作为参数传递。Compose 将按照命令中指定的顺序从左到右将所有文件合并在一起。覆盖文件可以用于向应用程序定义添加新的部分，或者可以替换现有的值。
 
 当应用程序正在运行时，我可以再次执行`docker compose up`，同时指定原始 Compose 文件和`db-upgrade`覆盖文件：
 
-```
-> docker-compose `
-   -f docker-compose.yml `
-   -f docker-compose-db-upgrade.yml `
-  up -d 
-ch06-docker-compose_reverse-proxy_1 is up-to-date
-ch06-docker-compose_nerd-dinner-homepage_1 is up-to-date
-ch06-docker-compose_elasticsearch_1 is up-to-date
-ch06-docker-compose_message-queue_1 is up-to-date
-ch06-docker-compose_kibana_1 is up-to-date
-Recreating ch06-docker-compose_nerd-dinner-db_1 ... done
-Recreating ch06-docker-compose_nerd-dinner-web_1          ... done
-Recreating ch06-docker-compose_nerd-dinner-save-handler_1 ... done
-Recreating ch06-docker-compose_nerd-dinner-api_1          ... done
-```
+[PRE25]
 
 该命令使用`db-upgrade`文件作为主`docker-compose.yml`文件的覆盖。Docker Compose 将它们合并在一起，因此最终的服务定义包含原始文件中的所有值，除了来自覆盖的镜像规范。新的服务定义与 Docker 中正在运行的内容不匹配，因此 Compose 重新创建数据库服务。
 
@@ -552,47 +308,17 @@ Docker Compose 通过移除旧容器并启动新容器来重新创建服务，�
 
 我的数据库容器使用了我在第三章中描述的模式，使用卷存储数据和一个脚本，可以在容器被替换时升级数据库模式。在 Compose 文件中，我使用了一个名为`db-data`的卷的默认定义，因此 Docker Compose 为我创建了它。就像 Compose 创建的容器一样，卷是标准的 Docker 资源，可以使用 Docker CLI 进行管理。`docker volume ls`列出主机上的所有卷：
 
-```
-> docker volume ls
-
-DRIVER  VOLUME NAME
-local   ch06-docker-compose_db-data
-local   ch06-docker-compose_es-data
-```
+[PRE26]
 
 我有两个卷用于我的 NerdDinner 部署。它们都使用本地驱动程序，这意味着数据存储在本地磁盘上。我可以检查 SQL Server 卷，看看数据在主机上的物理存储位置（在`Mountpoint`属性中），然后检查内容以查看数据库文件：
 
-```
-> docker volume inspect -f '{{ .Mountpoint }}' ch06-docker-compose_db-data
-C:\ProgramData\docker\volumes\ch06-docker-compose_db-data\_data
-
-> ls C:\ProgramData\docker\volumes\ch06-docker-compose_db-data\_data
-
-    Directory: C:\ProgramData\docker\volumes\ch06-docker-compose_db-data\_data
-
-Mode                LastWriteTime         Length Name
-----                -------------         ------ ----
--a----       12/02/2019     13:47        8388608 NerdDinner_Primary.ldf
--a----       12/02/2019     13:47        8388608 NerdDinner_Primary.mdf
-```
+[PRE27]
 
 卷存储在容器之外，因此当 Docker Compose 移除旧容器数据库时，所有数据都得到保留。新的数据库镜像捆绑了一个 Dacpac，并配置为对现有数据文件进行模式升级，方式与第三章中的 SQL Server 数据库相同，*开发 Docker 化的.NET Framework 和.NET Core 应用*。
 
 新容器启动后，我可以检查日志，看到新容器从卷中附加了数据库文件，然后修改了 Dinners 表以添加新的审计列：
 
-```
-> docker container logs ch06-docker-compose_nerd-dinner-db_1
-
-VERBOSE: Starting SQL Server
-VERBOSE: Changing SA login credentials
-VERBOSE: Data files exist - will attach and upgrade database
-Generating publish script for database 'NerdDinner' on server '.\SQLEXPRESS'.
-Successfully generated script to file C:\init\deploy.sql.
-VERBOSE: Changed database context to 'NerdDinner'.
-VERBOSE: Altering [dbo].[Dinners]...
-VERBOSE: Update complete.
-VERBOSE: Deployed NerdDinner database, data files at: C:\data
-```
+[PRE28]
 
 新的审计列在更新行时添加了时间戳，因此现在当我通过 Web UI 创建晚餐时，我可以看到数据库中上次更新行的时间。在我的开发环境中，我还没有为客户端连接发布 SQL Server 端口，但我可以运行`docker container inspect`来获取容器的本地 IP 地址。然后我可以直接连接我的 SQL 客户端到容器并运行查询以查看新的审计时间戳：
 
@@ -608,33 +334,13 @@ Docker Compose 寻找资源及其定义之间的任何差异，而不仅仅是 D
 
 要检查所有组件的内存和 CPU 使用情况，请运行`docker-compose top`：
 
-```
-> docker-compose top
-
-ch06-docker-compose_elasticsearch_1
-Name          PID     CPU            Private Working Set
----------------------------------------------------------
-smss.exe      21380   00:00:00.046   368.6kB
-csrss.exe     11232   00:00:00.359   1.118MB
-wininit.exe   16328   00:00:00.093   1.196MB
-services.exe  15180   00:00:00.359   1.831MB
-lsass.exe     12368   00:00:01.156   3.965MB
-svchost.exe   18424   00:00:00.156   1.626MB
-...
-```
+[PRE29]
 
 容器按名称按字母顺序列出，每个容器中的进程没有特定的顺序列出。无法更改排序方式，因此无法首先显示最密集的进程所在的最努力工作的容器，但结果是以纯文本形式呈现的，因此可以在 PowerShell 中对其进行操作。
 
 要查看所有容器的日志条目，请运行`docker-compose logs`：
 
-```
-> docker-compose logs
-Attaching to ch06-docker-compose_nerd-dinner-web_1, ch06-docker-compose_nerd-dinner-save-handler_1, ch06-docker-compose_nerd-dinner-api_1, ch06-docker-compose_nerd-dinner-db_1, ch06-docker-compose_kibana_1, ch06-docker-compose_nerd-dinner-index-handler_1, ch06-docker-compose_reverse-proxy_1, ch06-docker-compose_elasticsearch_1, ch06-docker-compose_nerd-dinner-homepage_1, ch06-docker-compose_message-queue_1
-
-nerd-dinner-web_1   | 2019-02-12 13:47:11 W3SVC1002144328 127.0.0.1 GET / - 80 - 127.0.0.1 Mozilla/5.0+(Windows+NT;+Windows+NT+10.0;+en-US)+WindowsPowerShell/5.1.17763.134 - 200 0 0 7473
-nerd-dinner-web_1   | 2019-02-12 13:47:14 W3SVC1002144328 ::1 GET / - 80 - ::1 Mozilla/5.0+(Windows+NT;+Windows+NT+10.0;+en-US)+WindowsPowerShell/5.1.17763.134 - 200 0 0 9718
-...
-```
+[PRE30]
 
 在屏幕上，容器名称以颜色编码，因此您可以轻松区分来自不同组件的条目。通过 Docker Compose 阅读日志的一个优势是，它显示所有容器的输出，即使组件显示错误并且容器已停止。这些错误消息对于在上下文中查看很有用-您可能会看到一个组件在另一个组件记录其已启动之前抛出连接错误，这可能突出了 Compose 文件中缺少的依赖关系。
 
@@ -650,32 +356,13 @@ Docker Compose 可以管理 Docker 图像，以及容器。在 Compose 文件中
 
 这是我为我的图像指定构建细节的方式：
 
-```
-nerd-dinner-db:
-  image: dockeronwindows/ch06-nerd-dinner-db:2e
- build:
-    context: ../ch06-nerd-dinner-db
-    dockerfile: **./Dockerfile** ...
-nerd-dinner-save-handler: image: dockeronwindows/ch05-nerd-dinner-save-handler:2e build: context: ../../ch05 dockerfile: ./ch05-nerd-dinner-save-handler/Dockerfile
-```
+[PRE31]
 
 当您运行`docker-compose build`时，任何具有指定`build`属性的服务将被构建并标记为`image`属性中的名称。构建过程使用正常的 Docker API，因此仍然使用图像层缓存，只重新构建更改的层。向 Compose 文件添加构建细节是构建所有应用程序图像的一种非常有效的方式，也是捕获图像构建方式的中心位置。
 
 Docker Compose 的另一个有用功能是能够管理整个图像组。本章的 Compose 文件使用的图像都是在 Docker Hub 上公开可用的，因此您可以使用`docker-compose up`运行完整的应用程序，但第一次运行时，所有图像都将被下载，这将需要一些时间。您可以在使用`docker-compose pull`之前预加载图像，这将拉取所有图像：
 
-```
-> docker-compose pull
-Pulling message-queue             ... done
-Pulling elasticsearch             ... done
-Pulling reverse-proxy             ... done
-Pulling kibana                    ... done
-Pulling nerd-dinner-db            ... done
-Pulling nerd-dinner-save-handler  ... done
-Pulling nerd-dinner-index-handler ... done
-Pulling nerd-dinner-api           ... done
-Pulling nerd-dinner-homepage      ... done
-Pulling nerd-dinner-web           ... done
-```
+[PRE32]
 
 同样，您可以使用`docker-compose push`将图像上传到远程存储库。对于这两个命令，Docker Compose 使用最近`docker login`命令的经过身份验证的用户。如果您的 Compose 文件包含您无权推送的图像，这些推送将失败。对于您有写入权限的任何存储库，无论是在 Docker Hub 还是私有注册表中，这些图像都将被推送。
 
@@ -697,42 +384,21 @@ Compose 文件中的卷和网络定义遵循与服务定义相同的模式——
 
 为了使用现有卷来存储我的 SQL Server 和 Elasticsearch 数据，我需要指定`external`属性，以及可选的资源名称。在`ch06-docker-compose-external`目录中，我的 Docker Compose 文件具有这些卷定义：
 
-```
-volumes:
-  es-data:
- external: 
-      name: nerd-dinner-elasticsearch-data
-
-  db-data:
- external: 
-      name: nerd-dinner-database-data
-```
+[PRE33]
 
 声明外部资源后，我不能只使用`docker-compose up`来运行应用程序。Compose 不会创建定义为外部的卷；它们需要在应用程序启动之前存在。而且这些卷是服务所必需的，因此 Docker Compose 也不会创建任何容器。相反，您会看到一个错误消息：
 
-```
-> docker-compose up -d
-
-ERROR: Volume nerd-dinner-elasticsearch-data declared as external, but could not be found. Please create the volume manually using `docker volume create --name=nerd-dinner-elasticsearch-data` and try again.
-```
+[PRE34]
 
 错误消息告诉您需要运行的命令来创建缺失的资源。这将使用默认配置创建基本卷，这将允许 Docker Compose 启动应用程序：
 
-```
-docker volume create --name nerd-dinner-elasticsearch-data
-docker volume create --name nerd-dinner-database-data
-```
+[PRE35]
 
 Docker 允许您使用不同的配置选项创建卷，因此您可以指定显式的挂载点，例如 RAID 阵列或 NFS 共享。Windows 目前不支持本地驱动器的选项，但您可以使用映射驱动器作为解决方法。还有其他类型存储的驱动程序——使用云服务的卷插件，例如 Azure 存储，以及企业存储单元，例如 HPE 3PAR。
 
 可以使用相同的方法来指定网络作为外部资源。在我的 Compose 文件中，我最初使用默认的`nat`网络，但在这个 Compose 文件中，我为应用程序指定了一个自定义的外部网络：
 
-```
-networks:
-  nd-net:
-    external:
- name: nerd-dinner-network
-```
+[PRE36]
 
 Windows 上的 Docker 有几个网络选项。默认和最简单的是网络地址转换，使用`nat`网络。这个驱动器将容器与物理网络隔离，每个容器在 Docker 管理的子网中都有自己的 IP 地址。在主机上，您可以通过它们的 IP 地址访问容器，但在主机外部，您只能通过发布的端口访问容器。
 
@@ -746,9 +412,7 @@ Windows 上的 Docker 有几个网络选项。默认和最简单的是网络地�
 
 对于我在单个服务器上使用 Traefik 的设置，`nat`是最佳选项，因此我将为我的应用程序创建一个自定义网络：
 
-```
-docker network create -d nat nerd-dinner-network
-```
+[PRE37]
 
 当容器启动时，我可以使用我在`hosts`文件中设置的`nerddinner.local`域来访问 Traefik。
 
@@ -774,69 +438,29 @@ Docker Compose 默认寻找名为`docker-compose.yml`和`docker-compose.override
 
 这是`docker-compose.yml`中的反向代理配置，并且设置为发布随机端口并启动 Traefik 仪表板：
 
-```
-reverse-proxy:
-  image: sixeyed/traefik:v1.7.8-windowsservercore-ltsc2019
-  command: --docker --docker.endpoint=npipe:////./pipe/docker_engine --api
-  ports:
-   - "80"
-   - "8080"
-  volumes:
-   - type: npipe
-      source: \\.\pipe\docker_engine 
-      target: \\.\pipe\docker_engine  networks:
-  - nd-net
-```
+[PRE38]
 
 这对于可能正在为其他应用程序使用端口`80`的开发人员以及希望深入了解仪表板以查看 Traefik 的路由规则的开发人员非常有用。`test`覆盖文件将端口定义更改为在主机服务器上使用`80`和`8080`，但仪表板仍然暴露，因此命令部分保持不变：
 
-```
-reverse-proxy:
-  ports:
-   - "80:80"
-   - "8080:8080"
-```
+[PRE39]
 
 `production`覆盖更改了启动命令，删除了命令中的`--api`标志，因此仪表板不会运行，它只发布端口`80`：
 
-```
-reverse-proxy:
-  command: --docker --docker.endpoint=npipe:////./pipe/docker_engine
-  ports:
-   - "80:80"
-```
+[PRE40]
 
 服务配置的其余部分，要使用的图像，Docker Engine 命名管道的卷挂载和要连接的网络在每个环境中都是相同的，因此覆盖文件不需要指定它们。
 
 另一个例子是新的主页，其中包含了 Traefik 标签中的 URL 的域名。这是特定于环境的，在开发 Docker Compose 文件中，它被设置为使用`nerddinner.local`：
 
-```
-nerd-dinner-homepage:
-  image: dockeronwindows/ch03-nerd-dinner-homepage:2e
-  labels:
-   - "traefik.frontend.rule=Host:nerddinner.local;Path:/,/css/site.css"
-   - "traefik.frontend.priority=10"
-  networks:
-   - nd-net
-```
+[PRE41]
 
 在`test`覆盖文件中，域是`nerd-dinner.test`：
 
-```
-nerd-dinner-homepage:
-  labels:
-   - "traefik.frontend.rule=Host:nerd-dinner.test;Path:/,/css/site.css"
-   - "traefik.frontend.priority=10"
-```
+[PRE42]
 
 在生产中，是`nerd-dinner.com`：
 
-```
-nerd-dinner-homepage:
-  labels:
- - "traefik.frontend.rule=Host:nerd-dinner.com;Path:/,/css/site.css"
- - "traefik.frontend.priority=10"
-```
+[PRE43]
 
 在每个环境中，其余配置都是相同的，因此覆盖文件只指定新标签。
 
@@ -864,12 +488,7 @@ Docker Compose 在添加覆盖时不会合并列表的内容；新列表完全�
 
 部署到任何环境都可以简单地运行`docker-compose up`，指定要使用的覆盖文件：
 
-```
-docker-compose `
-  -f docker-compose.yml `
-  -f docker-compose.production.yml `
- up -d
-```
+[PRE44]
 
 这种方法是保持 Docker Compose 文件简单的好方法，并在单独的文件中捕获所有可变环境设置。甚至可以组合几个 Docker Compose 文件。如果有多个共享许多共同点的测试环境，可以在基本 Compose 文件中定义应用程序设置，在一个覆盖文件中共享测试配置，并在另一个覆盖文件中定义每个特定的测试环境。
 

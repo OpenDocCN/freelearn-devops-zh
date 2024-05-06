@@ -92,15 +92,11 @@ Swarm 调度程序在系统中的不同节点上调度任务。Docker Swarm 带�
 
 进入 Swarm 模式：
 
-```
-$ docker swarm init
-```
+[PRE0]
 
 添加节点到集群：
 
-```
-$ docker swarm join  
-```
+[PRE1]
 
 与 Swarm 不同，Swarm 模式内置于 Docker 引擎本身，具有服务发现、负载平衡、安全性、滚动更新和扩展等功能。Swarm 模式使集群管理变得简单，因为它不需要任何编排工具来创建和管理集群。
 
@@ -298,61 +294,39 @@ Kubernetes 可以在各种平台上运行，从笔记本电脑和云提供商的
 
 1.  使用 curl 下载最新版本的`kubectl`：
 
-```
-        $ curl -LO https://storage.googleapis.com/kubernetes-
-        release/release/$(curl -s https://storage.googleapis.com/kubernetes
-        release/release/stable.txt)/bin/linux/amd64/kubectl
-```
+[PRE2]
 
 1.  使`kubectl`二进制文件可执行：
 
-```
-        $ chmod +x ./kubectl  
-```
+[PRE3]
 
 1.  现在，在所有机器上安装`kubelet`和`kubeadm`。`kubelet`是在集群中所有机器上运行的组件，负责启动 pod 和容器等工作。`kubeadm`是引导集群的命令：
 
 1.  以 root 用户登录：
 
-```
-        $ sudo -i  
-```
+[PRE4]
 
 1.  更新并安装软件包：
 
-```
-        $ apt-get update && apt-get install -y apt-transport-https
-```
+[PRE5]
 
 1.  为软件包添加认证密钥：
 
-```
-        $ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg 
-        | apt-key add -  
-```
+[PRE6]
 
 1.  将 Kubernetes 源添加到`apt`列表中：
 
-```
-        $ cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
-        deb http://apt.kubernetes.io/ kubernetes-xenial main
-        EOF  
-```
+[PRE7]
 
 1.  更新并安装工具：
 
-```
-        $ apt-get update
-        $ apt-get install -y kubelet kubeadm  
-```
+[PRE8]
 
 以下步骤演示了如何使用`kubeadm`设置安全的 Kubernetes 集群。我们还将在集群上创建一个 pod 网络，以便应用程序组件可以相互通信。最后，在集群上安装一个示例微服务应用程序以验证安装。
 
 1.  初始化主节点。要初始化主节点，请选择之前安装了`kubeadm`的机器之一，并运行以下命令。我们已指定`pod-network-cidr`以提供用于通信的网络：
 
-```
-          $ kubeadm init --pod-network-cidr=10.244.0.0/16  
-```
+[PRE9]
 
 请参考`kubeadm`参考文档，了解更多关于`kubeadm init`提供的标志。
 
@@ -360,50 +334,13 @@ Kubernetes 可以在各种平台上运行，从笔记本电脑和云提供商的
 
 前面命令的输出如下：
 
-```
-[kubeadm] WARNING: kubeadm is in beta, please do not use it for production clusters.
-[init] Using Kubernetes version: v1.7.4
-[init] Using Authorization modes: [Node RBAC]
-[preflight] Running pre-flight checks
-[preflight] WARNING: docker version is greater than the most recently validated version. Docker version: 17.06.1-ce. Max validated version: 1.12
-[preflight] Starting the kubelet service
-[kubeadm] WARNING: starting in 1.8, tokens expire after 24 hours by default (if you require a non-expiring token use --token-ttl 0)
-[certificates] Generated CA certificate and key.
-[certificates] Generated API server certificate and key.
-[certificates] API Server serving cert is signed for DNS names [galvin kubernetes kubernetes.default kubernetes.default.svc kubernetes.default.svc.cluster.local] and IPs [10.96.0.1 10.0.2.15]
-[certificates] Generated API server kubelet client certificate and key.
-[certificates] Generated service account token signing key and public key.
-[certificates] Generated front-proxy CA certificate and key.
-[certificates] Generated front-proxy client certificate and key.
-[certificates] Valid certificates and keys now exist in "/etc/kubernetes/pki"
-[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/admin.conf"
-[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/kubelet.conf"
-[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/controller-manager.conf"
-[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/scheduler.conf"
-[apiclient] Created API client, waiting for the control plane to become ready
-[apiclient] All control plane components are healthy after 62.001439 seconds
-[token] Using token: 07fb67.033bd701ad81236a
-[apiconfig] Created RBAC rules
-[addons] Applied essential addon: kube-proxy
-[addons] Applied essential addon: kube-dns  
-Your Kubernetes master has initialized successfully:
-mkdir -p $HOME/.kube
-sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown $(id -u):$(id -g) $HOME/.kube/config 
-You should now deploy a pod network to the cluster.
-Run kubectl apply -f [podnetwork].yaml with one of the options listed at: http://kubernetes.io/docs/admin/addons/. You can now join any number of machines by running the following on each node as the root:
-kubeadm join --token 07fb67.033bd701ad81236a 10.0.2.15:6443 
-```
+[PRE10]
 
 保存前面输出的`kubeadm join`命令。您将需要这个命令来将节点加入到您的 Kubernetes 集群中。令牌用于主节点和节点之间的相互认证。
 
 现在，要开始使用您的集群，请以普通用户身份运行以下命令：
 
-```
-$ mkdir -p $HOME/.kube
-$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-$ sudo chown $(id -u):$(id -g) $HOME/.kube/config  
-```
+[PRE11]
 
 1.  安装 pod 网络。此网络用于集群中 pod 之间的通信：
 
@@ -411,73 +348,23 @@ $ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 有多个网络附加项目可用于创建安全网络。要查看完整列表，请访问 Kubernetes 文档以供参考。在本例中，我们将使用 flannel 进行网络连接。Flannel 是一种覆盖网络提供程序：
 
-```
- $ sudo kubectl apply -f 
-https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
- serviceaccount "flannel" created
- configmap "kube-flannel-cfg" created
- daemonset "kube-flannel-ds" created
- $ sudo kubectl apply -f 
-https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel-rbac.yml
- clusterrole "flannel" created
- clusterrolebinding "flannel" created  
-```
+[PRE12]
 
 您可以通过检查输出中的`kube-dns` pod 是否正在运行来确认它是否正在工作：
 
-```
-$ kubectl get pods --all-namespaces
-NAMESPACE     NAME                             READY     STATUS    RESTARTS   AGE
-kube-system   etcd-galvin                      1/1       Running   0          2m
-kube-system   kube-apiserver-galvin            1/1       Running   0          2m
-kube-system   kube-controller-manager-galvin   1/1       Running   0          2m
-kube-system   kube-dns-2425271678-lz9fp        3/3       Running   0          2m
-kube-system   kube-flannel-ds-f9nx8            2/2       Running   2          1m
-kube-system   kube-proxy-wcmdg                 1/1       Running   0          2m
-kube-system   kube-scheduler-galvin            1/1       Running   0          2m  
-```
+[PRE13]
 
 1.  将节点加入集群。要将节点添加到 Kubernetes 集群，请通过 SSH 连接到节点并运行以下命令：
 
-```
-$ sudo kubeadm join --token <token> <master-ip>:<port>
-[kubeadm] WARNING: kubeadm is in beta, please do not use it for production clusters.
-[preflight] Running pre-flight checks
-[discovery] Trying to connect to API Server "10.0.2.15:6443"
-[discovery] Created cluster-info discovery client, requesting info from "https://10.0.2.15:6443"
-[discovery] Cluster info signature and contents are valid, will use API Server "https://10.0.2.15:6443"
-[discovery] Successfully established connection with API Server "10.0.2.15:6443"
-[bootstrap] Detected server version: v1.7.4
-[bootstrap] The server supports the Certificates API (certificates.k8s.io/v1beta1)
-[csr] Created API client to obtain unique certificate for this node, generating keys and certificate signing request
-[csr] Received signed certificate from the API server, generating KubeConfig...
-[kubeconfig] Wrote KubeConfig file to disk: "/etc/kubernetes/kubelet.conf"  
-Node join complete:
-Certificate signing request sent to master and response
-Received
-Kubelet informed of new secure connection details
-Run kubectl get nodes on the master to see this machine join.
-```
+[PRE14]
 
 现在，运行以下命令来验证节点的加入：
 
-```
-$ kubectl get nodes
-NAME      STATUS    AGE       VERSION
-brunno    Ready     14m       v1.7.4
-```
+[PRE15]
 
 通过创建一个示例 Nginx pod 来验证您的安装：
 
-```
-$ kubectl run my-nginx --image=nginx --replicas=2 --port=80
-deployment "my-nginx" created
-
-$ kubectl get pods 
-NAME                        READY     STATUS    RESTARTS   AGE
-my-nginx-4293833666-c4c5p   1/1       Running   0          22s
-my-nginx-4293833666-czrnf   1/1       Running   0          22s  
-```
+[PRE16]
 
 # Kubernetes 实践
 
@@ -485,202 +372,43 @@ my-nginx-4293833666-czrnf   1/1       Running   0          22s
 
 1.  创建持久卷。WordPress 和 MySQL 将使用此卷来存储数据。我们将创建两个大小为 5 GB 的本地持久卷。将以下内容复制到`volumes.yaml`文件中：
 
-```
-        apiVersion: v1
-        kind: PersistentVolume
-        metadata:
-          name: pv-1
-          labels:
-            type: local
-        spec:
-          capacity:
-            storage: 5Gi
-          accessModes:
-            - ReadWriteOnce
-          hostPath:
-            path: /tmp/data/pv-1
-         storageClassName: slow 
-        ---
-        apiVersion: v1
-        kind: PersistentVolume
-        metadata:
-          name: pv-2
-          labels:
-            type: local
-        spec:
-          capacity:
-            storage: 5Gi
-          accessModes:
-            - ReadWriteOnce
-          hostPath:
-            path: /tmp/data/pv-2
-        storageClassName: slow 
-
-```
+[PRE17]
 
 1.  现在，通过运行以下命令来创建卷：
 
-```
- $ kubectl create -f volumes.yaml 
- persistentvolume "pv-1" created
- persistentvolume "pv-2" created    
-```
+[PRE18]
 
 1.  检查卷是否已创建：
 
-```
-          $ kubectl get pv
-          NAME      CAPACITY   ACCESSMODES   RECLAIMPOLICY   STATUS      
-          CLAIM     STORAGECLASS   REASON    AGE
-          pv-1      5Gi        RWO           Retain          Available                                     
-          8s
-          pv-2      5Gi        RWO           Retain          Available                                    
-          8s  
-```
+[PRE19]
 
 1.  创建一个用于存储 MySQL 密码的密钥。MySQL 和 WordPress pod 将引用此密钥，以便这些 pod 可以访问它：
 
-```
-        $ kubectl create secret generic mysql-pass -from-
-        literal=password=admin
-        secret "mysql-pass" created
-```
+[PRE20]
 
 1.  验证密钥是否已创建：
 
-```
-        $ kubectl get secrets
-        NAME                  TYPE                                  DATA    
-        AGE
-        default-token-1tb58   kubernetes.io/service-account-token   3      
-        3m
-        mysql-pass            Opaque                                1   
-        9s
-```
+[PRE21]
 
 1.  创建 MySQL 部署。现在，我们将创建一个服务，公开一个 MySQL 容器，一个 5 GB 的持久卷索赔，以及运行 MySQL 容器的 pod 的部署。将以下内容复制到`mysql-deployment.yaml`文件中：
 
-```
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: wordpress-mysql
-          labels:
-            app: wordpress
-        spec:
-          ports:
-            - port: 3306
-          selector:
-            app: wordpress
-            tier: mysql
-          clusterIP: None
-        ---
-        apiVersion: v1
-        kind: PersistentVolumeClaim
-        metadata:
-          name: mysql-pv-claim
-          labels:
-            app: wordpress
-        spec:
-          accessModes:
-            - ReadWriteOnce
-          resources:
-            requests:
-              storage: 5Gi
-        storageClassName: slow 
-
-        ---
-        apiVersion: extensions/v1beta1
-        kind: Deployment
-        metadata:
-          name: wordpress-mysql
-          labels:
-            app: wordpress
-        spec:
-          strategy:
-            type: Recreate
-          template:
-            metadata:
-              labels:
-                app: wordpress
-                tier: mysql
-            spec:
-              containers:
-              - image: mysql:5.6
-                name: mysql
-                env:
-                - name: MYSQL_ROOT_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: mysql-pass
-                      key: password
-                    ports:
-                - containerPort: 3306
-                  name: mysql
-                volumeMounts:
-                - name: mysql-persistent-storage
-                  mountPath: /var/lib/mysql
-              volumes:
-              - name: mysql-persistent-storage
-                persistentVolumeClaim:
-                   claimName: mysql-pv-claim  
-```
+[PRE22]
 
 1.  现在，启动 MySQL pod：
 
-```
-        $ kubectl create -f mysql-deployment.yaml 
-          service "wordpress-mysql" created
-          persistentvolumeclaim "mysql-pv-claim" created
-          deployment "wordpress-mysql" created  
-```
+[PRE23]
 
 1.  检查 pod 的状态：
 
-```
-          $ kubectl get pods
-          NAME                               READY     STATUS    RESTARTS
-          AGE
-            wordpress-mysql-2222028001-l8x9x   1/1       Running   0  
-          6m      
-```
+[PRE24]
 
 1.  或者，您可以通过运行以下命令来检查 pod 的日志：
 
-```
-        $ kubectl logs wordpress-mysql-2222028001-l8x9x
-
-        Initializing database
-        2017-08-27 15:30:00 0 [Warning] TIMESTAMP with implicit DEFAULT 
-        value is deprecated. Please use --explicit_defaults_for_timestamp 
-        server 
-        option (see documentation for more details).
-        2017-08-27 15:30:00 0 [Note] Ignoring --secure-file-priv value as
-        server is running with --bootstrap.
-        2017-08-27 15:30:00 0 [Note] /usr/sbin/mysqld (mysqld 5.6.37)
-        starting as process 36 ...
-
-        2017-08-27 15:30:03 0 [Warning] TIMESTAMP with implicit DEFAULT
-        value is deprecated. Please use --explicit_defaults_for_timestamp 
-        server 
-        option (see documentation for more details).
-        2017-08-27 15:30:03 0 [Note] Ignoring --secure-file-priv value as 
-        server is running with --bootstrap.
-        2017-08-27 15:30:03 0 [Note] /usr/sbin/mysqld (mysqld 5.6.37)
-        starting as process 59 ...
-        Please remember to set a password for the MySQL root user!
- To do so, start the server, then issue the following 
- commands:
- /usr/bin/mysqladmin -u root password 'new-password' 
-        /usr/bin/mysqladmin -u root -h wordpress-mysql-2917821887-dccql 
-        password 'new-password' 
-```
+[PRE25]
 
 或者，您可以运行以下命令：
 
-```
-/usr/bin/mysql_secure_installation 
-```
+[PRE26]
 
 这还将为您提供删除默认创建的测试数据库和匿名用户的选项。强烈建议用于生产服务器。
 
@@ -694,134 +422,27 @@ my-nginx-4293833666-czrnf   1/1       Running   0          22s
 
 此文件将被 MySQL 服务器默认读取。如果您不想使用它，要么删除它，要么使用以下命令：
 
-```
---defaults-file argument to mysqld_safe when starting the server
-
-Database initialized
-MySQL init process in progress...
-2017-08-27 15:30:05 0 [Warning] TIMESTAMP with implicit DEFAULT 
-value is deprecated. Please use --explicit_defaults_for_timestamp 
-server option (see documentation for more details).
-2017-08-27 15:30:05 0 [Note] mysqld (mysqld 5.6.37) starting as 
-process 87 ...
-Warning: Unable to load '/usr/share/zoneinfo/iso3166.tab' as time 
-zone. Skipping it.
-Warning: Unable to load '/usr/share/zoneinfo/leap-seconds.list' as
-time zone. Skipping it.
-Warning: Unable to load '/usr/share/zoneinfo/zone.tab' as time
-zone. Skipping it.  
-```
+[PRE27]
 
 MySQL 的`init`过程现在已经完成。我们已经准备好启动：
 
-```
-2017-08-27 15:30:11 0 [Warning] TIMESTAMP with implicit DEFAULT 
-value is deprecated. Please use --explicit_defaults_for_timestamp
-server 
-option (see documentation for more details).
-2017-08-27 15:30:11 0 [Note] mysqld (mysqld 5.6.37) starting as
-process 5 ...  
-```
+[PRE28]
 
 通过运行以下命令检查持久卷索赔的状态：
 
-```
-$ kubectl get pvc
-NAME             STATUS    VOLUME    CAPACITY   ACCESSMODES   
-STORAGECLASS   AGE
-mysql-pv-claim   Bound     pv-1      5Gi        RWO         
-slow           2h
-wp-pv-claim      Bound     pv-2      5Gi        RWO         
-slow           2h
-```
+[PRE29]
 
 创建 WordPress 部署。我们现在将创建一个服务，公开一个 WordPress 容器，一个持久卷索赔 5GB，以及运行 WordPress 容器的 pod 的部署。将以下内容复制到`wordpress-deployment.yaml`文件中：
 
-```
-apiVersion: v1 
-kind: Service 
-metadata: 
-  name: wordpress 
-  labels: 
-    app: wordpress 
-spec: 
-  ports: 
-    - port: 80 
-  selector: 
-    app: wordpress 
-    tier: frontend 
-  type: NodePort 
---- 
-apiVersion: v1 
-kind: PersistentVolumeClaim 
-metadata: 
-  name: wp-pv-claim 
-  labels: 
-    app: wordpress 
-spec: 
-  accessModes: 
-    - ReadWriteOnce 
-  resources: 
-    requests: 
-      storage: 5Gi 
-  storageClassName: slow  
-
---- 
-apiVersion: extensions/v1beta1 
-kind: Deployment 
-metadata: 
-  name: wordpress 
-  labels: 
-    app: wordpress 
-spec: 
-  strategy: 
-    type: Recreate 
-  template: 
-    metadata: 
-      labels: 
-        app: wordpress 
-        tier: frontend 
-    spec: 
-      containers: 
-      - image: wordpress:4.7.3-apache 
-        name: wordpress 
-        env: 
-        - name: WORDPRESS_DB_HOST 
-          value: wordpress-mysql 
-        - name: WORDPRESS_DB_PASSWORD 
-          valueFrom: 
-            secretKeyRef: 
-              name: mysql-pass 
-              key: password 
-        ports: 
-        - containerPort: 80 
-          name: wordpress 
-        volumeMounts: 
-        - name: wordpress-persistent-storage 
-          mountPath: /var/www/html 
-      volumes: 
-      - name: wordpress-persistent-storage 
-        persistentVolumeClaim: 
-          claimName: wp-pv-claim 
-```
+[PRE30]
 
 1.  现在，启动 WordPress pod：
 
-```
-    $ kubectl create -f wordpress-deployment.yaml 
-      service "wordpress" created
-      persistentvolumeclaim "wp-pv-claim" created
-      deployment "wordpress" created
-
-```
+[PRE31]
 
 1.  检查服务的状态：
 
-```
-        $ kubectl get services wordpress
-        NAME        CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
-        wordpress   10.99.124.161   <nodes>      80:31079/TCP   4m
-```
+[PRE32]
 
 应用程序现在正在运行！
 
@@ -829,23 +450,15 @@ spec:
 
 +   要删除您的秘密：
 
-```
-        $ kubectl delete secret mysql-pass  
-```
+[PRE33]
 
 +   要删除所有部署和服务：
 
-```
-        $ kubectl delete deployment -l app=wordpress
-        $ kubectl delete service -l app=wordpress
-```
+[PRE34]
 
 +   要删除持久卷索赔和持久卷：
 
-```
-        $ kubectl delete pvc -l app=wordpress
-        $ kubectl delete pv pv-1 pv-2  
-```
+[PRE35]
 
 # 摘要
 

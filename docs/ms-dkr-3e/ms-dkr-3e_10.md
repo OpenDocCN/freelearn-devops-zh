@@ -112,10 +112,7 @@ Edge 版本包含来自即将推出的 Docker 版本的实验性功能；因此�
 
 要登录到我们的 Swarm 集群，点击“管理者”旁边的链接，进入 EC2 实例列表，这些是我们的管理节点。选择一个实例，然后记下其公共 DNS 地址。在终端中，使用 docker 作为用户名 SSH 到节点。例如，我运行以下命令登录并获取所有节点列表：
 
-```
-$ ssh docker@ec2-34-245-167-38.eu-west-1.compute.amazonaws.com
-$ docker node ls
-```
+[PRE0]
 
 如果您在添加密钥时从 AWS 控制台下载了您的 SSH 密钥，您应该更新上述命令以包括您下载密钥的路径，例如，`ssh -i /path/to/private.key docker@ec2-34-245-167-38.eu-west-1.compute.amazonaws.com`。
 
@@ -125,12 +122,7 @@ $ docker node ls
 
 从这里，您可以像对待任何其他 Docker Swarm 集群一样对待它。例如，我们可以通过运行以下命令来启动和扩展集群服务：
 
-```
-$ docker service create --name cluster --constraint "node.role == worker" -p 80:80/tcp russmckendrick/cluster
-$ docker service scale cluster=6
-$ docker service ls
-$ docker service inspect --pretty cluster
-```
+[PRE1]
 
 现在您的服务已经启动，您可以在 CloudFormation 页面的“输出”选项卡中查看给定 URL 作为“DefaultDNSTarget”的应用程序。这是一个 Amazon 弹性负载均衡器，所有节点都在其后面。
 
@@ -156,9 +148,7 @@ $ docker service inspect --pretty cluster
 
 为了生成所需的信息，我们将使用一个在容器内运行的辅助脚本。要运行该脚本，您需要对有效的 Azure 订阅具有管理员访问权限。要运行脚本，只需运行以下命令：
 
-```
-$ docker run -ti docker4x/create-sp-azure sp-name
-```
+[PRE2]
 
 这将为您提供一个 URL，[`microsoft.com/devicelogin`](https://microsoft.com/devicelogin)，还有一个要输入的代码。转到该 URL 并输入代码：
 
@@ -206,10 +196,7 @@ $ docker run -ti docker4x/create-sp-azure sp-name
 
 完成后，您将在您选择或创建的资源组下看到几个服务。其中一个将是`dockerswarm-externalSSHLoadBalancer-public-ip`。深入研究资源，您将获得可以用于 SSH 到您的 Swarm Manager 的 IP 地址。要做到这一点，请运行以下命令：
 
-```
-$ ssh docker@52.232.99.223 -p 50000
-$ docker node ls
-```
+[PRE3]
 
 请注意，我们使用的是端口 5000，而不是标准端口 22。您应该会看到类似以下内容：
 
@@ -217,12 +204,7 @@ $ docker node ls
 
 一旦您登录到管理节点，我们可以使用以下命令启动应用程序：
 
-```
-$ docker service create --name cluster --constraint "node.role == worker" -p 80:80/tcp russmckendrick/cluster
-$ docker service scale cluster=6
-$ docker service ls
-$ docker service inspect --pretty cluster
-```
+[PRE4]
 
 启动后，转到`dockerswarm-externalLoadBalancer-public-ip`—这将显示应用程序。完成集群后，我建议删除资源组，而不是尝试删除单个资源：
 
@@ -352,27 +334,15 @@ $ docker service inspect --pretty cluster
 
 我们需要做的第一件事是创建一个资源组，将我们的 AKS 集群启动到其中。要创建一个名为 `MasteringDockerAKS` 的资源组，请运行以下命令：
 
-```
-$ az group create --name MasteringDockerAKS --location eastus
-```
+[PRE5]
 
 现在我们有了资源组，我们可以通过运行以下命令来启动一个两节点的 Kubernetes 集群：
 
-```
-$ az aks create --resource-group MasteringDockerAKS \
- --name MasteringDockerAKSCluster \
- --node-count 2 \
- --enable-addons monitoring \
- --generate-ssh-keys
-```
+[PRE6]
 
 启动集群需要几分钟时间。一旦启动，我们需要复制配置，以便我们可以使用本地的 `kubectl` 副本与集群进行交互。要做到这一点，请运行以下命令：
 
-```
-$ az aks get-credentials \
-    --resource-group MasteringDockerAKS \
-    --name MasteringDockerAKSCluster
-```
+[PRE7]
 
 这将配置您本地的 `kubectl` 副本，以便与您刚刚启动的 AKS 集群进行通信。现在您应该在 Docker 菜单下的 Kubernetes 中看到集群列表：
 
@@ -380,10 +350,7 @@ $ az aks get-credentials \
 
 运行以下命令将显示您的`kubectl`客户端正在与其交谈的服务器版本以及有关节点的详细信息：
 
-```
-$ kubectl version
-$ kubectl get nodes
-```
+[PRE8]
 
 您可以在以下截图中看到前面命令的输出：
 
@@ -391,16 +358,11 @@ $ kubectl get nodes
 
 现在我们的集群已经正常运行，我们需要启动一些东西。幸运的是，Weave 有一个出色的开源微服务演示，可以启动一个出售袜子的演示商店。要启动演示，我们只需要运行以下命令：
 
-```
-$ kubectl create namespace sock-shop
-$ kubectl apply -n sock-shop -f "https://github.com/microservices-demo/microservices-demo/blob/master/deploy/kubernetes/complete-demo.yaml?raw=true"
-```
+[PRE9]
 
 演示启动大约需要五分钟。您可以通过运行以下命令来检查`pods`的状态：
 
-```
-$ kubectl -n sock-shop get pods
-```
+[PRE10]
 
 一切都正常运行后，您应该看到类似以下的输出：
 
@@ -408,22 +370,15 @@ $ kubectl -n sock-shop get pods
 
 现在我们的应用程序已经启动，我们需要一种访问它的方式。通过运行以下命令来检查服务：
 
-```
-$ kubectl -n sock-shop get services
-```
+[PRE11]
 
 这向我们展示了一个名为`front-end`的服务。我们将创建一个负载均衡器并将其附加到此服务。要做到这一点，请运行以下命令：
 
-```
-$ kubectl -n sock-shop expose deployment front-end --type=LoadBalancer --name=front-end-lb
-```
+[PRE12]
 
 您可以通过运行以下命令来检查负载均衡器的状态：
 
-```
-$ kubectl -n sock-shop get services front-end-lb
-$ kubectl -n sock-shop describe services front-end-lb
-```
+[PRE13]
 
 启动后，您应该看到类似以下的内容：
 
@@ -435,22 +390,15 @@ $ kubectl -n sock-shop describe services front-end-lb
 
 完成商店浏览后，您可以通过运行以下命令将其删除：
 
-```
-$ kubectl delete namespace sock-shop
-```
+[PRE14]
 
 要删除 AKS 集群和资源组，请运行以下命令：
 
-```
-$ az group delete --name MasteringDockerAKS --yes --no-wait
-```
+[PRE15]
 
 请记住检查 Azure 门户中的所有内容是否按预期移除，以避免任何意外费用。最后，您可以通过运行以下命令从本地`kubectl`配置中删除配置：
 
-```
-$ kubectl config delete-cluster MasteringDockerAKSCluster
-$ kubectl config delete-context MasteringDockerAKSCluster
-```
+[PRE16]
 
 接下来，我们将看看如何在 Google Cloud 中启动类似的集群。
 
@@ -460,29 +408,17 @@ $ kubectl config delete-context MasteringDockerAKSCluster
 
 要启动集群，只需运行以下命令：
 
-```
-$ gcloud container clusters create masteringdockergke --num-nodes=2
-```
+[PRE17]
 
 一旦集群启动，您的`kubectl`配置将自动更新，并为新启动的集群设置上下文。您可以通过运行以下命令查看有关节点的信息：
 
-```
-$ kubectl version
-$ kubectl get nodes
-```
+[PRE18]
 
 ![](img/4b3bd18a-a747-4f9f-85ad-5c8c20d6efb2.png)
 
 现在我们的集群已经运行起来了，让我们通过重复上次使用的命令来启动演示商店：
 
-```
-$ kubectl create namespace sock-shop
-$ kubectl apply -n sock-shop -f "https://github.com/microservices-demo/microservices-demo/blob/master/deploy/kubernetes/complete-demo.yaml?raw=true"
-$ kubectl -n sock-shop get pods
-$ kubectl -n sock-shop get services
-$ kubectl -n sock-shop expose deployment front-end --type=LoadBalancer --name=front-end-lb
-$ kubectl -n sock-shop get services front-end-lb
-```
+[PRE19]
 
 再次，一旦创建了`front-end-lb`服务，您应该能够找到要使用的外部 IP 地址端口：
 
@@ -494,10 +430,7 @@ $ kubectl -n sock-shop get services front-end-lb
 
 要删除集群，只需运行以下命令：
 
-```
-$ kubectl delete namespace sock-shop
-$ gcloud container clusters delete masteringdockergke
-```
+[PRE20]
 
 这也将从`kubectl`中删除上下文和集群。
 
@@ -509,9 +442,7 @@ $ gcloud container clusters delete masteringdockergke
 
 要启动我们的 Amazon EKS 集群，我们需要运行以下命令：
 
-```
-$ eksctl create cluster
-```
+[PRE21]
 
 启动集群需要几分钟时间，但在整个过程中，您将在命令行中收到反馈。此外，由于`eksctl`正在使用 CloudFormation，您还可以在 AWS 控制台中检查其进度。完成后，您应该会看到类似以下输出：
 
@@ -519,23 +450,13 @@ $ eksctl create cluster
 
 作为启动的一部分，`eksctl`将配置您的本地`kubectl`上下文，这意味着您可以运行以下命令：
 
-```
-$ kubectl version
-$ kubectl get nodes
-```
+[PRE22]
 
 ![](img/59956609-90b8-468a-8db8-f878996e8997.png)
 
 现在我们的集群已经运行起来了，我们可以像之前一样启动演示商店：
 
-```
-$ kubectl create namespace sock-shop
-$ kubectl apply -n sock-shop -f "https://github.com/microservices-demo/microservices-demo/blob/master/deploy/kubernetes/complete-demo.yaml?raw=true"
-$ kubectl -n sock-shop get pods
-$ kubectl -n sock-shop get services
-$ kubectl -n sock-shop expose deployment front-end --type=LoadBalancer --name=front-end-lb
-$ kubectl -n sock-shop get services front-end-lb
-```
+[PRE23]
 
 您可能会注意到在运行最后一个命令时列出的外部 IP 看起来有点奇怪：
 
@@ -543,9 +464,7 @@ $ kubectl -n sock-shop get services front-end-lb
 
 这是因为它是一个 DNS 名称而不是 IP 地址。要找到完整的 URL，您可以运行以下命令：
 
-```
-$ kubectl -n sock-shop describe services front-end-lb
-```
+[PRE24]
 
 ![](img/c4d6c6ea-15b9-49e4-b88c-96a35fd6cae7.png)
 
@@ -555,16 +474,11 @@ $ kubectl -n sock-shop describe services front-end-lb
 
 要删除集群，请运行以下命令：
 
-```
-$ kubectl delete namespace sock-shop
-$ eksctl get cluster
-```
+[PRE25]
 
 这将返回正在运行的集群的名称。一旦您有了名称，运行以下命令，确保引用您自己的集群：
 
-```
-$ eksctl delete cluster --name=beautiful-hideout-1539511992
-```
+[PRE26]
 
 您的终端输出应如下所示：
 
@@ -578,14 +492,7 @@ $ eksctl delete cluster --name=beautiful-hideout-1539511992
 
 我们甚至可以使用 Docker 在本地运行演示商店，使用完全相同的命令。只需启动您的 Kubernetes 集群，确保选择了本地 Docker 上下文，然后运行以下命令：
 
-```
-$ kubectl create namespace sock-shop
-$ kubectl apply -n sock-shop -f "https://github.com/microservices-demo/microservices-demo/blob/master/deploy/kubernetes/complete-demo.yaml?raw=true"
-$ kubectl -n sock-shop get pods
-$ kubectl -n sock-shop get services
-$ kubectl -n sock-shop expose deployment front-end --type=LoadBalancer --name=front-end-lb
-$ kubectl -n sock-shop get services front-end-lb
-```
+[PRE27]
 
 如您从以下输出中所见，*负载均衡* IP，在这种情况下，是 `localhost`。打开浏览器并输入 `http://localhost:8079` 将带您进入商店：
 
@@ -593,9 +500,7 @@ $ kubectl -n sock-shop get services front-end-lb
 
 您可以通过运行以下命令删除商店：
 
-```
-$ kubectl delete namespace sock-shop
-```
+[PRE28]
 
 在多个提供商甚至本地机器上实现这种一致性水平以前确实是不可行的，除非经过大量工作和配置，或者通过封闭源订阅服务。
 

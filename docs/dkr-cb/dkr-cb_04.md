@@ -50,17 +50,11 @@
 
 +   `--net=bridge`：这是我们刚刚看到的默认模式。因此，我们用来启动容器的前面的命令可以写成如下形式：
 
-```
-**$ docker run -i -t --net=bridge centos /bin/bash** 
-
-```
+[PRE0]
 
 +   `--net=host`：使用此选项，Docker 不会为容器创建网络命名空间；相反，容器将与主机进行网络堆栈。因此，我们可以使用以下选项启动容器：
 
-```
- **$ docker run -i -t  --net=host centos bash** 
-
-```
+[PRE1]
 
 然后我们可以在容器内运行`ip addr`命令，如下所示：
 
@@ -70,19 +64,13 @@
 
 +   `--net=container:NAME_or_ID`：使用此选项，Docker 在启动容器时不会创建新的网络命名空间，而是从另一个容器中共享它。让我们启动第一个容器并查找其 IP 地址：
 
-```
-**$ docker run -i -t --name=centos centos bash** 
-
-```
+[PRE2]
 
 ![介绍](img/image00321.jpeg)
 
 现在开始另一个如下：
 
-```
-**$ docker run -i -t --net=container:centos ubuntu bash**
-
-```
+[PRE3]
 
 ![介绍](img/image00322.jpeg)
 
@@ -114,10 +102,7 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 1.  让我们使用`-P`选项启动一个容器：
 
-```
-**$ docker run --expose 80 -i -d -P --name f20 fedora /bin/bash**
-
-```
+[PRE4]
 
 ![如何做…](img/image00323.jpeg)
 
@@ -125,19 +110,13 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 在`PORTS`部分，我们看到`0.0.0.0:49159->80/tcp`，格式如下：
 
-```
-**<Host Interface>:<Host Port> -> <Container Interface>/<protocol>**
-
-```
+[PRE5]
 
 因此，如果来自 Docker 主机上任何接口的端口`49159`的任何请求，请求将被转发到`centos1`容器的端口`80`。
 
 我们还可以使用`-p`选项将容器的特定端口映射到主机的特定端口：
 
-```
-**$  docker run -i -d -p 5000:22 --name centos2 centos /bin/bash**
-
-```
+[PRE6]
 
 ![如何做…](img/image00324.jpeg)
 
@@ -155,39 +134,23 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 默认情况下，使用`-p`选项，Docker 将所有请求转发到主机的任何接口。要绑定到特定接口，可以指定如下内容：
 
-```
-**$ docker run -i -d -p 192.168.1.10:5000:22 --name f20 fedora /bin/bash**
-
-```
+[PRE7]
 
 在这种情况下，只有来自 Docker 主机上 IP 为`192.168.1.10`的接口的端口`5000`的所有请求都将被转发到`f20`容器的端口`22`。要将容器的端口`22`映射到主机的动态端口，可以运行以下命令：
 
-```
-**$ docker run -i -d -p 192.168.1.10::22 --name f20 fedora /bin/bash**
-
-```
+[PRE8]
 
 我们可以将容器上的多个端口绑定到主机上的端口，如下所示：
 
-```
-**$  docker run -d -i -p 5000:22 -p 8080:80 --name f20 fedora /bin/bash**
-
-```
+[PRE9]
 
 我们可以查找映射到容器端口的公共端口，如下所示：
 
-```
-**$ docker port f20 80**
-**0.0.0.0:8080**
-
-```
+[PRE10]
 
 要查看容器的所有网络设置，可以运行以下命令：
 
-```
-**$ docker inspect   -f "{{ .NetworkSettings }}" f20** 
-
-```
+[PRE11]
 
 ## 另请参阅
 
@@ -219,17 +182,11 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 1.  添加数据卷。使用`docker run`命令的`-v`选项，我们向容器添加数据卷：
 
-```
-**$ docker run -t -d -P -v /data --name f20 fedora /bin/bash** 
-
-```
+[PRE12]
 
 我们可以在容器中拥有多个数据卷，可以通过多次添加`-v`来创建：
 
-```
-**$ docker run -t -d -P -v /data -v /logs --name f20 fedora /bin/bash** 
-
-```
+[PRE13]
 
 ### 提示
 
@@ -237,11 +194,7 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 我们可以使用`inspect`命令查看容器的数据卷详细信息：
 
-```
-**$ docker inspect -f "{{ .Config.Volumes }}" f20**
-**$ docker inspect -f "{{ .Volumes }}" f20**
-
-```
+[PRE14]
 
 ![如何做...](img/image00326.jpeg)
 
@@ -249,62 +202,37 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 1.  接下来，我们将主机目录挂载为数据卷。我们还可以使用`-v`选项将主机目录映射到数据卷：
 
-```
-**$ docker run -i -t -v /source_on_host:/destination_on_container fedora /bin/bash**
-
-```
+[PRE15]
 
 考虑以下示例：
 
-```
-**$ docker run -i -t -v /srv:/mnt/code fedora /bin/bash**
-
-```
+[PRE16]
 
 在不同环境中测试代码、在中央位置收集日志等情况下，这可能非常有用。我们还可以按照以下方式将主机目录映射为只读模式：
 
-```
-**$ docker run -i -t -v /srv:/mnt/code:ro fedora /bin/bash**
-
-```
+[PRE17]
 
 我们还可以使用以下命令将主机的整个根文件系统挂载到容器中：
 
-```
-**$ docker run -i -t -v /:/host:ro fedora /bin/bash**
-
-```
+[PRE18]
 
 如果主机上的目录（`/srv`）不存在，则将创建它，前提是您有权限创建。此外，在启用 SELinux 的 Docker 主机上，如果 Docker 守护程序配置为使用 SELinux（`docker -d --selinux-enabled`），则在尝试访问挂载卷上的文件之前，如果您尝试访问挂载卷上的文件，您将看到`permission denied`错误。要重新标记它们，请使用以下命令之一：
 
-```
-**$ docker run -i -t -v /srv:/mnt/code:z fedora /bin/bash**
-**$ docker run -i -t -v /srv:/mnt/code:Z fedora /bin/bash**
-
-```
+[PRE19]
 
 请访问第九章，*Docker 安全性*，以获取更多详细信息。
 
 1.  现在，创建一个数据卷容器。通过卷共享主机目录到容器时，我们将容器绑定到给定的主机，这是不好的。此外，在这种情况下，存储不受 Docker 控制。因此，在我们希望数据持久化即使更新容器时，我们可以从数据卷容器获得帮助。数据卷容器用于创建卷，仅此而已；它们甚至不运行。由于创建的卷附加到容器（未运行），因此无法删除。例如，这是一个命名的数据容器：
 
-```
-**$ docker run -d -v /data --name data fedora echo "data volume container"**
-
-```
+[PRE20]
 
 这将只创建一个将映射到 Docker 管理的目录的卷。现在，其他容器可以使用`--volumes-from`选项从数据容器中挂载卷，如下所示：
 
-```
-**$ docker run  -d -i -t --volumes-from data --name client1 fedora /bin/bash**
-
-```
+[PRE21]
 
 我们可以从数据卷容器挂载卷到多个容器：
 
-```
-**$ docker run  -d -i -t --volumes-from data --name client2 fedora /bin/bash**
-
-```
+[PRE22]
 
 ![如何做...](img/image00327.jpeg)
 
@@ -320,51 +248,15 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 +   在上一章中，我们看到了如何配置 Docker 注册表，默认情况下以`dev` flavor 启动。在此注册表中，上传的图像保存在我们启动的容器中的`/tmp/registry`文件夹中。我们可以在注册表容器中挂载主机上的`/tmp/registry`目录，因此每当我们上传图像时，它将保存在运行 Docker 注册表的主机上。因此，要启动容器，我们运行以下命令：
 
-```
-**$ docker run -v /srv:/tmp/registry -p 5000:5000 registry**
-
-```
+[PRE23]
 
 要推送图像，我们运行以下命令：
 
-```
-**$ docker push registry-host:5000/nkhare/f20**
-
-```
+[PRE24]
 
 成功推送图像后，我们可以查看我们在 Docker 注册表中挂载的目录的内容。在我们的情况下，我们应该看到以下目录结构：
 
-```
-/srv/
-├── images 
-│   ├── 3f2fed40e4b0941403cd928b6b94e0fd236dfc54656c00e456747093d10157ac 
-│   │   ├── ancestry 
-│   │   ├── _checksum 
-│   │   ├── json 
-│   │   └── layer 
-│   ├── 511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158 
-│   │   ├── ancestry 
-│   │   ├── _checksum 
-│   │   ├── json 
-│   │   └── layer 
-│   ├── 53263a18c28e1e54a8d7666cb835e9fa6a4b7b17385d46a7afe55bc5a7c1994c 
-│   │   ├── ancestry 
-│   │   ├── _checksum 
-│   │   ├── json 
-│   │   └── layer 
-│   └── fd241224e9cf32f33a7332346a4f2ea39c4d5087b76392c1ac5490bf2ec55b68 
-│       ├── ancestry 
-│       ├── _checksum 
-│       ├── json 
-│       └── layer 
-├── repositories 
-│   └── nkhare 
-│       └── f20 
-│           ├── _index_images 
-│           ├── json 
-│           ├── tag_latest 
-│           └── taglatest_json 
-```
+[PRE25]
 
 ## 另请参阅
 
@@ -386,19 +278,13 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 1.  创建一个名为`centos_server`的命名容器：
 
-```
-**$ docker run  -d -i -t --name centos_server centos /bin/bash**
-
-```
+[PRE26]
 
 如何操作…
 
 1.  现在，让我们使用`--link`选项启动另一个名为 client 的容器，并将其与`centos_server`容器进行链接，该选项接受`name:alias`参数。然后查看`/etc/hosts`文件：
 
-```
-**$ docker run  -i -t --link centos_server:server --name client fedora /bin/bash** 
-
-```
+[PRE27]
 
 如何操作…
 
@@ -412,17 +298,11 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 现在，让我们创建一个`mysql`容器：
 
-```
-**$ docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysecretpassword -d mysql**
-
-```
+[PRE28]
 
 然后，让我们从客户端链接它并检查环境变量：
 
-```
-**$ docker run  -i -t --link mysql:mysql-server --name client fedora /bin/bash**
-
-```
+[PRE29]
 
 还有更多…
 
@@ -464,17 +344,11 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 1.  首先，启动一个`mysql`容器：
 
-```
-**$ docker run --name mysql -e MYSQL_ROOT_PASSWORD=mysecretpassword -d mysql**
-
-```
+[PRE30]
 
 1.  然后，启动`wordpress`容器并将其与`mysql`容器链接起来：
 
-```
-**$ docker run -d --name wordpress --link mysql:mysql -p 8080:80 wordpress** 
-
-```
+[PRE31]
 
 ![如何做...](img/image00333.jpeg)
 
@@ -498,45 +372,23 @@ Kubernetes（[`kubernetes.io/`](http://kubernetes.io/)）Pod 中的容器使用�
 
 1.  在我们设置的所有系统上安装`etcd`、`Flannel`和`Docker`：
 
-```
-**$ yum install -y etcd flannel docker**
-
-```
+[PRE32]
 
 1.  在`/etc/etcd/etcd.conf`文件中将`ETCD_LISTEN_CLIENT_URLS`的值修改为`http://master.example.com:4001`如下：
 
-```
-ETCD_LISTEN_CLIENT_URLS="http://master.example.com:4001"
-```
+[PRE33]
 
 1.  在 master 中，启动`etcd`服务并检查其状态：
 
-```
-**$ systemctl start etcd**
-**$ systemctl enable etcd**
-**$ systemctl status etcd**
-
-```
+[PRE34]
 
 1.  在 master 中，创建一个名为`flannel-config.json`的文件，内容如下：
 
-```
-{
-"Network": "10.0.0.0/16",
-"SubnetLen": 24,
-"Backend": {
-"Type": "vxlan",
-"VNI": 1
-   }
-}
-```
+[PRE35]
 
 1.  使用`config`作为键将上述配置文件上传到`etcd`：
 
-```
-**$ curl -L http://master.example.com:4001/v2/keys/coreos.com/network/config -XPUT --data-urlencode value@flannel-config.json**
-
-```
+[PRE36]
 
 ![如何做…](img/image00335.jpeg)
 
@@ -544,39 +396,23 @@ ETCD_LISTEN_CLIENT_URLS="http://master.example.com:4001"
 
 1.  在 master 中，启用和启动`flanneld`服务：
 
-```
-**$ systemctl enable flanneld**
-**$ systemctl start flanneld**
-**$ systemctl status flanneld**
-
-```
+[PRE37]
 
 ![如何做…](img/image00337.jpeg)
 
 1.  从 minion 系统中，检查对`etcd`的与 master 的连接：
 
-```
-**[root@minion1 ~]#  curl -L http://master.example.com:4001/v2/keys/coreos.com/network/config**
-
-```
+[PRE38]
 
 1.  更新两个 minion 中的`/etc/sysconfig/flanneld`文件，指向 master 中运行的`etcd`服务器，并更新`FLANNEL_OPTIONS`以反映 minion 主机的接口：![如何做…](img/image00338.jpeg)
 
 1.  在两个 minion 中启用和启动`flanneld`服务：
 
-```
-**$ systemctl enable flanneld**
-**$ systemctl start flanneld**
-**$ systemctl status flanneld**
-
-```
+[PRE39]
 
 1.  在集群中的任何一台主机上运行以下命令：
 
-```
-**$ curl -L http://master.example.com:4001/v2/keys/coreos.com/network/subnets | python -mjson.tool**
-
-```
+[PRE40]
 
 ![如何做…](img/image00339.jpeg)
 
@@ -586,10 +422,7 @@ ETCD_LISTEN_CLIENT_URLS="http://master.example.com:4001"
 
 1.  要在所有主机中重新启动 Docker 守护程序：
 
-```
-**$ systemctl restart docker** 
-
-```
+[PRE41]
 
 然后，查看`docker0`和`flannel.1`接口的 IP 地址。在`minion2`中，看起来像下面这样：
 
@@ -627,17 +460,11 @@ ETCD_LISTEN_CLIENT_URLS="http://master.example.com:4001"
 
 1.  使用`--ipv6`选项启动 Docker 守护进程，我们可以在守护进程的配置文件（在 Fedora 上为`/etc/sysconfig/docker`）中添加以下选项：
 
-```
-**OPTIONS='--selinux-enabled --ipv6'**
-
-```
+[PRE42]
 
 或者，如果我们以守护进程模式启动 Docker，那么可以按以下方式启动：
 
-```
-**$ docker -d --ipv6**
-
-```
+[PRE43]
 
 通过运行这些命令之一，Docker 将使用 IPv6 本地链路地址`fe80::1`设置`docker0`桥。
 
@@ -647,17 +474,11 @@ ETCD_LISTEN_CLIENT_URLS="http://master.example.com:4001"
 
 正如我们所看到的，容器可以获得 IPv4 和本地链路 IPv6 地址。要从主机机器上 ping 容器的 IPv6 地址，请运行以下命令：
 
-```
-**$ ping6 -I docker0 fe80::42:acff:fe11:3**
-
-```
+[PRE44]
 
 要从容器中 ping`docker0`桥，请运行以下命令：
 
-```
-**[root@c7562c38bd0f /]# ping6 -I eth0 fe80::1** 
-
-```
+[PRE45]
 
 ## 工作原理...
 
@@ -667,10 +488,7 @@ Docker 配置`docker0`桥以向容器分配 IPv6 地址，这使我们能够使�
 
 默认情况下，容器将获得链路本地地址。要为它们分配全局可路由地址，可以通过`--fixed-cidr-v6`选项传递 IPv6 子网选择地址，如下所示：
 
-```
-**$ docker -d --ipv6 --fixed-cidr-v6="2001:db8:1::/64"**
-
-```
+[PRE46]
 
 ![更多信息...](img/image00346.jpeg)
 

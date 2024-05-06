@@ -50,53 +50,13 @@ AWS 有一些组件来配置网络和存储。了解公共云的工作原理以�
 
 在下面的例子中，通过 AWS 命令行创建了一个 VPC：
 
-```
-//specify CIDR block as 10.0.0.0/16
-//the result, it returns VPC ID as "vpc-66eda61f"
-$ aws ec2 create-vpc --cidr-block 10.0.0.0/16
-{
- "Vpc": {
- "VpcId": "vpc-66eda61f", 
-   "InstanceTenancy": "default", 
-   "Tags": [], 
-   "State": "pending", 
-   "DhcpOptionsId": "dopt-3d901958", 
-   "CidrBlock": "10.0.0.0/16"
-  }
-}
-```
+[PRE0]
 
 子网是一个逻辑网络块。它必须属于一个 VPC，并且另外属于一个可用区域。例如，VPC `vpc-66eda61f`和`us-east-1b`。然后网络 CIDR 必须在 VPC 的 CIDR 内。例如，如果 VPC CIDR 是`10.0.0.0/16`（`10.0.0.0` - `10.0.255.255`），那么一个子网 CIDR 可以是`10.0.1.0/24`（`10.0.1.0` - `10.0.1.255`）。
 
 在下面的示例中，创建了两个子网（`us-east-1a`和`us-east-1b`）到`vpc-66eda61f`：
 
-```
-//1^(st) subnet 10.0."1".0/24 on us-east-1"a" availability zone
-$ aws ec2 create-subnet --vpc-id vpc-66eda61f --cidr-block 10.0.1.0/24 --availability-zone us-east-1a
-{
- "Subnet": {
-    "VpcId": "vpc-66eda61f", 
-    "CidrBlock": "10.0.1.0/24", 
-    "State": "pending", 
-    "AvailabilityZone": "us-east-1a", 
-    "SubnetId": "subnet-d83a4b82", 
-    "AvailableIpAddressCount": 251
-  }
-} 
-
-//2^(nd) subnet 10.0."2".0/24 on us-east-1"b"
-$ aws ec2 create-subnet --vpc-id vpc-66eda61f --cidr-block 10.0.2.0/24 --availability-zone us-east-1b
-{
-   "Subnet": {
-    "VpcId": "vpc-66eda61f", 
-    "CidrBlock": "10.0.2.0/24", 
-    "State": "pending", 
-    "AvailabilityZone": "us-east-1b", 
-    "SubnetId": "subnet-62758c06", 
-    "AvailableIpAddressCount": 251
-   }
-}
-```
+[PRE1]
 
 让我们将第一个子网设置为面向公众的子网，将第二个子网设置为私有子网。这意味着面向公众的子网可以从互联网访问，从而允许它拥有公共 IP 地址。另一方面，私有子网不能拥有公共 IP 地址。为此，您需要设置网关和路由表。
 
@@ -110,62 +70,13 @@ $ aws ec2 create-subnet --vpc-id vpc-66eda61f --cidr-block 10.0.2.0/24 --availab
 
 在下面的示例中，创建了一个 IGW 并附加到`vpc-66eda61f`：
 
-```
-//create IGW, it returns IGW id as igw-c3a695a5
-$ aws ec2 create-internet-gateway 
-{
-   "InternetGateway": {
-      "Tags": [], 
-      "InternetGatewayId": "igw-c3a695a5", 
-      "Attachments": []
-   }
-}
-
-//attach igw-c3a695a5 to vpc-66eda61f
-$ aws ec2 attach-internet-gateway --vpc-id vpc-66eda61f --internet-gateway-id igw-c3a695a5  
-```
+[PRE2]
 
 一旦附加了 IGW，然后为指向 IGW 的子网设置一个路由表（默认网关）。如果默认网关指向 IGW，则该子网可以拥有公共 IP 地址并从/到互联网访问。因此，如果默认网关不指向 IGW，则被确定为私有子网，这意味着没有公共访问。
 
 在下面的示例中，创建了一个指向 IGW 并设置为第一个子网的路由表：
 
-```
-//create route table within vpc-66eda61f
-//it returns route table id as rtb-fb41a280
-$ aws ec2 create-route-table --vpc-id vpc-66eda61f
-{
- "RouteTable": {
- "Associations": [], 
- "RouteTableId": "rtb-fb41a280", 
- "VpcId": "vpc-66eda61f", 
- "PropagatingVgws": [], 
- "Tags": [], 
- "Routes": [
- {
- "GatewayId": "local", 
- "DestinationCidrBlock": "10.0.0.0/16", 
- "State": "active", 
- "Origin": "CreateRouteTable"
- }
- ]
- }
-}
-
-//then set default route (0.0.0.0/0) as igw-c3a695a5
-$ aws ec2 create-route --route-table-id rtb-fb41a280 --gateway-id igw-c3a695a5 --destination-cidr-block 0.0.0.0/0
-{
- "Return": true
-}
-
-//finally, update 1^(st) subnet (subnet-d83a4b82) to use this route table
-$ aws ec2 associate-route-table --route-table-id rtb-fb41a280 --subnet-id subnet-d83a4b82
-{
- "AssociationId": "rtbassoc-bf832dc5"
-}
-
-//because 1^(st) subnet is public, assign public IP when launch EC2
-$ aws ec2 modify-subnet-attribute --subnet-id subnet-d83a4b82 --map-public-ip-on-launch  
-```
+[PRE3]
 
 另一方面，尽管第二个子网是一个私有子网，但不需要公共 IP 地址，但是私有子网有时需要访问互联网。例如，下载一些软件包和访问 AWS 服务。在这种情况下，我们仍然有一个连接到互联网的选项。它被称为**网络地址转换网关**（**NAT-GW**）。
 
@@ -173,33 +84,7 @@ NAT-GW 允许私有子网通过 NAT-GW 访问公共互联网。因此，NAT-GW �
 
 在以下示例中，创建了一个 NAT-GW：
 
-```
-//allocate EIP, it returns allocation id as eipalloc-56683465
-$ aws ec2 allocate-address 
-{
- "PublicIp": "34.233.6.60", 
- "Domain": "vpc", 
- "AllocationId": "eipalloc-56683465"
-}
-
-//create NAT-GW on 1^(st) public subnet (subnet-d83a4b82
-//also assign EIP eipalloc-56683465
-$ aws ec2 create-nat-gateway --subnet-id subnet-d83a4b82 --allocation-id eipalloc-56683465
-{
- "NatGateway": {
- "NatGatewayAddresses": [
- {
- "AllocationId": "eipalloc-56683465"
- }
- ], 
- "VpcId": "vpc-66eda61f", 
- "State": "pending", 
- "NatGatewayId": "nat-084ff8ba1edd54bf4", 
- "SubnetId": "subnet-d83a4b82", 
- "CreateTime": "2017-08-13T21:07:34.000Z"
- }
-}  
-```
+[PRE4]
 
 与 IGW 不同，AWS 会对弹性 IP 和 NAT-GW 收取额外的每小时费用。因此，如果希望节省成本，只有在访问互联网时才启动 NAT-GW。
 
@@ -207,39 +92,7 @@ $ aws ec2 create-nat-gateway --subnet-id subnet-d83a4b82 --allocation-id eipallo
 
 在以下示例中，更新第二个子网的路由表，将 NAT-GW 指定为默认网关：
 
-```
-//as same as public route, need to create a route table first
-$ aws ec2 create-route-table --vpc-id vpc-66eda61f
-{
- "RouteTable": {
- "Associations": [], 
- "RouteTableId": "rtb-cc4cafb7", 
- "VpcId": "vpc-66eda61f", 
- "PropagatingVgws": [], 
- "Tags": [], 
- "Routes": [
- {
- "GatewayId": "local", 
- "DestinationCidrBlock": "10.0.0.0/16", 
- "State": "active", 
- "Origin": "CreateRouteTable"
- }
- ]
- }
-}
-
-//then assign default gateway as NAT-GW
-$ aws ec2 create-route --route-table-id rtb-cc4cafb7 --nat-gateway-id nat-084ff8ba1edd54bf4 --destination-cidr-block 0.0.0.0/0
-{
- "Return": true
-}
-
-//finally update 2^(nd) subnet that use this routing table
-$ aws ec2 associate-route-table --route-table-id rtb-cc4cafb7 --subnet-id subnet-62758c06
-{
- "AssociationId": "rtbassoc-2760ce5d"
-}
-```
+[PRE5]
 
 总的来说，已经配置了两个子网，一个是公共子网，一个是私有子网。每个子网都有一个默认路由，使用 IGW 和 NAT-GW，如下所示。请注意，ID 会有所不同，因为 AWS 会分配唯一标识符：
 
@@ -262,41 +115,11 @@ $ aws ec2 associate-route-table --route-table-id rtb-cc4cafb7 --subnet-id subnet
 
 当您为公共子网定义安全组时，强烈建议由安全专家审查。因为一旦您将 EC2 实例部署到公共子网上，它就有了一个公共 IP 地址，然后包括黑客和机器人在内的所有人都能直接访问您的实例。
 
-```
-
-//create one security group for public subnet host on vpc-66eda61f
-$ aws ec2 create-security-group --vpc-id vpc-66eda61f --group-name public --description "public facing host"
-{
- "GroupId": "sg-7d429f0d"
-}
-
-//check your machine's public IP (if not sure, use 0.0.0.0/0 as temporary)
-$ curl ifconfig.co
-107.196.102.199
-
-//public facing machine allows ssh only from your machine
-$ aws ec2 authorize-security-group-ingress --group-id sg-7d429f0d --protocol tcp --port 22 --cidr 107.196.102.199/32
-
-//public facing machine allow HTTP access from any host (0.0.0.0/0)
-$ aws ec2 authorize-security-group-ingress --group-id sg-d173aea1 --protocol tcp --port 80 --cidr 0.0.0.0/0  
-```
+[PRE6]
 
 接下来，为私有子网主机创建一个安全组，允许来自公共子网主机的 ssh。在这种情况下，指定公共子网安全组 ID（`sg-7d429f0d`）而不是 CIDR 块是方便的：
 
-```
-//create security group for private subnet
-$ aws ec2 create-security-group --vpc-id vpc-66eda61f --group-name private --description "private subnet host"
-{
- "GroupId": "sg-d173aea1"
-}
-
-//private subnet allows ssh only from ssh bastion host security group
-//it also allows HTTP (80/TCP) from public subnet security group
-$ aws ec2 authorize-security-group-ingress --group-id sg-d173aea1 --protocol tcp --port 22 --source-group sg-7d429f0d
-
-//private subnet allows HTTP access from public subnet security group too
-$ aws ec2 authorize-security-group-ingress --group-id sg-d173aea1 --protocol tcp --port 80 --source-group sg-7d429f0d
-```
+[PRE7]
 
 总的来说，以下是已创建的两个安全组：
 
@@ -311,137 +134,35 @@ EC2 是 AWS 中的一个重要服务，您可以在您的 VPC 上启动一个 VM
 
 由于之前的例子，唯一的最后一步是 ssh 密钥对。让我们创建一个 ssh 密钥对：
 
-```
-//create keypair (internal_rsa, internal_rsa.pub)
-$ ssh-keygen 
-Generating public/private rsa key pair.
-Enter file in which to save the key (/Users/saito/.ssh/id_rsa): /tmp/internal_rsa
-Enter passphrase (empty for no passphrase): 
-Enter same passphrase again: 
-Your identification has been saved in /tmp/internal_rsa.
-Your public key has been saved in /tmp/internal_rsa.pub.
-
-//register internal_rsa.pub key to AWS
-$ aws ec2 import-key-pair --key-name=internal --public-key-material "`cat /tmp/internal_rsa.pub`"
-{
- "KeyName": "internal", 
-   "KeyFingerprint":  
- "18:e7:86:d7:89:15:5d:3b:bc:bd:5f:b4:d5:1c:83:81"
-} 
-
-//launch public facing host, using Amazon Linux on us-east-1 (ami-a4c7edb2)
-$ aws ec2 run-instances --image-id ami-a4c7edb2 --instance-type t2.nano --key-name internal --security-group-ids sg-7d429f0d --subnet-id subnet-d83a4b82
-
-//launch private subnet host
-$ aws ec2 run-instances --image-id ami-a4c7edb2 --instance-type t2.nano --key-name internal --security-group-ids sg-d173aea1 --subnet-id subnet-62758c06  
-```
+[PRE8]
 
 几分钟后，在 AWS Web 控制台上检查 EC2 实例的状态；它显示一个具有公共 IP 地址的公共子网主机。另一方面，私有子网主机没有公共 IP 地址：
 
 ![](img/00120.jpeg)
 
-```
-//add private keys to ssh-agent
-$ ssh-add -K /tmp/internal_rsa
-Identity added: /tmp/internal_rsa (/tmp/internal_rsa)
-$ ssh-add -l
-2048 SHA256:AMkdBxkVZxPz0gBTzLPCwEtaDqou4XyiRzTTG4vtqTo /tmp/internal_rsa (RSA)
-
-//ssh to the public subnet host with -A (forward ssh-agent) option
-$ ssh -A ec2-user@54.227.197.56
-The authenticity of host '54.227.197.56 (54.227.197.56)' can't be established.
-ECDSA key fingerprint is SHA256:ocI7Q60RB+k2qbU90H09Or0FhvBEydVI2wXIDzOacaE.
-Are you sure you want to continue connecting (yes/no)? yes
-Warning: Permanently added '54.227.197.56' (ECDSA) to the list of known hosts.
-
-           __|  __|_  )
-           _|  (     /   Amazon Linux AMI
-          ___|\___|___|
-
-    https://aws.amazon.com/amazon-linux-ami/2017.03-release-notes/
-    2 package(s) needed for security, out of 6 available
-    Run "sudo yum update" to apply all updates.
-```
+[PRE9]
 
 现在您位于公共子网主机（`54.227.197.56`），但是这台主机也有一个内部（私有）IP 地址，因为这台主机部署在 10.0.1.0/24 子网（`subnet-d83a4b82`）中，因此私有地址范围必须是`10.0.1.1` - `10.0.1.254`：
 
-```
-$ ifconfig eth0
-eth0      Link encap:Ethernet  HWaddr 0E:8D:38:BE:52:34 
-          inet addr:10.0.1.24  Bcast:10.0.1.255      
-          Mask:255.255.255.0
-```
+[PRE10]
 
 让我们在公共主机上安装 nginx web 服务器如下：
 
-```
-$ sudo yum -y -q install nginx
-$ sudo /etc/init.d/nginx start
-Starting nginx:                                            [  OK  ]
-```
+[PRE11]
 
 然后，回到您的机器上，检查`54.227.197.56`的网站：
 
-```
-$ exit
-logout
-Connection to 52.227.197.56 closed.
-
-//from your machine, access to nginx
-$ curl -I 54.227.197.56
-HTTP/1.1 200 OK
-Server: nginx/1.10.3
-...
-Accept-Ranges: bytes  
-```
+[PRE12]
 
 此外，在同一个 VPC 内，其他可用区域也是可达的，因此您可以从这个主机 ssh 到私有子网主机（`10.0.2.98`）。请注意，我们使用了`ssh -A`选项，它转发了一个 ssh-agent，因此不需要创建`~/.ssh/id_rsa`文件：
 
-```
-[ec2-user@ip-10-0-1-24 ~]$ ssh 10.0.2.98
-The authenticity of host '10.0.2.98 (10.0.2.98)' can't be established.
-ECDSA key fingerprint is 1a:37:c3:c1:e3:8f:24:56:6f:90:8f:4a:ff:5e:79:0b.
-Are you sure you want to continue connecting (yes/no)? yes
-    Warning: Permanently added '10.0.2.98' (ECDSA) to the list of known hosts.
-
-           __|  __|_  )
-           _|  (     /   Amazon Linux AMI
-          ___|\___|___|
-
-https://aws.amazon.com/amazon-linux-ami/2017.03-release-notes/
-2 package(s) needed for security, out of 6 available
-Run "sudo yum update" to apply all updates.
-[ec2-user@ip-10-0-2-98 ~]$ 
-```
+[PRE13]
 
 除了 EC2，还有一个重要的功能，即磁盘管理。AWS 提供了一个灵活的磁盘管理服务，称为**弹性块存储**（**EBS**）。您可以创建一个或多个持久数据存储，可以附加到 EC2 实例上。从 EC2 的角度来看，EBS 是 HDD/SSD 之一。一旦终止（删除）了 EC2 实例，EBS 及其内容可能会保留，然后重新附加到另一个 EC2 实例上。
 
 在下面的例子中，创建了一个具有 40GB 容量的卷，并附加到一个公共子网主机（实例 ID`i-0db344916c90fae61`）：
 
-```
-//create 40GB disk at us-east-1a (as same as EC2 host instance)
-$ aws ec2 create-volume --availability-zone us-east-1a --size 40 --volume-type standard
-{
-    "AvailabilityZone": "us-east-1a", 
-    "Encrypted": false, 
-    "VolumeType": "standard", 
-    "VolumeId": "vol-005032342495918d6", 
-    "State": "creating", 
-    "SnapshotId": "", 
-    "CreateTime": "2017-08-16T05:41:53.271Z", 
-    "Size": 40
-}
-
-//attach to public subnet host as /dev/xvdh
-$ aws ec2 attach-volume --device xvdh --instance-id i-0db344916c90fae61 --volume-id vol-005032342495918d6
-{
-    "AttachTime": "2017-08-16T05:47:07.598Z", 
-    "InstanceId": "i-0db344916c90fae61", 
-    "VolumeId": "vol-005032342495918d6", 
-    "State": "attaching", 
-    "Device": "xvdh"
-}
-```
+[PRE14]
 
 将 EBS 卷附加到 EC2 实例后，Linux 内核会识别`/dev/xvdh`，然后您需要对该设备进行分区，如下所示：
 
@@ -453,17 +174,7 @@ $ aws ec2 attach-volume --device xvdh --instance-id i-0db344916c90fae61 --volume
 
 卸载卷后，您可以随时分离该卷，然后在需要时重新附加它：
 
-```
-//detach volume
-$ aws ec2 detach-volume --volume-id vol-005032342495918d6
-{
-    "AttachTime": "2017-08-16T06:03:45.000Z", 
-    "InstanceId": "i-0db344916c90fae61", 
-    "VolumeId": "vol-005032342495918d6", 
-    "State": "detaching", 
-    "Device": "xvdh"
-}
-```
+[PRE15]
 
 # Route 53
 
@@ -475,62 +186,15 @@ AWS 还提供了一个托管 DNS 服务，称为**Route 53**。Route 53 允许�
 
 注册完成后，您可能会收到来自 AWS 的通知电子邮件，然后您可以通过 AWS 命令行或 Web 控制台控制这个域名。让我们添加一个记录（FQDN 到 IP 地址），将`public.k8s-devops.net`与公共面向的 EC2 主机公共 IP 地址`54.227.197.56`关联起来。为此，获取托管区域 ID 如下：
 
-```
-$ aws route53 list-hosted-zones | grep Id
-"Id": "/hostedzone/Z1CTVYM9SLEAN8",   
-```
+[PRE16]
 
 现在您得到了一个托管区域 ID，即`/hostedzone/Z1CTVYM9SLEAN8`，所以让我们准备一个 JSON 文件来更新 DNS 记录如下：
 
-```
-//create JSON file
-$ cat /tmp/add-record.json 
-{
- "Comment": "add public subnet host",
-  "Changes": [
-   {
-     "Action": "UPSERT",
-     "ResourceRecordSet": {
-       "Name": "public.k8s-devops.net",
-       "Type": "A",
-       "TTL": 300,
-       "ResourceRecords": [
-         {
-          "Value": "54.227.197.56"
-         }
-       ]
-     }
-   }
-  ]
-}
-
-//submit to Route53
-$ aws route53 change-resource-record-sets --hosted-zone-id /hostedzone/Z1CTVYM9SLEAN8 --change-batch file:///tmp/add-record.json 
-
-//a few minutes later, check whether A record is created or not
-$ dig public.k8s-devops.net
-
-; <<>> DiG 9.8.3-P1 <<>> public.k8s-devops.net
-;; global options: +cmd
-;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 18609
-;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
-
-;; QUESTION SECTION:
-;public.k8s-devops.net.       IN    A
-
-;; ANSWER SECTION:
-public.k8s-devops.net.  300   IN    A     54.227.197.56  
-```
+[PRE17]
 
 看起来不错，现在通过 DNS 名称`public.k8s-devops.net`访问 nginx：
 
-```
-$ curl -I public.k8s-devops.net
-HTTP/1.1 200 OK
-Server: nginx/1.10.3
-...  
-```
+[PRE18]
 
 # ELB
 
@@ -538,94 +202,11 @@ AWS 提供了一个强大的基于软件的负载均衡器，称为**弹性负�
 
 在以下示例中，创建了一个 ELB，并将其与公共子网主机 nginx（80/TCP）关联。因为 ELB 还需要一个安全组，所以首先为 ELB 创建一个新的安全组：
 
-```
-$ aws ec2 create-security-group --vpc-id vpc-66eda61f --group-name elb --description "elb sg"
-{
-  "GroupId": "sg-51d77921"
-} 
-$ aws ec2 authorize-security-group-ingress --group-id sg-51d77921 --protocol tcp --port 80 --cidr 0.0.0.0/0
-
-$ aws elb create-load-balancer --load-balancer-name public-elb --listeners Protocol=HTTP,LoadBalancerPort=80,InstanceProtocol=HTTP,InstancePort=80 --subnets subnet-d83a4b82 --security-groups sg-51d77921
-{
-   "DNSName": "public-elb-1779693260.us-east- 
-    1.elb.amazonaws.com"
-}
-
-$ aws elb register-instances-with-load-balancer --load-balancer-name public-elb --instances i-0db344916c90fae61
-
-$ curl -I public-elb-1779693260.us-east-1.elb.amazonaws.com
-HTTP/1.1 200 OK
-Accept-Ranges: bytes
-Content-Length: 3770
-Content-Type: text/html
-...  
-```
+[PRE19]
 
 让我们更新 Route 53 DNS 记录`public.k8s-devops.net`，指向 ELB。在这种情况下，ELB 已经有一个`A`记录，因此使用指向 ELB FQDN 的`CNAME`（别名）：
 
-```
-$ cat change-to-elb.json 
-{
- "Comment": "use CNAME to pointing to ELB",
-  "Changes": [
-    {
-      "Action": "DELETE",
-      "ResourceRecordSet": {
-        "Name": "public.k8s-devops.net",
-        "Type": "A",
-        "TTL": 300,
-        "ResourceRecords": [
-          {
-           "Value": "52.86.166.223"
-          }
-        ]
-      }
-    },
-    {
-      "Action": "UPSERT",
-      "ResourceRecordSet": {
-        "Name": "public.k8s-devops.net",
-        "Type": "CNAME",
-        "TTL": 300,
-        "ResourceRecords": [
-          {
-           "Value": "public-elb-1779693260.us-east-           
-1.elb.amazonaws.com"
-          }
-        ]
-      }
- }
- ]
-}
-
-$ dig public.k8s-devops.net
-
-; <<>> DiG 9.8.3-P1 <<>> public.k8s-devops.net
-;; global options: +cmd
-;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 10278
-;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 0, ADDITIONAL: 0
-
-;; QUESTION SECTION:
-;public.k8s-devops.net.       IN    A
-
-;; ANSWER SECTION:
-public.k8s-devops.net.  300   IN    CNAME public-elb-1779693260.us-east-1.elb.amazonaws.com.
-public-elb-1779693260.us-east-1.elb.amazonaws.com. 60 IN A 52.200.46.81
-public-elb-1779693260.us-east-1.elb.amazonaws.com. 60 IN A 52.73.172.171
-
-;; Query time: 77 msec
-;; SERVER: 10.0.0.1#53(10.0.0.1)
-;; WHEN: Wed Aug 16 22:21:33 2017
-;; MSG SIZE  rcvd: 134
-
-$ curl -I public.k8s-devops.net
-HTTP/1.1 200 OK
-Accept-Ranges: bytes
-Content-Length: 3770
-Content-Type: text/html
-...  
-```
+[PRE20]
 
 # S3
 
@@ -633,22 +214,7 @@ AWS 提供了一个有用的对象数据存储服务，称为**简单存储服�
 
 在以下示例中，从您的计算机上传文件到 AWS S3：
 
-```
-//create S3 bucket "k8s-devops"
-$ aws s3 mb s3://k8s-devops
-make_bucket: k8s-devops
-
-//copy files to S3 bucket
-$ aws s3 cp add-record.json s3://k8s-devops/
-upload: ./add-record.json to s3://k8s-devops/add-record.json 
-$ aws s3 cp change-to-elb.json s3://k8s-devops/
-upload: ./change-to-elb.json to s3://k8s-devops/change-to-elb.json 
-
-//check files on S3 bucket
-$ aws s3 ls s3://k8s-devops/
-2017-08-17 20:00:21        319 add-record.json
-2017-08-17 20:00:28        623 change-to-elb.json  
-```
+[PRE21]
 
 总的来说，我们已经讨论了如何配置围绕 VPC 的 AWS 组件。以下图表显示了一个主要组件和关系：
 
@@ -688,18 +254,7 @@ Kops 有一个选项可以重用现有的 VPC 和子网。但是，它的行为�
 
 因此，运行以下命令来运行 kops：
 
-```
-$ kops create cluster --name my-cluster.k8s-devops.net --state=s3://k8s-devops --zones us-east-1a --cloud aws --network-cidr 10.0.0.0/16 --master-size t2.large --node-size t2.medium --node-count 2 --networking calico --topology private --ssh-public-key /tmp/internal_rsa.pub --bastion --yes
-
-I0818 20:43:15.022735   11372 create_cluster.go:845] Using SSH public key: /tmp/internal_rsa.pub
-...
-I0818 20:45:32.585246   11372 executor.go:91] Tasks: 78 done / 78 total; 0 can run
-I0818 20:45:32.587067   11372 dns.go:152] Pre-creating DNS records
-I0818 20:45:35.266425   11372 update_cluster.go:247] Exporting kubecfg for cluster
-Kops has set your kubectl context to my-cluster.k8s-devops.net
-
-Cluster is starting.  It should be ready in a few minutes.  
-```
+[PRE22]
 
 在看到上述消息后，完全完成可能需要大约 5 到 10 分钟。这是因为它需要我们创建 VPC、子网和 NAT-GW，启动 EC2，然后安装 Kubernetes 主节点和节点，启动 ELB，然后更新 Route 53 如下：
 
@@ -707,14 +262,7 @@ Cluster is starting.  It should be ready in a few minutes.
 
 完成后，`kops`会更新您机器上的`~/.kube/config`，指向您的 Kubernetes API 服务器。Kops 会创建一个 ELB，并在 Route 53 上设置相应的 FQDN 记录为`https://api.<your-cluster-name>.<your-domain-name>/`，因此，您可以直接从您的机器上运行`kubectl`命令来查看节点列表，如下所示：
 
-```
-$ kubectl get nodes
-NAME                          STATUS         AGE       VERSION
-ip-10-0-36-157.ec2.internal   Ready,master   8m        v1.7.0
-ip-10-0-42-97.ec2.internal    Ready,node     6m        v1.7.0
-ip-10-0-42-170.ec2.internal   Ready,node     6m        v1.7.0
-
-```
+[PRE23]
 
 太棒了！从头开始在 AWS 上设置 AWS 基础设施和 Kubernetes 只花了几分钟。现在您可以通过`kubectl`命令部署 pod。但是您可能想要 ssh 到 master/node 上查看发生了什么。
 
@@ -732,49 +280,7 @@ ip-10-0-42-170.ec2.internal   Ready,node     6m        v1.7.0
 
 当您将 Kubernetes 服务公开到外部世界时，使用 ELB 更有意义。将服务类型设置为 LoadBalancer 将调用 ELB 创建并将其与节点关联：
 
-```
-$ cat grafana.yml 
-apiVersion: apps/v1beta1
-kind: Deployment
-metadata:
- name: grafana
-spec:
- replicas: 1
- template:
- metadata:
- labels:
- run: grafana
- spec:
- containers:
- - image: grafana/grafana
- name: grafana
- ports:
- - containerPort: 3000
----
-apiVersion: v1
-kind: Service
-metadata:
- name: grafana
-spec:
- ports:
- - port: 80
- targetPort: 3000
- type: LoadBalancer
- selector:
- run: grafana
-
-$ kubectl create -f grafana.yml 
-deployment "grafana" created
-service "grafana" created
-
-$ kubectl get service
-NAME         CLUSTER-IP       EXTERNAL-IP        PORT(S)        AGE
-grafana      100.65.232.120   a5d97c8ef8575...   80:32111/TCP   11s
-kubernetes   100.64.0.1       <none>             443/TCP        13m
-
-$ aws elb describe-load-balancers | grep a5d97c8ef8575 | grep DNSName
- "DNSName": "a5d97c8ef857511e7a6100edf846f38a-1490901085.us-east-1.elb.amazonaws.com",  
-```
+[PRE24]
 
 如您所见，ELB 已经自动创建，DNS 为`a5d97c8ef857511e7a6100edf846f38a-1490901085.us-east-1.elb.amazonaws.com`，因此现在您可以在`http://a5d97c8ef857511e7a6100edf846f38a-1490901085.us-east-1.elb.amazonaws.com`访问 Grafana。
 
@@ -786,60 +292,11 @@ $ aws elb describe-load-balancers | grep a5d97c8ef8575 | grep DNSName
 
 为了安装`ingress-nginx`插件，输入以下命令来设置 ingress 控制器：
 
-```
-$ kubectl create -f https://raw.githubusercontent.com/kubernetes/kops/master/addons/ingress-nginx/v1.6.0.yaml
-namespace "kube-ingress" created
-serviceaccount "nginx-ingress-controller" created
-clusterrole "nginx-ingress-controller" created
-role "nginx-ingress-controller" created
-clusterrolebinding "nginx-ingress-controller" created
-rolebinding "nginx-ingress-controller" created
-service "nginx-default-backend" created
-deployment "nginx-default-backend" created
-configmap "ingress-nginx" created
-service "ingress-nginx" created
-deployment "ingress-nginx" created
-```
+[PRE25]
 
 之后，使用 NodePort 服务部署 nginx 和 echoserver 如下：
 
-```
-$ kubectl run nginx --image=nginx --port=80
-deployment "nginx" created
-$ 
-$ kubectl expose deployment nginx --target-port=80 --type=NodePort
-service "nginx" exposed
-$ 
-$ kubectl run echoserver --image=gcr.io/google_containers/echoserver:1.4 --port=8080
-deployment "echoserver" created
-$ 
-$ kubectl expose deployment echoserver --target-port=8080 --type=NodePort
-service "echoserver" exposed
-
-// URL "/" point to nginx, "/echo" to echoserver
-$ cat nginx-echoserver-ingress.yaml 
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
- name: nginx-echoserver-ingress
-spec:
- rules:
- - http:
- paths:
- - path: /
- backend:
- serviceName: nginx
- servicePort: 80
- - path: /echo
- backend:
- serviceName: echoserver
- servicePort: 8080
-
-//check ingress
-$ kubectl get ing -o wide
-NAME                       HOSTS     ADDRESS                                                                 PORTS     AGE
-nginx-echoserver-ingress   *         a1705ab488dfa11e7a89e0eb0952587e-28724883.us-east-1.elb.amazonaws.com   80        1m 
-```
+[PRE26]
 
 几分钟后，ingress 控制器将 nginx 服务和 echoserver 服务与 ELB 关联起来。当您使用 URI "`/`"访问 ELB 服务器时，它会显示 nginx 屏幕如下：
 
@@ -855,58 +312,11 @@ nginx-echoserver-ingress   *         a1705ab488dfa11e7a89e0eb0952587e-28724883.u
 
 正如我们在第四章中讨论的那样，有一个`StorageClass`可以动态分配持久卷。Kops 将 provisioner 设置为`aws-ebs`，使用 EBS：
 
-```
-$ kubectl get storageclass
-NAME            TYPE
-default         kubernetes.io/aws-ebs 
-gp2 (default)   kubernetes.io/aws-ebs 
-
-$ cat pvc-aws.yml 
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
- name: pvc-aws-1
-spec:
- storageClassName: "default"
- accessModes:
- - ReadWriteOnce
- resources:
- requests:
- storage: 10Gi
-
-$ kubectl create -f pvc-aws.yml 
-persistentvolumeclaim "pvc-aws-1" created
-
-$ kubectl get pv
-NAME                                       CAPACITY   ACCESSMODES   RECLAIMPOLICY   STATUS    CLAIM               STORAGECLASS   REASON    AGE
-pvc-94957090-84a8-11e7-9974-0ea8dc53a244   10Gi       RWO           Delete          Bound     default/pvc-aws-1   default                  3s  
-```
+[PRE27]
 
 这将自动创建 EBS 卷如下：
 
-```
-$ aws ec2 describe-volumes --filter Name=tag-value,Values="pvc-51cdf520-8576-11e7-a610-0edf846f38a6"
-{
- "Volumes": [
-    {
-      "AvailabilityZone": "us-east-1a", 
-    "Attachments": [], 
-      "Tags": [
-       {
-...
-     ], 
-    "Encrypted": false, 
-    "VolumeType": "gp2", 
-    "VolumeId": "vol-052621c39546f8096", 
-    "State": "available", 
-    "Iops": 100, 
-    "SnapshotId": "", 
-    "CreateTime": "2017-08-20T07:08:08.773Z", 
-       "Size": 10
-       }
-     ]
-   }
-```
+[PRE28]
 
 总的来说，AWS 的 Kubernetes 云提供程序被用来将 ELB 映射到 Kubernetes 服务，还有将 EBS 映射到 Kubernetes 持久卷。对于 Kubernetes 来说，使用 AWS 是一个很大的好处，因为不需要预先分配或购买物理负载均衡器或存储，只需按需付费；这为您的业务创造了灵活性和可扩展性。
 
@@ -914,64 +324,23 @@ $ aws ec2 describe-volumes --filter Name=tag-value,Values="pvc-51cdf520-8576-11e
 
 当您需要更改 Kubernetes 配置，比如节点数量甚至 EC2 实例类型，kops 可以支持这种用例。例如，如果您想将 Kubernetes 节点实例类型从`t2.medium`更改为`t2.micro`，并且由于成本节约而将数量从 2 减少到 1，您需要修改 kops 节点实例组（`ig`）设置如下：
 
-```
-$ kops edit ig nodes --name my-cluster.k8s-devops.net --state=s3://k8s-devops   
-```
+[PRE29]
 
 它启动了 vi 编辑器，您可以更改 kops 节点实例组的设置如下：
 
-```
-apiVersion: kops/v1alpha2
-kind: InstanceGroup
-metadata:
- creationTimestamp: 2017-08-20T06:43:45Z
- labels:
- kops.k8s.io/cluster: my-cluster.k8s-devops.net
- name: nodes
-spec:
- image: kope.io/k8s-1.6-debian-jessie-amd64-hvm-ebs-2017- 
- 05-02
- machineType: t2.medium
- maxSize: 2
- minSize: 2
- role: Node
- subnets:
- - us-east-1a  
-```
+[PRE30]
 
 在这种情况下，将`machineType`更改为`t2.small`，将`maxSize`/`minSize`更改为`1`，然后保存。之后，运行`kops update`命令应用设置：
 
-```
-$ kops update cluster --name my-cluster.k8s-devops.net --state=s3://k8s-devops --yes 
-
-I0820 00:57:17.900874    2837 executor.go:91] Tasks: 0 done / 94 total; 38 can run
-I0820 00:57:19.064626    2837 executor.go:91] Tasks: 38 done / 94 total; 20 can run
-...
-Kops has set your kubectl context to my-cluster.k8s-devops.net
-Cluster changes have been applied to the cloud.
-
-Changes may require instances to restart: kops rolling-update cluster  
-```
+[PRE31]
 
 正如您在前面的消息中看到的，您需要运行`kops rolling-update cluster`命令来反映现有实例。将现有实例替换为新实例可能需要几分钟：
 
-```
-$ kops rolling-update cluster --name my-cluster.k8s-devops.net --state=s3://k8s-devops --yes
-NAME              STATUS     NEEDUPDATE  READY MIN   MAX   NODES
-bastions          Ready       0           1     1     1     0
-master-us-east-1a Ready       0           1     1     1     1
-nodes             NeedsUpdate 1           0     1     1     1
-I0820 01:00:01.086564    2844 instancegroups.go:350] Stopping instance "i-07e55394ef3a09064", node "ip-10-0-40-170.ec2.internal", in AWS ASG "nodes.my-cluster.k8s-devops.net".  
-```
+[PRE32]
 
 现在，Kubernetes 节点实例已从`2`减少到`1`，如下所示：
 
-```
-$ kubectl get nodes
-NAME                          STATUS         AGE       VERSION
-ip-10-0-36-157.ec2.internal   Ready,master   1h        v1.7.0
-ip-10-0-58-135.ec2.internal   Ready,node     34s       v1.7.0  
-```
+[PRE33]
 
 # 总结
 

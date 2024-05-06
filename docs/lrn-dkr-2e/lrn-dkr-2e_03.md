@@ -56,23 +56,15 @@ Homebrew 是 macOS 上最流行的软件包管理器，易于使用且非常多�
 
 1.  简而言之，打开一个新的终端窗口并执行以下命令来安装 Homebrew：
 
-```
-$ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-```
+[PRE0]
 
 1.  安装完成后，通过在终端中输入`brew --version`来测试 Homebrew 是否正常工作。你应该会看到类似这样的内容：
 
-```
-$ brew --version
-Homebrew 2.1.4
-Homebrew/homebrew-core (git revision 77d1b; last commit 2019-06-07)
-```
+[PRE1]
 
 1.  现在，我们准备使用 Homebrew 来安装工具和实用程序。例如，如果我们想要安装 Vi 文本编辑器，可以这样做：
 
-```
-$ brew install vim
-```
+[PRE2]
 
 这将为您下载并安装编辑器。
 
@@ -80,24 +72,17 @@ $ brew install vim
 
 Chocolatey 是 Windows 上基于 PowerShell 的流行软件包管理器。要安装 Chocolatey 软件包管理器，请按照[`chocolatey.org/`](https://chocolatey.org/)上的说明操作，或者以管理员模式打开一个新的 PowerShell 窗口并执行以下命令：
 
-```
-PS> Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-```
+[PRE3]
 
 重要的是要以管理员身份运行上述命令，否则安装将不会成功。
 
 1.  一旦安装了 Chocolatey，请使用`choco --version`命令进行测试。你应该看到类似以下的输出：
 
-```
-PS> choco --version
-0.10.15
-```
+[PRE4]
 
 1.  要安装一个应用程序，比如 Vi 编辑器，使用以下命令：
 
-```
-PS> choco install -y vim
-```
+[PRE5]
 
 `-y`参数确保安装过程不需要再次确认。
 
@@ -109,40 +94,27 @@ PS> choco install -y vim
 
 1.  要在 macOS 上安装 Git，请在终端窗口中使用以下命令：
 
-```
-$ choco install git
-```
+[PRE6]
 
 1.  要在 Windows 上安装 Git，请打开 PowerShell 窗口并使用 Chocolatey 进行安装：
 
-```
-PS> choco install git -y
-```
+[PRE7]
 
 1.  最后，在你的 Debian 或 Ubuntu 机器上，打开一个 Bash 控制台并执行以下命令：
 
-```
-$ sudo apt update && sudo apt install -y git
-```
+[PRE8]
 
 1.  安装完 Git 后，验证它是否正常工作。在所有平台上，使用以下命令：
 
-```
-$ git --version
-```
+[PRE9]
 
 这应该输出类似以下内容的东西：
 
-```
-git version 2.16.3
-```
+[PRE10]
 
 1.  现在 Git 正常工作了，我们可以从 GitHub 上克隆伴随本书的源代码。执行以下命令：
 
-```
-$ cd ~
-$ git clone https://github.com/PacktPublishing/Learn-Docker---Fundamentals-of-Docker-19.x-Second-Edition fod-solution
-```
+[PRE11]
 
 这将把主分支的内容克隆到你的本地文件夹`~/fod-solution`中。现在这个文件夹将包含我们在本书中一起做的所有实验的示例解决方案。如果遇到困难，请参考这些示例解决方案。
 
@@ -160,21 +132,15 @@ $ git clone https://github.com/PacktPublishing/Learn-Docker---Fundamentals-of-Do
 
 1.  打开一个新的终端窗口并执行以下命令：
 
-```
-$ brew cask install visual-studio-code
-```
+[PRE12]
 
 1.  一旦 VS Code 安装成功，转到您的主目录（`~`）并创建一个名为`fundamentals-of-docker`的文件夹；然后进入这个新文件夹：
 
-```
-$ mkdir ~/fundamentals-of-docker && cd ~/fundamentals-of-docker
-```
+[PRE13]
 
 1.  现在从这个文件夹中打开 VS Code：
 
-```
-$ code .
-```
+[PRE14]
 
 不要忘记前面命令中的句号（.）。VS 将启动并打开当前文件夹（`~/fundamentals-of-docker`）作为工作文件夹。
 
@@ -184,23 +150,17 @@ $ code .
 
 1.  以管理员模式打开一个新的 PowerShell 窗口并执行以下命令：
 
-```
-PS> choco install vscode -y
-```
+[PRE15]
 
 1.  关闭您的 PowerShell 窗口并打开一个新窗口，以确保 VS Code 在您的路径中。
 
 1.  现在转到您的主目录并创建一个名为`fundamentals-of-docker`的文件夹；然后进入这个新文件夹：
 
-```
-PS> mkdir ~\fundamentals-of-docker; cd ~\fundamentals-of-docker
-```
+[PRE16]
 
 1.  最后，从这个文件夹中打开 Visual Studio Code：
 
-```
-PS> code .
-```
+[PRE17]
 
 不要忘记前面命令中的句号（.）。VS 将启动并打开当前文件夹（`~\fundamentals-of-docker`）作为工作文件夹。
 
@@ -210,23 +170,17 @@ PS> code .
 
 1.  在您的 Debian 或基于 Ubuntu 的 Linux 机器上，打开 Bash 终端并执行以下语句以安装 VS Code：
 
-```
-$ sudo snap install --classic code
-```
+[PRE18]
 
 1.  如果您使用的是不基于 Debian 或 Ubuntu 的 Linux 发行版，请按照以下链接获取更多详细信息：[`code.visualstudio.com/docs/setup/linux`](https://code.visualstudio.com/docs/setup/linux)
 
 1.  一旦 VS Code 安装成功，转到您的主目录（`~`）并创建一个名为`fundamentals-of-docker`的文件夹；然后进入这个新文件夹：
 
-```
-$ mkdir ~/fundamentals-of-docker && cd ~/fundamentals-of-docker
-```
+[PRE19]
 
 1.  现在从这个文件夹中打开 Visual Studio Code：
 
-```
-$ code .
-```
+[PRE20]
 
 不要忘记前面命令中的句号（.）。VS 将启动并打开当前文件夹（`~/fundamentals-of-docker`）作为工作文件夹。
 
@@ -236,13 +190,7 @@ $ code .
 
 1.  打开 Bash 控制台（或 Windows 中的 PowerShell），并执行以下一组命令，以安装我们将在本书中的示例中使用的最基本的扩展：
 
-```
-code --install-extension vscjava.vscode-java-pack
-code --install-extension ms-vscode.csharp
-code --install-extension ms-python.python
-code --install-extension ms-azuretools.vscode-docker
-code --install-extension eamodio.gitlens
-```
+[PRE21]
 
 我们正在安装一些扩展，使我们能够更加高效地使用 Java、C#、.NET 和 Python。我们还安装了一个扩展，用于增强我们与 Docker 的体验。
 
@@ -278,9 +226,7 @@ code --install-extension eamodio.gitlens
 
 1.  安装成功 Docker 桌面版后，请打开终端窗口并执行以下命令：
 
-```
-$ docker version
-```
+[PRE22]
 
 您应该看到类似于这样的东西：
 
@@ -290,9 +236,7 @@ Docker 桌面版的 Docker 版本
 
 1.  要查看是否可以运行容器，请在终端窗口中输入以下命令并按 Enter 键：
 
-```
-$ docker run hello-world
-```
+[PRE23]
 
 如果一切顺利，您的输出应该看起来类似于以下内容：
 
@@ -308,16 +252,11 @@ $ docker run hello-world
 
 1.  安装成功 Docker 桌面版后，请打开 PowerShell 窗口并执行以下命令：
 
-```
-PS> docker --version
-Docker version 19.03.5, build 633a0ea
-```
+[PRE24]
 
 1.  要查看是否可以运行容器，请在 PowerShell 窗口中输入以下命令并按 Enter 键：
 
-```
-PS> docker run hello-world
-```
+[PRE25]
 
 如果一切顺利，您的输出应该与前面的图像类似。
 
@@ -343,9 +282,7 @@ Docker Toolbox 已经为开发人员提供了几年。它是 Docker 桌面版等
 
 1.  打开一个新的终端窗口，并使用 Homebrew 安装工具箱：
 
-```
-$ brew cask install docker-toolbox 
-```
+[PRE26]
 
 您应该会看到类似于这样的东西：
 
@@ -355,12 +292,7 @@ $ brew cask install docker-toolbox
 
 1.  要验证 Docker Toolbox 是否已成功安装，请尝试访问`docker-machine`和`docker-compose`，这两个工具是安装的一部分：
 
-```
-$ docker-machine --version
-docker-machine version 0.15.0, build b48dc28d
-$ docker-compose --version
-docker-compose version 1.22.0, build f46880f
-```
+[PRE27]
 
 接下来，我们将在 Windows 上安装 Docker Toolbox。
 
@@ -368,9 +300,7 @@ docker-compose version 1.22.0, build f46880f
 
 在管理员模式下打开一个新的 Powershell 窗口，并使用 Chocolatey 安装 Docker Toolbox：
 
-```
-PS> choco install docker-toolbox -y
-```
+[PRE28]
 
 输出应该类似于这样：
 
@@ -390,9 +320,7 @@ PS> choco install docker-toolbox -y
 
 1.  好的，我们可以看到已经安装了一个名为`default`的单个 VM，但它目前处于`stopped`的状态。让我们使用`docker-machine`来启动这个 VM，这样我们就可以使用它了：
 
-```
-$ docker-machine start default
-```
+[PRE29]
 
 这将产生以下输出：
 
@@ -410,9 +338,7 @@ $ docker-machine start default
 
 1.  如果由于某种原因您没有默认的 VM，或者意外删除了它，可以使用以下命令创建它：
 
-```
-$ docker-machine create --driver virtualbox default 
-```
+[PRE30]
 
 这将生成以下输出：
 
@@ -424,32 +350,19 @@ $ docker-machine create --driver virtualbox default
 
 1.  要查看如何将 Docker 客户端连接到在此虚拟机上运行的 Docker 引擎，请运行以下命令：
 
-```
-$ docker-machine env default 
-```
+[PRE31]
 
 这将输出以下内容：
 
-```
-export DOCKER_TLS_VERIFY="1"
-export DOCKER_HOST="tcp://192.168.99.100:2376"
-export DOCKER_CERT_PATH="/Users/gabriel/.docker/machine/machines/default"
-export DOCKER_MACHINE_NAME="default"
-# Run this command to configure your shell:
-# eval $(docker-machine env default)
-```
+[PRE32]
 
 1.  我们可以执行前面代码片段中最后一行中列出的命令，来配置我们的 Docker CLI 以使用在`default` VM 上运行的 Docker：
 
-```
-$ eval $(docker-machine env default) 
-```
+[PRE33]
 
 1.  现在我们可以执行第一个 Docker 命令：
 
-```
-$ docker version
-```
+[PRE34]
 
 这应该产生以下输出：
 
@@ -461,9 +374,7 @@ docker version 的输出
 
 1.  现在，让我们尝试运行一个容器：
 
-```
-$ docker run hello-world
-```
+[PRE35]
 
 这将产生以下输出：
 
@@ -501,16 +412,11 @@ Docker Toolbox 是一个很好的补充，即使您通常使用 Docker Desktop �
 
 如果前面的命令失败，例如超时，那么可能是因为您的`kubectl`没有配置正确的上下文。`kubectl`可以用来处理许多不同的 Kubernetes 集群。每个集群称为一个上下文。要找出`kubectl`当前配置的上下文，使用以下命令：
 
-```
-$ kubectl config current-context
-minikube
-```
+[PRE36]
 
 答案应该是`minikube`，如前面的输出所示。如果不是这种情况，请使用`kubectl config get-contexts`列出系统上定义的所有上下文，然后将当前上下文设置为`minikube`，如下所示：
 
-```
-$ kubectl config use-context minikube
-```
+[PRE37]
 
 `kubectl`的配置，它存储上下文，通常可以在`~/.kube/config`中找到，但这可以通过定义一个名为`KUBECONFIG`的环境变量来覆盖。如果您的计算机上设置了这个变量，您可能需要取消设置。
 
@@ -518,11 +424,7 @@ $ kubectl config use-context minikube
 
 假设 Minikube 和`kubectl`按预期工作，我们现在可以使用`kubectl`获取有关 Kubernetes 集群的信息。输入以下命令：
 
-```
-$ kubectl get nodes
-NAME STATUS ROLES AGE VERSION
-minikube Ready master 47d v1.17.3
-```
+[PRE38]
 
 显然，我们有一个节点的集群，在我的情况下，上面安装了`Kubernetes v1.17.3`。
 

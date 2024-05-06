@@ -86,51 +86,19 @@ ECS 集群本身是非常简单的构造 - 它们只是定义了一组 ECS 容�
 
 如部署概述所示，您将使用 CloudFormation 以基础设施即代码的方式创建资源，因为您刚刚开始这个旅程，您首先需要创建这个 CloudFormation 模板，我假设您正在根据第五章“使用 ECR 发布 Docker 镜像”中在**todobackend-aws**存储库中创建的文件`stack.yml`中定义，如下例所示：
 
-```
-> touch stack.yml
-> tree .
-.
-├── ecr.yml
-└── stack.yml
-
-0 directories, 2 files
-```
+[PRE0]
 
 在 todobackend-aws 存储库中建立
 
 您现在可以在`stack.yml`文件中建立一个基本的 CloudFormation 模板，并创建您的 ECS 集群资源：
 
-```
-AWSTemplateFormatVersion: "2010-09-09"
-
-Description: Todobackend Application
-
-Resources:
-  ApplicationCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: todobackend-cluster
-```
+[PRE1]
 
 定义一个 CloudFormation 模板
 
 如前面的示例所示，定义 ECS 集群非常简单，`AWS::ECS::Cluster`资源类型只有一个可选属性叫做`ClusterName`。确保您的环境配置了正确的 AWS 配置文件后，您现在可以使用`aws cloudformation deploy`命令创建和部署堆栈，并使用`aws ecs list-clusters`命令验证您的集群是否已创建，就像下面的示例中演示的那样：
 
-```
-> export AWS_PROFILE=docker-in-aws
-> aws cloudformation deploy --template-file stack.yml --stack-name todobackend
-Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga:
-
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - todobackend
-> aws ecs list-clusters
-{
-    "clusterArns": [
-        "arn:aws:ecs:us-east-1:385605022855:cluster/todobackend-cluster"
-    ]
-}
-```
+[PRE2]
 
 使用 CloudFormation 创建 ECS 集群
 
@@ -160,37 +128,7 @@ AWS 提供的用于为 ECS 容器实例提供这种行为的机制是 EC2 自动
 
 在创建 EC2 自动缩放组时，您需要定义的第一个资源是 EC2 自动缩放组本身，在 CloudFormation 术语中，它被定义为`AWS::AutoScaling::AutoScalingGroup`类型的资源。
 
-```
-AWSTemplateFormatVersion: "2010-09-09"
-
-Description: Todobackend Application
-
-Parameters:
-  ApplicationDesiredCount:
- Type: Number
- Description: Desired EC2 instance count
-  ApplicationSubnets:
- Type: List<AWS::EC2::Subnet::Id>
- Description: Target subnets for EC2 instances
-
-Resources:
-  ApplicationCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: todobackend-cluster
-  ApplicationAutoscaling:
- Type: AWS::AutoScaling::AutoScalingGroup
- Properties:
- LaunchConfigurationName: !Ref ApplicationAutoscalingLaunchConfiguration
- MinSize: 0
- MaxSize: 4
- DesiredCapacity: !Ref ApplicationDesiredCount
- VPCZoneIdentifier: !Ref ApplicationSubnets
- Tags:
- - Key: Name
- Value: !Sub ${AWS::StackName}-ApplicationAutoscaling-instance
- PropagateAtLaunch: "true"
-```
+[PRE3]
 
 定义 EC2 自动缩放组
 
@@ -212,19 +150,7 @@ Resources:
 
 `ApplicationDesiredCount`参数只需要是配置的 MinSize 和 MaxSize 属性之间的数字（即 0 和 4 之间），但是，要确定您帐户中子网 ID 的值，您可以使用`aws ec2 describe-subnets`命令，如下所示：
 
-```
-> aws ec2 describe-subnets --query "Subnets[].[SubnetId,AvailabilityZone]" --output table
------------------------------------
-| DescribeSubnets                 |
-+------------------+--------------+
-| subnet-a5d3ecee  | us-east-1a   |
-| subnet-c2abdded  | us-east-1d   |
-| subnet-aae11aa5  | us-east-1f   |
-| subnet-fd3a43c2  | us-east-1e   |
-| subnet-324e246f  | us-east-1b   |
-| subnet-d281a2b6  | us-east-1c   |
-+------------------+--------------+
-```
+[PRE4]
 
 使用 AWS CLI 查询子网
 
@@ -234,10 +160,7 @@ Resources:
 
 我们将采用的一个非常简单的方法是在`todobackend-aws`存储库的根目录下定义一个名为`dev.cfg`的配置文件中的各种输入参数：
 
-```
-ApplicationDesiredCount=1
-ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
-```
+[PRE5]
 
 为堆栈参数定义一个配置文件 dev.cfg
 
@@ -253,57 +176,7 @@ EC2 自动扩展启动配置定义了在启动时应用于每个实例的配置�
 
 以下示例演示了在 CloudFormation 模板中配置自动扩展启动配置：
 
-```
-...
-...
-Parameters:
-  ApplicationDesiredCount:
-    Type: Number
-    Description: Desired EC2 instance count
-  ApplicationImageId:
- Type: String
- Description: ECS Amazon Machine Image (AMI) ID
-  ApplicationSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Target subnets for EC2 instances
-
-Resources:
-  ApplicationAutoscalingLaunchConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
- Properties:
- ImageId: !Ref ApplicationImageId
- InstanceType: t2.micro
- KeyName: admin
- IamInstanceProfile: !Ref ApplicationAutoscalingInstanceProfile
- SecurityGroups:
- - !Ref ApplicationAutoscalingSecurityGroup
- UserData:
- Fn::Base64:
- Fn::Sub: |
- #!/bin/bash
- /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} \
- --resource ApplicationAutoscalingLaunchConfiguration \
- --region ${AWS::Region}
- /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} \
- --resource ApplicationAutoscaling \
- --region ${AWS::Region}
-  ApplicationCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: todobackend-cluster
-  ApplicationAutoscaling:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    Properties:
-      LaunchConfigurationName: !Ref ApplicationAutoscalingLaunchConfiguration
-      MinSize: 0
-      MaxSize: 4
-      DesiredCapacity: !Ref ApplicationDesiredCount
-      VPCZoneIdentifier: !Ref ApplicationSubnets
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-ApplicationAutoscaling-instance
-          PropagateAtLaunch: "true"
-```
+[PRE6]
 
 定义 EC2 自动扩展启动配置
 
@@ -325,10 +198,7 @@ Resources:
 
 您可能会注意到在 UserData bash 脚本中未设置`set -e`标志，这是有意为之的，因为我们希望`cfn-signal`脚本将`cfn-init`脚本的退出代码报告给 CloudFormation（由`-e $?`选项定义，其中`$?`输出最后一个进程的退出代码）。如果包括`set -e`，则如果`cfn-init`返回错误，脚本将立即退出，`cfn-signal`将无法向 CloudFormation 发出失败信号。
 
-```
-ApplicationDesiredCount=1 ApplicationImageId=ami-ec957491
-ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
-```
+[PRE7]
 
 将 ApplicationImageId 参数添加到 dev.cfg 文件
 
@@ -338,49 +208,7 @@ ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
 
 回想一下，在上一章中，当您创建了一个自定义机器映像时，您安装了`cfn-bootstrap` CloudFormation 助手脚本，其中包括在前面的示例中引用的`cfn-init`和`cfn-signal`脚本。这些脚本旨在与称为 CloudFormation Init 元数据的功能一起使用，我们将在下面的示例中进行配置，如下例所示：
 
-```
-...
-...
-Resources:
-  ...
-  ...
-  ApplicationAutoscalingLaunchConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
-    Metadata:
- AWS::CloudFormation::Init:
- config:
- commands:            05_public_volume:
- command: mkdir -p /data/public
- 06_public_volume_permissions:
- command: chown -R 1000:1000 /data/public
- 10_first_run:
- command: sh firstrun.sh
- cwd: /home/ec2-user
- env:
-                ECS_CLUSTER: !Ref ApplicationCluster
- STACK_NAME: !Ref AWS::StackName
- AUTOSCALING_GROUP: ApplicationAutoscaling
- AWS_DEFAULT_REGION: !Ref AWS::Region
-    Properties:
-      ImageId: !Ref ApplicationImageId
-      InstanceType: t2.micro
-      KeyName: admin
-      IamInstanceProfile: !Ref ApplicationAutoscalingInstanceProfile
-      SecurityGroups:
-        - !Ref ApplicationAutoscalingSecurityGroup
-      UserData:
-        Fn::Base64:
-          Fn::Sub: |
-            #!/bin/bash
-            /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} \
-              --resource ApplicationAutoscalingLaunchConfiguration \
-              --region ${AWS::Region}
-            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} \
-              --resource ApplicationAutoscaling \
-              --region ${AWS::Region}
-  ...
-  ...
-```
+[PRE8]
 
 配置 CloudFormation Init 元数据
 
@@ -394,43 +222,13 @@ Resources:
 
 为了进一步说明`10_first_run`脚本的工作原理，以下代码片段配置了 ECS 容器实例加入 ECS 集群，由`ECS_CLUSTER`环境变量定义：
 
-```
-#!/usr/bin/env bash
-set -e
-
-# Configure ECS Agent
-echo "ECS_CLUSTER=${ECS_CLUSTER}" > /etc/ecs/ecs.config
-...
-...
-```
+[PRE9]
 
 第一次运行脚本片段
 
 类似地，`STACK_NAME`、`AUTOSCALING_GROUP`和`AWS_DEFAULT_REGION`变量都用于配置 CloudWatch 日志代理：
 
-```
-...
-...
-# Write AWS Logs region
-sudo tee /etc/awslogs/awscli.conf << EOF > /dev/null
-[plugins]
-cwlogs = cwlogs
-[default]
-region = ${AWS_DEFAULT_REGION}
-EOF
-
-# Write AWS Logs config
-sudo tee /etc/awslogs/awslogs.conf << EOF > /dev/null
-[general]
-state_file = /var/lib/awslogs/agent-state 
-
-[/var/log/dmesg]
-file = /var/log/dmesg
-log_group_name = /${STACK_NAME}/ec2/${AUTOSCALING_GROUP}/var/log/dmesg
-log_stream_name = {instance_id}
-...
-...
-```
+[PRE10]
 
 第一次运行脚本片段
 
@@ -442,27 +240,7 @@ CloudFormation 包括一个称为创建策略的功能，允许您在创建 EC2 
 
 以下示例演示了如何在现有的 EC2 自动扩展组资源上配置创建策略：
 
-```
-Resources:
-  ...
-  ...
-  ApplicationAutoscaling:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    CreationPolicy:
- ResourceSignal:
- Count: !Ref ApplicationDesiredCount
- Timeout: PT15M
-    Properties:
-      LaunchConfigurationName: !Ref ApplicationAutoscalingLaunchConfiguration
-      MinSize: 0
-      MaxSize: 4
-      DesiredCapacity: !Ref ApplicationDesiredCount
-      VPCZoneIdentifier: !Split [",", !Ref ApplicationSubnets]
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-ApplicationAutoscaling-instance
-          PropagateAtLaunch: "true"
-```
+[PRE11]
 
 在 CloudFormation 中配置创建策略
 
@@ -476,63 +254,7 @@ Resources:
 
 因为我们正在从头开始配置 ECS 集群和自动扩展组，我们需要明确定义适当的 IAM 实例配置文件和关联的 IAM 角色，就像以下示例中所示的那样：
 
-```
-
-Resources:
-  ...
-  ...
-  ApplicationAutoscalingInstanceProfile:
- Type: AWS::IAM::InstanceProfile
- Properties:
- Roles:
- - Ref: ApplicationAutoscalingInstanceRole
- ApplicationAutoscalingInstanceRole:
- Type: AWS::IAM::Role
- Properties:
- AssumeRolePolicyDocument:
- Version: "2012-10-17"
- Statement:
- - Effect: Allow
- Principal:
- Service:
- - ec2.amazonaws.com
- Action:
- - sts:AssumeRole
- Policies:
- - PolicyName: ECSContainerInstancePermissions
- PolicyDocument: 
- Version: "2012-10-17"
- Statement:
- - Effect: Allow
- Action:
- - ecs:RegisterContainerInstance
- - ecs:DeregisterContainerInstance
-                  - ecs:UpdateContainerInstancesState
- Resource: !Sub ${ApplicationCluster.Arn}
- - Effect: Allow
- Action:
- - ecs:DiscoverPollEndpoint
- - ecs:Submit*
- - ecs:Poll
- - ecs:StartTelemetrySession
- Resource: "*"
- - Effect: Allow
- Action: 
- - ecr:BatchCheckLayerAvailability
- - ecr:BatchGetImage
- - ecr:GetDownloadUrlForLayer
- - ecr:GetAuthorizationToken
- Resource: "*"
- - Effect: Allow
- Action:
- - logs:CreateLogGroup
- - logs:CreateLogStream
- - logs:PutLogEvents
- - logs:DescribeLogStreams
- Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/${AWS::StackName}*
-...
-...
-```
+[PRE12]
 
 定义 IAM 实例配置文件和 IAM 角色
 
@@ -548,48 +270,7 @@ Resources:
 
 您几乎已经完成了部署 ECS 集群和 EC2 自动扩展组所需的配置，但是我们还需要创建一个最终资源，即您之前在`ApplicationAutoscalingLaunchConfiguration`资源配置中引用的`ApplicationAutoscalingSecurityGroup`资源：
 
-```
-Parameters:
-  ApplicationDesiredCount:
-    Type: Number
-    Description: Desired EC2 instance count
-  ApplicationImageId:
-    Type: String
-    Description: ECS Amazon Machine Image (AMI) ID
-  ApplicationSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Target subnets for EC2 instances
-  VpcId:
- Type: AWS::EC2::VPC::Id
- Description: Target VPC
-
-Resources:
-  ApplicationAutoscalingSecurityGroup:
- Type: AWS::EC2::SecurityGroup
- Properties:
- GroupDescription: !Sub ${AWS::StackName} Application Autoscaling Security Group
- VpcId: !Ref VpcId
- SecurityGroupIngress:
- - IpProtocol: tcp
- FromPort: 22
- ToPort: 22
- CidrIp: 0.0.0.0/0
- SecurityGroupEgress:
- - IpProtocol: udp
- FromPort: 53
- ToPort: 53
- CidrIp: 0.0.0.0/0
- - IpProtocol: tcp
- FromPort: 80
- ToPort: 80
- CidrIp: 0.0.0.0/0
- - IpProtocol: tcp
- FromPort: 443
- ToPort: 443
- CidrIp: 0.0.0.0/0
-...
-...
-```
+[PRE13]
 
 定义 EC2 安全组
 
@@ -597,43 +278,15 @@ Resources:
 
 查找堆栈依赖的外部资源的物理标识符的更可扩展的方法是使用一个称为 CloudFormation exports 的功能，它允许您将有关资源的数据导出到其他堆栈。例如，您可以在一个名为 network-resources 的堆栈中定义所有网络资源，然后配置一个 CloudFormation 导出，将该堆栈创建的 VPC 资源的 VPC ID 导出。然后，可以通过使用`Fn::ImportValue`内部函数在其他 CloudFormation 堆栈中引用这些导出。有关此方法的更多详细信息，请参见[`docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-stack-exports.html`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-stack-exports.html)。
 
-```
-> aws ec2 describe-vpcs
-{
-    "Vpcs": [
-        {
-            "CidrBlock": "172.31.0.0/16",
-            "DhcpOptionsId": "dopt-a037f9d8",
-            "State": "available",
-            "VpcId": "vpc-f8233a80",
-            "InstanceTenancy": "default",
-            "CidrBlockAssociationSet": [
-                {
-                    "AssociationId": "vpc-cidr-assoc-32524958",
-                    "CidrBlock": "172.31.0.0/16",
-                    "CidrBlockState": {
-                        "State": "associated"
-                    }
-                }
-```
+[PRE14]
 
-```
-            ],
-            "IsDefault": true
-        }
-    ]
-}
-```
+[PRE15]
 
 请注意，您还定义了一个新参数，称为 VPC ID，它指定将在其中创建安全组的 VPC 的 ID，您可以使用`aws ec2 describe-vpcs`命令获取默认 VPC 的 ID，该 VPC 默认在您的 AWS 账户中创建：确定您的 VPC ID
 
 一旦您有了正确的 VPC ID 值，您需要更新您的`dev.cfg`文件，以包括`VpcId`参数和值：
 
-```
-ApplicationDesiredCount=1ApplicationImageId=ami-ec957491
-ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
-VpcId=vpc-f8233a80
-```
+[PRE16]
 
 在 dev.cfg 中配置 VpcId 参数
 
@@ -641,15 +294,7 @@ VpcId=vpc-f8233a80
 
 您现在已经完成了 CloudFormation 模板的配置，是时候部署您在上一节中所做的更改了。请记住，您创建了一个单独的配置文件，名为`dev.cfg`，用于存储每个堆栈参数的值。以下示例演示了如何使用`aws cloudformation deploy`命令来部署您更新的堆栈并引用您的输入参数值：
 
-```
-> aws cloudformation deploy --template-file stack.yml \
- --stack-name todobackend --parameter-overrides $(cat dev.cfg) \
- --capabilities CAPABILITY_NAMED_IAM
-
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - todobackend
-```
+[PRE17]
 
 使用参数覆盖部署 CloudFormation 堆栈
 
@@ -665,24 +310,7 @@ Successfully created/updated stack - todobackend
 
 此时，您的 ECS 集群应该有一个注册和活动的 ECS 容器实例，您可以使用`aws ecs describe-cluster`命令来验证。
 
-```
-> aws ecs describe-clusters --cluster todobackend-cluster
-{
-    "clusters": [
-        {
-            "clusterArn": "arn:aws:ecs:us-east-1:385605022855:cluster/todobackend-cluster",
-            "clusterName": "todobackend-cluster",
- "status": "ACTIVE",
- "registeredContainerInstancesCount": 1,
-            "runningTasksCount": 0,
-            "pendingTasksCount": 0,
-            "activeServicesCount": 0,
-            "statistics": []
-        }
-    ],
-    "failures": []
-}
-```
+[PRE18]
 
 验证 ECS 集群
 

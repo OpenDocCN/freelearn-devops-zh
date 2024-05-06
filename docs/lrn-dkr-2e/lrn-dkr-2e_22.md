@@ -58,9 +58,7 @@
 
 1.  SSH 进入所有三个实例并安装 Docker。使用下载的密钥，SSH 进入第一台机器：
 
-```
-$ ssh -i pets.pem ubuntu@<IP address>
-```
+[PRE0]
 
 在这里，`<IP 地址>`是我们要 SSH 进入的 VM 的公共 IP 地址。
 
@@ -68,16 +66,11 @@ $ ssh -i pets.pem ubuntu@<IP address>
 
 1.  首先，我们需要将`labs` GitHub 存储库克隆到虚拟机中：
 
-```
-$ git clone https://github.com/PacktPublishing/Learn-Docker---Fundamentals-of-Docker-19.x-Second-Edition.git ~/fod
-$ cd ~/fod/ch18/aws
-```
+[PRE1]
 
 1.  然后，我们运行脚本来安装 Docker：
 
-```
-$ ./install-docker.sh
-```
+[PRE2]
 
 1.  脚本完成后，我们可以使用`sudo docker version`验证 Docker 是否已安装。对其他两个 VM 重复前面的代码。
 
@@ -89,20 +82,13 @@ $ ./install-docker.sh
 
 我们需要设置一些环境变量，如下所示：
 
-```
-$ export UCP_IP=<IP address>
-$ export UCP_FQDN=<FQDN>
-$ export UCP_VERSION=3.0.0-beta2
-```
+[PRE3]
 
 在这里，`<IP 地址>`和`<FQDN>`是我们在 UCP 中安装的 AWS EC2 实例的公共 IP 地址和公共 DNS 名称。
 
 之后，我们可以使用以下命令下载 UCP 需要的所有镜像：
 
-```
-$ docker run --rm docker/ucp:${UCP_VERSION} images --list \
- | xargs -L 1 docker pull
-```
+[PRE4]
 
 最后，我们可以安装 UCP：
 
@@ -138,17 +124,11 @@ $ docker run --rm docker/ucp:${UCP_VERSION} images --list \
 
 1.  在新的终端窗口中，导航到该文件夹并源化`env.sh`文件：
 
-```
-$ source env.sh
-```
+[PRE5]
 
 您应该会得到类似于这样的输出：
 
-```
-Cluster "ucp_34.232.53.86:6443_admin" set.
-User "ucp_34.232.53.86:6443_admin" set.
-Context "ucp_34.232.53.86:6443_admin" created.
-```
+[PRE6]
 
 现在，我们可以验证我们确实可以远程访问 UCP 集群，例如，列出集群的所有节点：
 
@@ -178,9 +158,7 @@ UCP Web UI 中的宠物堆栈列表
 
 完成后，使用以下命令从控制台中删除堆栈：
 
-```
-$ docker stack rm pets
-```
+[PRE7]
 
 或者，您可以尝试从 UCP Web UI 中删除该堆栈。
 
@@ -218,31 +196,15 @@ Docker UCP 是一个平台无关的容器平台，可以在任何云和本地、
 
 Azure CLI 的最新版本可以在 Docker Hub 上找到。让我们拉取它：
 
-```
-$ docker image pull mcr.microsoft.com/azure-cli:latest
-```
+[PRE8]
 
 我们将从此 CLI 运行一个容器，并在容器内部运行所有后续命令。现在，我们需要克服一个小问题。这个容器将不会安装 Docker 客户端。但我们也将运行一些 Docker 命令，所以我们必须创建一个从前面的镜像派生出来的自定义镜像，其中包含一个 Docker 客户端。需要的`Dockerfile`可以在`~/fod/ch18`文件夹中找到，内容如下：
 
-```
-FROM mcr.microsoft.com/azure-cli:latest
-RUN apk update && apk add docker
-```
+[PRE9]
 
 在第 2 行，我们只是使用 Alpine 软件包管理器`apk`来安装 Docker。然后我们可以使用 Docker Compose 来构建和运行这个自定义镜像。相应的`docker-compose.yml`文件如下：
 
-```
-version: "2.4"
-services:
-    az:
-        image: fundamentalsofdocker/azure-cli
-        build: .
-        command: tail -F anything
-        working_dir: /app
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
-            - .:/app
-```
+[PRE10]
 
 请注意用于保持容器运行的命令，以及在`volumes`部分中挂载 Docker 套接字和当前文件夹的命令。如果您在 Windows 上运行 Docker for Desktop，则需要定义`COMPOSE_CONVERT_WINDOWS_PATHS`环境变量以能够挂载 Docker 套接字。使用
 
@@ -250,62 +212,31 @@ services:
 
 现在，让我们构建并运行这个容器：
 
-```
-$ docker-compose up --build -d
-```
+[PRE11]
 
 然后，让我们进入`az`容器，并在其中运行一个 Bash shell，命令如下：
 
-```
-$ docker-compose exec az /bin/bash
-
-bash-5.0#
-```
+[PRE12]
 
 我们将发现自己在容器内部的 Bash shell 中运行。让我们首先检查 CLI 的版本：
 
-```
-bash-5.0# az --version
-```
+[PRE13]
 
 这应该会产生类似于以下内容的输出（缩短版）：
 
-```
-azure-cli 2.0.78
-...
-Your CLI is up-to-date.
-```
+[PRE14]
 
 好的，我们正在运行版本`2.0.78`。接下来，我们需要登录到我们的账户。执行以下命令：
 
-```
-bash-5.0# az login
-```
+[PRE15]
 
 您将收到以下消息：
 
-```
-To sign in, use a web browser to open the page https://microsoft.com/devicelogin and enter the code <code> to authenticate.
-```
+[PRE16]
 
 按照说明通过浏览器登录。一旦您成功验证了您的 Azure 账户，您可以回到您的终端，您应该已经登录了，这将由您得到的输出所指示：
 
-```
-[
-  {
-    "cloudName": "AzureCloud",
-    "id": "<id>",
-    "isDefault": true,
-    "name": "<account name>",
-    "state": "Enabled",
-    "tenantId": "<tenant-it>",
-    "user": {
-      "name": "xxx@hotmail.com",
-      "type": "user"
-    }
-  }
-]
-```
+[PRE17]
 
 现在，我们准备首先将我们的容器映像移动到 Azure。
 
@@ -313,40 +244,13 @@ To sign in, use a web browser to open the page https://microsoft.com/devicelogin
 
 首先，我们创建一个名为`animal-rg`的新资源组。在 Azure 中，资源组用于逻辑地组合一组相关的资源。为了获得最佳的云体验并保持延迟低，重要的是您选择一个靠近您的地区的数据中心。您可以使用以下命令列出所有地区：
 
-```
-bash-5.0# az account list-locations 
-[
-  {
-    "displayName": "East Asia",
-    "id": "/subscriptions/186760ad-9152-4499-b317-c9bff441fb9d/locations/eastasia",
-    "latitude": "22.267",
-    "longitude": "114.188",
-    "name": "eastasia",
-    "subscriptionId": null
-  },
-  ...
-]
-```
+[PRE18]
 
 这将为您提供一个相当长的列表，列出了您可以选择的所有可能区域。使用`name`，例如`eastasia`，来标识您选择的区域。在我的情况下，我将选择`westeurope`。请注意，并非所有列出的位置都适用于资源组。
 
 创建资源组的命令很简单；我们只需要为组和位置命名：
 
-```
-bash-5.0# az group create --name animals-rg --location westeurope
-
-{
-  "id": "/subscriptions/186760ad-9152-4499-b317-c9bff441fb9d/resourceGroups/animals-rg",
-  "location": "westeurope",
-  "managedBy": null,
-  "name": "animals-rg",
-  "properties": {    
-    "provisioningState": "Succeeded"
-  },
-  "tags": null,
-  "type": "Microsoft.Resources/resourceGroups"
-}
-```
+[PRE19]
 
 确保您的输出显示`"provisioningState": "Succeeded"`。
 
@@ -354,33 +258,15 @@ bash-5.0# az group create --name animals-rg --location westeurope
 
 那么，我们能做什么呢？嗯，解决方案是使用一个靠近我们集群的容器镜像注册表，并且处于相同的安全上下文中。在 Azure 中，我们可以创建一个**Azure 容器注册表**（**ACR**）并在那里托管我们的图像。让我们首先创建这样一个注册表：
 
-```
-bash-5.0# az acr create --resource-group animals-rg --name <acr-name> --sku Basic
-```
+[PRE20]
 
 请注意，`<acr-name>`需要是唯一的。在我的情况下，我选择了名称`fodanimalsacr`。输出（缩短版）如下所示：
 
-```
-{
- "adminUserEnabled": false,
- "creationDate": "2019-12-22T10:31:14.848776+00:00",
- "id": "/subscriptions/186760ad...",
- "location": "westeurope",
- "loginServer": "fodanimalsacr.azurecr.io",
- "name": "fodanimalsacr",
- ...
- "provisioningState": "Succeeded",
-```
+[PRE21]
 
 成功创建容器注册表后，我们需要使用以下命令登录到该注册表：
 
-```
-bash-5.0# az acr login --name <acr-name> 
-Login Succeeded
-WARNING! Your password will be stored unencrypted in /root/.docker/config.json.
-Configure a credential helper to remove this warning. See
-https://docs.docker.com/engine/reference/commandline/login/#credentials-store
-```
+[PRE22]
 
 一旦我们成功登录到 Azure 上的容器注册表，我们需要正确标记我们的容器，以便我们可以将它们推送到 ACR。接下来将描述标记和推送图像到 ACR。
 
@@ -388,39 +274,19 @@ https://docs.docker.com/engine/reference/commandline/login/#credentials-store
 
 一旦我们成功登录到 ACR，我们就可以标记我们的图像，以便它们可以推送到注册表。为此，我们需要获取我们 ACR 实例的 URL。我们可以使用以下命令来实现：
 
-```
-$ az acr list --resource-group animals-rg \
- --query "[].{acrLoginServer:loginServer}" \
- --output table
-
-AcrLoginServer
-------------------------
-fodanimalsacr.azurecr.io
-```
+[PRE23]
 
 现在我们使用前面的 URL 来标记我们的图像：
 
-```
-bash-5.0# docker image tag fundamentalsofdocker/ch11-db:2.0 fodanimalsacr.azurecr.io/ch11-db:2.0
-bash-5.0# docker image tag fundamentalsofdocker/ch11-web:2.0 fodanimalsacr.azurecr.io/ch11-web:2.0
-```
+[PRE24]
 
 然后，我们可以将它们推送到我们的 ACR 中：
 
-```
-bash-5.0# docker image push fodanimalsacr.azurecr.io/ch11-db:2.0
-bash-5.0# docker image push fodanimalsacr.azurecr.io/ch11-web:2.0
-```
+[PRE25]
 
 为了再次检查我们的图像确实在我们的 ACR 中，我们可以使用这个命令：
 
-```
-bash-5.0# az acr repository  list --name  <acr-name> --output **table** 
-Result
---------
-ch11-db
-ch11-web 
-```
+[PRE26]
 
 实际上，我们刚刚推送的两个图像已列出。有了这个，我们就可以创建我们的 Kubernetes 集群了。
 
@@ -428,37 +294,21 @@ ch11-web
 
 我们将再次使用我们的自定义 Azure CLI 来创建 Kubernetes 集群。我们必须确保集群可以访问我们刚刚创建的 ACR 实例，那里存放着我们的容器映像。因此，创建一个名为`animals-cluster`的集群，带有两个工作节点的命令如下：
 
-```
-bash-5.0# az aks create \
- --resource-group animals-rg \
- --name animals-cluster \
- --node-count 2 \
- --generate-ssh-keys \
- --attach-acr <acr-name>
-```
+[PRE27]
 
 这个命令需要一段时间，但几分钟后，我们应该会收到一些 JSON 格式的输出，其中包含了关于新创建的集群的所有细节。
 
 要访问集群，我们需要`kubectl`。我们可以使用这个命令在我们的 Azure CLI 容器中轻松安装它：
 
-```
-bash-5.0# az aks install-cli
-```
+[PRE28]
 
 安装了`kubectl`之后，我们需要必要的凭据来使用这个工具在 Azure 中操作我们的新 Kubernetes 集群。我们可以用这个命令获取必要的凭据：
 
-```
-bash-5.0# az aks get-credentials --resource-group animals-rg --name animals-cluster 
-Merged "animals-cluster" as current context in /root/.kube/config
-```
+[PRE29]
 
 在上一个命令成功执行后，我们可以列出集群中的所有节点：
 
-```
-bash-5.0# kubectl get nodes NAME                                STATUS   ROLES   AGE     VERSION
-aks-nodepool1-12528297-vmss000000   Ready    agent   4m38s   v1.14.8
-aks-nodepool1-12528297-vmss000001   Ready    agent   4m32s   v1.14.8
-```
+[PRE30]
 
 正如预期的那样，我们有两个工作节点正在运行。这些节点上运行的 Kubernetes 版本是`1.14.8`。
 
@@ -468,38 +318,23 @@ aks-nodepool1-12528297-vmss000001   Ready    agent   4m32s   v1.14.8
 
 要部署应用程序，我们可以使用`kubectl apply`命令：
 
-```
-bash-5.0# kubectl apply -f animals.yaml 
-```
+[PRE31]
 
 上一个命令的输出应该类似于这样：
 
-```
-deployment.apps/web created
-service/web created
-deployment.apps/db created
-service/db created
-```
+[PRE32]
 
 现在，我们想要测试这个应用程序。记住，我们为 web 组件创建了一个`LoadBalancer`类型的服务。这个服务将应用程序暴露给互联网。这个过程可能需要一些时间，因为 AKS 除了其他任务外，还需要为这个服务分配一个公共 IP 地址。我们可以用以下命令观察到这一点：
 
-```
-bash-5.0# kubectl get service web --watch
-```
+[PRE33]
 
 请注意上一个命令中的`--watch`参数。它允许我们随着时间监视命令的进展。最初，我们应该看到类似于这样的输出：
 
-```
-NAME TYPE        CLUSTER-IP  EXTERNAL-IP  PORT(S)         AGE
-web LoadBalancer 10.0.124.0  <pending>    3000:32618/TCP  5s
-```
+[PRE34]
 
 公共 IP 地址标记为待定。几分钟后，应该会变成这样：
 
-```
-NAME TYPE        CLUSTER-IP  EXTERNAL-IP    PORT(S)         AGE
-web LoadBalancer 10.0.124.0  51.105.229.192 3000:32618/TCP  63s
-```
+[PRE35]
 
 我们的应用程序现在准备就绪，位于 IP 地址`51.105.229.192`和端口号`3000`。请注意，负载均衡器将内部端口`32618`映射到外部端口`3000`；这在第一次对我来说并不明显。
 
@@ -513,9 +348,7 @@ web LoadBalancer 10.0.124.0  51.105.229.192 3000:32618/TCP  63s
 
 现在我们已经完成了对应用程序的实验，我们不应忘记在 Azure 上删除所有资源，以避免产生不必要的成本。我们可以通过删除资源组来删除所有创建的资源，方法如下：
 
-```
-bash-5.0# az group delete --name animal-rg --yes --no-wait 
-```
+[PRE36]
 
 Azure 在容器工作负载方面有一些引人注目的提供，由于 Azure 主要提供开源编排引擎（如 Kubernetes、Docker Swarm、DC/OS 和 Rancher），因此与 AWS 相比，锁定不太明显。从技术上讲，如果我们最初在 Azure 中运行我们的容器化应用程序，然后决定迁移到另一个云提供商，我们仍然可以保持灵活性。成本应该是有限的。
 
@@ -543,16 +376,11 @@ Azure 在容器工作负载方面有一些引人注目的提供，由于 Azure �
 
 现在，我们可以使用以下命令将我们的`labs`GitHub 存储库克隆到这个环境中：
 
-```
-$ git clone https://github.com/PacktPublishing/Learn-Docker---  Fundamentals-of-Docker-19.x-Second-Edition.git ~/fod
-$ cd ~/fod/ch18/gce
-```
+[PRE37]
 
 现在，我们应该在当前文件夹中找到一个`animals.yaml`文件，我们可以使用它来将动物应用程序部署到我们的 Kubernetes 集群中。看一下这个文件：
 
-```
-$ less animals.yaml
-```
+[PRE38]
 
 它的内容基本与我们在上一章中使用的文件相同。两个不同之处在于：
 
@@ -564,29 +392,15 @@ $ less animals.yaml
 
 在继续之前，我们需要设置`gcloud`和`kubectl`凭据：
 
-```
-$ gcloud container clusters get-credentials animals-cluster --zone europe-west1-b 
-Fetching cluster endpoint and auth data.
-kubeconfig entry generated for animals-cluster.
-```
+[PRE39]
 
 完成这些操作后，现在是部署应用程序的时候了：
 
-```
-$ kubectl create -f animals.yaml 
-deployment.apps/web created
-service/web created
-deployment.apps/db created
-service/db created
-```
+[PRE40]
 
 创建对象后，我们可以观察`LoadBalancer`服务`web`，直到它被分配一个公共 IP 地址：
 
-```
-$ kubectl get svc/web --watch NAME   TYPE           CLUSTER-IP   EXTERNAL-IP     PORT(S)          AGE
-web    LoadBalancer   10.0.5.222   <pending>       3000:32139/TCP   32s
-web    LoadBalancer   10.0.5.222   146.148.23.70   3000:32139/TCP   39s
-```
+[PRE41]
 
 输出中的第二行显示了负载均衡器创建仍在等待的情况，第三行显示了最终状态。按*Ctrl* + *C*退出`watch`命令。显然，我们得到了分配的公共 IP 地址`146.148.23.70`，端口为`3000`。
 

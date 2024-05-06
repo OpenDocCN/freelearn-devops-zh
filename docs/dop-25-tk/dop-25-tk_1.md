@@ -20,11 +20,7 @@ HorizontalPodAutoscaler 被实现为 Kubernetes API 资源和控制器。资源�
 
 给 Windows 用户的说明：请从 Git Bash 中执行本书中的所有命令。这样，您就可以直接运行它们，而不需要修改其语法以适应 Windows 终端或 PowerShell。本章中的所有命令都可以在 `01-hpa.sh` ([`gist.github.com/vfarcic/b46ca2eababb98d967e3e25748740d0d`](https://gist.github.com/vfarcic/b46ca2eababb98d967e3e25748740d0d)) Gist 中找到。
 
-```
- 1  git clone https://github.com/vfarcic/k8s-specs.git
- 2
- 3  cd k8s-specs
-```
+[PRE0]
 
 如果您之前克隆过该存储库，请确保通过执行 `git pull` 来获取最新版本。
 
@@ -64,16 +60,7 @@ Helm 使安装几乎任何公开可用的软件变得非常容易，如果有 Ch
 
 GKE 和 AKS 用户请注意，Google 和 Microsoft 已经将 Metrics Server 作为其托管的 Kubernetes 集群（GKE 和 AKS）的一部分进行了打包。无需安装它，请跳过接下来的命令。对于 minikube 用户，请注意，Metrics Server 作为插件之一可用。请执行`minikube addons enable metrics-server`和`kubectl -n kube-system rollout status deployment metrics-server`命令，而不是接下来的命令。对于 Docker for Desktop 用户，请注意，Metrics Server 的最新更新默认情况下不适用于自签名证书。由于 Docker for Desktop 使用这样的证书，您需要允许不安全的 TLS。请在接下来的`helm install`命令中添加`--set args={"--kubelet-insecure-tls=true"}`参数。
 
-```
- 1  helm install stable/metrics-server \
- 2      --name metrics-server \
- 3      --version 2.0.2 \
- 4      --namespace metrics
- 5
- 6  kubectl -n metrics \
- 7      rollout status \
- 8      deployment metrics-server
-```
+[PRE1]
 
 我们使用 Helm 安装了 Metrics Server，并等待直到它部署完成。
 
@@ -85,17 +72,13 @@ Metrics Server 将定期从运行在节点上的 Kubeletes 中获取指标。目
 
 现在我们可以探索一种检索指标的方式。我们将从与节点相关的指标开始。
 
-```
- 1  kubectl top nodes
-```
+[PRE2]
 
 如果您很快，输出应该会声明“尚未提供指标”。这是正常的。在执行第一次迭代的指标检索之前需要几分钟时间。例外情况是 GKE 和 AKS，它们已经预先安装了 Metrics Server。
 
 在重复命令之前先去冲杯咖啡。
 
-```
- 1  kubectl top nodes
-```
+[PRE3]
 
 这次，输出是不同的。
 
@@ -103,82 +86,35 @@ Metrics Server 将定期从运行在节点上的 Kubeletes 中获取指标。目
 
 我的输出如下。
 
-```
-NAME               CPU(cores) CPU% MEMORY(bytes) MEMORY%
-docker-for-desktop 248m       12%  1208Mi        63%
-```
+[PRE4]
 
 我们可以看到我有一个名为`docker-for-desktop`的节点。它正在使用 248 CPU 毫秒。由于节点有两个核心，这占总可用 CPU 的 12%。同样，使用了 1.2GB 的 RAM，这占总可用内存 2GB 的 63%。
 
 节点的资源使用情况很有用，但不是我们要寻找的内容。在本章中，我们专注于 Pod 的自动扩展。但是，在我们开始之前，我们应该观察一下我们的每个 Pod 使用了多少内存。我们将从在`kube-system`命名空间中运行的 Pod 开始。
 
-```
- 1  kubectl -n kube-system top pod
-```
+[PRE5]
 
 输出（在 Docker for Desktop 上）如下。
 
-```
-NAME                                       CPU(cores) MEMORY(bytes)
-etcd-docker-for-desktop                    16m        74Mi
-kube-apiserver-docker-for-desktop          33m        427Mi
-kube-controller-manager-docker-for-desktop 44m        63Mi
-kube-dns-86f4d74b45-c47nh                  1m         39Mi
-kube-proxy-r56kd                           2m         22Mi
-kube-scheduler-docker-for-desktop          13m        23Mi
-tiller-deploy-5c688d5f9b-2pspz             0m         21Mi
-
-```
+[PRE6]
 
 我们可以看到`kube-system`中当前运行的每个 Pod 的资源使用情况（CPU 和内存）。如果我们找不到更好的工具，我们可以使用该信息来调整这些 Pod 的`requests`以使其更准确。但是，有更好的方法来获取这些信息，所以我们将暂时跳过调整。相反，让我们尝试获取所有 Pod 的当前资源使用情况，无论命名空间如何。
 
-```
- 1  kubectl top pods --all-namespaces
-```
+[PRE7]
 
 输出（在 Docker for Desktop 上）如下。
 
-```
-NAMESPACE   NAME                                       CPU(cores) MEMORY(bytes) 
-docker      compose-7447646cf5-wqbwz                   0m         11Mi 
-docker      compose-api-6fbc44c575-gwhxt               0m         14Mi 
-kube-system etcd-docker-for-desktop                    16m        74Mi 
-kube-system kube-apiserver-docker-for-desktop          33m        427Mi 
-kube-system kube-controller-manager-docker-for-desktop 46m        63Mi 
-kube-system kube-dns-86f4d74b45-c47nh                  1m         38Mi 
-kube-system kube-proxy-r56kd                           3m         22Mi 
-kube-system kube-scheduler-docker-for-desktop          14m        23Mi 
-kube-system tiller-deploy-5c688d5f9b-2pspz             0m         21Mi 
-metrics     metrics-server-5d78586d76-pbqj8            0m         10Mi 
-```
+[PRE8]
 
 该输出显示与上一个输出相同的信息，只是扩展到所有命名空间。不需要对其进行评论。
 
 通常，Pod 的度量不够精细，我们需要观察构成 Pod 的每个容器的资源。要获取容器度量，我们只需要添加`--containers`参数。
 
-```
- 1  kubectl top pods \
- 2    --all-namespaces \
- 3    --containers
-```
+[PRE9]
 
 输出（在 Docker for Desktop 上）如下。
 
-```
-NAMESPACE   POD                                        NAME                 CPU(cores) MEMORY(bytes) 
-docker      compose-7447646cf5-wqbwz                   compose                 0m         11Mi 
-docker      compose-api-6fbc44c575-gwhxt               compose                 0m         14Mi 
-kube-system etcd-docker-for-desktop                    etcd                    16m        74Mi 
-kube-system kube-apiserver-docker-for-desktop          kube-apiserver          33m        427Mi 
-kube-system kube-controller-manager-docker-for-desktop kube-controller-manager 46m        63Mi 
-kube-system kube-dns-86f4d74b45-c47nh                  kubedns                 0m         13Mi 
-kube-system kube-dns-86f4d74b45-c47nh                  dnsmasq                 0m         10Mi 
-kube-system kube-dns-86f4d74b45-c47nh                  sidecar                 1m         14Mi 
-kube-system kube-proxy-r56kd                           kube-proxy              3m         22Mi 
-kube-system kube-scheduler-docker-for-desktop          kube-scheduler          14m        23Mi 
-kube-system tiller-deploy-5c688d5f9b-2pspz             tiller                  0m         21Mi 
-metrics     metrics-server-5d78586d76-pbqj8            metrics-server          0m         10Mi 
-```
+[PRE10]
 
 我们可以看到，这次输出显示了每个容器。例如，我们可以观察到`kube-dns-*` Pod 的度量分为三个容器（`kubedns`，`dnsmasq`，`sidecar`）。
 
@@ -188,53 +124,17 @@ metrics     metrics-server-5d78586d76-pbqj8            metrics-server          0
 
 虽然 `kubectl top` 命令对观察当前指标很有用，但如果我们想从其他工具访问它们，它就没什么用了。毕竟，我们的目标不是坐在终端前用 `watch "kubectl top pods"` 命令。那将是浪费我们（人类）的才能。相反，我们的目标应该是从其他工具中抓取这些指标，并根据实时和历史数据创建警报和（也许）仪表板。为此，我们需要以 JSON 或其他机器可解析的格式输出。幸运的是，`kubectl` 允许我们以原始格式直接调用其 API，并检索与工具查询相同的结果。
 
-```
- 1  kubectl get \
- 2      --raw "/apis/metrics.k8s.io/v1beta1" \
- 3      | jq '.'
-```
+[PRE11]
 
 输出如下。
 
-```
-{
-  "kind": "APIResourceList",
-  "apiVersion": "v1",
-  "groupVersion": "metrics.k8s.io/v1beta1",
-  "resources": [
-    {
-      "name": "nodes",
-      "singularName": "",
-      "namespaced": false,
-      "kind": "NodeMetrics",
-      "verbs": [
-        "get",
-        "list"
-      ]
-    },
-    {
-      "name": "pods",
-      "singularName": "",
-      "namespaced": true,
-      "kind": "PodMetrics",
-      "verbs": [
-        "get",
-        "list"
-      ]
-    }
-  ]
-}
-```
+[PRE12]
 
 我们可以看到 `/apis/metrics.k8s.io/v1beta1` 端点是一个索引 API，有两个资源（`nodes` 和 `pods`）。
 
 让我们更仔细地看一下度量 API 的 `pods` 资源。
 
-```
- 1  kubectl get \
- 2      --raw "/apis/metrics.k8s.io/v1beta1/pods" \
- 3      | jq '.'
-```
+[PRE13]
 
 输出太大，无法在一本书中呈现，所以我会留给你去探索。你会注意到输出是通过 `kubectl top pods --all-namespaces --containers` 命令观察到的 JSON 等效物。
 
@@ -250,62 +150,13 @@ metrics     metrics-server-5d78586d76-pbqj8            metrics-server          0
 
 让我们看一下我们示例中将使用的应用程序的定义。
 
-```
- 1  cat scaling/go-demo-5-no-sidecar-mem.yml
-```
+[PRE14]
 
 如果您熟悉 Kubernetes，YAML 定义应该是不言自明的。我们只会评论与自动扩展相关的部分。
 
 输出，仅限于相关部分，如下。
 
-```
-...
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: db
-  namespace: go-demo-5
-spec:
-  ...
-  template:
-    ...
-    spec:
-      ...
-      containers:
-      - name: db
-        ...
-        resources:
-          limits:
-            memory: "150Mi"
-            cpu: 0.2
-          requests:
-            memory: "100Mi"
-            cpu: 0.1
-        ...
-      - name: db-sidecar
-    ... 
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: api
-  namespace: go-demo-5
-spec:
-  ...
-  template:
-    ...
-    spec:
-      containers:
-      - name: api
-        ...
-        resources:
-          limits:
-            memory: 15Mi
-            cpu: 0.1
-          requests:
-            memory: 10Mi
-            cpu: 0.01
-...
-```
+[PRE15]
 
 我们有两个形成应用程序的 Pod。 `api`部署是一个后端 API，使用`db` StatefulSet 来保存其状态。
 
@@ -313,35 +164,21 @@ spec:
 
 现在，让我们创建这些资源。
 
-```
- 1  kubectl apply \
- 2      -f scaling/go-demo-5-no-sidecar-mem.yml \
- 3      --record
-```
+[PRE16]
 
 输出应该显示已创建了相当多的资源，我们的下一步是等待`api`部署推出，从而确认应用程序正在运行。
 
-```
- 1  kubectl -n go-demo-5 \
- 2      rollout status \
- 3      deployment api
-```
+[PRE17]
 
 几分钟后，您应该会看到消息，指出“api”部署成功推出。
 
 为了安全起见，我们将列出`go-demo-5`命名空间中的 Pod，并确认每个 Pod 都在运行一个副本。
 
-```
- 1  kubectl -n go-demo-5 get pods
-```
+[PRE18]
 
 输出如下。
 
-```
-NAME    READY STATUS  RESTARTS AGE
-api-... 1/1   Running 0        1m
-db-0    2/2   Running 0        1m
-```
+[PRE19]
 
 到目前为止，我们还没有做任何超出 StatefulSet 和 Deployment 的普通创建。
 
@@ -355,35 +192,11 @@ db-0    2/2   Running 0        1m
 
 让我们来看一个 HorizontalPodAutoscaler 的简单示例。
 
-```
- 1  cat scaling/go-demo-5-api-hpa.yml
-```
+[PRE20]
 
 输出如下。
 
-```
-apiVersion: autoscaling/v2beta1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: api
-  namespace: go-demo-5
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: api
-  minReplicas: 2
-  maxReplicas: 5
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      targetAverageUtilization: 80
-  - type: Resource
-    resource:
-      name: memory
-      targetAverageUtilization: 80
-```
+[PRE21]
 
 定义使用`HorizontalPodAutoscaler`来定位`api`部署。它的边界是最少两个和最多五个副本。这些限制是基本的。没有这些限制，我们会面临无限扩展或缩减到零副本的风险。`minReplicas`和`maxReplicas`字段是一个安全网。
 
@@ -393,72 +206,41 @@ spec:
 
 现在让我们应用它。
 
-```
- 1  kubectl apply \
- 2      -f scaling/go-demo-5-api-hpa.yml \
- 3      --record
-```
+[PRE22]
 
 我们应用了创建**HorizontalPodAutoscaler**（**HPA**）的定义。接下来，我们将查看检索 HPA 资源时获得的信息。
 
-```
- 1  kubectl -n go-demo-5 get hpa
-```
+[PRE23]
 
 如果你很快，输出应该类似于以下内容。
 
-```
-NAME REFERENCE      TARGETS                      MINPODS MAXPODS REPLICAS AGE
-api  Deployment/api <unknown>/80%, <unknown>/80% 2       5       0        20s
-
-```
+[PRE24]
 
 我们可以看到，Kubernetes 尚未具有实际的 CPU 和内存利用率，而是输出了`<unknown>`。在从 Metrics Server 收集下一次数据之前，我们需要再给它一些时间。在我们重复相同的查询之前，先喝杯咖啡。
 
-```
- 1  kubectl -n go-demo-5 get hpa
-```
+[PRE25]
 
 这次，输出中没有未知项。
 
-```
-NAME REFERENCE      TARGETS          MINPODS MAXPODS REPLICAS AGE
-api  Deployment/api 38%/80%, 10%/80% 2       5       2        1m
-
-```
+[PRE26]
 
 我们可以看到，CPU 和内存利用率远低于预期的`80%`利用率。尽管如此，Kubernetes 将副本数从一个增加到两个，因为这是我们定义的最小值。我们签订了合同，规定`api` Deployment 的副本数永远不得少于两个，即使资源利用率远低于预期的平均利用率，Kubernetes 也会遵守这一点进行扩展。我们可以通过 HorizontalPodAutoscaler 的事件来确认这种行为。
 
-```
- 1  kubectl -n go-demo-5 describe hpa api
-```
+[PRE27]
 
 输出，仅限于事件消息，如下所示。
 
-```
-...
-Events:
-... Message
-... -------
-... New size: 2; reason: Current number of replicas below Spec.MinReplicas
-```
+[PRE28]
 
 事件的消息应该是不言自明的。HorizontalPodAutoscaler 将副本数更改为`2`，因为当前数量（1）低于`MinReplicas`值。
 
 最后，我们将列出 Pods，以确认所需数量的副本确实正在运行。
 
-```
- 1  kubectl -n go-demo-5 get pods
-```
+[PRE29]
 
 输出如下。
 
-```
-NAME    READY STATUS  RESTARTS AGE
-api-... 1/1   Running 0        2m
-api-... 1/1   Running 0        6m
-db-0    2/2   Running 0        6m
-```
+[PRE30]
 
 到目前为止，HPA 尚未根据资源使用情况执行自动缩放。相反，它只增加了 Pod 的数量以满足指定的最小值。它通过操纵 Deployment 来实现这一点。
 
@@ -466,80 +248,35 @@ db-0    2/2   Running 0        6m
 
 接下来，我们将尝试创建另一个 HorizontalPodAutoscaler，但这次，我们将以运行我们的 MongoDB 的 StatefulSet 为目标。因此，让我们再看一下另一个 YAML 定义。
 
-```
- 1  cat scaling/go-demo-5-db-hpa.yml
-```
+[PRE31]
 
 输出如下。
 
-```
-apiVersion: autoscaling/v2beta1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: db
-  namespace: go-demo-5
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
-    name: db
-  minReplicas: 3
-  maxReplicas: 5
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      targetAverageUtilization: 80
-  - type: Resource
-    resource:
-      name: memory
-      targetAverageUtilization: 80
-```
+[PRE32]
 
 该定义几乎与我们之前使用的定义相同。唯一的区别是，这次我们的目标是名为`db`的`StatefulSet`，并且最小副本数应为`3`。
 
 让我们应用它。
 
-```
- 1  kubectl apply \
- 2      -f scaling/go-demo-5-db-hpa.yml \
- 3      --record
-```
+[PRE33]
 
 让我们再看一下 HorizontalPodAutoscaler 资源。
 
-```
- 1  kubectl -n go-demo-5 get hpa
-```
+[PRE34]
 
 输出如下。
 
-```
-NAME REFERENCE      TARGETS                      MINPODS MAXPODS REPLICAS AGE
-api  Deployment/api 41%/80%, 0%/80%              2       5       2        5m
-db   StatefulSet/db <unknown>/80%, <unknown>/80% 3       5       0        20s
-```
+[PRE35]
 
 我们可以看到第二个 HPA 已经创建，并且当前利用率为“未知”。这一定是之前的类似情况。我们应该给它一些时间让数据开始流动吗？等待片刻，然后再次检索 HPA。目标仍然是“未知”吗？
 
 资源利用持续未知可能有问题。让我们描述新创建的 HPA，看看是否能找到问题的原因。
 
-```
- 1  kubectl -n go-demo-5 describe hpa db
-```
+[PRE36]
 
 输出，仅限于事件消息，如下所示。
 
-```
-...
-Events:
-... Message
-... -------
-... New size: 3; reason: Current number of replicas below Spec.MinReplicas
-... missing request for memory on container db-sidecar in pod go-demo-5/db-0
-... failed to get memory utilization: missing request for memory on container db-sidecar in pod go-demo-5/db-0
-
-```
+[PRE37]
 
 请注意，您的输出可能只有一个事件，甚至没有这些事件。如果是这种情况，请等待几分钟，然后重复上一个命令。
 
@@ -549,75 +286,31 @@ HPA 无法计算百分比，因为我们没有指定`db-sidecar`容器请求多�
 
 让我们快速看一下新定义。
 
-```
- 1  cat scaling/go-demo-5-no-hpa.yml
-```
+[PRE38]
 
 输出，仅限于相关部分，如下所示。
 
-```
-...
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: db
-  namespace: go-demo-5
-spec:
-  ...
-  template:
-    ...
-    spec:
-      ...
-      - name: db-sidecar
-        ...
-        resources:
-          limits:
-            memory: "100Mi"
-            cpu: 0.2
-          requests:
-            memory: "50Mi"
-            cpu: 0.1
-...
-```
+[PRE39]
 
 与初始定义相比，唯一显着的区别是这次我们为`db-sidecar`容器定义了资源。让我们应用它。
 
-```
- 1  kubectl apply \
- 2      -f scaling/go-demo-5-no-hpa.yml \
- 3      --record
-```
+[PRE40]
 
 接下来，我们将等待片刻以使更改生效，然后再次检索 HPA。
 
-```
- 1  kubectl -n go-demo-5 get hpa
-```
+[PRE41]
 
 这一次，输出更有希望。
 
-```
-NAME REFERENCE      TARGETS          MINPODS MAXPODS REPLICAS AGE
-api  Deployment/api 66%/80%, 10%/80% 2       5       2        16m
-db   StatefulSet/db 60%/80%, 4%/80%  3       5       3        10m
-```
+[PRE42]
 
 两个 HPA 都显示了当前和目标资源使用情况。都没有达到目标值，所以 HPA 保持了最小副本数。我们可以通过列出`go-demo-5`命名空间中的所有 Pod 来确认这一点。
 
-```
- 1  kubectl -n go-demo-5 get pods
-```
+[PRE43]
 
 输出如下。
 
-```
-NAME    READY STATUS  RESTARTS AGE
-api-... 1/1   Running 0        42m
-api-... 1/1   Running 0        46m
-db-0    2/2   Running 0        33m
-db-1    2/2   Running 0        33m
-db-2    2/2   Running 0        33m
-```
+[PRE44]
 
 我们可以看到`api`部署有两个 Pod，而`db` StatefulSet 有三个副本。这些数字等同于 HPA 定义中的`spec.minReplicas`条目。
 
@@ -627,124 +320,61 @@ db-2    2/2   Running 0        33m
 
 让我们看一下修改后的 HPA 定义。
 
-```
- 1  cat scaling/go-demo-5-api-hpa-low-mem.yml
-```
+[PRE45]
 
 输出，仅限于相关部分，如下所示。
 
-```
-apiVersion: autoscaling/v2beta1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: api
-  namespace: go-demo-5
-spec:
-  ...
-  metrics:
-  ...
-  - type: Resource
-    resource:
-      name: memory
-      targetAverageUtilization: 10
-```
+[PRE46]
 
 我们将`targetAverageUtilization`减少到`10`。这肯定低于当前的内存利用率，我们将能够见证 HPA 的工作。让我们应用新的定义。
 
-```
- 1  kubectl apply \
- 2      -f scaling/go-demo-5-api-hpa-low-mem.yml \
- 3      --record
-```
+[PRE47]
 
 请等待一段时间，以便进行下一次数据收集迭代，并检索 HPAs。
 
-```
- 1  kubectl -n go-demo-5 get hpa
-```
+[PRE48]
 
 输出如下。
 
-```
-NAME REFERENCE      TARGETS          MINPODS MAXPODS REPLICAS AGE
-api  Deployment/api 49%/10%, 10%/80% 2       5       2        44m
-db   StatefulSet/db 64%/80%, 5%/80%  3       5       3        39m
-```
+[PRE49]
 
 我们可以看到`api` HPA 的实际内存（`49%`）远远超过了阈值（`10%`）。然而，副本的数量仍然是相同的（`2`）。我们需要等待几分钟，然后再次检索 HPAs。
 
-```
- 1  kubectl -n go-demo-5 get hpa
-```
+[PRE50]
 
 这次，输出略有不同。
 
-```
-NAME REFERENCE      TARGETS          MINPODS MAXPODS REPLICAS AGE
-api  Deployment/api 49%/10%, 10%/80% 2       5       4        44m
-db   StatefulSet/db 64%/80%, 5%/80%  3       5       3        39m
-```
+[PRE51]
 
 我们可以看到副本数量增加到`4`。HPA 改变了部署，导致了级联效应，从而增加了 Pod 的数量。
 
 让我们描述一下`api` HPA。
 
-```
- 1  kubectl -n go-demo-5 describe hpa api
-```
+[PRE52]
 
 输出，仅限于事件消息，如下所示。
 
-```
-...
-Events:
-... Message
-... -------
-... New size: 2; reason: Current number of replicas below Spec.MinReplicas
-... New size: 4; reason: memory resource utilization (percentage of request) above target
-```
+[PRE53]
 
 我们可以看到 HPA 将大小更改为`4`，因为`内存资源利用率（请求百分比）`高于目标。
 
 由于在这种情况下，增加副本数量并没有将内存消耗降低到 HPA 目标以下，我们应该期望 HPA 将继续扩展部署，直到达到`5`的限制。我们将通过等待几分钟并再次描述 HPA 来确认这一假设。
 
-```
- 1  kubectl -n go-demo-5 describe hpa api
-```
+[PRE54]
 
 输出，仅限于事件消息，如下所示。
 
-```
-...
-Events:
-... Message
-... -------
-... New size: 2; reason: Current number of replicas below Spec.MinReplicas
-... New size: 4; reason: memory resource utilization (percentage of request) above target
-... New size: 5; reason: memory resource utilization (percentage of request) above target
-```
+[PRE55]
 
 我们收到了消息，说明新的大小现在是`5`，从而证明 HPA 将继续扩展，直到资源低于目标，或者在我们的情况下，达到最大副本数量。
 
 我们可以通过列出`go-demo-5`命名空间中的所有 Pod 来确认扩展确实起作用。
 
-```
- 1  kubectl -n go-demo-5 get pods
-```
+[PRE56]
 
 输出如下。
 
-```
-NAME    READY STATUS  RESTARTS AGE
-api-... 1/1   Running 0        47m
-api-... 1/1   Running 0        51m
-api-... 1/1   Running 0        4m
-api-... 1/1   Running 0        4m
-api-... 1/1   Running 0        24s
-db-0    2/2   Running 0        38m
-db-1    2/2   Running 0        38m
-db-2    2/2   Running 0        38m
-```
+[PRE57]
 
 正如我们所看到的，`api`部署确实有五个副本。
 
@@ -754,30 +384,15 @@ HPA 从 Metrics Server 中检索数据，得出实际资源使用量高于阈值
 
 接下来，我们将验证缩减副本数量也能正常工作。我们将重新应用初始定义，其中内存和 CPU 都设置为百分之八十。由于实际内存使用量低于该值，HPA 应该开始缩减，直到达到最小副本数量。
 
-```
- 1  kubectl apply \
- 2      -f scaling/go-demo-5-api-hpa.yml \
- 3      --record
-```
+[PRE58]
 
 与之前一样，我们将等待几分钟，然后再描述 HPA。
 
-```
- 1  kubectl -n go-demo-5 describe hpa api
-```
+[PRE59]
 
 输出，仅限于事件消息，如下所示。
 
-```
-...
-Events:
-... Message
-... -------
-... New size: 2; reason: Current number of replicas below Spec.MinReplicas
-... New size: 4; reason: memory resource utilization (percentage of request) above target
-... New size: 5; reason: memory resource utilization (percentage of request) above target
-... New size: 3; reason: All metrics below target
-```
+[PRE60]
 
 正如我们所看到的，它将大小更改为`3`，因为所有的`metrics`都`below target`。
 
@@ -789,136 +404,49 @@ Events:
 
 首先，让我们看看我们集群中有多少个 Pods。
 
-```
- 1  kubectl -n go-demo-5 get pods
-```
+[PRE61]
 
 输出如下。
 
-```
-NAME    READY STATUS  RESTARTS AGE
-api-... 1/1   Running 0        27m
-api-... 1/1   Running 2        31m
-db-0    2/2   Running 0        20m
-db-1    2/2   Running 0        20m
-db-2    2/2   Running 0        21m
-```
+[PRE62]
 
 我们可以看到`api`部署有两个副本，`db`有三个有状态集的副本。
 
 假设我们想要发布一个新版本的`go-demo-5`应用程序。我们将使用的定义如下。
 
-```
- 1  cat scaling/go-demo-5-replicas-10.yml
-```
+[PRE63]
 
 输出，仅限于相关部分，如下所示。
 
-```
-...
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: api
-  namespace: go-demo-5
-spec:
-  replicas: 10
-... 
-apiVersion: autoscaling/v2beta1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: api
-  namespace: go-demo-5
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: api
-  minReplicas: 2
-  maxReplicas: 5
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      targetAverageUtilization: 80
-  - type: Resource
-    resource:
-      name: memory
-      targetAverageUtilization: 80
-```
+[PRE64]
 
 需要注意的重要事情是我们的`api`部署有`10`个副本，并且我们有 HPA。其他一切都和以前一样。
 
 如果我们应用了那个定义会发生什么？
 
-```
- 1  kubectl apply \
- 2    -f scaling/go-demo-5-replicas-10.yml
- 3
- 4  kubectl -n go-demo-5 get pods
-```
+[PRE65]
 
 我们应用了新的定义，并从`go-demo-5`命名空间中检索了所有的 Pods。后一条命令的输出如下。
 
-```
-NAME    READY STATUS            RESTARTS AGE
-api-... 1/1   Running           0        9s
-api-... 0/1   ContainerCreating 0        9s
-api-... 0/1   ContainerCreating 0        9s
-api-... 1/1   Running           2        41m
-api-... 1/1   Running           0        22s
-api-... 0/1   ContainerCreating 0        9s
-api-... 0/1   ContainerCreating 0        9s
-api-... 1/1   Running           0        9s
-api-... 1/1   Running           0        9s
-api-... 1/1   Running           0        9s
-db-0    2/2   Running           0        31m
-db-1    2/2   Running           0        31m
-db-2    2/2   Running           0        31m
-```
+[PRE66]
 
 Kubernetes 遵循我们希望有十个`api`副本的要求，并创建了八个 Pods（之前我们有两个）。乍一看，HPA 似乎没有任何效果。让我们再次检索 Pods。
 
-```
- 1  kubectl -n go-demo-5 get pods
-```
+[PRE67]
 
 输出如下。
 
-```
-NAME    READY STATUS  RESTARTS AGE
-api-... 1/1   Running 0        30s
-api-... 1/1   Running 2        42m
-api-... 1/1   Running 0        43s
-api-... 1/1   Running 0        30s
-api-... 1/1   Running 0        30s
-db-0    2/2   Running 0        31m
-db-1    2/2   Running 0        32m
-db-2    2/2   Running 0        32m
-```
+[PRE68]
 
 我们的部署从十个缩减到了五个副本。HPA 检测到副本超过了最大阈值，并相应地采取了行动。但它做了什么？它只是简单地移除了五个副本吗？那不可能，因为那只会有暂时的效果。如果 HPA 移除或添加 Pods，部署也会移除或添加 Pods，两者将互相对抗。Pods 的数量将无限波动。相反，HPA 修改了部署。
 
 让我们描述一下`api`。
 
-```
- 1  kubectl -n go-demo-5 \
- 2    describe deployment api
-```
+[PRE69]
 
 输出，仅限于相关部分，如下所示。
 
-```
-...
-Replicas: 5 desired | 5 updated | 5 total | 5 available | 0 unavailable
-...
-Events:
-... Message
-... -------
-...
-... Scaled up replica set api-5bbfd85577 to 10
-... Scaled down replica set api-5bbfd85577 to 5
-```
+[PRE70]
 
 副本的数量设置为`5 desired`。HPA 修改了我们的部署。我们可以通过事件消息更好地观察到这一点。倒数第二条消息表明副本的数量被扩展到`10`，而最后一条消息表明它被缩减到`5`。前者是我们通过应用新的部署来执行滚动更新的结果，而后者是由 HPA 修改部署并改变其副本数量产生的。
 
@@ -934,37 +462,17 @@ Events:
 
 我们将使用`go-demo-5.yml`的定义，让我们看看它与我们之前使用的`go-demo-5-replicas-10.yml`有何不同。
 
-```
- 1  diff \
- 2    scaling/go-demo-5-replicas-10.yml \
- 3    scaling/go-demo-5.yml
-```
+[PRE71]
 
 输出显示的唯一区别是，这一次，我们没有指定副本的数量。
 
 让我们应用这个变化，看看会发生什么。
 
-```
- 1  kubectl apply \
- 2    -f scaling/go-demo-5.yml
- 3
- 4  kubectl -n go-demo-5 \
- 5    describe deployment api
-```
+[PRE72]
 
 后一条命令的输出，仅限于相关部分，如下所示。
 
-```
-...
-Replicas: 1 desired | 5 updated | 5 total | 5 available | 0 unavailable
-...
-Events:
-... Message
-... -------
-...
-... Scaled down replica set api-5bbfd85577 to 5
-... Scaled down replica set api-5bbfd85577 to 1
-```
+[PRE73]
 
 应用部署而没有`副本`导致`1 desired`。当然，HPA 很快会将其扩展到`2`（其最小值），但我们仍然未能实现我们的使命，即始终保持 HPA 定义的副本数量。
 
@@ -976,36 +484,21 @@ Events:
 
 让我们来测试一下。
 
-```
- 1  kubectl delete -f scaling/go-demo-5.yml
-```
+[PRE74]
 
 我们删除了与`go-demo-5`应用程序相关的所有内容。现在，让我们测试一下，如果从一开始就没有定义`副本`，部署会如何行为。
 
-```
- 1  kubectl apply \
- 2    -f scaling/go-demo-5.yml
- 3
- 4  kubectl -n go-demo-5 \
- 5    describe deployment api
-```
+[PRE75]
 
 后一条命令的输出，仅限于相关部分，如下所示。
 
-```
-...
-Replicas: 1 desired | 1 updated | 1 total | 0 available | 1 unavailable
-...
-```
+[PRE76]
 
 看起来我们失败了。部署确实将副本的数量设置为`1`。但是，您看不到的是副本在内部没有定义。
 
 然而，几分钟后，我们的部署将被 HPA 扩展到两个副本。这是预期的行为，但我们将确认一下。
 
-```
- 1  kubectl -n go-demo-5 \
- 2    describe deployment api
-```
+[PRE77]
 
 您应该从输出中看到副本的数量已经被（由 HPA）更改为`2`。
 
@@ -1013,27 +506,11 @@ Replicas: 1 desired | 1 updated | 1 total | 0 available | 1 unavailable
 
 我们将应用一个新的定义。与当前运行的定义相比，唯一的区别在于镜像的标签。这样我们将确保部署确实被更新。
 
-```
- 1  kubectl apply \
- 2    -f scaling/go-demo-5-2-5.yml
- 3
- 4  kubectl -n go-demo-5 \
- 5    describe deployment api
-```
+[PRE78]
 
 后一条命令的输出，仅限于相关部分，如下所示。
 
-```
-...
-Replicas: 2 desired | 1 updated | 3 total | 2 available | 1 unavailable
-...
-Events:
-... Message
-... -------
-... Scaled up replica set api-5bbfd85577 to 1
-... Scaled up replica set api-5bbfd85577 to 2
-... Scaled up replica set api-745bc9fc6d to 1
-```
+[PRE79]
 
 我们可以看到，由 HPA 设置的副本数量得到了保留。
 
@@ -1051,12 +528,7 @@ Events:
 
 如果您计划保持集群运行，请执行以下命令以删除我们创建的资源。
 
-```
- 1  # If NOT GKE or AKS
- 2  helm delete metrics-server --purge
- 3
- 4  kubectl delete ns go-demo-5
-```
+[PRE80]
 
 否则，请删除整个集群，如果您只是为了本书的目的而创建它，并且不打算立即深入下一章。
 

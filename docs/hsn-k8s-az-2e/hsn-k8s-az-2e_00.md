@@ -90,16 +90,11 @@ Gunther 已出版两本书，《.NET-完整的开发周期》和《.NET 中的�
 
 以下是一个代码块示例：
 
-```
-kubectl create -f guestbook-all-in-one.yaml
-```
+[PRE0]
 
 我们将使用反斜杠\来表示代码将跨越书中多行。您可以复制反斜杠并继续到下一行，或者忽略反斜杠并在单行上键入完整的多行代码。例如：
 
-```
-az aks nodepool update --disable-cluster-autoscaler \
--g rg-handsonaks --cluster-name handsonaks --name agentpool
-```
+[PRE1]
 
 在许多情况下，我们使用了尖括号`<>`。您需要用实际参数替换这些内容，并且不要在命令中使用这些括号。
 

@@ -28,31 +28,7 @@
 
 要获取每个参数所需的更深入信息，或者查看我们尚未涵盖的命令，请在终端中键入`docker help`，或者单独在终端中键入该命令。您还可以访问[`docs.docker.com/`](https://docs.docker.com/)并查看文档，如果 CLI 输出提供的信息不够好，它可能包含更新的数据。
 
-```
-docker attach - Attach the shell's input/output/error stream to the container
-docker build - Build a Docker image based on a provided Dockerfile
-docker cp - Copy files between container and host
-docker exec - Execute a command in a running container
-docker images - List image available to your installation of docker
-docker info - Display information about the system
-docker inspect - Display information about Docker layers, containers, images, etc
-docker kill - Forcefully terminate a container 
-docker logs - Display logs from a container since it last started
-docker pause - Pause all processes within a container
-docker ps - List information about containers and their resource usage
-docker pull - Pull an image from a remote repository into the local registry
-docker push - Push an image from the local registry into a remote repository
-docker rm - Remove a container
-docker rmi - Remove an image from the local repository
-docker run - Start a new container and run it
-docker search - Search DockerHub for images
-docker start - Start a stopped container
-docker stop - Stop a running container nicely (wait for container to shut down)
-docker tag - Create a tag for an image
-docker top - Show running processes of a container
-docker unpause - Resume all processes in a paused container
-docker version - Show the Docker version
-```
+[PRE0]
 
 最近，Docker 命令已经开始被隔离到它们自己的 docker CLI 部分，比如`docker container`，以将它们与其他集群管理命令分开。要使用这种较新的语法，只需在任何命令前加上容器（即`docker stop`变成`docker container stop`）。您可以随意使用任何版本，但请注意，尽管新样式对于大多数 Docker 用法来说过于冗长，但您可能会发现旧样式在某个时候被弃用。
 
@@ -160,25 +136,7 @@ docker version - Show the Docker version
 
 `nginx_main_site.conf`:
 
-```
-server {
-  listen  80;
-  server_name    _;
-
-  root /srv/www/html;
-
-  location ~/\. {
-    deny all;
-  }
-
-  location / {
-    auth_basic           "Authentication required";
-    auth_basic_user_file /srv/www/html/.htpasswd;
-
-    proxy_pass           http://172.17.0.1:8000;
-  }
-}
-```
+[PRE1]
 
 这里有三个有趣的配置部分。第一个是包含`auth_basic_`命令，它们在此配置提供的所有端点上启用 HTTP 基本身份验证。第二个是，如果你足够留心新的以`.`开头的凭据文件，我们现在需要拒绝获取所有以`.`开头的文件，因为我们添加了`.htpasswd`。第三个也是最有趣的是使用了`proxy_pass`，它允许服务器将所有经过身份验证的流量路由到后端应用服务器。为什么我们使用`http://172.17.0.1:8000`作为目的地，这开始打开 Docker 网络的潘多拉魔盒，所以我们将在稍后解释为什么我们使用它，如果现在涵盖它，我们将使我们的服务构建偏离轨道。
 
@@ -186,44 +144,11 @@ server {
 
 现在我们可以在同一个目录中添加我们的新`Dockerfile`，它将如下所示：
 
-```
-FROM nginx:latest
-# Make sure we are fully up to date
-RUN apt-get update -q && \
- apt-get dist-upgrade -y && \
- apt-get install openssl && \
- apt-get clean && \
- apt-get autoclean
-
-# Setup any variables we need
-ENV SRV_PATH /srv/www/html
-
-# Get a variable defined for our password
-ARG PASSWORD=test
-
-# Remove default configuration
-RUN rm /etc/nginx/conf.d/default.conf
-
-# Change ownership of copied files
-RUN mkdir -p $SRV_PATH && \
- chown nginx:nginx $SRV_PATH
-
-# Setup authentication file
-RUN printf "user:$(openssl passwd -1 $PASSWORD)\n" >> $SRV_PATH/.htpasswd
-
-# Add our own configuration in
-COPY nginx_main_site.conf /etc/nginx/conf.d/
-```
+[PRE2]
 
 正如您所看到的，我们在这里对上一章中的原始工作进行了一些更改。应该引起注意的初始事情是编写`RUN apt-get`行的新方法，我们在这里简要注释了一下：
 
-```
-RUN apt-get update -q && \         # Update our repository information
- apt-get dist-upgrade -y && \   # Upgrade any packages we already have
- apt-get install openssl && \   # Install dependency (openssl)
- apt-get clean && \             # Remove cached package files
- apt-get autoclean              # Remove any packages that are no longer needed on the system
-```
+[PRE3]
 
 与以前的图像不同，在这里，我们安装了`openssl`软件包，因为我们将需要它来为身份验证创建 NGINX 加密密码，但`clean`和`autoclean`行在这里是为了确保我们删除系统上的任何缓存的`apt`软件包并删除孤立的软件包，从而给我们一个更小的镜像，这是我们应该始终努力的目标。就像以前一样，我们以类似的方式组合所有行，以便以前和当前层之间的文件系统差异只是所需的更改，而不是其他任何东西，使其成为一个非常紧凑的更改。当编写自己的图像时，如果您发现自己需要更多的瘦身，许多其他东西都可以删除（例如删除文档文件，`/var`目录，不必要的可选软件包等），但在大多数情况下，这两个应该是最常用的，因为它们很简单并且在基于 Debian 的系统上运行得相当好。
 
@@ -231,11 +156,7 @@ RUN apt-get update -q && \         # Update our repository information
 
 没有适当的身份验证，我们的服务器对任何访问它的人都是敞开的，所以我们添加了一个用户名/密码组合来充当我们服务的门卫：
 
-```
-ARG PASSWORD=test
-...
-RUN printf "user:$(openssl passwd -1 $PASSWORD)\n" >> $SRV_PATH/.htpasswd
-```
+[PRE4]
 
 `ARG`充当构建时替代`ENV`指令，并允许将密码作为构建参数传递给`--build-arg <arg>`。如果构建没有提供一个，它应该默认为等号后面的参数，在这种情况下是一个非常不安全的`test`。我们将在`Dockerfile`中稍后使用这个变量来为我们的用户创建一个具有特定密码的`.htpasswd`文件。
 
@@ -257,15 +178,7 @@ SQL 数据库在分片和集群方面已经取得了长足的进步，并且通�
 
 我们在这里的整个数据库设置将非常简单，如果我们不需要通过软件包更新来加固它，我们甚至不需要自定义一个：
 
-```
-FROM mongo:3
-
-# Make sure we are fully up to date
-RUN apt-get update -q && \
- apt-get dist-upgrade -y && \
- apt-get clean && \
- apt-get autoclean
-```
+[PRE5]
 
 当我们运行它时唯一需要考虑的是确保从主机将容器的数据库存储卷（`/var/lib/mongodb`）挂载到容器中，以便在容器停止时保留它，但是一旦我们开始启动容器组，我们可以担心这一点。
 
@@ -273,52 +186,13 @@ RUN apt-get update -q && \
 
 对于这个组件，我们将选择一个需要最少样板代码就能使服务运行的框架，大多数人今天会说是 Node.js 和 Express。由于 Node.js 是基于 JavaScript 的，而 JavaScript 最初是基于类似 Java 的语法的，大多数熟悉 HTML 的人应该能够弄清楚应用程序代码在做什么，但在我们到达那里之前，我们需要定义我们的 Node 包和我们的依赖项，所以在与`web_server`同级的目录下创建一个新的`application_server`目录，并将以下内容添加到一个名为`package.json`的文件中：
 
-```
-{
-  "name": "application-server",
-  "version": "0.0.1",
-  "scripts": {
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "express": "⁴.15.4"
-  }
-}
-```
+[PRE6]
 
 这里真的没有什么神奇的东西；我们只是使用了一个 Node 包定义文件来声明我们需要 Express 作为一个依赖项，并且我们的`npm start`命令应该运行`node index.js`。
 
 让我们现在也制作我们的 Dockerfile：
 
-```
-FROM node:8
-
-# Make sure we are fully up to date
-RUN apt-get update -q && \
- apt-get dist-upgrade -y && \
- apt-get clean && \
- apt-get autoclean
-
-# Container port that should get exposed
-EXPOSE 8000
-
-# Setup any variables we need
-ENV SRV_PATH /usr/local/share/word_test
-
-# Make our directory
-RUN mkdir -p $SRV_PATH && \
- chown node:node $SRV_PATH
-
-WORKDIR $SRV_PATH
-
-USER node
-
-COPY . $SRV_PATH/
-
-RUN npm install
-
-CMD ["npm", "start"]
-```
+[PRE7]
 
 这些东西对很多人来说应该非常熟悉，特别是对于熟悉 Node 的人来说。我们从`node:8`镜像开始，添加我们的应用程序代码，安装我们在`package.json`中定义的依赖项（使用`npm install`），然后最后确保应用程序在从`docker` CLI 运行时启动。
 
@@ -328,21 +202,7 @@ CMD ["npm", "start"]
 
 到目前为止，我们实际上还没有定义任何应用程序代码，所以让我们也看看它是什么样子。首先，我们需要一个 HTML 视图作为我们的登陆页面，我们可以使用`pug`（以前也被称为`jade`）模板很快地创建一个。创建一个`views/`文件夹，并将其放在该文件夹中名为`index.pug`的文件中：
 
-```
-html
-  head
-    title Docker words
-  body
-    h1 Saved Words
-
-    form(method='POST' action='/new')
-        input.form-control(type='text', placeholder='New word' name='word')
-        button(type='submit') Save
-
-    ul
-        for word in words
-            li= word
-```
+[PRE8]
 
 您不必对这种模板样式了解太多，只需知道它是一个简单的 HTML 页面，在渲染时我们将显示传递给它的`words`数组中的所有项目，如果输入了一个新单词，将会有一个表单提交为`POST`请求到`/new`端点。
 
@@ -350,71 +210,7 @@ html
 
 这里没有简单的方法，但我们的主要应用逻辑文件`index.js`不会像其他配置文件那样简单：
 
-```
-'use strict'
-
-// Load our dependencies
-const bodyParser = require('body-parser')
-const express = require('express');
-const mongo = require('mongodb')
-
-// Setup database and server constants
-const DB_NAME = 'word_database';
-const DB_HOST = process.env.DB_HOST || 'localhost:27017';
-const COLLECTION_NAME = 'words';
-const SERVER_PORT = 8000;
-
-// Create our app, database clients, and the word list array
-const app = express();
-const client = mongo.MongoClient();
-const dbUri = `mongodb://${DB_HOST}/${DB_NAME}`;
-const words = [];
-
-// Setup our templating engine and form data parser
-app.set('view engine', 'pug')
-app.use(bodyParser.urlencoded({ extended: false }))
-
-// Load all words that are in the database
-function loadWordsFromDatabase() {
-    return client.connect(dbUri).then((db) => {
-        return db.collection(COLLECTION_NAME).find({}).toArray();
-    })
-    .then((docs) => {
-        words.push.apply(words, docs.map(doc => doc.word));
-        return words;
-    });
-}
-
-// Our main landing page handler
-app.get('/', (req, res) => {
-    res.render('index', { words: words });
-});
-
-// Handler for POSTing a new word
-app.post('/new', (req, res) => {
-    const word = req.body.word;
-
-    console.info(`Got word: ${word}`);
-    if (word) {
-        client.connect(dbUri).then((db) => {
-            db.collection(COLLECTION_NAME).insertOne({ word }, () => {
-                db.close();
-                words.push(word);
-            });
-        });
-    }
-
-    res.redirect('/');
-});
-
-// Start everything by loading words and then starting the server 
-loadWordsFromDatabase().then((words) => {
-    console.info(`Data loaded from database (${words.length} words)`);
-    app.listen(SERVER_PORT, () => {
-        console.info("Server started on port %d...", SERVER_PORT);
-    });
-});
-```
+[PRE9]
 
 这个文件一开始可能看起来令人生畏，但这可能是您可以从头开始制作的最小的完全功能的 API 服务。
 
@@ -440,51 +236,17 @@ loadWordsFromDatabase().then((words) => {
 
 然而，这里有一部分需要特别注意：
 
-```
-const DB_HOST = process.env.DB_HOST || 'localhost:27017';
-```
+[PRE10]
 
 记得我们之前提到过，很多图像配置应该在环境变量中完成吗？这正是我们在这里要做的！如果设置了环境变量`DB_HOST`（正如我们期望在作为容器运行时设置），我们将使用它作为主机名，但如果没有提供（正如我们在本地运行时期望的那样），它将假定数据库在标准的 MongoDB 端口上本地运行。这提供了作为容器可配置的灵活性，并且可以在 Docker 之外由开发人员在本地进行测试。
 
 主逻辑文件就位后，我们的服务现在应该有一个类似的文件系统布局：
 
-```
-$ tree ./
-./
-├── Dockerfile
-├── index.js
-├── package.json
-└── views
-    └── index.pug
-
-1 directory, 4 files
-```
+[PRE11]
 
 由于这实际上是三个中最容易测试的部分，让我们在本地安装 MongoDB 并看看服务的表现。您可以访问[`docs.mongodb.com/manual/installation/`](https://docs.mongodb.com/manual/installation/)获取有关如何在其他平台上手动安装的信息，但我已经包含了以下步骤来在 Ubuntu 16.04 上手动执行此操作：
 
-```
-$ # Install MongoDB
-$ sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
-$ echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
-
-$ sudo apt-get update 
-$ sudo apt-get install -y mongodb-org
-$ sudo systemctl start mongodb
-
-$ # Install our service dependencies
-$ npm install
-application-server@0.0.1 /home/sg/checkout/deploying_with_docker/chapter_3/prototype_service/application_server
-<snip>
-npm WARN application-server@0.0.1 No license field.
-
-$ # Run the service</strong>
-**$ npm start**
-**> application-server@0.0.1 start /home/sg/checkout/deploying_with_docker/chapter_3/prototype_service/application_server**
-**> node index.js**
-
-**Data loaded from database (10 words)**
-**Server started on port 8000...**
-```
+[PRE12]
 
 看起来工作正常：让我们通过访问`http://localhost:8000`来检查浏览器！
 
@@ -500,54 +262,11 @@ $ # Run the service</strong>
 
 因此，我们已经弄清楚了我们的`web_server`，`application_server`和`database`容器。在继续之前，请验证您是否拥有所有与这些匹配的文件：
 
-```
-$ tree .
-.
-├── application_server
-│   ├── Dockerfile
-│   ├── index.js
-│   ├── package.json
-│   └── views
-│       └── index.pug
-├── database
-│   └── Dockerfile
-└── web_server
- ├── Dockerfile
- └── nginx_main_site.conf
-
-4 directories, 7 files
-```
+[PRE13]
 
 我们的下一步是构建所有的容器：
 
-```
- $ # Build the app server image
- $ cd application_server
- $ docker build -t application_server .
- Sending build context to Docker daemon 34.3kB
- Step 1/10 : FROM node:8
- <snip>
- Successfully built f04778cb3778
- Successfully tagged application_server:latest
-
- $ # Build the database image
- $ cd ../database
- $ docker build -t database .
- Sending build context to Docker daemon 2.048kB
- Step 1/2 : FROM mongo:3
- <snip>
- Successfully built 7c0f9399a152
- Successfully tagged database:latest
-
- $ # Build the web server image
- $ cd ../web_server
- $ docker build -t web_server .
- Sending build context to Docker daemon 3.584kB
- Step 1/8 : FROM nginx:latest
- <snip>
- Successfully built 738c17ddeca8
- Successfully tagged web_server:latest
-```
+[PRE14]
 
 这种顺序构建非常适合显示每个步骤需要做什么，但始终考虑自动化以及如何改进手动流程。在这种特殊情况下，这整个语句和执行块也可以从父目录中用这一行完成：`for dir in *; do cd $dir; docker build -t $dir .; cd ..; done`
 
@@ -555,33 +274,7 @@ $ tree .
 
 有了这三个相关的容器，我们现在可以启动它们。需要注意的是，它们需要按照我们的应用程序尝试读取数据库中的数据的顺序启动，如果应用程序不存在，我们不希望 Web 服务器启动，因此我们将按照这个顺序启动它们：`database -> application_server -> web_server`：
 
-```
-$ docker run --rm \
-             -d \
-             -p 27000:27017 \
-             database
-3baec5d1ceb6ec277a87c46bcf32f3600084ca47e0edf26209ca94c974694009
-
-$ docker run --rm \
-             -d \
-             -e DB_HOST=172.17.0.1:27000 \
-             -p 8000:8000 \
-             application_server
-dad98a02ab6fff63a2f4096f4e285f350f084b844ddb5d10ea3c8f5b7d1cb24b
-
-$ docker run --rm \
-             -d \
-             -p 8080:80 \
-             web_server
-3ba3d1c2a25f26273592a9446fc6ee2a876904d0773aea295a06ed3d664eca5d
-
-$ # Verify that all containers are running
-$ docker ps --format "table {{.Image}}\t{{.Status}}\t{{.ID}}\t{{.Ports}}"
-IMAGE                STATUS              CONTAINER ID        PORTS
-web_server           Up 11 seconds       3ba3d1c2a25f        0.0.0.0:8080->80/tcp
-application_server   Up 26 seconds       dad98a02ab6f        0.0.0.0:8000->8000/tcp
-database             Up 45 seconds       3baec5d1ceb6        0.0.0.0:27000->27017/tcp
-```
+[PRE15]
 
 这里有几件事需要注意：
 
@@ -595,9 +288,7 @@ database             Up 45 seconds       3baec5d1ceb6        0.0.0.0:27000->2701
 
 这个设置中的信息流大致如下：
 
-```
-Browser <=> localhost:8080 <=> web_server:80 <=> 172.17.0.1:8000 (Docker "localhost") <=> app_server <=> 172.17.0.1:27000 (Docker "localhost") <=> database:27017
-```
+[PRE16]
 
 # 测试
 
@@ -681,9 +372,7 @@ Browser <=> localhost:8080 <=> web_server:80 <=> 172.17.0.1:8000 (Docker "localh
 
 将目录挂载到容器中的这个过程实际上相对容易，如果我们的卷是存储在 Docker 内部的一个命名卷的话：
 
-```
-$ docker run --rm -d -v local_storage:/data/db -p 27000:27017 database
-```
+[PRE17]
 
 这将在 Docker 的本地存储中创建一个名为`local_storage`的命名卷，它将无缝地挂载到容器中的`/data/db`（这是 MongoDB 镜像在 Docker Hub 中存储数据的地方）。如果容器死掉或发生任何事情，您可以将此卷挂载到另一个容器上并保留数据。
 
@@ -691,61 +380,7 @@ $ docker run --rm -d -v local_storage:/data/db -p 27000:27017 database
 
 让我们看看这在实际中是如何运作的（这可能需要在您的主机上安装一个 MongoDB 客户端 CLI）：
 
-```
-$ # Start our container
-$ docker run --rm \
-             -d \
-             -v local_storage:/data/db \
-             -p 27000:27017 \
-             database
-16c72859da1b6f5fbe75aa735b539303c5c14442d8b64b733eca257dc31a2722
-
-$ # Insert a test record in test_db/coll1 as { "item": "value" }
-$ mongo localhost:27000
-MongoDB shell version: 2.6.10
-connecting to: localhost:27000/test
-
-> use test_db
-switched to db test_db
- > db.createCollection("coll1")
-{ "ok" : 1 }
- > db.coll1.insert({"item": "value"})
-WriteResult({ "nInserted" : 1 })
- > exit
-bye
-
-$ # Stop the container. The --rm flag will remove it.
-$ docker stop 16c72859
-16c72859
-
-$ # See what volumes we have
-$ docker volume ls
-DRIVER              VOLUME NAME
-local               local_storage
-
-$ # Run a new container with the volume we saved data onto
-$ docker run --rm \
-             -d \
-             -v local_storage:/data/db \
-             -p 27000:27017 \
-             database
-a5ef005ab9426614d044cc224258fe3f8d63228dd71dee65c188f1a10594b356
-
-$ # Check if we have our records saved
-$ mongo localhost:27000
-MongoDB shell version: 2.6.10
-connecting to: localhost:27000/test
-
-> use test_db
-switched to db test_db
- > db.coll1.find()
-{ "_id" : ObjectId("599cc7010a367b3ad1668078"), "item" : "value" }
- > exit
-
-$ # Cleanup
-$ docker stop a5ef005a
-a5ef005a
-```
+[PRE18]
 
 正如您所看到的，我们的记录经过了原始容器的销毁而得以保留，这正是我们想要的！我们将在后面的章节中涵盖如何以其他方式处理卷，但这应该足以让我们解决我们小服务中的这个关键问题。
 
@@ -757,15 +392,7 @@ a5ef005a
 
 为了解决这个问题，我们将在主机上生成自己的凭据文件，并在容器启动时将其挂载到容器上。用你想要的任何用户名替换`user123`，用包含字母数字的密码替换`password123`：
 
-```
-$ printf "user123:$(openssl passwd -1 password123)\n" >> ~/test_htpasswd
-
-$ # Start the web_server with our password as the credentials source
-$ docker run --rm \
-             -v $HOME/test_htpasswd:/srv/www/html/.htpasswd \
-             -p 8080:80 web_server
-1b96c35269dadb1ac98ea711eec4ea670ad7878a933745678f4385d57e96224a
-```
+[PRE19]
 
 通过这个小改变，你的 Web 服务器现在将使用新的用户名和新的密码进行安全保护，并且配置也不会被能够运行 docker 命令的人所获取。你可以访问[`127.0.0.1:8080`](http://127.0.0.1:8080)来查看新的用户名和密码是唯一有效的凭据。
 
@@ -779,60 +406,7 @@ $ docker run --rm \
 
 如果您想验证这一点，我们可以使用一些命令在 Docker 内外来真正看到发生了什么：
 
-```
-$ # Host's iptables. If you have running containers, DOCKER chain wouldn't be empty.
-$ sudo iptables -L
-<snip>
-Chain FORWARD (policy DROP)
-target     prot opt source               destination 
-DOCKER-ISOLATION  all  --  anywhere             anywhere 
-ACCEPT     all  --  anywhere             anywhere             ctstate RELATED,ESTABLISHED
-DOCKER     all  --  anywhere             anywhere
-ACCEPT     all  --  anywhere             anywhere
-ACCEPT     all  --  anywhere             anywhere
-<snip>
-Chain DOCKER (1 references)
-target     prot opt source               destination 
-
-Chain DOCKER-ISOLATION (1 references)
-target     prot opt source               destination 
-RETURN     all  --  anywhere             anywhere 
-<snip>
-
-$ # Host's network addresses is 172.17.0.1
-$ ip addr
-<snip>
-5: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
- link/ether 02:42:3c:3a:77:c1 brd ff:ff:ff:ff:ff:ff
- inet 172.17.0.1/16 scope global docker0
- valid_lft forever preferred_lft forever
- inet6 fe80::42:3cff:fe3a:77c1/64 scope link 
- valid_lft forever preferred_lft forever
-<snip>
-
-$ # Get container's network addresses
-$ docker run --rm \
-             -it \
-             web_server /bin/bash
- root@08b6521702ef:/# # Install pre-requisite (iproute2) package
-root@08b6521702ef:/# apt-get update && apt-get install -y iproute2
-<snip>
- root@08b6521702ef:/# # Check the container internal address (172.17.0.2)
-root@08b6521702ef:/# ip addr
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
- link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
- inet 127.0.0.1/8 scope host lo
- valid_lft forever preferred_lft forever
-722: eth0@if723: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
- link/ether 02:42:ac:11:00:02 brd ff:ff:ff:ff:ff:ff link-netnsid 0
- inet 172.17.0.2/16 scope global eth0
- valid_lft forever preferred_lft forever
- root@08b6521702ef:/# # Verify that our main route is through our host at 172.17.0.1
-root@08b6521702ef:/# ip route
-default via 172.17.0.1 dev eth0
-172.17.0.0/16 dev eth0 proto kernel scope link src 172.17.0.2
- root@08b6521702ef:/# exit
-```
+[PRE20]
 
 正如您所看到的，这个系统有点奇怪，但它运行得相当不错。通常在构建更大的系统时，服务发现几乎是强制性的，因此您不必在现场担心这样的低级细节。
 

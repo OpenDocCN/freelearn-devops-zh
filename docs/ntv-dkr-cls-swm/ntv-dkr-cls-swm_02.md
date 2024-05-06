@@ -70,12 +70,7 @@ Docker Swarm v1 包括一个开箱即用的发现服务，称为 Token。Token �
 
 我们可以使用以下命令创建 4 个节点：
 
-```
-**$ for i in `seq 0 3`; do docker-machine create -d virtualbox 
-    node$i; 
-    done**
-
-```
+[PRE0]
 
 现在，我们有四台运行最新版本引擎的机器，启用了 TLS。这意味着，正如你记得的那样，引擎正在暴露端口`2376`而不是`2375`。
 
@@ -83,18 +78,11 @@ Docker Swarm v1 包括一个开箱即用的发现服务，称为 Token。Token �
 
 我们现在将创建集群，从主节点开始。选择其中一个节点，例如`node0`，并获取其变量：
 
-```
-**$ eval $(docker-machine env node0)**
-
-```
+[PRE1]
 
 现在我们生成集群令牌和唯一 ID。为此，我们使用`swarm create`命令：
 
-```
-**$ docker run swarm create**
-**3b905f46fef903800d51513d51acbbbe**
-
-```
+[PRE2]
 
 ![使用令牌重新设计第一章的示例](img/image_02_003.jpg)
 
@@ -102,10 +90,7 @@ Docker Swarm v1 包括一个开箱即用的发现服务，称为 Token。Token �
 
 注意这个令牌 ID，例如将其分配给一个 shell 变量：
 
-```
-**$ TOKEN=3b905f46fef903800d51513d51acbbbe**
-
-```
+[PRE3]
 
 现在我们创建一个主节点，并尝试满足至少一些基本的标准安全要求，也就是说，我们将启用 TLS 加密。正如我们将在一会儿看到的，`swarm`命令接受 TLS 选项作为参数。但是我们如何将密钥和证书传递给容器呢？为此，我们将使用 Docker Machine 生成的证书，并将其放置在主机上的`/var/lib/boot2docker`中。
 
@@ -113,13 +98,7 @@ Docker Swarm v1 包括一个开箱即用的发现服务，称为 Token。Token �
 
 已经获取了`node0`变量，我们使用以下命令启动 Swarm 主节点：
 
-```
-**$ docker run -ti -v /var/lib/boot2docker:/certs -p 3376:3376 swarm 
-    manage -H 0.0.0.0:3376 -tls --tlscacert=/certs/ca.pem --
-    tlscert=/certs/server.pem --tlskey=/certs/server-key.pem 
-    token://$TOKEN**
-
-```
+[PRE4]
 
 首先，我们以交互模式运行容器以观察 Swarm 输出。然后，我们将节点`/var/lib/boot2docker`目录挂载到 Swarm 容器内部的`/certs`目录。我们将`3376` Swarm 安全端口从 node0 重定向到 Swarm 容器。我们通过将其绑定到`0.0.0.0:3376`来以管理模式执行`swarm`命令。然后，我们指定一些证书选项和文件路径，并最后描述使用的发现服务是令牌，带有我们的令牌。
 
@@ -127,11 +106,7 @@ Docker Swarm v1 包括一个开箱即用的发现服务，称为 Token。Token �
 
 有了这个节点运行，让我们打开另一个终端并加入一个节点到这个 Swarm。让我们首先源`node1`变量。现在，我们需要让 Swarm 使用`join`命令，以加入其主节点为`node0`的集群：
 
-```
-**$ docker run -d swarm join --addr=192.168.99.101:2376 
-    token://$TOKEN**
-
-```
+[PRE5]
 
 在这里，我们指定主机（自身）的地址为`192.168.99.101`以加入集群。
 
@@ -145,33 +120,15 @@ Docker Swarm v1 包括一个开箱即用的发现服务，称为 Token。Token �
 
 主节点：
 
-```
-**$ docker run -t-d -v /var/lib/boot2docker:/certs -p 3376:3376 swarm 
-    manage -H 0.0.0.0:3376 -tls --tlscacert=/certs/ca.pem --
-    tlscert=/certs/server.pem --tlskey=/certs/server-key.pem 
-    token://$TOKEN**
-
-```
+[PRE6]
 
 节点：
 
-```
-**$ docker run -d swarm join --addr=192.168.99.101:2376  
-    token://$TOKEN**
-
-```
+[PRE7]
 
 我们现在将继续将其他两个节点加入集群，源其变量，并重复上述命令，如下所示：
 
-```
-**$ eval $(docker-machine env node2)**
-**$ docker run -d swarm join --addr=192.168.99.102:2376 
-    token://$TOKEN**
-**$ eval $(docker-machine env node3)**
-**$ docker run -d swarm join --addr=192.168.99.103:2376 
-    token://$TOKEN**
-
-```
+[PRE8]
 
 例如，如果我们打开第三个终端，源`node0`变量，并且特别连接到端口`3376`（Swarm）而不是`2376`（Docker Engine），我们可以看到来自`docker info`命令的一些花哨的输出。例如，集群中有三个节点：
 
@@ -181,10 +138,7 @@ Docker Swarm v1 包括一个开箱即用的发现服务，称为 Token。Token �
 
 我们可以从主节点确保并列出集群中的节点。我们现在将使用`swarm list`命令：
 
-```
-**$ docker run swarm list token://$TOKEN**
-
-```
+[PRE9]
 
 ![使用令牌重新设计第一章的示例](img/image_02_008.jpg)
 
@@ -214,23 +168,7 @@ Raft 集群由节点组成，这些节点必须以一致的方式维护复制状
 
 回到 Raft，Raft 集群被定义为`raft.go`中的一种类型 raft 结构，并包括领导者 UUID、当前任期、指向日志的指针以及用于检查法定人数和选举状态的实用程序。让我们通过逐步分解集群组件 Node 的定义来阐明所有这些概念。Node 在`node.go`中被定义为一个接口，在这个库中被规范地实现为`type node struct`。
 
-```
-**type Node interface {**
- **Tick()**
- **Campaign(ctx context.Context) error**
- **Propose(ctx context.Context, data []byte) error**
- **ProposeConfChange(ctx context.Context, cc pb.ConfChange) error**
- **Step(ctx context.Context, msg pb.Message) error**
- **Ready() <-chan Ready**
- **Advance()**
- **ApplyConfChange(cc pb.ConfChange) *pb.ConfState**
- **Status() Status**
- **ReportUnreachable(id uint64)**
- **ReportSnapshot(id uint64, status SnapshotStatus)**
- **Stop()**
-**}**
-
-```
+[PRE10]
 
 每个节点都保持一个滴答（通过`Tick()`递增），表示任意长度的当前运行时期或时间段或时代。在每个时期，一个节点可以处于以下 StateType 之一：
 
@@ -256,54 +194,19 @@ Raft 集群由节点组成，这些节点必须以一致的方式维护复制状
 
 由于 Docker Compose YAML 文件是自描述的，以下示例是一个准备运行的组合文件：
 
-```
-**version: '2'**
-**services:**
- **raftexample1:**
- **image: fsoppelsa/raftexample**
- **command: --id 1 --cluster 
-          http://127.0.0.1:9021,http://127.0.0.1:9022,
-          http://127.0.0.1:9023 --port 9121**
- **ports:**
- **- "9021:9021"**
- **- "9121:9121"**
- **raftexample2:**
- **image: fsoppelsa/raftexample**
- **command: --id 2 --cluster    
-          http://127.0.0.1:9021,http://127.0.0.1:9022,
-          http://127.0.0.1:9023 --port 9122**
- **ports:**
- **- "9022:9022"**
- **- "9122:9122"**
- **raftexample3:**
- **image: fsoppelsa/raftexample**
- **command: --id 3 --cluster 
-          http://127.0.0.1:9021,http://127.0.0.1:9022,
-          http://127.0.0.1:9023 --port 9123**
- **ports:**
- **- "9023:9023"**
- **- "9123:9123"**
-
-```
+[PRE11]
 
 此模板创建了三个 Raft 服务（`raftexample1`，`raftexample2`和`raftexample3`）。每个都运行一个 raftexample 实例，通过`--port`公开 API，并使用`--cluster`进行静态集群配置。
 
 您可以在 Docker 主机上启动它：
 
-```
-**docker-compose -f raftexample.yaml up**
-
-```
+[PRE12]
 
 现在您可以玩了，例如杀死领导者，观察新的选举，通过 API 向一个容器设置一些值，移除容器，更新该值，重新启动容器，检索该值，并注意到它已经正确升级。
 
 与 API 的交互可以通过 curl 完成，如[`github.com/coreos/etcd/tree/master/contrib/raftexample`](https://github.com/coreos/etcd/tree/master/contrib/raftexample)中所述：
 
-```
-**curl -L http://127.0.0.1:9121/testkey -XPUT -d value**
-**curl -L http://127.0.0.1:9121/testkey**
-
-```
+[PRE13]
 
 我们将这个练习留给更热心的读者。
 
@@ -335,36 +238,17 @@ Etcd 可以在网络分裂的情况下优雅地管理主节点选举，并且可
 
 让我们从使用 Machine 创建主机开始：
 
-```
-**for i in m `seq 1 3`; do docker-machine create -d virtualbox etcd-$i; 
-done**
-
-```
+[PRE14]
 
 现在我们将在`etcd-m`上运行 Etcd 主节点。我们使用来自 CoreOS 的`quay.io/coreos/etcd`官方镜像，遵循[`github.com/coreos/etcd/blob/master/Documentation/op-guide/clustering.md`](https://github.com/coreos/etcd/blob/master/Documentation/op-guide/clustering.md)上可用的文档。
 
 首先，在终端中，我们设置`etcd-m` shell 变量：
 
-```
-**term0$ eval $(docker-machine env etcd-m)**
-
-```
+[PRE15]
 
 然后，我们以单主机模式运行 Etcd 主节点（即，没有容错等）：
 
-```
-**docker run -d -p 2379:2379 -p 2380:2380 -p 4001:4001 \**
-**--name etcd quay.io/coreos/etcd \**
-**-name etcd-m -initial-advertise-peer-urls http://$(docker-machine 
-    ip etcd-m):2380 \**
-**-listen-peer-urls http://0.0.0.0:2380 \**
-**-listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \**
-**-advertise-client-urls http://$(docker-machine ip etcd-m):2379 \**
-**-initial-cluster-token etcd-cluster-1 \**
-**-initial-cluster etcd-m=http://$(docker-machine ip etcd-m):2380**
-**-initial-cluster-state new**
-
-```
+[PRE16]
 
 我们在这里做的是以守护进程（`-d`）模式启动 Etcd 镜像，并暴露端口`2379`（Etcd 客户端通信）、`2380`（Etcd 服务器通信）、`4001`（），并指定以下 Etcd 选项：
 
@@ -386,11 +270,7 @@ done**
 
 我们可以使用`etcdctl cluster-health`命令行实用程序确保这个单节点 Etcd 集群是健康的：
 
-```
-**term0$ docker run fsoppelsa/etcdctl -C $(dm ip etcd-m):2379 
-    cluster-health**
-
-```
+[PRE17]
 
 ![重新设计第一章的示例，使用 Etcd](img/image_02_009.jpg)
 
@@ -398,12 +278,7 @@ done**
 
 我们在同一台`etcd-m`主机上创建 Swarm 管理器：
 
-```
-**term0$ docker run -d -p 3376:3376 swarm manage \**
-**-H tcp://0.0.0.0:3376 \`**
-**etcd://$(docker-machine ip etcd-m)/swarm**
-
-```
+[PRE18]
 
 这将从主机到容器暴露通常的`3376`端口，但这次使用`etcd://` URL 启动管理器以进行发现服务。
 
@@ -411,21 +286,7 @@ done**
 
 像往常一样，我们可以为每个终端提供源和命令机器：
 
-```
-**term1$ eval $(docker-machine env etcd-1)**
-**term1$ docker run -d swarm join --advertise \**
-**$(docker-machine ip etcd-1):2379 \**
-**etcd://$(docker-machine ip etcd-m):2379**
-**term2$ eval $(docker-machine env etcd-2)**
-**term1$ docker run -d swarm join --advertise \**
-**$(docker-machine ip etcd-2):2379 \**
-**etcd://$(docker-machine ip etcd-m):2379**
-**term3$ eval $(docker-machine env etcd-3)**
-**term3$ docker run -d swarm join --advertise \**
-**$(docker-machine ip etcd-3):2379 \**
-**etcd://$(docker-machine ip etcd-m):2379**
-
-```
+[PRE19]
 
 通过使用`-advertise`加入本地节点到 Swarm 集群，使用运行并暴露在`etcd-m`上的 Etcd 服务。
 
@@ -451,74 +312,31 @@ ZooKeeper 是另一个广泛使用且高性能的分布式应用协调服务。A
 
 让我们从创建 Consul 主节点开始：
 
-```
-**$ docker-machine create --driver digitalocean consul-m**
-**$ eval $(docker-machine env consul-m)**
-
-```
+[PRE20]
 
 我们在这里启动第一个代理。虽然我们称它为代理，但实际上我们将以服务器模式运行它。我们使用服务器模式（`-server`）并将其设置为引导节点（`-bootstrap`）。使用这些选项，Consul 将不执行领导者选择，因为它将强制自己成为领导者。
 
-```
-**$ docker run -d --name=consul --net=host \**
-**consul agent \**
-**-client=$(docker-machine ip consul-m) \**
-**-bind=$(docker-machine ip consul-m) \**
-**-server -bootstrap**
-
-```
+[PRE21]
 
 在 HA 的情况下，第二个和第三个节点必须以`-botstrap-expect 3`开头，以允许它们形成一个高可用性集群。
 
 现在，我们可以使用`curl`命令来测试我们的 Consul quorum 是否成功启动。
 
-```
-**$ curl -X GET http://$(docker-machine ip consul-m):8500/v1/kv/**
-
-```
+[PRE22]
 
 如果没有显示任何错误，那么 Consul 就正常工作了。
 
 接下来，我们将在 DigitalOcean 上创建另外三个节点。
 
-```
-**$ for i in `seq 1 3`; do docker-machine create -d digitalocean 
-    consul-$i; 
-    done**
-
-```
+[PRE23]
 
 让我们启动主节点并使用 Consul 作为发现机制：
 
-```
-**$ eval $(docker-machine env consul-m)**
-**$ docker run -d -p 3376:3376 swarm manage \**
-**-H tcp://0.0.0.0:3376 \**
-**consul://$(docker-machine ip consul-m):8500/swarm**
-**$ eval $(docker-machine env consul-1)**
-**$ docker run -d swarm join \**
- **--advertise $(docker-machine ip consul-1):2376 \**
- **consul://$(docker-machine ip consul-m):8500/swarm**
-**$ eval $(docker-machine env consul-2)**
-**$ docker run -d swarm join \**
- **--advertise $(docker-machine ip consul-2):2376 \**
- **consul://$(docker-machine ip consul-m):8500/swarm**
-**$ eval $(docker-machine env consul-3)**
-**$ docker run -d swarm join \**
- **--advertise $(docker-machine ip consul-3):2376 \**
- **consul://$(docker-machine ip consul-m):8500/swarm**
-
-```
+[PRE24]
 
 运行`swarm list`命令时，我们得到的结果是：所有节点都加入了 Swarm，所以示例正在运行。
 
-```
-**$ docker run swarm list consul://$(docker-machine ip consul-m):8500/swarm                                       time="2016-07-01T21:45:18Z" level=info msg="Initializing discovery without TLS"**
-**104.131.101.173:2376**
-**104.131.63.75:2376**
-**104.236.56.53:2376**
-
-```
+[PRE25]
 
 # 走向去中心化的发现服务
 

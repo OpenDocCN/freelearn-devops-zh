@@ -190,38 +190,11 @@ AWS 是世界领先的公共云提供商，因此提供了多种运行 Docker �
 
 此时，您应该能够启动终端并运行`docker info`命令：
 
-```
-> docker info
-Containers: 0
- Running: 0
- Paused: 0
- Stopped: 0
-Images: 0
-Server Version: 18.06.0-ce
-Storage Driver: overlay2
- Backing Filesystem: extfs
- Supports d_type: true
- Native Overlay Diff: true
-...
-...
-```
+[PRE0]
 
 您还可以使用`docker run`命令启动新的容器：
 
-```
-> docker run -it alpine echo "Hello World"
-Unable to find image 'alpine:latest' locally
-latest: Pulling from library/alpine
-ff3a5c916c92: Pull complete
-Digest: sha256:e1871801d30885a610511c867de0d6baca7ed4e6a2573d506bbec7fd3b03873f
-Status: Downloaded newer image for alpine:latest
-Hello World
-> docker ps -a
-CONTAINER ID      IMAGE   COMMAND              CREATED       STATUS                 
-a251bd2c53dd      alpine  "echo 'Hello World'" 3 seconds ago Exited (0) 2 seconds ago 
-> docker rm a251bd2c53dd
-a251bd2c53dd
-```
+[PRE1]
 
 在上面的示例中，您必须运行基于轻量级 Alpine Linux 发行版的`alpine`镜像，并运行`echo "Hello World"`命令。`-it`标志指定您需要在交互式终端环境中运行容器，这允许您查看标准输出并通过控制台与容器进行交互。
 
@@ -251,64 +224,17 @@ a251bd2c53dd
 
 只需将突出显示的命令复制并粘贴到终端提示符中，即可自动安装 Homebrew 软件包管理器。完成后，您将能够使用`brew`命令安装先前列出的每个实用程序：
 
-```
-> brew install make --with-default-names
-==> Downloading https://ftp.gnu.org/gnu/make/make-4.2.1.tar.bz2
-Already downloaded: /Users/jmenga/Library/Caches/Homebrew/make-4.2.1.tar.bz2
-==> ./configure --prefix=/usr/local/Cellar/make/4.2.1_1
-==> make install
-/usr/local/Cellar/make/4.2.1_1: 13 files, 959.5KB, built in 29 seconds
-> brew install jq tree ==> Downloading https://homebrew.bintray.com/bottles/jq-1.5_3.high_sierra.bottle.tar.gz
-Already downloaded: /Users/jmenga/Library/Caches/Homebrew/jq-1.5_3.high_sierra.bottle.tar.gz
-==> Downloading https://homebrew.bintray.com/bottles/tree-1.7.0.high_sierra.bottle.1.tar.gz
-Already downloaded: /Users/jmenga/Library/Caches/Homebrew/tree-1.7.0.high_sierra.bottle.1.tar.gz
-==> Pouring jq-1.5_3.high_sierra.bottle.tar.gz
-/usr/local/Cellar/jq/1.5_3: 19 files, 946.6KB
-==> Pouring tree-1.7.0.high_sierra.bottle.1.tar.gz
-/usr/local/Cellar/tree/1.7.0: 8 files, 114.3KB
-
-```
+[PRE2]
 
 您必须首先使用`--with-default-names`标志安装 GNU Make，这将替换在 macOS 上安装的系统版本的 Make。如果您喜欢省略此标志，则 GNU 版本的 make 将通过`gmake`命令可用，并且现有的系统版本的 make 不会受到影响。
 
 最后，要使用 Homebrew 安装 Python，您可以运行`brew install python`命令，这将安装 Python 3 并安装 PIP 软件包管理器。请注意，当您使用`brew`安装 Python 3 时，Python 解释器通过`python3`命令访问，而 PIP 软件包管理器通过`pip3`命令访问，而不是`pip`命令：
 
-```
-> brew install python
-==> Installing dependencies for python: gdbm, openssl, readline, sqlite, xz
-...
-...
-==> Caveats
-Python has been installed as
-  /usr/local/bin/python3
-
-Unversioned symlinks `python`, `python-config`, `pip` etc. pointing to
-`python3`, `python3-config`, `pip3` etc., respectively, have been installed into
-  /usr/local/opt/python/libexec/bin
-
-If you need Homebrew's Python 2.7 run
-  brew install python@2
-
-Pip, setuptools, and wheel have been installed. To update them run
-  pip3 install --upgrade pip setuptools wheel
-
-You can install Python packages with
-  pip3 install <package>
-They will install into the site-package directory
-  /usr/local/lib/python3.7/site-packages
-
-See: https://docs.brew.sh/Homebrew-and-Python
-==> Summary
-/usr/local/Cellar/python/3.7.0: 4,788 files, 102.2MB
-```
+[PRE3]
 
 在 macOS 上，如果您使用通过 brew 或其他软件包管理器安装的 Python，还应将站点模块`USER_BASE/bin`文件夹添加到本地路径，因为这是 PIP 将安装任何使用`--user`标志安装的应用程序或库的位置（AWS CLI 是您将在本书后面以这种方式安装的应用程序的一个示例）：
 
-```
-> python3 -m site --user-base
-/Users/jmenga/Library/Python/3.7
-> echo 'export PATH=/Users/jmenga/Library/Python/3.7/bin:$PATH' >> ~/.bash_profile > source ~/.bash_profile 
-```
+[PRE4]
 
 确保在前面的示例中使用单引号，这样可以确保在您的 shell 会话中不会展开对`$PATH`的引用，而是将其作为文字值写入`.bash_profile`文件。
 
@@ -342,9 +268,7 @@ See: https://docs.brew.sh/Homebrew-and-Python
 
 要启用 Windows 子系统，您需要以管理员身份运行 PowerShell（右键单击 PowerShell 程序，然后选择**以管理员身份运行**），然后运行以下命令：
 
-```
-PS > Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux 
-```
+[PRE5]
 
 启用此功能后，您将被提示重新启动您的机器。一旦您的机器重新启动，您就需要安装一个 Linux 发行版。您可以在文章[`docs.microsoft.com/en-us/windows/wsl/install-win10`](https://docs.microsoft.com/en-us/windows/wsl/install-win10)中找到各种发行版的链接 - 参见[安装您选择的 Linux 发行版](https://docs.microsoft.com/en-us/windows/wsl/install-win10#install-your-linux-distribution-of-choice)中的第 1 步。
 
@@ -358,19 +282,11 @@ PS > Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsys
 
 请注意，Windows 文件系统被挂载到 Linux 子系统下的`/mnt/c`目录（其中`c`对应于 Windows C:驱动器），因此为了使用安装在 Windows 上的文本编辑器来修改您可以在 Linux 子系统中访问的文件，您可能需要将您的主目录更改为您的 Windows 主目录，即`/mnt/c/Users/<用户名>`，如下所示：
 
-```
-> exec sudo usermod -d /mnt/c/Users/jmenga jmenga
-[sudo] password for jmenga:
-```
+[PRE6]
 
 请注意，在输入上述命令后，Linux 子系统将立即退出。如果您再次打开 Linux 子系统（点击**开始**按钮并输入**Ubuntu**），您的主目录现在应该是您的 Windows 主目录：
 
-```
-> pwd
-/mnt/c/Users/jmenga
-> echo $HOME
-/mnt/c/Users/jmenga
-```
+[PRE7]
 
 # 在 Windows 子系统中安装 Docker for Linux
 
@@ -378,32 +294,7 @@ PS > Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsys
 
 安装 Docker，请按照[`docs.docker.com/install/linux/docker-ce/ubuntu/#install-docker-ce`](https://docs.docker.com/install/linux/docker-ce/ubuntu/#install-docker-ce)上的说明安装 Docker：
 
-```
-> sudo apt-get update Get:1 http://security.ubuntu.com/ubuntu xenial-security InRelease [107 kB]
-Hit:2 http://archive.ubuntu.com/ubuntu xenial InRelease
-Get:3 http://archive.ubuntu.com/ubuntu xenial-updates InRelease [109 kB]
-...
-...
-> sudo apt-get install \
- apt-transport-https \
- ca-certificates \
- curl \
- software-properties-common
-...
-...
-> curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - OK> sudo add-apt-repository \
- "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
- $(lsb_release -cs) stable" > sudo apt-get update
-...
-...
-> sudo apt-get install docker-ce
-...
-...
-> docker --version
-Docker version 18.06.0-ce, build 0ffa825
-> docker info
-Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
-```
+[PRE8]
 
 在上面的示例中，您必须按照各种说明将 Docker CE 存储库添加到 Ubuntu 中。安装完成后，您必须执行`docker --version`命令来检查安装的版本，然后执行`docker info`命令来连接到 Docker 引擎。请注意，这会失败，因为 Windows 子系统是一个用户空间组件，不包括运行 Docker 引擎所需的必要内核组件。
 
@@ -411,23 +302,7 @@ Windows 子系统不是一种虚拟机技术，而是依赖于 Windows 内核提
 
 要使 Windows 子系统能够连接到由 Docker for Windows 安装的 Docker 引擎，您需要将`DOCKER_HOST`环境变量设置为`localhost:2375`，这将配置 Docker 客户端连接到 TCP 端口`2375`，而不是尝试连接到默认的`/var/run/docker.sock`套接字文件：
 
-```
-> export DOCKER_HOST=localhost:2375
-> docker info
-Containers: 0
- Running: 0
- Paused: 0
- Stopped: 0
-Images: 0
-Server Version: 18.06.0-ce
-Storage Driver: overlay2
- Backing Filesystem: extfs
- Supports d_type: true
- Native Overlay Diff: true
-...
-...
-> echo "export DOCKER_HOST=localhost:2375" >> ~/.bash_profile
-```
+[PRE9]
 
 因为您在安装 Docker 和 Windows 时之前启用了**在 tcp://localhost:2375 上无需 TLS 暴露守护程序**选项，以将本地端口暴露给 Windows 子系统，Docker 客户端现在可以与在由 Docker for Windows 安装的单独的 Hyper-V 虚拟机中运行的 Docker 引擎进行通信。您还将`export DOCKER_HOST`命令添加到用户的主目录中的`.bash_profile`文件中，每次生成新的 shell 时都会执行该命令。这确保您的 Docker 客户端将始终尝试连接到正确的 Docker 引擎。
 
@@ -451,53 +326,15 @@ Storage Driver: overlay2
 
 只需按照正常的 Linux 发行版安装程序来安装上述每个组件。Ubuntu 16.04 的 Linux 子系统发行版已经包含了 Python 3，因此您可以运行以下命令来安装 pip 软件包管理器，并设置您的环境以便能够定位可以使用`--user`标志安装的 Python 软件包：
 
-```
-> curl -O https://bootstrap.pypa.io/get-pip.py > python3 get-pip.py --user
-Collecting pip
-...
-...
-Installing collected packages: pip, setuptools, wheel
-Successfully installed pip-10.0.1 setuptools-39.2.0 wheel-0.31.1
-> rm get-pip.py
-> python3 -m site --user-base /mnt/c/Users/jmenga/.local > echo 'export PATH=/mnt/c/Users/jmenga/.local/bin:$PATH' >> ~/.bash_profile
-> source ~/.bash_profile 
-```
+[PRE10]
 
 现在，您可以使用`pip install docker-compose --user`命令来安装 Docker Compose：
 
-```
-> pip install docker-compose --user
-Collecting docker-compose
-...
-...
-Successfully installed cached-property-1.4.3 docker-3.4.1 docker-compose-1.22.0 docker-pycreds-0.3.0 dockerpty-0.4.1 docopt-0.6.2 jsonschema-2.6.0 texttable-0.9.1 websocket-client-0.48.0
-> docker-compose --version
-docker-compose version 1.22.0, build f46880f
-```
+[PRE11]
 
 最后，您可以使用`apt-get install`命令安装 Git、GNU Make、jq、tree、构建基本工具和 Python3 开发库：
 
-```
-> sudo apt-get install git make jq tree build-essential python3-dev
-Reading package lists... Done
-Building dependency tree
-...
-...
-Setting up jq (1.5+dfsg-1) ...
-Setting up make (4.1-6) ...
-Processing triggers for libc-bin (2.23-0ubuntu10) ...
-> git --version
-git version 2.7.4
-> make --version
-GNU Make 4.1
-Built for x86_64-pc-linux-gnu
-Copyright (C) 1988-2014 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-> jq --version
-jq-1.5-1-a5b5cbe
-```
+[PRE12]
 
 # 设置 Linux 环境
 
@@ -543,18 +380,9 @@ Docker 在 Linux 上有原生支持，这意味着您可以在本地操作系统
 
 打开一个新的终端并运行`git clone <repository-url>`命令，其中`<repository-url>`是您在前面示例中复制的 URL，然后进入新创建的`todobackend`文件夹：
 
-```
-> git clone https://github.com/<your-username>/todobackend.git
-Cloning into 'todobackend'...
-remote: Counting objects: 231, done.
-remote: Total 231 (delta 0), reused 0 (delta 0), pack-reused 231
-Receiving objects: 100% (231/231), 31.75 KiB | 184.00 KiB/s, done.
-```
+[PRE13]
 
-```
-Resolving deltas: 100% (89/89), done.
-> cd todobackend todobackend> 
-```
+[PRE14]
 
 在阅读本章时，我鼓励您经常提交您所做的任何更改，以及清晰标识所做更改的描述性消息。
 
@@ -562,42 +390,7 @@ Resolving deltas: 100% (89/89), done.
 
 如果您对 Git 不熟悉，可以参考在线的众多教程（例如，[`www.atlassian.com/git/tutorials`](https://www.atlassian.com/git/tutorials)），但通常在提交更改时，您需要执行以下命令：
 
-```
-> git pull
-Already up to date.
-> git diff
-diff --git a/Dockerfile b/Dockerfile
-index e56b47f..4a73ce3 100644
---- a/Dockerfile
-+++ b/Dockerfile
--COPY --from=build /build /build
--COPY --from=build /app /app
--WORKDIR /app
-+# Create app user
-+RUN addgroup -g 1000 app && \
-+ adduser -u 1000 -G app -D app
-
-+# Copy and install application source and pre-built dependencies
-> git status
-On branch master
-Your branch is up to date with 'origin/master'.
-
-Changes not staged for commit:
-  (use "git add <file>..." to update what will be committed)
-  (use "git checkout -- <file>..." to discard changes in working directory)
-
-  modified: src/todobackend/settings.py
-  modified: src/todobackend/wsgi.py
-
-Untracked files:
-  (use "git add <file>..." to include in what will be committed)
-
-  docker-compose.yml
-  src/acceptance.bats
-> git add -A > git commit -a -m "Some commit message"
-> git push -u origin master
-> git push
-```
+[PRE15]
 
 您应该经常检查您是否拥有存储库的最新版本，方法是运行`git pull`命令，这样可以避免混乱的自动合并和推送失败，特别是当您与其他人一起合作时。接下来，您可以使用`git diff`命令显示您对现有文件所做的任何更改，而`git status`命令则显示对现有文件的文件级更改，并标识您可能已添加到存储库的任何新文件。`git add -A`命令将所有新文件添加到存储库，而`git commit -a -m "<message>"`命令将提交所有更改（包括您使用`git add -A`添加的任何文件）并附带指定的消息。最后，您可以使用`git push`命令推送您的更改-第一次推送时，您必须使用`git push -u origin <branch>`命令指定远程分支的原点-之后您可以只使用更短的`git push`变体来推送您的更改。
 
@@ -611,25 +404,11 @@ Untracked files:
 
 要运行该应用程序，您需要首先安装应用程序所需的任何依赖项。示例应用程序包括一个名为`requirements.txt`的文件，位于`src`文件夹中，其中列出了必须安装的所有必需的 Python 软件包，以便应用程序运行：
 
-```
-Django==2.0
-django-cors-headers==2.1.0
-djangorestframework==3.7.3
-mysql-connector-python==8.0.11
-pytz==2017.3
-uwsgi==2.0.17
-```
+[PRE16]
 
 要安装这些要求，请确保您已更改到`src`文件夹，并配置 PIP 软件包管理器以使用`-r`标志读取要求文件。请注意，日常开发的最佳实践是在虚拟环境中安装应用程序依赖项（请参阅[`packaging.python.org/guides/installing-using-pip-and-virtualenv/`](https://packaging.python.org/guides/installing-using-pip-and-virtualenv/)），但是考虑到我们主要是为了演示目的安装应用程序，我不会采取这种方法：
 
-```
-todobackend> cd src
-src> pip3 install -r requirements.txt --user
-Collecting Django==2.0 (from -r requirements.txt (line 1))
-...
-...
-Successfully installed Django-2.0 django-cors-headers-2.1.0 djangorestframework-3.7.3 mysql-connector-python-8.0.11 pytz-2017.3 uwsgi-2.0.17
-```
+[PRE17]
 
 随着时间的推移，每个依赖项的特定版本可能会更改，以确保示例应用程序继续按预期工作。
 
@@ -639,52 +418,17 @@ Successfully installed Django-2.0 django-cors-headers-2.1.0 djangorestframework-
 
 在本地开发环境中，您首先需要运行数据库迁移，这意味着您的本地数据库将根据应用程序配置的适当数据库模式进行初始化。默认情况下，Django 使用 Python 附带的轻量级*SQLite*数据库，适用于开发目的，并且无需设置即可运行。因此，您只需运行`python3 manage.py migrate`命令，它将自动为您运行应用程序中配置的所有数据库迁移：
 
-```
-src> python3 manage.py migrate
-Operations to perform:
-  Apply all migrations: admin, auth, contenttypes, sessions, todo
-Running migrations:
-  Applying contenttypes.0001_initial... OK
-  Applying auth.0001_initial... OK
-  Applying admin.0001_initial... OK
-  Applying admin.0002_logentry_remove_auto_add... OK
-  Applying contenttypes.0002_remove_content_type_name... OK
-  Applying auth.0002_alter_permission_name_max_length... OK
-  Applying auth.0003_alter_user_email_max_length... OK
-  Applying auth.0004_alter_user_username_opts... OK
-  Applying auth.0005_alter_user_last_login_null... OK
-  Applying auth.0006_require_contenttypes_0002... OK
-  Applying auth.0007_alter_validators_add_error_messages... OK
-  Applying auth.0008_alter_user_username_max_length... OK
-  Applying auth.0009_alter_user_last_name_max_length... OK
-  Applying sessions.0001_initial... OK
-  Applying todo.0001_initial... OK
-```
+[PRE18]
 
 当您运行 Django 迁移时，Django 将自动检测是否存在现有模式，并在不存在模式时创建新模式（在前面的示例中是这种情况）。如果再次运行迁移，请注意 Django 检测到已经存在最新模式，因此不会应用任何内容：
 
-```
-src> python3 manage.py migrate
-Operations to perform:
-  Apply all migrations: admin, auth, contenttypes, sessions, todo
-Running migrations:
-  No migrations to apply.
-```
+[PRE19]
 
 # 运行本地开发 Web 服务器
 
 现在本地 SQLite 数据库已经就位，您可以通过执行`python3 manage.py runserver`命令来运行应用程序，该命令将在 8000 端口上启动本地开发 Web 服务器：
 
-```
-src> python3 manage.py runserver
-Performing system checks...
-
-System check identified no issues (0 silenced).
-July 02, 2018 - 07:23:49
-Django version 2.0, using settings 'todobackend.settings'
-Starting development server at http://127.0.0.1:8000/
-Quit the server with CONTROL-C.
-```
+[PRE20]
 
 如果您在浏览器中打开`http://localhost:8000/`，您应该会看到一个名为**Django REST framework**的网页：
 
@@ -692,10 +436,7 @@ Quit the server with CONTROL-C.
 
 此页面是应用程序的根，您可以看到 Django REST 框架为使用浏览器时导航 API 提供了图形界面。如果您使用`curl`命令而不是浏览器，请注意 Django 检测到一个简单的 HTTP 客户端，并且只返回 JSON 响应：
 
-```
-src> curl localhost:8000
-{"todos":"http://localhost:8000/todos"}
-```
+[PRE21]
 
 如果您单击 todos 项目的超媒体链接（`http://localhost:8000/todos`），您将看到一个当前为空的待办事项列表：
 
@@ -707,30 +448,7 @@ src> curl localhost:8000
 
 当然，您也可以使用命令行和`curl`命令来创建新的待办事项，列出所有待办事项并更新待办事项：
 
-```
-> curl -X POST -H "Content-Type: application/json" localhost:8000/todos \
- -d '{"title": "Wash the car", "order": 2}'
-{"url":"http://localhost:8000/todos/2","title":"Wash the car","completed":false,"order":2}
-
-> curl -s localhost:8000/todos | jq
-[
- {
- "url": "http://localhost:8000/todos/1",
- "title": "Walk the dog",
- "completed": false,
- "order": 1
- },
- {
- "url": "http://localhost:8000/todos/2",
- "title": "Wash the car",
- "completed": false,
- "order": 2
- }
-]
-
-> curl -X PATCH -H "Content-Type: application/json" localhost:8000/todos/2 \
- -d '{"completed": true}' {"url":"http://localhost:8000/todos/2","title":"Wash the car","completed":true,"order":1}
-```
+[PRE22]
 
 在前面的示例中，您首先使用`HTTP POST`方法创建一个新的待办事项，然后验证 Todos 列表现在包含两个待办事项，将`curl`命令的输出传输到之前安装的`jq`实用程序中以格式化返回的项目。最后，您使用`HTTP PATCH`方法对待办事项进行部分更新，将该项目标记为已完成。
 
@@ -742,76 +460,15 @@ src> curl localhost:8000
 
 在测试应用程序时，很常见的是有额外的依赖项，这些依赖项是特定于应用程序测试的，如果你正在构建应用程序以在生产环境中运行，则不需要这些依赖项。这个示例应用程序在一个名为`src/requirements_test.txt`的文件中定义了测试依赖项，该文件导入了`src/requirements.txt`中的所有核心应用程序依赖项，并添加了额外的特定于测试的依赖项：
 
-```
--r requirements.txt
-colorama==0.3.9
-coverage==4.4.2
-django-nose==1.4.5
-nose==1.3.7
-pinocchio==0.4.2
-```
+[PRE23]
 
 要安装这些依赖项，您需要运行 PIP 软件包管理器，引用`requirements_test.txt`文件：
 
-```
-src> pip3 install -r requirements_test.txt --user
-Requirement already satisfied: Django==2.0 in /usr/local/lib/python3.7/site-packages (from -r requirements.txt (line 1)) (2.0)
-Requirement already satisfied: django-cors-headers==2.1.0 in /usr/local/lib/python3.7/site-packages (from -r requirements.txt (line 2)) (2.1.0)
-...
-...
-Installing collected packages: django-coverage, nose, django-nose, pinocchio
-Successfully installed django-nose-1.4.5 pinocchio-0.4.2
-```
+[PRE24]
 
 现在，您可以通过运行`python3 manage.py test`命令来运行示例应用程序的测试，传入`--settings`标志，这允许您指定自定义设置配置。在示例应用程序中，有额外的测试设置，这些设置在`src/todobackend/settings_test.py`文件中定义，扩展了`src/todobackend/settings.py`中包含的默认设置，增加了测试增强功能，如规范样式格式和代码覆盖统计：
 
-```
-src> python3 manage.py test --settings todobackend.settings_test
-Creating test database for alias 'default'...
-
-Ensure we can create a new todo item
-- item has correct title
-- item was created
-- received 201 created status code
-- received location header hyperlink
-
-Ensure we can delete all todo items
-- all items were deleted
-- received 204 no content status code
-
-Ensure we can delete a todo item
-- received 204 no content status code
-- the item was deleted
-
-Ensure we can update an existing todo item using PATCH
-- item was updated
-- received 200 ok status code
-
-Ensure we can update an existing todo item using PUT
-- item was updated
-- received 200 created status code
-
-----------------------------------------------------------------------
-XML: /Users/jmenga/todobackend/src/unittests.xml
-Name                              Stmts   Miss  Cover
------------------------------------------------------
-todo/__init__.py                      0      0   100%
-todo/admin.py                         1      1     0%
-todo/migrations/0001_initial.py       5      0   100%
-todo/migrations/__init__.py           0      0   100%
-todo/models.py                        6      6     0%
-todo/serializers.py                   7      0   100%
-todo/urls.py                          6      0   100%
-todo/views.py                        17      0   100%
------------------------------------------------------
-TOTAL                                42      7    83%
-----------------------------------------------------------------------
-Ran 12 tests in 0.281s
-
-OK
-
-Destroying test database for alias 'default'...
-```
+[PRE25]
 
 请注意，Django 测试运行器会扫描存储库中的各个文件夹以寻找测试，创建一个测试数据库，然后运行每个测试。在所有测试完成后，测试运行器会自动销毁测试数据库，因此您无需执行任何手动设置或清理任务。
 

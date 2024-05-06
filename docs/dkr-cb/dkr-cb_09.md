@@ -20,17 +20,11 @@ Docker 容器实际上并不是沙箱应用程序，这意味着不建议在系�
 
 +   由于 Docker 镜像是基本构建块，因此非常重要的是我们选择正确的基础镜像开始。Docker 有官方镜像的概念，这些镜像由 Docker、供应商或其他人维护。如果您还记得第二章中的内容，*使用 Docker 容器*，我们可以使用以下语法在 Docker Hub 上搜索镜像：
 
-```
-**$ docker search <image name>** 
-
-```
+[PRE0]
 
 例如，考虑以下命令：
 
-```
-**$ docker search fedora**
-
-```
+[PRE1]
 
 我们将看到一个`OFFICIAL`列，如果镜像是官方的，你将在该列中看到对应的`[OK]`。在 Docker 1.3 中添加了一个实验性功能（[`blog.docker.com/2014/10/docker-1-3-signed-images-process-injection-security-options-mac-shared-directories/`](http://blog.docker.com/2014/10/docker-1-3-signed-images-process-injection-security-options-mac-shared-directories/)），它在拉取镜像后对官方镜像进行数字信号验证。如果镜像被篡改，用户将收到通知，但不会阻止用户运行它。目前，此功能仅适用于官方镜像。有关官方镜像的更多详细信息，请访问[`github.com/docker-library/official-images`](https://github.com/docker-library/official-images)。镜像签名和验证功能尚未准备就绪，因此目前不要完全依赖它。
 
@@ -74,45 +68,25 @@ Docker 容器实际上并不是沙箱应用程序，这意味着不建议在系�
 
 1.  使用以下命令禁用 SELinux：
 
-```
-**$ sudo setenforce 0**
-
-```
+[PRE2]
 
 1.  创建一个用户并将其添加到默认的 Docker 组中，以便用户可以在不使用`sudo`的情况下运行 Docker 命令：
 
-```
-**$ sudo useradd dockertest**
-**$ sudo passwd dockertest**
-**$ sudo groupadd docker**
-**$ sudo gpasswd -a dockertest docker**
-
-```
+[PRE3]
 
 1.  使用我们之前创建的用户登录，启动容器如下：
 
-```
-**$ su - dockertest**
-**$ docker run -it -v /:/host fedora bash**
-
-```
+[PRE4]
 
 1.  从容器 chroot 到`/host`并运行`shutdown`命令：
 
-```
-**$ chroot /host**
-**$ shutdown** 
-
-```
+[PRE5]
 
 ![Introduction](img/image00408.jpeg)
 
 正如我们所看到的，Docker 组中的用户可以关闭主机系统。Docker 目前没有授权控制，因此如果您可以与 Docker 套接字通信，就可以运行任何 Docker 命令。这类似于`/etc/sudoers`。
 
-```
-**USERNAME ALL=(ALL) NOPASSWD: ALL**
-
-```
+[PRE6]
 
 这真的不好。让我们看看在本章的其余部分中如何防范这种情况以及更多内容。
 
@@ -148,19 +122,13 @@ Fedora/RHEL/CentOS 默认安装 SELinux 并设置为强制模式，并且 Docker
 
 1.  运行以下命令以确保 SELinux 已启用：
 
-```
-**$ getenforce**
-
-```
+[PRE7]
 
 如果前面的命令返回`enforcing`，那就很好，否则我们需要通过更新 SELinux 配置文件（`/etc/selinux/config`）并重新启动系统来进行更改。
 
 1.  Docker 应该使用`--selinux-enabled`选项运行。您可以在 Docker 守护程序配置（`/etc/sysconfig/docker`）文件的`OPTIONS`部分中检查。还要交叉检查 Docker 服务是否已启动并使用 SELinux 选项：
 
-```
-**$ systemctl status docker**
-
-```
+[PRE8]
 
 上述命令假定您没有手动以守护程序模式启动 Docker。
 
@@ -202,11 +170,7 @@ Fedora/RHEL/CentOS 默认安装 SELinux 并设置为强制模式，并且 Docker
 
 1.  使用以下方式使用`z`或`Z`选项挂载卷：
 
-```
-**$ docker run -it -v /tmp/:/tmp/host:z docker.io/fedora bash**
-**$ docker run -it -v /tmp/:/tmp/host:Z docker.io/fedora bash**
-
-```
+[PRE9]
 
 ![如何做...](img/image00412.jpeg)
 
@@ -280,31 +244,19 @@ Fedora/RHEL/CentOS 默认安装 SELinux 并设置为强制模式，并且 Docker
 
 1.  要删除功能，运行类似以下命令：
 
-```
-**$ docker run --cap-drop <CAPABILITY> <image> <command>**
-
-```
+[PRE10]
 
 要从容器中删除`setuid`和`setgid`功能，以便它无法运行具有这些位设置的二进制文件，运行以下命令：
 
-```
-**$ docker run -it --cap-drop  setuid --cap-drop setgid fedora bash**
-
-```
+[PRE11]
 
 1.  同样，要添加功能，运行类似以下命令：
 
-```
-**$ docker run --cap-add <CAPABILITY> <image> <command>**
-
-```
+[PRE12]
 
 要添加所有功能并仅删除`sys-admin`，运行以下命令：
 
-```
-**$ docker run -it --cap-add all --cap-drop sys-admin fedora bash**
-
-```
+[PRE13]
 
 ## 它是如何工作的…
 
@@ -314,11 +266,7 @@ Fedora/RHEL/CentOS 默认安装 SELinux 并设置为强制模式，并且 Docker
 
 让我们重新访问我们在本章开头看到的例子，通过它我们看到主机系统通过容器关闭。让 SELinux 在主机系统上禁用；但是，在启动容器时，删除`sys_choot`功能：
 
-```
-**$ docker run -it --cap-drop  sys_chroot -v /:/host  fedora bash**
-**$ shutdown**
-
-```
+[PRE14]
 
 ![还有更多...](img/image00413.jpeg)
 
@@ -346,26 +294,17 @@ Fedora/RHEL/CentOS 默认安装 SELinux 并设置为强制模式，并且 Docker
 
 1.  要与容器共享主机网络命名空间，请运行以下命令：
 
-```
-**$ docker run -it  --net=host fedora bash**
-
-```
+[PRE15]
 
 如果要在容器内查看网络详细信息，请运行以下命令：
 
-```
-**$ ip a** 
-
-```
+[PRE16]
 
 您将看到与主机相同的结果。
 
 1.  要与容器共享主机网络、PID 和 IPC 命名空间，请运行以下命令：
 
-```
-**$ docker run -it --net=host --pid=host --ipc=host fedora bash**
-
-```
+[PRE17]
 
 ## 它是如何工作的…
 

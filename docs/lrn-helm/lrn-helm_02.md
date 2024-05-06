@@ -158,66 +158,35 @@ Kubernetes 中有更多的资源，但到目前为止，你可能已经有了一
 
 `kubectl` 命令遵循一个常见的格式：
 
-```
-kubectl <verb> <noun> <arguments>
-```
+[PRE0]
 
 动词指的是 `kubectl` 的子命令之一，名词指的是特定的 Kubernetes 资源。例如，可以运行以下命令来创建一个部署：
 
-```
-kubectl create deployment my-deployment --image=busybox
-```
+[PRE1]
 
 这将指示 `kubectl` 与部署 API 对话，并使用来自 Docker Hub 的 `busybox` 镜像创建一个名为 `my-deployment` 的新部署。
 
 您可以使用 `kubectl` 获取有关使用 `describe` 子命令创建的部署的更多信息：
 
-```
-kubectl describe deployment my-deployment
-```
+[PRE2]
 
 此命令将检索有关部署的信息，并以可读格式格式化结果，使开发人员可以检查 Kubernetes 上的实时 `my-deployment` 部署。
 
 如果需要对部署进行更改，开发人员可以使用 `edit` 子命令在原地修改它：
 
-```
-kubectl edit deployment my-deployment
-```
+[PRE3]
 
 此命令将打开一个文本编辑器，允许您修改部署。
 
 在删除资源时，用户可以运行 `delete` 子命令：
 
-```
-kubectl delete deployment my-deployment
-```
+[PRE4]
 
 这将指示 API 删除名为 `my-deployment` 的部署。
 
 一旦创建，Kubernetes 资源将作为 JSON 资源文件存在于集群中，可以将其导出为 YAML 文件以获得更大的人类可读性。可以在此处看到 YAML 格式的示例资源：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: busybox
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: busybox
-  template:
-    metadata:
-      labels:
-        app: busybox
-    spec:
-      containers:
-        - name: main
-          image: busybox
-          args:
-            - sleep
-            - infinity
-```
+[PRE5]
 
 前面的 YAML 格式呈现了一个非常基本的用例。它部署了来自 Docker Hub 的 `busybox` 镜像，并无限期地运行 `sleep` 命令以保持 Pod 运行。
 
@@ -227,9 +196,7 @@ spec:
 
 声明式配置通常采用以下形式：
 
-```
-kubectl apply -f my-deployment.yaml
-```
+[PRE6]
 
 该命令为 Kubernetes 提供了一个包含资源规范的 YAML 资源，尽管也可以使用 JSON 格式。Kubernetes 根据资源的存在与否来推断要执行的操作（创建或修改）。
 
@@ -237,75 +204,27 @@ kubectl apply -f my-deployment.yaml
 
 1.  首先，用户可以创建一个名为`deployment.yaml`的文件，并提供部署的 YAML 格式规范。我们将使用与之前相同的示例：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: busybox
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: busybox
-  template:
-    metadata:
-      labels:
-        app: busybox
-    spec:
-      containers:
-        - name: main
-          image: busybox
-          args:
-            - sleep
-            - infinity
-```
+[PRE7]
 
 1.  然后可以使用以下命令创建部署：
 
-```
-kubectl apply -f deployment.yaml
-```
+[PRE8]
 
 运行此命令后，Kubernetes 将尝试按照您指定的方式创建部署。
 
 1.  如果要对部署进行更改，比如将`replicas`的数量更改为`2`，您首先需要修改`deployment.yaml`文件：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: busybox
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: busybox
-  template:
-    metadata:
-      labels:
-        app: busybox
-    spec:
-      containers:
-        - name: main
-          image: busybox
-          args:
-            - sleep
-            - infinity
-```
+[PRE9]
 
 1.  然后，您可以使用`kubectl apply`应用更改：
 
-```
-kubectl apply -f deployment.yaml
-```
+[PRE10]
 
 运行该命令后，Kubernetes 将在先前应用的`deployment`上应用提供的部署声明。此时，应用程序将从`replica`值为`1`扩展到`2`。
 
 1.  在删除应用程序时，Kubernetes 文档实际上建议以命令式方式进行操作；也就是说，使用`delete`子命令而不是`apply`：
 
-```
-kubectl delete -f deployment.yaml
-```
+[PRE11]
 
 1.  通过传递`-f`标志和文件名，可以使`delete`子命令更具声明性。这样可以向`kubectl`提供在特定文件中声明的要删除的资源的名称，并允许开发人员继续使用声明性 YAML 文件管理资源。
 
@@ -387,33 +306,25 @@ kubectl delete -f deployment.yaml
 
 软件包管理器使管理软件变得非常容易。举个例子，假设你想要在 Fedora 机器上安装`htop`，一个 Linux 系统监视器。安装这个软件只需要输入一个命令：
 
-```
-dnf install htop --assumeyes	
-```
+[PRE12]
 
 这会指示自 2015 年以来成为 Fedora 软件包管理器的 `dnf` 在 Fedora 软件包存储库中查找 `htop` 并安装它。`dnf`还负责安装`htop`软件包的依赖项，因此您无需担心事先安装其要求。在`dnf`从上游存储库中找到`htop`软件包后，它会询问您是否确定要继续。`--assumeyes`标志会自动回答`yes`这个问题和`dnf`可能潜在询问的任何其他提示。
 
 随着时间的推移，新版本的`htop`可能会出现在上游存储库中。`dnf`和其他软件包管理器允许用户高效地升级软件的新版本。允许用户使用`dnf`进行升级的子命令是升级：
 
-```
-dnf upgrade htop --assumeyes
-```
+[PRE13]
 
 这会指示`dnf`将`htop`升级到最新版本。它还会将其依赖项升级到软件包元数据中指定的版本。
 
 虽然向前迈进通常更好，但软件包管理器也允许用户向后移动，并在必要时将应用程序恢复到先前的版本。`dnf`使用`downgrade`子命令来实现这一点：
 
-```
-dnf downgrade htop --assumeyes
-```
+[PRE14]
 
 这是一个强大的过程，因为软件包管理器允许用户在报告关键错误或漏洞时快速回滚。
 
 如果您想彻底删除一个应用程序，软件包管理器也可以处理。`dnf`提供了`remove`子命令来实现这一目的：
 
-```
-dnf remove htop --assumeyes	
-```
+[PRE15]
 
 在本节中，我们回顾了在 Fedora 上使用`dnf`软件包管理器来管理软件包的方法。作为 Kubernetes 软件包管理器的 Helm 与`dnf`类似，无论是在目的还是功能上。`dnf`用于在 Fedora 上管理应用程序，Helm 用于在 Kubernetes 上管理应用程序。我们将在接下来更详细地探讨这一点。
 
@@ -425,33 +336,25 @@ Helm 依赖于存储库来提供对图表的广泛访问。图表开发人员创
 
 让我们通过一个基本的例子来看看。Helm 可以使用发布到上游存储库的图表来部署`Redis`，一个内存缓存，到 Kubernetes 中。这可以使用 Helm 的`install`命令来执行：
 
-```
-helm install redis bitnami/redis --namespace=redis
-```
+[PRE16]
 
 这将在 bitnami 图表存储库中安装`redis`图表到名为`redis`的 Kubernetes 命名空间。这个安装将被称为初始**修订**，或者 Helm 图表的初始部署。
 
 如果`redis`图表的新版本可用，用户可以使用`upgrade`命令升级到新版本：
 
-```
-helm upgrade redis bitnami/redis --namespace=redis
-```
+[PRE17]
 
 这将升级`Redis`，以满足新的`redis`-ha 图表定义的规范。
 
 在操作系统中，用户应该关注如果发现了错误或漏洞，如何回滚。在 Kubernetes 上的应用程序也存在同样的问题，Helm 提供了回滚命令来处理这种情况：
 
-```
-helm rollback redis 1 --namespace=redis
-```
+[PRE18]
 
 这个命令将`Redis`回滚到它的第一个修订版本。
 
 最后，Helm 提供了使用`uninstall`命令彻底删除`Redis`的能力：
 
-```
-helm uninstall redis --namespace=redis
-```
+[PRE19]
 
 比较`dnf`，Helm 的子命令，以及它们在下表中提供的功能。注意`dnf`和 Helm 提供了类似的命令，提供了类似的用户体验：
 

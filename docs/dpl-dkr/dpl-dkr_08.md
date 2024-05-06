@@ -52,53 +52,13 @@
 
 要在大多数基于 Debian 的发行版上安装 Ansible，通常过程非常简单：
 
-```
-$ # Make sure we have an accurate view of repositories
-$ sudo apt-get update 
-<snip>
-Fetched 3,971 kB in 22s (176 kB/s) 
-Reading package lists... Done
-
-$ # Install the package
-$ sudo apt-get install ansible 
-Reading package lists... Done
-Building dependency tree 
-Reading state information... Done
-The following NEW packages will be installed:
- ansible
-0 upgraded, 1 newly installed, 0 to remove and 30 not upgraded.
-<snip>
-Setting up ansible (2.0.0.2-2ubuntu1) ...
-
-$ # Sanity check
-$ ansible --version 
-ansible 2.0.0.2
- config file = /home/user/checkout/eos-administration/ansible/ansible.cfg
- configured module search path = /usr/share/ansible
-```
+[PRE0]
 
 # 基础知识
 
 项目的标准布局通常分为定义功能切片的角色，其余的配置基本上只是支持这些角色。Ansible 项目的基本文件结构看起来像这样（尽管通常需要更复杂的设置）：
 
-```
-.
-├── group_vars
-│   └── all
-├── hosts
-├── named-role-1-server.yml
-└── roles
- ├── named-role-1
- │   ├── tasks
- │   │   └── main.yml
- │   ├── files
- │   │   └── ...
- │   ├── templates
- │   │   └── ...
- │   └── vars
- │       └── main.yml
- ...
-```
+[PRE1]
 
 让我们分解一下这个文件系统树的基本结构，并看看每个部分在更大的图景中是如何使用的：
 
@@ -126,44 +86,11 @@ ansible 2.0.0.2
 
 首先，我们需要为保存文件创建我们的文件结构。我们将称我们的主要角色为`swarm_node`，由于我们整个机器只是一个 swarm 节点，我们将把我们的顶层部署 playbook 命名为相同的名称：
 
-```
-$ # First we create our deployment source folder and move there
-$ mkdir ~/ansible_deployment
-$ cd ~/ansible_deployment/
-
-$ # Next we create the directories we will need
-$ mkdir -p roles/swarm_node/files roles/swarm_node/tasks
-
-$ # Make a few placeholder files
-$ touch roles/swarm_node/tasks/main.yml \
-        swarm_node.yml \
-        hosts
-
-$ # Let's see what we have so far
-$ tree
-.
-├── hosts
-├── roles
-│   └── swarm_node
-│       ├── files
-│       └── tasks
-│           └── main.yml
-└── swarm_node.yml
-4 directories, 3 files
-```
+[PRE2]
 
 现在让我们将以下内容添加到顶层的`swarm_node.yml`。这将是 Ansible 的主入口点，它基本上只定义了目标主机和我们想要在它们上运行的角色：
 
-```
----
-- name: Swarm node setup
- hosts: all
-
- become: True
-
- roles:
- - swarm_node
-```
+[PRE3]
 
 YAML 文件是以空格结构化的，所以在编辑这个文件时要确保不要省略任何空格。一般来说，所有的嵌套级别都比父级多两个空格，键/值用冒号定义，列表用`-`（减号）前缀列出。有关 YAML 结构的更多信息，请访问[`en.wikipedia.org/wiki/YAML#Syntax`](https://en.wikipedia.org/wiki/YAML#Syntax)。
 
@@ -179,54 +106,23 @@ YAML 文件是以空格结构化的，所以在编辑这个文件时要确保不
 
 +   `conntrack.conf`:
 
-```
-net.netfilter.nf_conntrack_tcp_timeout_established = 43200
-net.netfilter.nf_conntrack_max = 524288
-```
+[PRE4]
 
 +   `file-descriptor-increase.conf`:
 
-```
-fs.file-max = 1000000
-```
+[PRE5]
 
 +   `socket-buffers.conf`:
 
-```
-net.core.optmem_max = 40960
-net.core.rmem_default = 16777216
-net.core.rmem_max = 16777216
-net.core.wmem_default = 16777216
-net.core.wmem_max = 16777216
-net.ipv4.tcp_rmem = 4096 87380 16777216
-net.ipv4.tcp_wmem = 4096 87380 16777216
-```
+[PRE6]
 
 +   `ulimit-open-files-increase.conf`:
 
-```
-root soft nofile 65536
-root hard nofile 65536
-* soft nofile 65536
-* hard nofile 65536
-```
+[PRE7]
 
 添加这些文件后，我们的目录结构应该看起来更像这样：
 
-```
-.
-├── hosts
-├── roles
-│   └── swarm_node
-│       ├── files
-│       │   ├── conntrack.conf
-│       │   ├── file-descriptor-increase.conf
-│       │   ├── socket-buffers.conf
-│       │   └── ulimit-open-files-increase.conf
-│       └── tasks
-│           └── main.yml
-└── swarm_node.yml
-```
+[PRE8]
 
 大部分文件已经就位，现在我们终于可以转向主配置文件--`roles/swarm_mode/tasks/main.yml`。在其中，我们将使用 Ansible 的模块和 DSL 逐步列出我们的配置步骤：
 
@@ -238,16 +134,7 @@ root hard nofile 65536
 
 为了简化理解以下的 Ansible 配置代码，也可以记住这个结构，因为它是我们将使用的每个离散步骤的基础，并且在看到几次后很容易理解：
 
-```
-- name: A descriptive step name that shows in output
- module_name:
- module_arg1: arg_value
- module_arg2: arg2_value
- module_array_arg3:
- - arg3_item1
- ...
- ...
-```
+[PRE9]
 
 您可以在主 Ansible 网站上找到我们在 playbook 中使用的所有模块文档([`docs.ansible.com/ansible/latest/list_of_all_modules.html`](https://docs.ansible.com/ansible/latest/list_of_all_modules.html))。由于信息量巨大，我们将避免在此处深入研究模块文档，因为这通常会分散本节的目的。
 
@@ -267,68 +154,7 @@ root hard nofile 65536
 
 让我们看看主安装 playbook（`roles/swarm_mode/tasks/main.yml`）应该是什么样子的：
 
-```
----
-- name: Dist-upgrading the image
- apt:
- upgrade: dist
- force: yes
- update_cache: yes
- cache_valid_time: 3600
-
-- name: Fixing ulimit through limits.d
- copy:
- src: "{{ item }}.conf"
- dest: /etc/security/limits.d/90-{{ item }}.conf
- with_items:
- - ulimit-open-files-increase
-
-- name: Fixing ulimits through pam_limits
- lineinfile:
- dest: /etc/pam.d/common-session
- state: present
- line: "session required pam_limits.so"
-
-- name: Ensuring server-like kernel settings are set
- copy:
- src: "{{ item }}.conf"
- dest: /etc/sysctl.d/10-{{ item }}.conf
- with_items:
- - socket-buffers
- - file-descriptor-increase
- - conntrack
-
-# Bug: https://github.com/systemd/systemd/issues/1113
-- name: Working around netfilter loading order
- lineinfile:
- dest: /etc/modules
- state: present
- line: "{{ item }}"
- with_items:
- - nf_conntrack_ipv4
- - nf_conntrack_ipv6
-
-- name: Increasing max connection buckets
- command: echo '131072' > /sys/module/nf_conntrack/parameters/hashsize
-
-# Install Docker
-- name: Fetching Docker's GPG key
- apt_key:
- keyserver: hkp://pool.sks-keyservers.net
- id: 58118E89F3A912897C070ADBF76221572C52609D
-
-- name: Adding Docker apt repository
- apt_repository:
- repo: 'deb https://apt.dockerproject.org/repo {{ ansible_distribution | lower }}-{{ ansible_distribution_release | lower }} main'
- state: present
-
-- name: Installing Docker
- apt:
- name: docker-engine
- state: installed
- update_cache: yes
- cache_valid_time: 3600
-```
+[PRE10]
 
 警告！这个配置对于放在互联网上运行没有进行*任何*加固，所以在进行真正的部署之前，请小心并在这个 playbook 中添加任何您需要的安全步骤和工具。至少我建议安装`fail2ban`软件包，但您可能有其他策略（例如 seccomp、grsecurity、AppArmor 等）。
 
@@ -374,21 +200,11 @@ AWS 是一个非常复杂的机器，比 Ansible 复杂得多，覆盖关于它�
 
 为了以最简单的方式使用 API 密钥，您可以在 shell 中导出变量，这些变量将被工具接收；但是，您需要在使用 AWS API 的每个终端上执行此操作：
 
-```
-$ export AWS_ACCESS_KEY_ID="AKIABCDEFABCDEF"
-$ export AWS_SECRET_ACCESS_KEY="123456789ABCDEF123456789ABCDEF"
-$ export AWS_REGION="us-west-1"
-```
+[PRE11]
 
 或者，如果您已安装`awscli`工具（`sudo apt-get install awscli`），您可以直接运行`aws configure`：
 
-```
-$ aws configure
-AWS Access Key ID [None]: AKIABCDEFABCEF
-AWS Secret Access Key [None]: 123456789ABCDEF123456789ABCDEF
-Default region name [None]: us-west-1
-Default output format [None]: json
-```
+[PRE12]
 
 还有许多其他设置凭据的方法，例如通过配置文件，但这确实取决于您的预期使用情况。有关这些选项的更多信息，您可以参考官方文档[`docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html`](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html)。
 
@@ -404,22 +220,7 @@ Default output format [None]: json
 
 由于 Packer 是用 Go 编程语言编写的，要安装 Packer，您只需要从他们的网站[`www.packer.io/downloads.html`](https://www.packer.io/downloads.html)下载二进制文件。通常可以通过以下方式快速安装：
 
-```
-$ # Get the archive
-$ wget -q --show-progress https://releases.hashicorp.com/packer/1.1.1/packer_<release>.zip
-packer_<release>.zip 100%[==============================================>] 15.80M 316KB/s in 40s
-
-$ # Extract our binary
-$ unzip packer_<release>.zip
-Archive: packer_<release>.zip
- inflating: packer
-
-$ # Place the binary somewhere in your path
-$ sudo mv packer /usr/local/bin/
-
-$ packer --version
-1.1.1
-```
+[PRE13]
 
 注意！Packer 二进制文件仅为其运行程序提供 TLS 身份验证，而没有任何形式的签名检查，因此，与 Docker 使用的 GPG 签名的`apt`存储库相比，程序由 HashiCorp 自己发布的保证要低得多；因此，在以这种方式获取它或从源代码构建时，请格外小心（[`github.com/hashicorp/packer`](https://github.com/hashicorp/packer)）。
 
@@ -427,35 +228,7 @@ $ packer --version
 
 在大多数情况下，使用 Packer 实际上相当容易，因为您只需要 Ansible 设置代码和一个相对较小的`packer.json`文件。将此内容添加到我们在早期部分的 Ansible 部署配置中的`packer.json`中：
 
-```
-{
-  "builders": [
-    {
-      "ami_description": "Cluster Node Image",
-      "ami_name": "cluster-node",
-      "associate_public_ip_address": true,
-      "force_delete_snapshot": true,
-      "force_deregister": true,
-      "instance_type": "m3.medium",
-      "region": "us-west-1",
-      "source_ami": "ami-1c1d217c",
-      "ssh_username": "ubuntu",
-      "type": "amazon-ebs"
-    }
-  ],
-  "provisioners": [
-    {
-      "inline": "sudo apt-get update && sudo apt-get install -y ansible",
-      "type": "shell"
-    },
-    {
-      "playbook_dir": ".",
-      "playbook_file": "swarm_node.yml",
-      "type": "ansible-local"
-    }
-  ]
-}
-```
+[PRE14]
 
 如果不明显，我们在此配置文件中有`provisioners`和`builders`部分，它们通常对应于 Packer 的输入和输出。在我们之前的示例中，我们首先通过`shell` provisioner 安装 Ansible，因为下一步需要它，然后使用`ansible-local` provisioner 在基本 AMI 上运行我们当前目录中的`main.yml` playbook。应用所有更改后，我们将结果保存为新的**弹性块存储**（**EBS**）优化的 AMI 映像。
 
@@ -463,18 +236,7 @@ AWS **弹性块存储**（**EBS**）是一项为 EC2 实例提供块设备存储
 
 对于构建器部分，更详细地解释一些参数将会很有帮助，因为它们可能并不明显，无法从 JSON 文件中直接看出来：
 
-```
-- type: What type of image are we building (EBS-optimized one in our case).
-- region: What region will this AMI build in.
-- source_ami: What is our base AMI? See section below for more info on this.
-- instance_type: Type of instance to use when building the AMI - bigger machine == faster builds.
-- ami_name: Name of the AMI that will appear in the UI.
-- ami_description: Description for the AMI.
-- ssh_username: What username to use to connect to base AMI. For Ubuntu, this is usually "ubuntu".
-- associate_public_ip_address: Do we want this builder to have an external IP. Usually this needs to be true.
-- force_delete_snapshot: Do we want to delete the old block device snapshot if same AMI is rebuilt?
-- force_deregister: Do we want to replace the old AMI when rebuilding?
-```
+[PRE15]
 
 您可以在[`www.packer.io/docs/builders/amazon-ebs.html`](https://www.packer.io/docs/builders/amazon-ebs.html)找到有关此特定构建器类型及其可用选项的更多信息。
 
@@ -512,44 +274,7 @@ AWS **弹性块存储**（**EBS**）是一项为 EC2 实例提供块设备存储
 
 警告！运行此 Packer 构建肯定会在您的 AWS 帐户上产生一些（尽管在撰写本书时可能只有几美元）费用，因为使用了非免费实例类型、快照使用和 AMI 使用，有可能是一些重复的费用。请参考 AWS 的定价文档来估算您将被收取的金额。另外，清理掉您在 AWS 对象上完成工作后不会保留的一切，也是一个良好的做法，因为这将确保您在使用此代码后不会产生额外的费用。有了`packer.json`，我们现在可以构建我们的镜像。我们将首先安装先决条件（`python-boto`和`awscli`），然后检查访问权限，最后构建我们的 AMI：
 
-```
-$ # Install python-boto as it is a prerequisite for Amazon builders
-$ # Also get awscli to check if credentials have been set correctly
-$ sudo apt-get update && sudo apt-get install -y python-boto awscli
-<snip>
-
-$ # Check that AWS API credentials are properly set. 
-$ # If you see errors, consult the previous section on how to do this
-$ aws ec2 describe-volumes 
-{
- "Volumes": [
- ]
-}
-
-$ # Go to the proper directory if we are not in it
-$ cd ~/ansible_deployment
-
-$ # Build our AMI and use standardized output format
-$ packer build -machine-readable packer.json 
-<snip>
-1509439711,,ui,say,==> amazon-ebs: Provisioning with shell script: /tmp/packer-shell105349087
-<snip>
-1509439739,,ui,message, amazon-ebs: Setting up ansible (2.0.0.2-2ubuntu1) ...
-1509439741,,ui,message, amazon-ebs: Setting up python-selinux (2.4-3build2) ...
-1509439744,,ui,say,==> amazon-ebs: Provisioning with Ansible...
-1509439744,,ui,message, amazon-ebs: Uploading Playbook directory to Ansible staging directory...
-<snip>
-1509439836,,ui,message, amazon-ebs: TASK [swarm_node : Installing Docker] ******************************************
-1509439855,,ui,message, amazon-ebs: [0;33mchanged: [127.0.0.1]0m
-1509439855,,ui,message, amazon-ebs:
-1509439855,,ui,message, amazon-ebs: PLAY RECAP *********************************************************************
-1509439855,,ui,message, amazon-ebs: [0;33m127.0.0.1[0m : [0;32mok[0m[0;32m=[0m[0;32m10[0m [0;33mchanged[0m[0;33m=[0m[0;33m9[0m unreachable=0 failed=0
-1509439855,,ui,message, amazon-ebs:
-1509439855,,ui,say,==> amazon-ebs: Stopping the source instance...
-<snip>
-1509439970,,ui,say,Build 'amazon-ebs' finished.
-1509439970,,ui,say,--> amazon-ebs: AMIs were created:\nus-west-1: ami-a694a8c6\n
-```
+[PRE16]
 
 成功！通过这个新的镜像 ID（您可以在输出的末尾看到`ami-a694a8c6`），我们现在可以在 EC2 中使用这个 AMI 启动实例，并且它们将具有我们应用的所有调整以及预安装的 Docker！
 
@@ -587,20 +312,7 @@ $ packer build -machine-readable packer.json
 
 首先，我们需要一些变量，这些变量将在部署和拆除 playbooks 之间共享。在与本章中我们一直在使用的大型 Ansible 示例相同的目录中创建一个`group_vars/all`文件：
 
-```
-# Region that will accompany all AWS-related module usages
-aws_region: us-west-1
-
-# ID of our Packer-built AMI
-cluster_node_ami: ami-a694a8c6
-
-# Key name that will be used to manage the instances. Do not
-# worry about what this is right now - we will create it in a bit
-ssh_key_name: swarm_key
-
-# Define the internal IP network for the VPC
-swarm_vpc_cidr: "172.31.0.0/16"
-```
+[PRE17]
 
 现在我们可以在与`packer.json`相同的目录中编写我们的`deploy.yml`，并使用其中一些变量：
 
@@ -620,86 +332,7 @@ swarm_vpc_cidr: "172.31.0.0/16"
 
 - [`docs.ansible.com/ansible/latest/ec2_module.html`](https://docs.ansible.com/ansible/latest/ec2_module.html)
 
-```
-- hosts: localhost
- connection: local
- gather_facts: False
-
- tasks:
- - name: Setting up VPC
- ec2_vpc_net:
- region: "{{ aws_region }}"
- name: "Swarm VPC"
- cidr_block: "{{ swarm_vpc_cidr }}"
- register: swarm_vpc
-
- - set_fact:
- vpc: "{{ swarm_vpc.vpc }}"
-
- - name: Setting up the subnet tied to the VPC
- ec2_vpc_subnet:
- region: "{{ aws_region }}"
- vpc_id: "{{ vpc.id }}"
- cidr: "{{ swarm_vpc_cidr }}"
- resource_tags:
- Name: "Swarm subnet"
- register: swarm_subnet
-
- - name: Setting up the gateway for the VPC
- ec2_vpc_igw:
- region: "{{ aws_region }}"
- vpc_id: "{{ vpc.id }}"
- register: swarm_gateway
-
- - name: Setting up routing table for the VPC network
- ec2_vpc_route_table:
- region: "{{ aws_region }}"
- vpc_id: "{{ vpc.id }}"
- lookup: tag
- tags:
- Name: "Swarm Routing Table"
- subnets:
- - "{{ swarm_subnet.subnet.id }}"
- routes:
- - dest: 0.0.0.0/0
- gateway_id: "{{ swarm_gateway.gateway_id }}"
-
- - name: Setting up security group / firewall
- ec2_group:
- region: "{{ aws_region }}"
- name: "Swarm SG"
- description: "Security group for the swarm"
- vpc_id: "{{ vpc.id }}"
- rules:
- - cidr_ip: 0.0.0.0/0
- proto: tcp
- from_port: 22
- to_port: 22
- - cidr_ip: 0.0.0.0/0
- proto: tcp
- from_port: 80
- to_port: 80
- rules_egress:
- - cidr_ip: 0.0.0.0/0
- proto: all
- register: swarm_sg
-
- - name: Provisioning cluster node
- ec2:
- region: "{{ aws_region }}"
- image: "{{ cluster_node_ami }}"
- key_name: "{{ ssh_key_name }}"
- instance_type: "t2.medium"
- group_id: "{{ swarm_sg.group_id }}"
- vpc_subnet_id: "{{ swarm_subnet.subnet.id }}"
- source_dest_check: no
- assign_public_ip: yes
- monitoring: no
- instance_tags:
- Name: cluster-node
- wait: yes
- wait_timeout: 500
-```
+[PRE18]
 
 我们在这里所做的与我们之前的计划非常相似，但现在我们有具体的部署代码与之匹配：
 
@@ -717,82 +350,7 @@ swarm_vpc_cidr: "172.31.0.0/16"
 
 正如我们之前提到的，拆除应该非常类似，但是相反，并包含更多的`state: absent`参数。让我们把以下内容放在同一个文件夹中的`destroy.yml`中：
 
-```
-- hosts: localhost
- connection: local
- gather_facts: False
-
- tasks:
- - name: Finding VMs to delete
- ec2_remote_facts:
- region: "{{ aws_region }}"
- filters:
- "tag:Name": "cluster-node"
- register: deletable_instances
-
- - name: Deleting instances
- ec2:
- region: "{{ aws_region }}"
- instance_ids: "{{ item.id }}"
- state: absent
- wait: yes
- wait_timeout: 600
- with_items: "{{ deletable_instances.instances }}"
- when: deletable_instances is defined
-
- # v2.0.0.2 doesn't have ec2_vpc_net_facts so we have to fake it to get VPC info
- - name: Finding route table info
- ec2_vpc_route_table_facts:
- region: "{{ aws_region }}"
- filters:
- "tag:Name": "Swarm Routing Table"
- register: swarm_route_table
-
- - set_fact:
- vpc: "{{ swarm_route_table.route_tables[0].vpc_id }}"
- when: swarm_route_table.route_tables | length > 0
-
- - name: Removing security group
- ec2_group:
- region: "{{ aws_region }}"
- name: "Swarm SG"
- state: absent
- description: ""
- vpc_id: "{{ vpc }}"
- when: vpc is defined
-
- - name: Deleting gateway
- ec2_vpc_igw:
- region: "{{ aws_region }}"
- vpc_id: "{{ vpc }}"
- state: absent
- when: vpc is defined
-
- - name: Deleting subnet
- ec2_vpc_subnet:
- region: "{{ aws_region }}"
- vpc_id: "{{ vpc }}"
- cidr: "{{ swarm_vpc_cidr }}"
- state: absent
- when: vpc is defined
-
- - name: Deleting route table
- ec2_vpc_route_table:
- region: "{{ aws_region }}"
- vpc_id: "{{ vpc }}"
- state: absent
- lookup: tag
- tags:
- Name: "Swarm Routing Table"
- when: vpc is defined
-
- - name: Deleting VPC
- ec2_vpc_net:
- region: "{{ aws_region }}"
- name: "Swarm VPC"
- cidr_block: "{{ swarm_vpc_cidr }}"
- state: absent
-```
+[PRE19]
 
 如果部署 playbook 可读，则该 playbook 应该很容易理解，正如我们所提到的，它只是以相反的方式运行相同的步骤，删除我们已经创建的任何基础设施部分。
 
@@ -800,133 +358,17 @@ swarm_vpc_cidr: "172.31.0.0/16"
 
 如果您还记得，在我们的`group_vars`定义中，我们有一个关键变量（`ssh_key_name: swarm_key`），在这一点上变得相对重要，因为没有工作密钥，我们既不能部署也不能启动我们的 VM，所以现在让我们这样做。我们将使用`awscli`和`jq`--一个 JSON 解析工具，它将减少我们的工作量，但也可以通过 GUI 控制台完成。
 
-```
-$ # Create the key with AWS API and save the private key to ~/.ssh directory
-$ aws ec2 create-key-pair --region us-west-1 \
- --key-name swarm_key | jq -r '.KeyMaterial' > ~/.ssh/ec2_swarm_key
-
-$ # Check that its not empty by checking the header
-$ head -1 ~/.ssh/ec2_swarm_key 
------BEGIN RSA PRIVATE KEY-----
-
-$ # Make sure that the permissions are correct on it
-$ chmod 600 ~/.ssh/ec2_swarm_key
-
-$ # Do a sanity check that it has the right size and permissions
-$ ls -la ~/.ssh/ec2_swarm_key
--rw------- 1 sg sg 1671 Oct 31 16:52 /home/sg/.ssh/ec2_swarm_key
-```
+[PRE20]
 
 将密钥放置后，我们终于可以运行我们的部署脚本：
 
-```
-$ ansible-playbook deploy.yml 
- [WARNING]: provided hosts list is empty, only localhost is available
-
-PLAY ***************************************************************************
-
-TASK [Setting up VPC] **********************************************************
-ok: [localhost]
-
-TASK [set_fact] ****************************************************************
-ok: [localhost]
-
-TASK [Setting up the subnet] ***************************************************
-ok: [localhost]
-
-TASK [Setting up the gateway] **************************************************
-ok: [localhost]
-
-TASK [Setting up routing table] ************************************************
-ok: [localhost]
-
-TASK [Setting up security group] ***********************************************
-ok: [localhost]
-
-TASK [Provisioning cluster node] ***********************************************
-changed: [localhost]
-
-PLAY RECAP *********************************************************************
-localhost : ok=7 changed=1 unreachable=0 failed=0 
-
-$ # Great! It looks like it deployed the machine! 
-$ # Let's see what we have. First we need to figure out what the external IP is
-$ aws ec2 describe-instances --region us-west-1 \
- --filters Name=instance-state-name,Values=running \
- --query 'Reservations[*].Instances[*].PublicIpAddress'
-[
- [
- "52.53.240.17"
- ]
-]
-
-$ # Now let's try connecting to it
-ssh -i ~/.ssh/ec2_swarm_key ubuntu@52.53.240.17 
-<snip>
-Are you sure you want to continue connecting (yes/no)? yes
-Warning: Permanently added '52.53.240.17' (ECDSA) to the list of known hosts.
-<snip>
-
-ubuntu@ip-172-31-182-20:~$ # Yay! Do we have Docker?
-ubuntu@ip-172-31-182-20:~$ sudo docker ps
-CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
-
-ubuntu@ip-172-31-182-20:~$ # Create our single-server swarm
-ubuntu@ip-172-31-182-20:~$ sudo docker swarm init
-Swarm initialized: current node (n2yc2tedm607rvnjs72fjgl1l) is now a manager.
-<snip>
-
-ubuntu@ip-172-31-182-20:~$ # Here we can now do anything else that's needed
-ubuntu@ip-172-31-182-20:~$ # Though you would normally automate everything
-```
+[PRE21]
 
 如果您看到类似于`"没有处理程序准备好进行身份验证。已检查 1 个处理程序。['HmacAuthV4Handler']检查您的凭据"`的错误，请确保您已正确设置 AWS 凭据。
 
 看起来一切都在运行！在这一点上，如果我们愿意，我们可以部署我们之前构建的三层应用程序。由于我们已经完成了我们的示例，并且我们的迷你 PaaS 正在运行，我们可以返回并通过运行`destroy.yml` playbook 来清理事务：
 
-```
-ubuntu@ip-172-31-182-20:~$ # Get out of our remote machine
-ubuntu@ip-172-31-182-20:~$ exit
-logout
-Connection to 52.53.240.17 closed.
-
-$ # Let's run the cleanup script
-ansible-playbook destroy.yml 
- [WARNING]: provided hosts list is empty, only localhost is available
-
-PLAY ***************************************************************************
-
-TASK [Finding VMs to delete] ***************************************************
-ok: [localhost]
-
-TASK [Deleting instances] ******************************************************
-changed: [localhost] => <snip>
-
-TASK [Finding route table info] ************************************************
-ok: [localhost]
-
-TASK [set_fact] ****************************************************************
-ok: [localhost]
-
-TASK [Removing security group] *************************************************
-changed: [localhost]
-
-TASK [Deleting gateway] ********************************************************
-changed: [localhost]
-
-TASK [Deleting subnet] *********************************************************
-changed: [localhost]
-
-TASK [Deleting route table] ****************************************************
-changed: [localhost]
-
-TASK [Deleting VPC] ************************************************************
-changed: [localhost]
-
-PLAY RECAP *********************************************************************
-localhost : ok=9 changed=6 unreachable=0 failed=0 
-
-```
+[PRE22]
 
 有了这个，我们可以使用单个命令自动部署和拆除我们的基础架构。虽然这个例子的范围相当有限，但它应该能给你一些关于如何通过自动扩展组、编排管理 AMI、注册表部署和数据持久化来扩展的想法。
 
@@ -938,45 +380,11 @@ localhost : ok=9 changed=6 unreachable=0 failed=0
 
 由于 Jenkins 将需要`awscli`、Ansible 和`python-boto`，我们必须基于 Docker Hub 上可用的 Jenkins 创建一个新的 Docker 镜像。创建一个新文件夹，并在其中添加一个`Dockerfile`，内容如下：
 
-```
-FROM jenkins
-
-USER root
-RUN apt-get update && \
- apt-get install -y ansible \
- awscli \
- python-boto
-
-USER jenkins
-```
+[PRE23]
 
 现在我们构建并运行我们的服务器：
 
-```
-$ # Let's build our image
-$ docker build -t jenkins_with_ansible 
-Sending build context to Docker daemon 2.048kB
-Step 1/4 : FROM jenkins
-<snip>
-Successfully tagged jenkins_with_ansible:latest
-
-$ # Run Jenkins with a local volume for the configuration
-$ mkdir jenkins_files
-$ docker run -p 8080:8080 \
- -v $(pwd)/jenkins_files:/var/jenkins_home \
- jenkins_with_ansible
-
-Running from: /usr/share/jenkins/jenkins.war
-<snip>
-Jenkins initial setup is required. An admin user has been created and a password generated.
-Please use the following password to proceed to installation:
-
-3af5d45c2bf04fffb88e97ec3e92127a
-
-This may also be found at: /var/jenkins_home/secrets/initialAdminPassword
-<snip>
-INFO: Jenkins is fully up and running
-```
+[PRE24]
 
 在它仍在运行时，让我们转到主页并输入我们在镜像启动期间收到警告的安装密码。转到`http://localhost:8080`并输入日志中的密码：
 
@@ -996,20 +404,7 @@ INFO: Jenkins is fully up and running
 
 作为我们的构建步骤，当存储库触发器激活时，我们将销毁并部署基础设施，有效地用新版本替换它。添加一个新的**执行 Shell**类型的构建步骤，并添加以下内容：
 
-```
-# Export needed AWS credentials
-export AWS_DEFAULT_REGION="us-west-1"
-export AWS_ACCESS_KEY_ID="AKIABCDEFABCDEF"
-export AWS_SECRET_ACCESS_KEY="123456789ABCDEF123456789ABCDEF"
-
-# Change to relevant directory
-cd chapter_8/aws_deployment
-
-# Redeploy the service by cleaning up the old deployment
-# and deploying a new one
-ansible-playbook destroy.yml
-ansible-playbook deploy.yml
-```
+[PRE25]
 
 工作应该看起来与这个相似：
 

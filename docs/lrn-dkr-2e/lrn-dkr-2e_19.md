@@ -128,9 +128,7 @@ Minikube 是一个工具，它在 VirtualBox 或 Hyper-V 中创建一个单节�
 
 让我们确保 Minikube 正在运行，使用以下命令：
 
-```
-$ minikube start
-```
+[PRE0]
 
 一旦 Minikube 准备就绪，我们可以使用`kubectl`访问它的单节点集群。我们应该会看到类似以下的内容：
 
@@ -142,80 +140,39 @@ $ minikube start
 
 我们可以使用`labs`文件夹中`ch15`子文件夹中的`sample-pod.yaml`文件来创建这样一个 pod。它的内容如下：
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx
-spec:
-  containers:
-  - name: nginx
-    image: nginx:alpine
-    ports:
-    - containerPort: 80
-    - containerPort: 443
-```
+[PRE1]
 
 使用以下步骤运行 pod：
 
 1.  首先，导航到正确的文件夹：
 
-```
-$ cd ~/fod/ch15
-```
+[PRE2]
 
 1.  现在，让我们使用名为`kubectl`的 Kubernetes CLI 来部署这个 pod：
 
-```
-$ kubectl create -f sample-pod.yaml
-pod/nginx created
-```
+[PRE3]
 
 如果我们现在列出所有的 pod，我们应该会看到以下内容：
 
-```
-$ kubectl get pods
-NAME    READY   STATUS    RESTARTS   AGE
-nginx   1/1     Running   0          51s
-```
+[PRE4]
 
 1.  为了能够访问这个 pod，我们需要创建一个服务。让我们使用名为`sample-service.yaml`的文件，它的内容如下：
 
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx-service
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 8080
-    targetPort: 80
-    protocol: TCP
-  selector:
-    app: nginx
-```
+[PRE5]
 
 1.  再次强调，现在不用担心服务是什么。我们稍后会解释这个。让我们创建这个服务：
 
-```
-$ kubectl create -f sample-service.yaml
-```
+[PRE6]
 
 1.  现在，我们可以使用`curl`来访问服务：
 
-```
-$ curl -4 http://localhost
-```
+[PRE7]
 
 我们应该收到 Nginx 欢迎页面作为答案。
 
 1.  在继续之前，请删除刚刚创建的两个对象：
 
-```
-$ kubectl delete po/nginx
-$ kubectl delete svc/nginx-service
-```
+[PRE8]
 
 # Docker for Desktop 中的 Kubernetes 支持
 
@@ -277,9 +234,7 @@ $ kubectl delete svc/nginx-service
 
 现在，让我们尝试将 Docker Compose 应用程序部署到 Kubernetes。转到`~/fod`文件夹的`ch15`子文件夹。我们使用`docker-compose.yml`文件将应用程序部署为堆栈：
 
-```
-$ docker stack deploy -c docker-compose.yml app
-```
+[PRE9]
 
 我们应该看到以下内容：
 
@@ -299,15 +254,11 @@ Docker 为`web`服务创建了一个部署，为`db`服务创建了一个有状�
 
 在继续之前，请从集群中删除堆栈：
 
-```
-$ docker stack rm app
-```
+[PRE10]
 
 还要确保将`kubectl`的上下文重置回 Minikube，因为我们将在本章中使用 Minikube 进行所有示例：
 
-```
-$ kubectl config use-context minikube
-```
+[PRE11]
 
 现在，我们已经介绍了用于开发最终将在 Kubernetes 集群中运行的应用程序的工具，是时候了解用于定义和管理这样的应用程序的所有重要 Kubernetes 对象了。我们将从 Pod 开始。
 
@@ -333,9 +284,7 @@ $ kubectl config use-context minikube
 
 对于 Kubernetes pod，情况是不同的。在创建一个新的 pod 时，Kubernetes 首先创建一个所谓的**pause**容器，其唯一目的是创建和管理 pod 将与所有容器共享的命名空间。除此之外，它没有任何有用的功能；它只是在睡觉。**pause**容器通过**veth0**连接到**docker0**桥。任何随后成为 pod 一部分的容器都使用 Docker 引擎的一个特殊功能，允许它重用现有的网络命名空间。这样做的语法看起来像这样：
 
-```
-$ docker container create --net container:pause ... 
-```
+[PRE12]
 
 重要的部分是`--net`参数，它使用`container:<container name>`作为值。如果我们以这种方式创建一个新容器，那么 Docker 不会创建一个新的 veth 端点；容器使用与`pause`容器相同的端点。
 
@@ -349,23 +298,15 @@ $ docker container create --net container:pause ...
 
 在所有这些理论之后，你可能会想知道 Kubernetes 是如何实际创建一个 Pod 的。Kubernetes 只使用 Docker 提供的内容。那么，*这个网络命名空间共享是如何工作的呢？*首先，Kubernetes 创建所谓的`pause`容器，如前所述。这个容器除了保留内核命名空间给该 Pod 并保持它们的活动状态外，没有其他功能，即使 Pod 内没有其他容器在运行。然后，我们模拟创建一个 Pod。我们首先创建`pause`容器，并使用 Nginx 来实现这个目的：
 
-```
-$ docker container run -d --name pause nginx:alpine
-```
+[PRE13]
 
 现在，我们添加一个名为`main`的第二个容器，将其附加到与`pause`容器相同的网络命名空间：
 
-```
-$ docker container run --name main -dit \
- --net container:pause \
- alpine:latest /bin/sh
-```
+[PRE14]
 
 由于`pause`和示例容器都是同一个网络命名空间的一部分，它们可以通过`localhost`相互访问。为了证明这一点，我们必须`exec`进入主容器：
 
-```
-$ docker exec -it main /bin/sh
-```
+[PRE15]
 
 现在，我们可以测试连接到运行在`pause`容器中并监听端口`80`的 Nginx。如果我们使用`wget`工具来做到这一点，我们会得到以下结果：
 
@@ -407,34 +348,17 @@ Kubernetes Pod 的生命周期
 
 因此，在本章中，我们将专注于声明式方法。Pod 的清单或规范可以使用 YAML 或 JSON 格式编写。在本章中，我们将专注于 YAML，因为它对我们人类来说更容易阅读。让我们看一个样本规范。这是`pod.yaml`文件的内容，可以在我们的`labs`文件夹的`ch12`子文件夹中找到：
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: web-pod
-spec:
-  containers:
-  - name: web
-    image: nginx:alpine
-    ports:
-    - containerPort: 80
-```
+[PRE16]
 
 Kubernetes 中的每个规范都以版本信息开头。Pods 已经存在了相当长的时间，因此 API 版本是`v1`。第二行指定了我们要定义的 Kubernetes 对象或资源的类型。显然，在这种情况下，我们要指定一个`Pod`。接下来是包含元数据的块。至少，我们需要给 pod 一个名称。在这里，我们称其为`web-pod`。接下来跟随的是`spec`块，其中包含 pod 的规范。最重要的部分（也是这个简单示例中唯一的部分）是这个 pod 中所有容器的列表。我们这里只有一个容器，但是多个容器是可能的。我们为容器选择的名称是`web`，容器镜像是`nginx:alpine`。最后，我们定义了容器正在暴露的端口列表。
 
 一旦我们编写了这样的规范，我们就可以使用 Kubernetes CLI `kubectl`将其应用到集群中。在终端中，导航到`ch15`子文件夹，并执行以下命令：
 
-```
-$ kubectl create -f pod.yaml
-```
+[PRE17]
 
 这将回应`pod "web-pod" created`。然后我们可以使用`kubectl get pods`列出集群中的所有 pod：
 
-```
-$ kubectl get pods
-NAME      READY   STATUS    RESTARTS   AGE
-web-pod   1/1     Running   0          2m
-```
+[PRE18]
 
 正如预期的那样，我们在运行状态中有一个 pod。该 pod 被称为`web-pod`，如所定义。我们可以使用`describe`命令获取有关运行中 pod 的更详细信息：
 
@@ -452,24 +376,11 @@ web-pod   1/1     Running   0          2m
 
 在第五章中，*数据卷和配置*，我们学习了卷及其目的：访问和存储持久数据。由于容器可以挂载卷，Pod 也可以这样做。实际上，实际上是 Pod 内的容器挂载卷，但这只是一个语义细节。首先，让我们看看如何在 Kubernetes 中定义卷。Kubernetes 支持大量的卷类型，所以我们不会深入讨论这个问题。让我们通过隐式定义一个名为`my-data-claim`的`PersistentVolumeClaim`来创建一个本地卷：
 
-```
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: my-data-claim
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 2Gi
-```
+[PRE19]
 
 我们已经定义了一个请求 2GB 数据的声明。让我们创建这个声明：
 
-```
-$ kubectl create -f volume-claim.yaml
-```
+[PRE20]
 
 我们可以使用`kubectl`列出声明（`pvc`是`PersistentVolumeClaim`的快捷方式）：
 
@@ -477,40 +388,15 @@ $ kubectl create -f volume-claim.yaml
 
 在输出中，我们可以看到声明已经隐式创建了一个名为`pvc-<ID>`的卷。我们现在准备在 Pod 中使用声明创建的卷。让我们使用之前使用的 Pod 规范的修改版本。我们可以在`ch12`文件夹中的`pod-with-vol.yaml`文件中找到这个更新的规范。让我们详细看一下这个规范：
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: web-pod
-spec:
-  containers:
-  - name: web
-    image: nginx:alpine
-    ports:
-    - containerPort: 80
-    volumeMounts:
-    - name: my-data
-      mountPath: /data
-  volumes:
-  - name: my-data
-    persistentVolumeClaim:
-      claimName: my-data-claim
-```
+[PRE21]
 
 在最后四行中，在`volumes`块中，我们定义了我们想要为这个 Pod 使用的卷的列表。我们在这里列出的卷可以被 Pod 的任何一个容器使用。在我们的特定情况下，我们只有一个卷。我们指定我们有一个名为`my-data`的卷，这是一个持久卷声明，其声明名称就是我们刚刚创建的。然后，在容器规范中，我们有`volumeMounts`块，这是我们定义我们想要使用的卷以及容器内部的（绝对）路径的地方，卷将被挂载到容器文件系统的`/data`文件夹。让我们创建这个 Pod：
 
-```
-$ kubectl create -f pod-with-vol.yaml
-```
+[PRE22]
 
 然后，我们可以通过`exec`进入容器，通过导航到`/data`文件夹，创建一个文件，并退出容器来再次检查卷是否已挂载：
 
-```
-$ kubectl exec -it web-pod -- /bin/sh
-/ # cd /data
-/data # echo "Hello world!" > sample.txt
-/data # exit
-```
+[PRE23]
 
 如果我们是正确的，那么这个容器中的数据必须在 Pod 的生命周期之外持续存在。因此，让我们删除 Pod，然后重新创建它并进入其中，以确保数据仍然存在。这是结果：
 
@@ -532,27 +418,7 @@ ReplicaSet 负责始终协调所需的状态，如果实际状态偏离所需状
 
 与我们对 pod 的学习类似，Kubernetes 也允许我们以命令式或声明式方式定义和创建 ReplicaSet。由于在大多数情况下，声明式方法是最推荐的方法，我们将集中讨论这种方法。以下是一个 Kubernetes ReplicaSet 的样本规范：
 
-```
-apiVersion: apps/v1
-kind: ReplicaSet
-metadata:
-  name: rs-web
-spec:
-  selector:
-    matchLabels:
-      app: web
-  replicas: 3
-  template: 
-    metadata:
-      labels:
-        app: web
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-```
+[PRE24]
 
 这看起来非常像我们之前介绍的 Pod 规范。让我们集中精力关注不同之处。首先，在第 2 行，我们有`kind`，它曾经是`Pod`，现在是`ReplicaSet`。然后，在第 6-8 行，我们有一个选择器，它确定将成为`ReplicaSet`一部分的 Pods。在这种情况下，它是所有具有`app`标签值为`web`的 Pods。然后，在第 9 行，我们定义了我们想要运行的 Pod 的副本数量；在这种情况下是三个。最后，我们有`template`部分，首先定义了`metadata`，然后定义了`spec`，它定义了在 Pod 内运行的容器。在我们的情况下，我们有一个使用`nginx:alpine`镜像并导出端口`80`的单个容器。
 
@@ -560,28 +426,15 @@ spec:
 
 在我们的`ch15`文件夹中，有一个名为`replicaset.yaml`的文件，其中包含了前面的规范。让我们使用这个文件来创建`ReplicaSet`：
 
-```
-$ kubectl create -f replicaset.yaml
-replicaset "rs-web" created
-```
+[PRE25]
 
 如果我们列出集群中的所有 ReplicaSets，我们会得到以下结果（`rs`是`replicaset`的缩写）：
 
-```
-$ kubectl get rs
-NAME     DESIRED   CURRENT   READY   AGE
-rs-web   3         3         3       51s
-```
+[PRE26]
 
 在上面的输出中，我们可以看到我们有一个名为`rs-web`的单个 ReplicaSet，其期望状态为三（个 Pods）。当前状态也显示了三个 Pods，并告诉我们所有三个 Pods 都已准备就绪。我们还可以列出系统中的所有 Pods。这将导致以下输出：
 
-```
-$ kubectl get pods
-NAME           READY   STATUS    RESTARTS   AGE
-rs-web-6qzld   1/1     Running   0          4m
-rs-web-frj2m   1/1     Running   0          4m
-rs-web-zd2kt   1/1     Running   0          4m
-```
+[PRE27]
 
 在这里，我们可以看到我们期望的三个 Pods。Pods 的名称使用 ReplicaSet 的名称，并为每个 Pod 附加了唯一的 ID。在`READY`列中，我们可以看到在 Pod 中定义了多少个容器以及其中有多少个是就绪的。在我们的情况下，每个 Pod 只有一个容器，并且每种情况下都已准备就绪。因此，Pod 的整体状态是`Running`。我们还可以看到每个 Pod 需要重新启动的次数。在我们的情况下，我们没有任何重新启动。
 
@@ -589,10 +442,7 @@ rs-web-zd2kt   1/1     Running   0          4m
 
 现在，让我们测试自愈`ReplicaSet`的魔力，随机杀死其中一个 Pod 并观察发生了什么。让我们从前面的列表中删除第一个 Pod：
 
-```
-$ kubectl delete po/rs-web-6qzld
-pod "rs-web-6qzld" deleted
-```
+[PRE28]
 
 现在，让我们再次列出所有的 Pods。我们期望只看到两个 Pods，*对吗*？错了：
 

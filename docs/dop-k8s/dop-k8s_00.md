@@ -42,11 +42,7 @@
 
 任何命令行输入或输出都是这样写的：
 
-```
-$ sudo yum -y -q install nginx
-$ sudo /etc/init.d/nginx start
-Starting nginx: 
-```
+[PRE0]
 
 **新术语**和**重要单词**以粗体显示。您在屏幕上看到的单词，例如菜单或对话框中的单词，会在文本中出现，就像这样："本书中的快捷键基于 Mac OS X 10.5+方案。"
 

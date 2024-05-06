@@ -74,70 +74,41 @@ Prometheus 易于安装和配置（您很快就会看到），并且可以收集
 
 1.  找到最新版本的 Prometheus 进行安装。使用`wget`命令将压缩的存档文件下载到您的系统上。您在命令中使用的 URL 可能与此处的 URL 不同，这取决于您使用的操作系统和 Prometheus 的版本：
 
-```
-wget https://github.com/prometheus/prometheus/releases/download/v2.15.1/prometheus-2.15.1.<operating-system>-amd64.tar.gz
-```
+[PRE0]
 
 1.  使用`tar`命令解压您在上一步下载的 Prometheus 存档。以下命令使用`zxvf`选项解压文件，然后提取存档和文件，并显示详细输出：
 
-```
-tar zxvf prometheus-2.15.1.<operating-system>-amd64.tar.gz
-```
+[PRE1]
 
 1.  存档提供了一个完全创建的 Prometheus 二进制应用程序，可以立即启动。进入应用程序目录，查看目录中包含的一些重要文件：
 
-```
-cd prometheus-2.15.1.<operating-system>-amd64
-```
+[PRE2]
 
 1.  使用`ls`命令列出应用程序目录中的文件，以查看我们应用程序中的重要文件：
 
-```
-ls
-```
+[PRE3]
 
 注意输出，它应该类似于以下内容，其中`prometheus.yml`文件是我们的配置文件。`prometheus`文件是应用程序二进制文件，`tsdb`和数据目录是我们存储时间序列数据库数据的位置：
 
-```
-LICENSE    console_libraries    data    prometheus.yml    tsdb
-NOTICE    consoles    prometheus    promtool
-```
+[PRE4]
 
 在前面的目录列表中，请注意`console_libraries`和`consoles`目录包括用于查看我们即将使用的 Prometheus Web 界面的提供的二进制文件。`promtool`目录包括您可以使用的工具来处理 Prometheus，包括一个配置检查工具，以确保您的`prometheus.yml`文件有效。
 
 1.  如果您的二进制文件没有问题，应用程序已准备就绪，您应该能够验证 Prometheus 的版本。使用`--version`选项从命令行运行应用程序：
 
-```
-./prometheus --version
-```
+[PRE5]
 
 输出应该如下所示：
 
-```
-prometheus, version 2.15.1 (branch: HEAD, revision: 8744510c6391d3ef46d8294a7e1f46e57407ab13)
-  build user:       root@4b1e33c71b9d
-  build date:       20191225-01:12:19
-  go version:       go1.13.5
-```
+[PRE6]
 
 1.  您不会对配置文件进行任何更改，但在开始之前，请确保它包含 Prometheus 的有效信息。运行`cat`命令查看文件的内容：
 
-```
-cat prometheus.yml 
-```
+[PRE7]
 
 输出中的行数已经减少。从以下输出中可以看出，全局的`scrap_interval`参数和`evaluation_interval`参数设置为`15`秒：
 
-```
-# my global config
-global:
-  scrape_interval:     15s # Set the scrape interval to every 
-15 seconds. Default is every 1 minute.
-  evaluation_interval: 15s # Evaluate rules every 15 seconds. 
-The default is every 1 minute.
-  # scrape_timeout is set to the global default (10s).
-…
-```
+[PRE8]
 
 如果您有时间查看`prometheus.yml`配置文件，您会注意到它分为四个主要部分：
 
@@ -151,16 +122,11 @@ The default is every 1 minute.
 
 1.  启动 Prometheus 只是运行二进制文件并使用`--config.file`命令行选项指定要使用的配置文件的简单问题。运行以下命令启动 Prometheus：
 
-```
-./prometheus --config.file=prometheus.yml
-```
+[PRE9]
 
 几秒钟后，您应该会看到消息“服务器已准备好接收 Web 请求。”：
 
-```
-…
-msg="Server is ready to receive web requests."
-```
+[PRE10]
 
 1.  输入 URL `http://localhost:9090`。Prometheus 提供了一个易于使用的 Web 界面。如果应用程序已正确启动，您现在应该能够在系统上打开 Web 浏览器。应该会呈现给您表达式浏览器，类似于以下屏幕截图。虽然表达式浏览器看起来并不那么令人印象深刻，但它在开箱即用时具有一些很好的功能。它分为三个不同的部分。
 
@@ -184,18 +150,7 @@ msg="Server is ready to receive web requests."
 
 1.  单击目标端点。您将能够看到目标公开的指标。现在您可以看到 Prometheus 如何利用其拉取架构从目标中抓取数据。单击链接或打开浏览器，输入 URL`http://localhost:9090/metrics`以查看 Prometheus 指标端点。您应该会看到类似于以下内容的内容，显示了 Prometheus 正在公开的所有指标点，然后由自身抓取：
 
-```
-# HELP go_gc_duration_seconds A summary of the GC invocation 
-durations.
-# TYPE go_gc_duration_seconds summary
-go_gc_duration_seconds{quantile="0"} 9.268e-06
-go_gc_duration_seconds{quantile="0.25"} 1.1883e-05
-go_gc_duration_seconds{quantile="0.5"} 1.5802e-05
-go_gc_duration_seconds{quantile="0.75"} 2.6047e-05
-go_gc_duration_seconds{quantile="1"} 0.000478339
-go_gc_duration_seconds_sum 0.002706392
-…
-```
+[PRE11]
 
 1.  通过单击返回按钮或输入 URL`http://localhost:9090/graph`返回到表达式浏览器。单击“执行”按钮旁边的下拉列表，以查看所有可用的指标点：![图 13.4：从表达式浏览器中获得的 Prometheus 指标](img/B15021_13_04.jpg)
 
@@ -221,12 +176,7 @@ https://github.com/prometheus/node_exporter。
 
 由于 Docker 已经在您的主机系统上运行，设置它以允许 Prometheus 连接其指标只是向`/etc/docker/daemon.json`文件添加一个配置更改。在大多数情况下，该文件很可能是空白的。如果您已经在文件中有详细信息，您只需将以下示例中的*第 2 行*和*第 3 行*添加到您的配置文件中。*第 2 行*启用了这个`experimental`功能，以便暴露给 Prometheus 收集指标，*第 3 行*设置了这些数据点要暴露的 IP 地址和端口：
 
-```
-1 {
-2        "experimental": true,
-3        "metrics-addr": "0.0.0.0:9191"
-4 }
-```
+[PRE12]
 
 由于配置更改，您系统上的 Docker 守护程序需要重新启动才能生效。但一旦发生这种情况，您应该可以在`daemon.json`文件中添加的指定 IP 地址和端口处获得可用的指标。在上面的示例中，这将是在`http://0.0.0.0:9191`。
 
@@ -236,14 +186,7 @@ https://github.com/prometheus/node_exporter。
 
 以下`docker run`命令在容器上挂载卷，例如`/var/lib/docker`和`/var/run`，将端口`8080`暴露给主机系统，并最终使用来自 Google 的最新`cadvisor`镜像：
 
-```
-docker run \
-  --volume=<host_directory>:<container_directory> \
-  --publish=8080:8080 \
-  --detach=true \
-  --name=cadvisor \
-  gcr.io/google-containers/cadvisor:latest
-```
+[PRE13]
 
 注意
 
@@ -253,11 +196,7 @@ docker run \
 
 一旦 Docker 守护程序和`cAdvisor`有数据可供 Prometheus 收集，我们需要确保我们有一个定期的配置，将数据添加到时间序列数据库中。应用程序目录中的`prometheus.yml`配置文件允许我们执行此操作。您只需在文件的`scrape_configs`部分添加配置。正如您从以下示例中看到的，您需要添加一个`job_name`参数，并提供指标提供位置的详细信息作为`targets`条目：
 
-```
-    - job_name: '<scrap_job_name>'
-      static_configs:
-      - targets: ['<ip_address>:<port>']
-```
+[PRE14]
 
 一旦目标对 Prometheus 可用，您就可以开始搜索数据。现在我们已经提供了如何开始使用 Prometheus 收集 Docker 指标的分解，以下练习将向您展示如何在运行系统上执行此操作。
 
@@ -267,72 +206,29 @@ docker run \
 
 1.  要开始从 Docker 守护程序收集数据，您首先需要在系统上启用此功能。首先通过文本编辑器打开`/etc/docker/daemon.json`文件，并添加以下详细信息：
 
-```
-1 {
-2        "experimental": true,
-3        "metrics-addr": "0.0.0.0:9191"
-4 }
-```
+[PRE15]
 
 您对配置文件所做的更改将会公开 Docker 守护程序的指标，以允许 Prometheus 进行抓取和存储这些值。要启用此更改，请保存 Docker 配置文件并重新启动 Docker 守护程序。
 
 1.  通过打开您的 Web 浏览器并使用您在配置中设置的 URL 和端口号来验证是否已经生效。输入 URL `http://0.0.0.0:9191/metrics`，您应该会看到一系列指标被公开以允许 Prometheus 进行抓取：
 
-```
-# HELP builder_builds_failed_total Number of failed image builds
-# TYPE builder_builds_failed_total counter
-builder_builds_failed_total{reason="build_canceled"} 0
-builder_builds_failed_total{reason="build_target_not_reachable
-_error"} 0
-builder_builds_failed_total{reason="command_not_supported_
-error"} 0
-builder_builds_failed_total{reason="dockerfile_empty_error"} 0
-builder_builds_failed_total{reason="dockerfile_syntax_error"} 0
-builder_builds_failed_total{reason="error_processing_commands_
-error"} 0
-builder_builds_failed_total{reason="missing_onbuild_arguments_
-error"} 0
-builder_builds_failed_total{reason="unknown_instruction_error"} 0
-…
-```
+[PRE16]
 
 1.  现在，您需要让 Prometheus 知道它可以在哪里找到 Docker 正在向其公开的指标。您可以通过应用程序目录中的`prometheus.yml`文件来完成这一点。不过，在这样做之前，您需要停止 Prometheus 服务的运行，以便配置文件的添加生效。打开 Prometheus 正在运行的终端并按下*Ctrl* + *C*。成功执行此操作时，您应该会看到类似以下的输出：
 
-```
-level=info ts=2020-04-28T04:49:39.435Z caller=main.go:718 
-msg="Notifier manager stopped"
-level=info ts=2020-04-28T04:49:39.436Z caller=main.go:730 
-msg="See you next time!"
-```
+[PRE17]
 
 1.  使用文本编辑器打开应用程序目录中的`prometheus.yml`配置文件。转到文件的`scrape_configs`部分的末尾，并添加*行 21*至*34*。额外的行将告诉 Prometheus 它现在可以从已在 IP 地址`0.0.0.0`和端口`9191`上公开的 Docker 守护程序获取指标：
 
 prometheus.yml
 
-```
-21 scrape_configs:
-22   # The job name is added as a label 'job=<job_name>' to any        timeseries scraped from this config.
-23   - job_name: 'prometheus'
-24
-25     # metrics_path defaults to '/metrics'
-26     # scheme defaults to 'http'.
-27 
-28     static_configs:
-29     - targets: ['localhost:9090']
-30 
-31   - job_name: 'docker_daemon'
-32     static_configs:
-33     - targets: ['0.0.0.0:9191']
-34
-```
+[PRE18]
 
 此步骤的完整代码可以在 https://packt.live/33satLe 找到。
 
 1.  保存您对`prometheus.yml`文件所做的更改，并按照以下方式从命令行再次启动 Prometheus 应用程序：
 
-```
-./prometheus --config.file=prometheus.yml
-```
+[PRE19]
 
 1.  如果您返回到 Prometheus 的表达式浏览器，您可以再次验证它现在已配置为从 Docker 守护程序收集数据。从`Status`菜单中选择`Targets`，或者使用 URL `http://localhost:9090/targets`，现在应该包括我们在配置文件中指定的`docker_daemon`作业：![图 13.6：带有 docker_daemon 的 Prometheus Targets](img/B15021_13_06.jpg)
 
@@ -344,18 +240,7 @@ prometheus.yml
 
 1.  Docker 守护程序受限于其可以向 Prometheus 公开的数据量。设置`cAdvisor`镜像以收集有关正在运行的容器的详细信息。在命令行上使用以下`docker run`命令将其作为由 Google 提供的容器运行。`docker run`命令使用存储在 Google 容器注册表中的`cadvisor:latest`镜像，类似于 Docker Hub。无需登录到此注册表；镜像将自动拉到您的系统中：
 
-```
-docker run \
-  --volume=/:/rootfs:ro \
-  --volume=/var/run:/var/run:ro \
-  --volume=/sys:/sys:ro \
-  --volume=/var/lib/docker/:/var/lib/docker:ro \
-  --volume=/dev/disk/:/dev/disk:ro \
-  --publish=8080:8080 \
-  --detach=true \
-  --name=cadvisor \
-  gcr.io/google-containers/cadvisor:latest
-```
+[PRE20]
 
 1.  `cAdvisor`带有一个 Web 界面，可以为您提供一些基本功能，但由于它不存储历史数据，您将收集数据并将其存储在 Prometheus 上。现在，打开另一个 Web 浏览器会话，并输入 URL `http://0.0.0.0:8080`，您应该会看到一个类似以下的网页：![图 13.8：cAdvisor 欢迎页面](img/B15021_13_08.jpg)
 
@@ -371,20 +256,13 @@ docker run \
 
 prometheus.yml
 
-```
-35   - job_name: 'cadvisor'
-36     scrape_interval: 5s
-37     static_configs:
-38     - targets: ['0.0.0.0:8080']
-```
+[PRE21]
 
 此步骤的完整代码可在 https://packt.live/33BuFub 找到。
 
 1.  再次保存您的配置更改，并从命令行运行 Prometheus 应用程序，如下所示：
 
-```
-./prometheus --config.file=prometheus.yml
-```
+[PRE22]
 
 如果现在查看 Prometheus Web 界面上的`Targets`，您应该会看到类似以下的内容，显示`cAdvisor`也在我们的界面上可用：
 
@@ -394,9 +272,7 @@ prometheus.yml
 
 1.  通过 Prometheus 的`Targets`页面显示`cAdvisor`现在可用并已连接，验证了 Prometheus 现在正在从`cAdvisor`收集指标数据。您还可以从表达式浏览器中测试这一点，以验证它是否按预期工作。通过从顶部菜单中选择`Graphs`或`Prometheus`进入表达式浏览器。页面加载后，将以下 PromQL 查询添加到查询编辑器中，然后单击`Execute`按钮：
 
-```
-(time() - process_start_time_seconds{instance="0.0.0.0:8080",job="cadvisor"})
-```
+[PRE23]
 
 注意
 
@@ -422,14 +298,7 @@ prometheus.yml
 
 如果您对我们正在收集的数据中的计数器示例感兴趣，请打开`cAdvisor`的数据收集的指标页面，网址为`http://0.0.0.0:8080/metrics`。提供的第一个指标之一是`container_cpu_system_seconds_total`。如果我们浏览指标页面，我们将看到有关指标值和类型的信息如下：
 
-```
-# HELP container_cpu_system_seconds_total Cumulative system cpu time 
-consumed in seconds.
-# TYPE container_cpu_system_seconds_total counter
-container_cpu_system_seconds_total{id="/",image="",name=""} 
-195.86 1579481501131
-…
-```
+[PRE24]
 
 现在，我们将研究 Prometheus 中可用的第二种指标类型，也就是仪表。
 
@@ -439,14 +308,7 @@ container_cpu_system_seconds_total{id="/",image="",name=""}
 
 如果我们再次转到`cAdvisor`的指标页面，您可以看到一些指标显示为仪表。我们看到的第一个指标之一是`container_cpu_load_average_10s`，它作为一个仪表提供，类似于以下值：
 
-```
-# HELP container_cpu_load_average_10s Value of container cpu load 
-average over the last 10 seconds.
-# TYPE container_cpu_load_average_10s gauge
-container_cpu_load_average_10s{id="/",image="",name=""} 0 
-1579481501131
-…
-```
+[PRE25]
 
 下一部分将带您了解直方图，Prometheus 中可用的第三种指标类型。
 
@@ -456,14 +318,7 @@ container_cpu_load_average_10s{id="/",image="",name=""} 0
 
 直方图比仪表和计数器更不常见，似乎没有为`cAdvisor`设置，但我们可以在 Docker 守护程序指标中看到一些可用的直方图。转到 URL `http://0.0.0.0:9191/metrics`，您将能够看到列出的第一个直方图指标是`engine_daemon_container_actions_seconds`。这是 Docker 守护程序处理每个操作所需的秒数：
 
-```
-# HELP engine_daemon_container_actions_seconds The number of seconds 
-it takes to process each container action
-# TYPE engine_daemon_container_actions_seconds histogram
-engine_daemon_container_actions_seconds_bucket{action="changes",
-le="0.005"} 1
-…
-```
+[PRE26]
 
 接下来的部分将介绍第四种可用的指标类型，换句话说，摘要。
 
@@ -471,13 +326,7 @@ le="0.005"} 1
 
 摘要是直方图的扩展，是在客户端计算的。它们具有更高的准确性优势，但对客户端来说也可能很昂贵。我们可以在 Docker 守护程序指标中看到摘要的示例，其中`http_request_duration_microseconds`在这里列出：
 
-```
-# HELP http_request_duration_microseconds The HTTP request latencies in microseconds.
-# TYPE http_request_duration_microseconds summary
-http_request_duration_microseconds{handler="prometheus",quantile=
-"0.5"} 3861.5
-…
-```
+[PRE27]
 
 现在，既然我们已经解释了 PromQL 中可用的指标类型，我们可以进一步看看这些指标如何作为查询的一部分实现。
 
@@ -487,33 +336,23 @@ http_request_duration_microseconds{handler="prometheus",quantile=
 
 考虑以下示例。以下命令提供了我们希望查看的`"cadvisor"`容器的完整名称：
 
-```
-container_cpu_system_seconds_total{ name="cadvisor"}
-```
+[PRE28]
 
 以下示例使用与 GO 兼容的正则表达式。该命令查找以`ca`开头并在后面有更多字符的任何名称：
 
-```
-container_cpu_system_seconds_total{ name=~"ca.+"} 
-```
+[PRE29]
 
 以下代码片段正在搜索任何名称值不为空的容器，使用不等于（`!=`）值：
 
-```
-container_cpu_system_seconds_total{ name!=""}
-```
+[PRE30]
 
 如果我们将任何这些指标搜索放在表达式浏览器中并创建图表，您会注意到图表会随着时间线性上升。正如我们之前提到的，这是因为指标`container_cpu_system_seconds_total`是一个计数器，它只会随着时间增加或被设置为零。通过使用函数，我们可以计算更有用的时间序列数据。以下示例使用`rate()`函数来计算匹配时间序列数据的每秒速率。我们使用了`[1m]`，表示 1 分钟。数字越大，图表就会更平滑：
 
-```
-rate(container_cpu_system_seconds_total{name="cadvisor"}[1m])
-```
+[PRE31]
 
 `rate`函数只能用于计数器指标。如果我们运行了多个容器，我们可以使用`sum()`函数将所有值相加，并使用`(name)`函数按容器名称提供图表，就像我们在这里做的那样：
 
-```
-sum(rate(container_cpu_system_seconds_total[1m])) by (name)
-```
+[PRE32]
 
 注意
 
@@ -523,9 +362,7 @@ https://prometheus.io/docs/prometheus/latest/querying/functions/。
 
 PromQL 还允许我们从查询中执行算术运算。在以下示例中，我们使用`process_start_time_seconds`指标并搜索 Prometheus 实例。我们可以从`time()`函数中减去这个时间，该函数给出了当前的日期和时间的时代时间：
 
-```
-(time() - process_start_time_seconds{instance="localhost:9090",job="prometheus"})
-```
+[PRE33]
 
 注意
 
@@ -539,30 +376,15 @@ PromQL 还允许我们从查询中执行算术运算。在以下示例中，我�
 
 1.  打开一个新的终端并创建一个名为`web-nginx`的新目录：
 
-```
-mkdir web-nginx; cd web-nginx
-```
+[PRE34]
 
 1.  在`web-nginx`目录中创建一个新文件，命名为`index.html`。用文本编辑器打开新文件，并添加以下 HTML 代码：
 
-```
-<!DOCTYPE html>
-<html lang="en">
-<head>
-</head>
-<body>
-    <h1>
-        Hello Prometheus
-    </h1>
-</body>
-</html>
-```
+[PRE35]
 
 1.  用以下命令运行一个新的 Docker 容器。到目前为止，您应该已经熟悉了语法，但以下命令将拉取最新的`nginx`镜像，命名为`web-nginx`，并暴露端口`80`，以便您可以查看在上一步中创建的挂载的`index.html`文件：
 
-```
-docker run --name web-nginx --rm -v ${PWD}/index.html:/usr/share/nginx/html/index.html -p 80:80 -d nginx
-```
+[PRE36]
 
 1.  打开一个网络浏览器，访问`http://0.0.0.0`。你应该看到的唯一的东西是问候语`Hello Prometheus`：![图 13.11：示例网页](img/B15021_13_11.jpg)
 
@@ -570,9 +392,7 @@ docker run --name web-nginx --rm -v ${PWD}/index.html:/usr/share/nginx/html/inde
 
 1.  如果 Prometheus 没有在您的系统上运行，请打开一个新的终端，并从 Prometheus 应用程序目录中，从命令行启动应用程序：
 
-```
-./prometheus --config.file=prometheus.yml
-```
+[PRE37]
 
 注意
 
@@ -580,17 +400,13 @@ docker run --name web-nginx --rm -v ${PWD}/index.html:/usr/share/nginx/html/inde
 
 1.  现在在 Prometheus 中可用的大部分`cAdvisor`指标将以`container`开头。使用`count()`函数与指标`container_memory_usage_bytes`，以查看当前内存使用量的字节数：
 
-```
-count(container_memory_usage_bytes)
-```
+[PRE38]
 
 上述查询提供了系统上正在运行的 28 个结果。
 
 1.  为了限制您正在寻找的信息，可以使用花括号进行搜索，或者如下命令中所示，使用不搜索（`!=`）特定的图像名称。目前，您只有两个正在运行的容器，图像名称为`cAdvisor`和`web-nginx`。通过使用`scalar()`函数，您可以计算系统上随时间运行的容器数量。在输入以下查询后，单击`Execute`按钮：
 
-```
-scalar(count(container_memory_usage_bytes{image!=""}) > 0)
-```
+[PRE39]
 
 1.  单击`Graphs`选项卡，现在您应该有一个绘制的查询图。该图应该类似于以下图像，其中您启动了第三个图像`web-nginx`容器，以显示 Prometheus 表达式浏览器如何显示此类型的数据。请记住，您只能在图表中看到一条线，因为这是我们系统上两个容器使用的内存，而没有单独的内存使用值：![图 13.12：来自表达式浏览器的 cAdvisor 指标](img/B15021_13_12.jpg)
 
@@ -598,23 +414,17 @@ scalar(count(container_memory_usage_bytes{image!=""}) > 0)
 
 1.  使用`container_start_time_seconds`指标获取容器启动的 Unix 时间戳：
 
-```
-container_start_time_seconds{name="web-nginx"}
-```
+[PRE40]
 
 您将看到类似于 1578364679 的东西，这是自纪元时间以来的秒数，即 1970 年 1 月 1 日。
 
 1.  使用`time()`函数获取当前时间，然后从该值中减去`container_start_time_seconds`，以显示容器已运行多少秒：
 
-```
-(time() - container_start_time_seconds{name="web-nginx"})
-```
+[PRE41]
 
 1.  监视您的应用程序通过 Prometheus 的`prometheus_http_request_duration_seconds_count`指标的 HTTP 请求。使用`rate()`函数绘制每个 HTTP 请求到 Prometheus 的持续时间的图表：
 
-```
-rate(prometheus_http_request_duration_seconds_count[1m])
-```
+[PRE42]
 
 注意
 
@@ -622,15 +432,11 @@ rate(prometheus_http_request_duration_seconds_count[1m])
 
 1.  使用算术运算符将`prometheus_http_request_duration_seconds_sum`除以`prometheus_http_request_duration_seconds_count`，这将提供所做请求的 HTTP 延迟：
 
-```
-rate(prometheus_http_request_duration_seconds_sum[1m]) / rate(prometheus_http_request_duration_seconds_count[1m])
-```
+[PRE43]
 
 1.  使用 `container_memory_usage_bytes` 指标运行以下命令，以查看系统上每个运行容器使用的内存。在此查询中，我们使用 `sum by (name)` 命令按容器名称添加值：
 
-```
-sum by (name) (container_memory_usage_bytes{name!=""})
-```
+[PRE44]
 
 如果您执行上述查询，您将在表达式浏览器中看到图形，显示 `web-nginx` 和 `cAdvisor` 容器使用的内存：
 
@@ -660,77 +466,37 @@ sum by (name) (container_memory_usage_bytes{name!=""})
 
 1.  如果`web-nginx`容器仍在运行，请使用以下命令停止容器：
 
-```
-docker kill web-nginx
-```
+[PRE45]
 
 1.  在 Docker Hub 中，您有一个名为`mhowlett/ngx-stud-status-prometheus`的镜像，其中已经安装了`ngx_stub_status_prometheus`库。该库将允许您设置一个 HTTP 端点，以从您的`nginx`容器向 Prometheus 提供指标。将此镜像下载到您的工作环境中：
 
-```
-docker pull mhowlett/ngx-stub-status-prometheus
-```
+[PRE46]
 
 1.  在上一个练习中，您使用容器上的默认 NGINX 配置来运行您的 Web 应用程序。要将指标暴露给 Prometheus，您需要创建自己的配置来覆盖默认配置，并将您的指标作为可用的 HTTP 端点提供。在您的工作目录中创建一个名为`nginx.conf`的文件，并添加以下配置细节：
 
-```
-daemon off;
-events {
-}
-http {
-  server {
-    listen 80;
-    location / {
-      index  index.html;
-    }
-    location /metrics {
-      stub_status_prometheus;
-    }
-  }
-}
-```
+[PRE47]
 
 上述配置将确保您的服务器仍然在端口`80`上可用*第 8 行*。*第 11 行*将确保提供您当前的`index.html`页面，*第 14 行*将设置一个子域`/metrics`，以提供`ngx_stub_status_prometheus`库中可用的详细信息。
 
 1.  提供`index.html`文件的挂载点，以启动`web-nginx`容器并使用以下命令挂载您在上一步中创建的`nginx.conf`配置：
 
-```
-docker run --name web-nginx --rm -v ${PWD}/index.html:/usr/html/index.html -v ${PWD}/nginx.conf:/etc/nginx/nginx.conf -p 80:80 -d mhowlett/ngx-stub-status-prometheus
-```
+[PRE48]
 
 1.  您的`web-nginx`应用程序应该再次运行，并且您应该能够从 Web 浏览器中看到它。输入 URL `http://0.0.0.0/metrics`以查看指标端点。您的 Web 浏览器窗口中的结果应该类似于以下信息：
 
-```
-# HELP nginx_active_connections_current Current number of 
-active connections
-# TYPE nginx_active_connections_current gauge
-nginx_active_connections_current 2
-# HELP nginx_connections_current Number of connections currently 
-being processed by nginx
-# TYPE nginx_connections_current gauge
-nginx_connections_current{state="reading"} 0
-nginx_connections_current{state="writing"} 1
-nginx_connections_current{state="waiting"} 1
-…
-```
+[PRE49]
 
 1.  您仍然需要让 Prometheus 知道它需要从新的端点收集数据。因此，停止 Prometheus 的运行。再次进入应用程序目录，并使用您的文本编辑器，在`prometheus.yml`配置文件的末尾添加以下目标：
 
 prometheus.yml
 
-```
-40   - job_name: 'web-nginx'
-41     scrape_interval: 5s
-42     static_configs:
-43     - targets: ['0.0.0.0:80']
-```
+[PRE50]
 
 此步骤的完整代码可在 https://packt.live/3hzbQgj 找到。
 
 1.  保存配置更改，并重新启动 Prometheus 的运行：
 
-```
-./prometheus --config.file=prometheus.yml
-```
+[PRE51]
 
 1.  确认 Prometheus 是否配置为从您刚刚创建的新指标端点收集数据。打开您的网络浏览器，输入 URL `http://0.0.0.0:9090/targets`：![图 13.14：显示 web-nginx 的目标页面](img/B15021_13_14.jpg)
 
@@ -762,49 +528,25 @@ Grafana 允许我们直接连接到 Prometheus 时间序列数据库，并执行
 
 1.  如果 Prometheus 没有运行，请重新启动。另外，请确保您的容器、`cAdvisor`和测试 NGINX 服务器（`web-nginx`）正在运行：
 
-```
-./prometheus --config.file=prometheus.yml
-```
+[PRE52]
 
 1.  打开您系统的`/etc/hosts`文件，并将一个域名添加到主机 IP`127.0.0.1`。不幸的是，您将无法使用您一直用来访问 Prometheus 的 localhost IP 地址来自动为 Grafana 配置数据源。诸如`127.0.0.1`、`0.0.0.0`或使用 localhost 的 IP 地址将不被识别为 Grafana 的数据源。根据您的系统，您可能已经添加了许多不同的条目到`hosts`文件中。通常您将会在最前面的 IP 地址列表中有`127.0.0.1`的 IP 地址，它将引用`localhost`域并将`prometheus`修改为这一行，就像我们在以下输出中所做的那样：
 
-```
-1 127.0.0.1       localhost prometheus
-```
+[PRE53]
 
 1.  保存`hosts`文件。打开您的网络浏览器并输入 URL`http://prometheus:9090`。Prometheus 表达式浏览器现在应该显示出来。您不再需要提供系统 IP 地址。
 
 1.  要自动配置您的 Grafana 镜像，您需要从主机系统挂载一个`provisioning`目录。创建一个 provisioning 目录，并确保该目录包括额外的目录`dashboards`、`datasources`、`plugins`和`notifiers`，就像以下命令中所示：
 
-```
-mkdir -p provisioning/dashboards provisioning/datasources provisioning/plugins provisioning/notifiers
-```
+[PRE54]
 
 1.  在`provisioning/datasources`目录中创建一个名为`automatic_data.yml`的文件。用文本编辑器打开文件并输入以下细节，告诉 Grafana 它将使用哪些数据来提供仪表板和可视化效果。以下细节只是命名数据源，提供数据类型以及数据的位置。在这种情况下，这是您的新 Prometheus 域名：
 
-```
-apiVersion: 1
-datasources:
-- name: Prometheus
-  type: prometheus
-  url: http://prometheus:9090
-  access: direct
-```
+[PRE55]
 
 1.  现在，在`provisioning/dashboards`目录中创建一个名为`automatic_dashboard.yml`的文件。用文本编辑器打开文件并添加以下细节。这只是提供了未来仪表板可以在启动时存储的位置：
 
-```
-apiVersion: 1
-providers:
-- name: 'Prometheus'
-  orgId: 1
-  folder: ''
-  type: file
-  disableDeletion: false
-  editable: true
-  options:
-    path: /etc/grafana/provisioning/dashboards
-```
+[PRE56]
 
 您已经做了足够的工作来启动我们的 Grafana Docker 镜像。您正在使用提供的受支持的 Grafana 镜像`grafana/grafana`。
 
@@ -814,9 +556,7 @@ providers:
 
 1.  运行以下命令以拉取并启动 Grafana 镜像。它使用`-v`选项将您的配置目录挂载到 Docker 镜像上的`/etc/grafana/provisioning`目录。它还使用`-e`选项，使用`GF_SECURITY_ADMIN_PASSWORD`环境变量将管理密码设置为`secret`，这意味着您不需要每次登录到新启动的容器时重置管理密码。最后，您还使用`-p`将您的镜像端口`3000`暴露到我们系统的端口`3000`：
 
-```
-docker run --rm -d --name grafana -p 3000:3000 -e "GF_SECURITY_ADMIN_PASSWORD=secret" -v ${PWD}/provisioning:/etc/grafana/provisioning grafana/grafana
-```
+[PRE57]
 
 注意
 
@@ -862,21 +602,15 @@ docker run --rm -d --name grafana -p 3000:3000 -e "GF_SECURITY_ADMIN_PASSWORD=se
 
 1.  要将仪表板添加到您的配置文件中，您需要首先停止运行 Grafana 映像。使用以下`docker kill`命令执行此操作：
 
-```
-docker kill grafana
-```
+[PRE58]
 
 1.  将您在*步骤 15*中保存的仪表板文件添加到`provisioning/dashboards`目录，并将文件命名为`ContainerMonitoring.json`作为复制的一部分，如下命令所示：
 
-```
-cp /tmp/ContainerMonitoring-1579130313205.json provisioning/dashboards/ContainerMonitoring.json
-```
+[PRE59]
 
 1.  重新启动 Grafana 映像，并使用默认管理密码登录应用程序：
 
-```
-docker run --rm -d --name grafana -p 3000:3000 -e "GF_SECURITY_ADMIN_PASSWORD=secret" -v ${PWD}/provisioning:/etc/grafana/provisioning grafana/grafana
-```
+[PRE60]
 
 注意
 

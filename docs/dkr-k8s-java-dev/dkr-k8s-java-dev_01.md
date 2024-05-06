@@ -74,42 +74,27 @@ Docker 的理念是将应用程序及其所有依赖项打包成一个单一的�
 
 要运行一个容器，我们使用`docker run`命令：
 
-```
-docker run [OPTIONS] IMAGE [COMMAND] [ARG...]
-
-```
+[PRE0]
 
 有很多可以使用的`run`命令选项和开关；我们稍后会了解它们。一些选项包括网络配置，例如（我们将在第二章 *Networking and Persistent Storage*中解释 Docker 的网络概念）。其他选项，比如`-it`（来自交互式），告诉 Docker 引擎以不同的方式运行；在这种情况下，使容器变得交互，并附加一个终端到其输出和输入。让我们专注于容器的概念，以更好地理解整个情况。我们将很快使用`docker run`命令来测试我们的设置。
 
 那么，当我们运行`docker run`命令时，在幕后会发生什么呢？Docker 将检查您想要运行的镜像是否在本地计算机上可用。如果没有，它将从“远程”存储库中拉取下来。Docker 引擎会获取镜像并在镜像的层堆栈顶部添加一个可写层。接下来，它会初始化镜像的名称、ID 和资源限制，如 CPU 和内存。在这个阶段，Docker 还将通过从池中找到并附加一个可用的 IP 地址来设置容器的 IP 地址。执行的最后一步将是实际的命令，作为`docker run`命令的最后一个参数传递。如果使用了`it`选项，Docker 将捕获并提供容器输出，它将显示在控制台上。现在，您可以做一些通常在准备操作系统运行应用程序时会做的事情。这可以是安装软件包（例如通过`apt-get`），使用 Git 拉取源代码，使用 Maven 构建您的 Java 应用程序等。所有这些操作都将修改顶部可写层中的文件系统。然后，如果执行`commit`命令，将创建一个包含所有更改的新镜像，类似于冻结，并准备随后运行。要停止容器，请使用`docker stop`命令：
 
-```
-docker stop
-
-```
+[PRE1]
 
 停止容器时，将保留所有设置和文件系统更改（在可写的顶层）。在容器中运行的所有进程都将停止，并且内存中的所有内容都将丢失。这就是停止容器与 Docker 镜像的区别。
 
 要列出系统上所有容器，无论是运行还是停止的，执行`docker ps`命令：
 
-```
-docker ps -a
-
-```
+[PRE2]
 
 结果，Docker 客户端将列出一个包含容器 ID（您可以用来在其他命令中引用容器的唯一标识符）、创建日期、用于启动容器的命令、状态、暴露端口和名称的表格，可以是您分配的名称，也可以是 Docker 为您选择的有趣的名称。要删除容器，只需使用`docker rm`命令。如果要一次删除多个容器，可以使用容器列表（由`docker ps`命令给出）和一个过滤器：
 
-```
-docker rm $(docker ps -a -q -f status=exited)
-
-```
+[PRE3]
 
 我们已经说过，Docker 图像始终是只读且不可变的。如果它没有改变图像的可能性，那么它就不会很有用。那么除了通过修改 Dockerfile 并进行重建之外，图像修改如何可能呢？当容器启动时，层堆栈顶部的可写层就可以使用了。我们实际上可以对运行中的容器进行更改；这可以是添加或修改文件，就像安装软件包、配置操作系统等一样。如果在运行的容器中修改文件，则该文件将从底层（父级）只读层中取出，并放置在顶部的可写层中。我们的更改只可能存在于顶层。联合文件系统将覆盖底层文件。原始的底层文件不会被修改；它仍然安全地存在于底层的只读层中。通过发出`docker commit`命令，您可以从运行中的容器（以及可写层中的所有更改）创建一个新的只读图像。
 
-```
-docker commit <container-id> <image-name>
-
-```
+[PRE4]
 
 `docker commit`命令会将您对容器所做的更改保存在可写层中。为了避免数据损坏或不一致，Docker 将暂停您要提交更改的容器。`docker commit`命令的结果是一个全新的只读图像，您可以从中创建新的容器：
 
@@ -129,17 +114,11 @@ Docker 分发系统中的第一个组件是注册表。Docker 利用分层系统
 
 如果您的应用程序命名为`hello-world-java`，并且您的注册表的用户名（或命名空间）为`dockerJavaDeveloper`，那么您的图像将放在`dockerJavaDeveloper/hello-world-java`存储库中。您可以给图像打标签，并在单个命名存储库中存储具有不同 ID 的多个版本的图像，并使用特殊语法访问图像的不同标记版本，例如`username/image_name:tag`。`Docker`存储库与 Git 存储库非常相似。例如，`Git`，`Docker`存储库由 URI 标识，并且可以是公共的或私有的。URI 看起来与以下内容相同：
 
-```
-{registryAddress}/{namespace}/{repositoryName}:{tag}
-
-```
+[PRE5]
 
 Docker Hub 是默认注册表，如果不指定注册表地址，Docker 将从 Docker Hub 拉取图像。要在注册表中搜索图像，请执行`docker search`命令；例如：
 
-```
-$ docker search hello-java-world
-
-```
+[PRE6]
 
 如果不指定`远程`注册表，Docker 将在 Docker Hub 上进行搜索，并输出与您的搜索条件匹配的图像列表：
 
@@ -147,10 +126,7 @@ $ docker search hello-java-world
 
 注册表和存储库之间的区别可能在开始时令人困惑，因此让我们描述一下如果执行以下命令会发生什么：
 
-```
-$ docker pull ubuntu:16.04
-
-```
+[PRE7]
 
 该命令从 Docker Hub 注册表中的`ubuntu`存储库中下载标记为`16.04`的镜像。官方的`ubuntu`存储库不使用用户名，因此在这个例子中省略了命名空间部分。
 
@@ -256,10 +232,7 @@ Docker 的安装非常简单，但有一些事情需要注意，以使其顺利�
 
 这就是在 Kitematic 中运行容器的全部内容。让我们尝试从 shell 中执行相同的操作。在终端中执行以下操作：
 
-```
-$ docker run milkyway/java-hello-world
-
-```
+[PRE8]
 
 因此，您将看到来自容器化的 Java 应用程序的相同问候，这次是在 macOS 终端中：
 
@@ -273,45 +246,27 @@ $ docker run milkyway/java-hello-world
 
 1.  首先，我们需要允许`apt`软件包管理器使用 HTTPS 协议的存储库。从 shell 中执行：
 
-```
-$ sudo apt-get install -y --no-install-recommends apt-transport-https ca-certificates curl software-properties-common
-
-```
+[PRE9]
 
 1.  接下来要做的事情是将 Docker 的`apt`存储库`gpg`密钥添加到我们的`apt`源列表中：
 
-```
-$ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add –
-
-```
+[PRE10]
 
 1.  成功后，简单的`OK`将是响应。使用以下命令设置稳定的存储库：
 
-```
-$ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-
-```
+[PRE11]
 
 1.  接下来，我们需要更新`apt`软件包索引：
 
-```
-$ sudo apt-get update
-
-```
+[PRE12]
 
 1.  现在我们需要确保`apt`安装程序将使用官方的 Docker 存储库，而不是默认的 Ubuntu 存储库（其中可能包含较旧版本的 Docker）：
 
-```
-$ apt-cache policy docker-ce
-
-```
+[PRE13]
 
 1.  使用此命令安装最新版本的 Docker：
 
-```
-$ sudo apt-get install -y docker-ce
-
-```
+[PRE14]
 
 1.  `apt`软件包管理器将下载许多软件包；这些将是所需的依赖项和`docker-engine`本身：
 
@@ -319,10 +274,7 @@ $ sudo apt-get install -y docker-ce
 
 1.  就是这样，您应该已经准备好了。让我们验证一下 Docker 是否在我们的 Linux 系统上运行：
 
-```
-$sudo docker run milkyway/java-hello-world
-
-```
+[PRE15]
 
 1.  正如您所看到的，Docker 引擎将从 Docker Hub 拉取`milkyway/java-hello-world`镜像及其所有层，并以问候语作出响应：
 
@@ -332,24 +284,15 @@ $sudo docker run milkyway/java-hello-world
 
 1.  首先，如果还不存在`Docker`组，请添加它：
 
-```
-$ sudo groupadd docker
-
-```
+[PRE16]
 
 1.  然后，将您自己的用户添加到 Docker 组。将用户名更改为与您首选的用户匹配：
 
-```
-$ sudo gpasswd -a jarek docker
-
-```
+[PRE17]
 
 1.  重新启动 Docker 守护程序：
 
-```
-$ sudo service docker restart
-
-```
+[PRE18]
 
 1.  现在让我们注销并再次登录，并且再次执行`docker run`命令，这次不需要`sudo`。正如您所看到的，您现在可以像普通的非`root`用户一样使用 Docker 了：
 
@@ -405,10 +348,7 @@ $ sudo service docker restart
 
 安装 Docker for Windows 就是这样。这是一个相当轻松的过程。在安装过程的最后一步，让我们检查一下 Docker 是否可以从命令提示符中运行，因为这可能是您将来启动它的方式。在命令提示符或 PowerShell 中执行以下命令：
 
-```
-docker run milkyway/java-hello-world
-
-```
+[PRE19]
 
 ![](img/Image00036.jpg)
 

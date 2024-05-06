@@ -20,10 +20,7 @@ Docker 引擎在`docker run`子命令中提供了`--link`选项，以将源容�
 
 `--link`选项的格式如下：
 
-```
-**--link <container>:<alias>**
-
-```
+[PRE0]
 
 在这里，`<container>`是源容器的名称，`<alias>`是接收容器看到的名称。容器的名称在 Docker 主机中必须是唯一的，而别名非常具体且局限于接收容器，因此别名不需要在 Docker 主机上是唯一的。这为在接收容器内部使用固定的源别名名称实现和整合功能提供了很大的灵活性。
 
@@ -37,10 +34,7 @@ Docker 引擎在`docker run`子命令中提供了`--link`选项，以将源容�
 
 这些变量采用以下形式：
 
-```
-*<ALIAS>_PORT_<port>_<protocol>
-
-```
+[PRE1]
 
 此形式用于共享源的 IP 地址、端口和协议作为 URL。例如，如果源容器的别名是`src`，暴露的端口是`8080`，协议是`tcp`，IP 地址是`172.17.0.2`，那么环境变量及其值将是`SRC_PORT_8080_TCP=tcp://172.17.0.2:8080`。此 URL 进一步分解为以下三个环境变量：
 
@@ -60,97 +54,41 @@ Docker 以良好结构的格式导出这些自动生成的环境变量，以便�
 
 1.  我们首先启动一个交互式容器，可以作为链接的源容器使用，使用以下命令：
 
-```
-**$ sudo docker run --rm --name example -it busybox:latest**
-
-```
+[PRE2]
 
 容器使用`--name`选项命名为`example`。此外，使用`--rm`选项在退出容器时清理容器。
 
 1.  使用`cat`命令显示源容器的`/etc/hosts`条目：
 
-```
-**/ # cat /etc/hosts**
-**172.17.0.3      a02895551686**
-**127.0.0.1       localhost**
-**::1     localhost ip6-localhost ip6-loopback**
-**fe00::0 ip6-localnet**
-**ff00::0 ip6-mcastprefix**
-**ff02::1 ip6-allnodes**
-**ff02::2 ip6-allrouters**
-
-```
+[PRE3]
 
 在这里，`/etc/hosts`文件中的第一个条目是源容器的 IP 地址（`172.17.0.3`）和其主机名（`a02895551686`）。
 
 1.  我们将继续使用`env`命令显示源容器的环境变量：
 
-```
-**/ # env**
-**HOSTNAME=a02895551686**
-**SHLVL=1**
-**HOME=/root**
-**TERM=xterm**
-**PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin**
-**PWD=/**
-
-```
+[PRE4]
 
 1.  启动源容器后，从相同 Docker 主机的另一个终端，让我们使用`docker run`子命令的`--link`选项启动一个交互式接收容器，将其链接到我们的源容器，如下所示：
 
-```
-**$ sudo docker run --rm --link example:ex -it busybox:latest**
-
-```
+[PRE5]
 
 在这里，名为`example`的源容器与接收容器链接，其别名为`ex`。
 
 1.  让我们使用`cat`命令显示接收容器的`/etc/hosts`文件的内容：
 
-```
-**/ # cat /etc/hosts**
-**172.17.0.4      a17e5578b98e**
-**127.0.0.1       localhost**
-**::1     localhost ip6-localhost ip6-loopback**
-**fe00::0 ip6-localnet**
-**ff00::0 ip6-mcastprefix**
-**ff02::1 ip6-allnodes**
-**ff02::2 ip6-allrouters**
-**172.17.0.3      ex**
-
-```
+[PRE6]
 
 当然，像往常一样，`/etc/hosts`文件的第一个条目是容器的 IP 地址和其主机名。然而，`/etc/hosts`文件中值得注意的条目是最后一个条目，其中源容器的 IP 地址（`172.17.0.3`）和其别名（`ex`）会自动添加。
 
 1.  我们将继续使用`env`命令显示接收容器的环境变量：
 
-```
-**/ # env**
-**HOSTNAME=a17e5578b98e**
-**SHLVL=1**
-**HOME=/root**
-**EX_NAME=/berserk_mcclintock/ex**
-**TERM=xterm**
-**PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin**
-**PWD=/**
-
-```
+[PRE7]
 
 显然，一个新的`EX_NAME`环境变量会自动添加到`/berserk_mcclintock/ex`，作为其值。这里`EX`是别名`ex`的大写形式，`berserk_mcclintock`是接收容器的自动生成名称。
 
 1.  最后一步，使用广泛使用的`ping`命令对源容器进行两次 ping，并使用别名作为 ping 地址：
 
-```
-**/ # ping -c 2 ex**
-**PING ex (172.17.0.3): 56 data bytes**
-**64 bytes from 172.17.0.3: seq=0 ttl=64 time=0.108 ms**
-**64 bytes from 172.17.0.3: seq=1 ttl=64 time=0.079 ms**
-
-**--- ex ping statistics ---**
-**2 packets transmitted, 2 packets received, 0% packet loss**
-**round-trip min/avg/max = 0.079/0.093/0.108 ms**
-
-```
+[PRE8]
 
 显然，源容器的别名`ex`被解析为 IP 地址`172.17.0.3`，并且接收容器能够成功到达源容器。在安全容器通信的情况下，容器之间是不允许 ping 的。我们在第十一章中对保护容器方面进行了更多详细说明，*保护 Docker 容器*。
 
@@ -160,60 +98,27 @@ Docker 以良好结构的格式导出这些自动生成的环境变量，以便�
 
 1.  我们首先编写一个带有`ENV`指令的`Dockerfile`，如下所示：
 
-```
-FROM busybox:latest
-ENV BOOK="Learning Docker" \
-    CHAPTER="Orchestrating Containers"
-```
+[PRE9]
 
 在这里，我们设置了两个环境变量`BOOK`和`CHAPTER`。
 
 1.  继续使用前面的`Dockerfile`从头构建一个名为`envex`的 Docker 镜像：
 
-```
-**$ sudo docker build -t envex .**
-
-```
+[PRE10]
 
 1.  现在，让我们使用刚刚构建的`envex`镜像启动一个交互式源容器，名称为`example`：
 
-```
-**$ sudo docker run -it --rm \**
- **--name example envex**
-
-```
+[PRE11]
 
 1.  从源容器提示符中，通过调用`env`命令显示所有环境变量：
 
-```
-**/ # env**
-**HOSTNAME=b53bc036725c**
-**SHLVL=1**
-**HOME=/root**
-**TERM=xterm**
-**PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin**
-**BOOK=Learning Docker**
-**CHAPTER=Orchestrating Containers**
-**PWD=/**
-
-```
+[PRE12]
 
 在所有前述的环境变量中，`BOOK`和`CHAPTER`变量都是使用`Dockerfile`的`ENV`指令配置的。
 
 1.  最后一步，为了说明环境变量的`ENV`类别，启动接收容器并使用`env`命令，如下所示：
 
-```
-**$ sudo docker run --rm --link example:ex \**
- **busybox:latest env**
-**PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin**
-**HOSTNAME=a5e0c07fd643**
-**TERM=xterm**
-**EX_NAME=/stoic_hawking/ex**
-**EX_ENV_BOOK=Learning Docker**
-**EX_ENV_CHAPTER=Orchestrating Containers**
-**HOME=/root**
-
-```
+[PRE13]
 
 ### 注意
 
@@ -227,47 +132,19 @@ ENV BOOK="Learning Docker" \
 
 1.  编写一个`Dockerfile`，使用`EXPOSE`指令来公开端口`80`和`8080`，如下所示：
 
-```
-FROM busybox:latest
-EXPOSE 8080 80
-```
+[PRE14]
 
 1.  继续使用`docker build`子命令从刚刚创建的`Dockerfile`构建 Docker 镜像`portex`，运行以下命令：
 
-```
-**$ sudo docker build -t portex .**
-
-```
+[PRE15]
 
 1.  现在，让我们使用之前构建的镜像`portex`启动一个名为`example`的交互式源容器：
 
-```
-**$ sudo docker run -it --rm \**
- **--name example portex**
-
-```
+[PRE16]
 
 1.  现在我们已经启动了源容器，让我们继续在另一个终端上创建一个接收容器，并将其链接到源容器，然后调用`env`命令来显示所有环境变量，如下所示：
 
-```
-**$ sudo docker run --rm --link example:ex \**
- **busybox:latest env**
-**PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin**
-**HOSTNAME=c378bb55e69c**
-**TERM=xterm**
-**EX_PORT=tcp://172.17.0.4:80**
-**EX_PORT_80_TCP=tcp://172.17.0.4:80**
-**EX_PORT_80_TCP_ADDR=172.17.0.4**
-**EX_PORT_80_TCP_PORT=80**
-**EX_PORT_80_TCP_PROTO=tcp**
-**EX_PORT_8080_TCP=tcp://172.17.0.4:8080**
-**EX_PORT_8080_TCP_ADDR=172.17.0.4**
-**EX_PORT_8080_TCP_PORT=8080**
-**EX_PORT_8080_TCP_PROTO=tcp**
-**EX_NAME=/prickly_rosalind/ex**
-**HOME=/root**
-
-```
+[PRE17]
 
 ### 注意
 
@@ -315,24 +192,15 @@ Docker 的建立和持续发展是为了实现“运行一次，到处运行”�
 
 +   使用`wget`工具：
 
-```
-**$ sudo sh -c 'wget -qO-       https://github.com/docker/compose/releases/download/1.2.0/docker-compose-'uname -s'-'uname -m' >  /usr/local/bin/docker-compose; chmod +x /usr/local/bin/docker-compose'**
-
-```
+[PRE18]
 
 +   使用`curl`工具：
 
-```
-**$ sudo sh -c 'curl  -sSL  https://github.com/docker/compose/releases/download/1.2.0/docker-compose-'uname -s'-'uname -m' >  /usr/local/bin/docker-compose; chmod +x /usr/local/bin/docker-compose'**
-
-```
+[PRE19]
 
 另外，`docker-compose`也作为一个 Python 包可用，您可以使用`pip`安装程序进行安装，如下所示：
 
-```
-**$ sudo pip install -U docker-compose**
-
-```
+[PRE20]
 
 ### 注意
 
@@ -340,23 +208,13 @@ Docker 的建立和持续发展是为了实现“运行一次，到处运行”�
 
 成功安装`docker-compose`后，您可以检查`docker-compose`的版本，如下所示：
 
-```
-**$ docker-compose --version**
-**docker-compose 1.2.0**
-
-```
+[PRE21]
 
 ## docker-compose.yml 文件
 
 `docker-compose`工具使用`docker-compose.yml`文件编排容器，在其中可以定义需要创建的服务、这些服务之间的关系以及它们的运行时属性。`docker-compose.yml`文件是**YAML Ain't Markup Language**（**YAML**）格式文件，这是一种人类友好的数据序列化格式。默认的`docker-compose`文件是`docker-compose.yml`，可以使用`docker-compose`工具的`-f`选项进行更改。以下是`docker-compose.yml`文件的格式：
 
-```
-<service>:
-   <key>: <value>
-   <key>:
-       - <value>
-       - <value>
-```
+[PRE22]
 
 在这里，`<service>`是服务的名称。您可以在单个`docker-compose.yml`文件中有多个服务定义。服务名称后面应跟一个或多个键。但是，所有服务必须具有`image`或`build`键，后面可以跟任意数量的可选键。除了`image`和`build`键之外，其余的键可以直接映射到`docker run`子命令中的选项。值可以是单个值或多个值。
 
@@ -424,10 +282,7 @@ Docker 的建立和持续发展是为了实现“运行一次，到处运行”�
 
 `docker-compose`工具提供了一些命令的复杂编排功能。所有`docker-compose`命令都使用`docker-compose.yml`文件作为一个或多个服务的编排基础。以下是`docker-compose`命令的语法:
 
-```
-**docker-compose [<options>] <command> [<args>...]**
-
-```
+[PRE23]
 
 `docker-compose`工具支持以下选项:
 
@@ -481,45 +336,7 @@ Docker 的建立和持续发展是为了实现“运行一次，到处运行”�
 
 以下是`example.js`文件，它是一个简单的请求/响应 Web 应用程序的`node.js`实现。为了便于演示，在这段代码中，我们限制了`build`和`kill docker-compose`命令。为了使代码更加易懂，我们在代码之间添加了注释：
 
-```
-// A Simple Request/Response web application
-
-// Load all required libraries
-var http = require('http');
-var url = require('url');
-var redis = require('redis');
-
-// Connect to redis server running
-// createClient API is called with
-//  -- 6379, a well-known port to which the
-//           redis server listens to
-//  -- redis, is the link name of the container
-//            that runs redis server
-var client = redis.createClient(6379, 'redis');
-
-// Set the key value pair in the redis server
-
-// Here all the keys proceeds with "/", because
-// URL parser always have "/" as its first character
-client.set("/", "Welcome to Docker-Compose helper\nEnter the docker-compose command in the URL for help\n", redis.print);
-client.set("/build", "Build or rebuild services", redis.print);
-client.set("/kill", "Kill contianers", redis.print);
-
-var server = http.createServer(function (request, response) {
-  var href = url.parse(request.url, true).href;
-  response.writeHead(200, {"Content-Type": "text/plain"});
-
-  // Pull the response (value) string using the URL
-  client.get(href, function (err, reply) {
-    if ( reply == null ) response.write("Command: " + href.slice(1) + " not supported\n");
-    else response.write(reply + "\n");
-    response.end();
-  });
-});
-
-console.log("Listening on port 80");
-server.listen(80);
-```
+[PRE24]
 
 ### 注意
 
@@ -527,23 +344,7 @@ server.listen(80);
 
 以下文本是`Dockerfile`的内容，该文件打包了`node.js`镜像、`node.js`的`redis`驱动程序和之前定义的`example.js`文件：
 
-```
-###############################################
-# Dockerfile to build a sample web application
-###############################################
-
-# Base image is node.js
-FROM node:latest
-
-# Author: Dr. Peter
-MAINTAINER Dr. Peter <peterindia@gmail.com>
-
-# Install redis driver for node.js
-RUN npm install redis
-
-# Copy the source code to the Docker image
-ADD example.js /myapp/example.js
-```
+[PRE25]
 
 ### 注意
 
@@ -551,17 +352,7 @@ ADD example.js /myapp/example.js
 
 以下文本来自`docker-compose.yml`文件，该文件定义了`docker compose`工具要执行的服务编排：
 
-```
-web:
-  build: .
-  command: node /myapp/example.js
-  links:
-   - redis
-  ports:
-   - 8080:80
-redis:
-  image: redis:latest
-```
+[PRE26]
 
 ### 注意
 
@@ -577,69 +368,27 @@ redis:
 
 1.  `docker-compose`命令必须从存储`docker-compose.yml`文件的目录中执行。`docker-compose`工具将每个`docker-compose.yml`文件视为一个项目，并且它假定项目名称来自`docker-compose.yml`文件的目录。当然，可以使用`-p`选项覆盖此设置。因此，作为第一步，让我们更改存储`docker-compose.yml`文件的目录：
 
-```
-**$ cd ~/example**
-
-```
+[PRE27]
 
 1.  使用`docker-compose build`命令构建服务：
 
-```
-**$ sudo docker-compose build**
-
-```
+[PRE28]
 
 1.  按照`docker-compose.yml`文件中指示的服务启动服务，使用`docker-compose up`命令：
 
-```
-**$ sudo docker-compose up**
-**Creating example_redis_1...**
-**Pulling image redis:latest...**
-**latest: Pulling from redis**
-**21e4345e9035: Pull complete** 
-**. . . TRUNCATED OUTPUT . . .**
-**redis:latest: The image you are pulling has been verified.** 
-**Important: image verification is a tech preview feature and should not be relied on to provide security.**
-**Digest: sha256:dad98e997480d657b2c00085883640c747b04ca882d6da50760e038fce63e1b5**
-**Status: Downloaded newer image for redis:latest**
-**Creating example_web_1...**
-**Attaching to example_redis_1, example_web_1**
-**. . . TRUNCATED OUTPUT . . .**
-**redis_1 | 1:M 25 Apr 18:12:59.674 * The server is now ready to accept connections on port 6379**
-**web_1  | Listening on port 80**
-**web_1  | Reply: OK**
-**web_1  | Reply: OK**
-**web_1  | Reply: OK**
-
-```
+[PRE29]
 
 由于目录名为`example`，`docker-compose`工具假定项目名称为`example`。
 
 1.  成功使用`docker-compose`工具编排服务后，让我们从不同的终端调用`docker-compose ps`命令，以列出与示例`docker-compose`项目关联的容器：
 
-```
-**$ sudo docker-compose ps**
- **Name                   Command             State          Ports**
-**----------------------------------------------------------------------------**
-**example_redis_1   /entrypoint.sh redis-server   Up      6379/tcp**
-**example_web_1     node /myapp/example.js        Up      0.0.0.0:8080->80/tcp**
-
-```
+[PRE30]
 
 显然，两个`example_redis_1`和`example_web_1`容器正在运行。容器名称以`example_`为前缀，这是`docker-compose`项目名称。
 
 1.  在 Docker 主机的不同终端上探索我们自己的请求/响应 Web 应用程序的功能，如下所示：
 
-```
-**$ curl http://0.0.0.0:8080**
-**Welcome to Docker-Compose helper**
-**Enter the docker-compose command in the URL for help**
-**$ curl http://0.0.0.0:8080/build**
-**Build or rebuild services**
-**$ curl http://0.0.0.0:8080/something**
-**Command: something not supported**
-
-```
+[PRE31]
 
 ### 注意
 

@@ -64,9 +64,7 @@ Jenkins 安装过程快速简单。有不同的方法可以做到这一点，但
 
 Jenkins 镜像可在官方 Docker Hub 注册表中找到，因此为了安装它，我们应该执行以下命令：
 
-```
-$ docker run -p <host_port>:8080 -v <host_volume>:/var/jenkins_home jenkins:2.60.1
-```
+[PRE0]
 
 我们需要指定第一个`host_port`参数——Jenkins 在容器外可见的端口。第二个参数`host_volume`指定了 Jenkins 主目录映射的目录。它需要被指定为卷，并因此永久持久化，因为它包含了配置、管道构建和日志。
 
@@ -74,33 +72,15 @@ $ docker run -p <host_port>:8080 -v <host_volume>:/var/jenkins_home jenkins:2.60
 
 1.  **准备卷目录**：我们需要一个具有管理员所有权的单独目录来保存 Jenkins 主目录。让我们用以下命令准备一个：
 
-```
- $ mkdir $HOME/jenkins_home
- $ chown 1000 $HOME/jenkins_home
-```
+[PRE1]
 
 1.  **运行 Jenkins 容器**：让我们将容器作为守护进程运行，并给它一个合适的名称：
 
-```
- $ docker run -d -p 49001:8080 
-        -v $HOME/jenkins_home:/var/jenkins_home --name 
-        jenkins jenkins:2.60.1
-```
+[PRE2]
 
 1.  **检查 Jenkins 是否正在运行**：过一会儿，我们可以通过打印日志来检查 Jenkins 是否已经正确启动：
 
-```
- $ docker logs jenkins
- Running from: /usr/share/jenkins/jenkins.war
- webroot: EnvVars.masterEnvVars.get("JENKINS_HOME")
- Feb 04, 2017 9:01:32 AM Main deleteWinstoneTempContents
- WARNING: Failed to delete the temporary Winstone file 
-        /tmp/winstone/jenkins.war
- Feb 04, 2017 9:01:32 AM org.eclipse.jetty.util.log.JavaUtilLog info
- INFO: Logging initialized @888ms
- Feb 04, 2017 9:01:32 AM winstone.Logger logInternal
- ...
-```
+[PRE3]
 
 在生产环境中，您可能还希望设置反向代理，以隐藏 Jenkins 基础设施在代理服务器后面。如何使用 Nginx 服务器进行设置的简要说明可以在[`wiki.jenkins-ci.org/display/JENKINS/Installing+Jenkins+with+Docker`](https://wiki.jenkins-ci.org/display/JENKINS/Installing+Jenkins+with+Docker)找到。
 
@@ -116,12 +96,7 @@ $ docker run -p <host_port>:8080 -v <host_volume>:/var/jenkins_home jenkins:2.60
 
 出于前面提到的原因，建议安装 Docker。但是，如果这不是一个选择，或者有其他原因需要采取其他方式进行安装，那么安装过程同样简单。例如，在 Ubuntu 的情况下，只需运行：
 
-```
-$ wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
-$ sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
-$ sudo apt-get update
-$ sudo apt-get install jenkins
-```
+[PRE4]
 
 所有安装指南（Ubuntu、Mac、Windows 等）都可以在官方 Jenkins 页面[`jenkins.io/doc/book/getting-started/installing/`](https://jenkins.io/doc/book/getting-started/installing/)上找到。
 
@@ -133,17 +108,7 @@ $ sudo apt-get install jenkins
 
 1.  Jenkins 应该要求输入管理员密码。它可以在 Jenkins 日志中找到：
 
-```
- $ docker logs jenkins
- ...
- Jenkins initial setup is required. An admin user has been created 
-        and a password generated.
- Please use the following password to proceed to installation:
-
- c50508effc6843a1a7b06f6491ed0ca6
-
- ...
-```
+[PRE5]
 
 1.  接受初始密码后，Jenkins 会询问是否安装建议的插件，这些插件适用于最常见的用例。您的答案当然取决于您的需求。然而，作为第一个 Jenkins 安装，让 Jenkins 安装所有推荐的插件是合理的。
 
@@ -169,18 +134,7 @@ $ sudo apt-get install jenkins
 
 1.  在脚本文本框中，我们可以输入管道脚本：
 
-```
-      pipeline {
-           agent any
-           stages {
-                stage("Hello") {
-                     steps {
-                          echo 'Hello World'
-                     }
-                }
-           }
-      }
-```
+[PRE6]
 
 1.  点击*保存*。
 
@@ -372,16 +326,7 @@ Jenkins 很快就会变得过载。即使是一个小的（微）服务，构建
 
 配置是静态的，所以它的完成方式与我们为永久从属所做的完全相同。唯一的区别是我们需要在每台将用作从属的机器上安装 Docker。然后，通常我们不需要标签，因为所有从属都可以是相同的。在从属配置完成后，我们在每个流水线脚本中定义 Docker 镜像。
 
-```
-pipeline {
-     agent {
-          docker {
-               image 'openjdk:8-jdk-alpine'
-          }
-     }
-     ...
-}
-```
+[PRE7]
 
 当构建开始时，Jenkins 从服务器会从 Docker 镜像`openjdk:8-jdk-alpine`启动一个容器，然后在该容器内执行所有流水线步骤。这样，我们始终知道执行环境，并且不必根据特定项目类型单独配置每个从服务器。
 
@@ -407,9 +352,7 @@ pipeline {
 
 要附加 Jenkins Swarm 从节点，只需运行以下命令：
 
-```
-$ java -jar swarm-client.jar -master <jenkins_master_url> -username <jenkins_master_user> -password <jenkins_master_password> -name jenkins-swarm-slave-1
-```
+[PRE8]
 
 在撰写本书时，存在一个`client-slave.jar`无法通过安全的 HTTPS 协议工作的未解决错误，因此需要在命令执行中添加`-disableSslVerification`选项。
 
@@ -511,19 +454,7 @@ Jenkins 构建通常需要下载大量项目依赖项（例如 Gradle/Maven 依�
 
 让我们回到 hello world 流水线。通常，构建的持续时间比 hello-world 示例长，所以我们可以通过在流水线脚本中添加睡眠来模拟它：
 
-```
-pipeline {
-     agent any
-     stages {
-          stage("Hello") {
-               steps {
-                    sleep 300 // 5 minutes
-                    echo 'Hello World'
-               }
-          }
-     }
-}
-```
+[PRE9]
 
 点击“立即构建”并转到 Jenkins 主页后，我们应该看到构建是在代理上执行的。现在，如果我们多次点击构建，不同的代理应该执行不同的构建（如下截图所示）：
 
@@ -553,19 +484,13 @@ pipeline {
 
 1.  **Dockerfile**：让我们在 Dockerfile 中创建一个新目录，内容如下：
 
-```
- FROM evarga/jenkins-slave
- RUN apt-get update && \
- apt-get install -y python
-```
+[PRE10]
 
 基础 Docker 镜像`evarga/jenkins-slave`适用于动态配置的 Docker 代理解决方案。对于永久性 Docker 代理，只需使用`alpine`、`ubuntu`或任何其他镜像即可，因为 docker 化的不是从节点，而只是构建执行环境。
 
 1.  **构建镜像**：我们可以通过执行以下命令来构建镜像：
 
-```
- $ docker build -t jenkins-slave-python .
-```
+[PRE11]
 
 1.  **配置主节点**：当然，最后一步是在 Jenkins 主节点的配置中设置`jenkins-slave-python`，而不是`evarga/jenkins-slave`（如*设置 Docker 代理*部分所述）。
 
@@ -595,27 +520,17 @@ Dockerfile 指令的所有可能性都在 GitHub 页面[`github.com/jenkinsci/do
 
 1.  **Groovy 脚本**：让我们在`executors.groovy`文件内创建一个新目录，内容如下：
 
-```
-import jenkins.model.*
-Jenkins.instance.setNumExecutors(5)
-```
+[PRE12]
 
 完整的 Jenkins API 可以在官方页面[`javadoc.jenkins.io/`](http://javadoc.jenkins.io/)上找到。
 
 1.  **Dockerfile**：在同一目录下，让我们创建 Dockerfile：
 
-```
-FROM jenkins
-COPY executors.groovy 
-      /usr/share/jenkins/ref/init.groovy.d/executors.groovy
-RUN /usr/local/bin/install-plugins.sh docker-plugin
-```
+[PRE13]
 
 1.  **构建图像**：我们最终可以构建图像：
 
-```
-$ docker build -t jenkins-master .
-```
+[PRE14]
 
 创建图像后，组织中的每个团队都可以使用它来启动自己的 Jenkins 实例。
 

@@ -24,35 +24,17 @@
 
 要更新`nginx` Docker 镜像标签，请运行以下命令：
 
-```
-$ kubectl set image deployment nginx nginx=nginx:1.19.0 \
- --record
-deployment.apps/nginx image updated
-$ kubectl rollout status deployment nginx
-deployment "nginx" successfully rolled out
-$ kubectl get deployment nginx
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   3/3     3            3           5d19h
-$ kubectl get pods
-NAME                    READY   STATUS    RESTARTS   AGE
-nginx-6fd8f555b-2mktp   1/1     Running   0          60s
-nginx-6fd8f555b-458cl   1/1     Running   0          62s
-nginx-6fd8f555b-g728z   1/1     Running   0          66s
-```
+[PRE0]
 
 `$ kubectl rollout status deployment nginx`命令将显示滚动状态为成功、失败或等待：
 
-```
-deployment "nginx" successfully rolled out
-```
+[PRE1]
 
 这是检查部署的滚动状态的一种方便方式。
 
 通过运行以下命令来确保部署已更新为`nginx` v1.19.0：
 
-```
-$ kubectl describe deployment nginx
-```
+[PRE2]
 
 上述命令的输出可以在以下截图中看到：
 
@@ -64,30 +46,11 @@ $ kubectl describe deployment nginx
 
 使用新的 Docker `image`标签更新`deployment.yaml`文件：
 
-```
-...
-spec:
-  containers:
-  -image: nginx:1.19.0
-...
-```
+[PRE3]
 
 运行`$ kubectl apply -f deployment.yaml`命令：
 
-```
-$ kubectl apply -f deployment.yaml
-deployment.apps/nginx configured
-$ kubectl rollout status deployment nginx
-deployment "nginx" successfully rolled out
-$ kubectl get deployment nginx
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   3/3     3            3           5d19h
-$ kubectl get pods
-NAME                    READY   STATUS    RESTARTS   AGE
-nginx-6fd8f555b-2mktp   1/1     Running   0          12m
-nginx-6fd8f555b-458cl   1/1     Running   0          12m
-nginx-6fd8f555b-g728z   1/1     Running   0          12m
-```
+[PRE4]
 
 运行`$ kubectl get pods`命令显示，由于我们应用了与之前相同的 Docker 镜像标签，因此 Pods 没有发生变化，因此 Kubernetes 足够聪明，不会对`nginx`部署进行任何不必要的更改。
 
@@ -105,20 +68,11 @@ nginx-6fd8f555b-g728z   1/1     Running   0          12m
 
 我们还可以检查部署的回滚历史：
 
-```
-$ kubectl rollout history deployment nginx
-deployment.apps/nginx
-REVISION  CHANGE-CAUSE
-1         <none>
-2         <none>
-```
+[PRE5]
 
 我们还可以回滚到特定的修订版本：
 
-```
-$ kubectl rollout undo deployment nginx –to-revision=1
-deployment.apps/nginx rolled back
-```
+[PRE6]
 
 很好，我们已经学会了如何回滚部署的发布。
 
@@ -136,9 +90,7 @@ deployment.apps/nginx rolled back
 
 1.  要获取节点列表，请运行以下命令：
 
-```
-$ kubectl get nodes
-```
+[PRE7]
 
 上述命令给出了以下输出：
 
@@ -148,9 +100,7 @@ $ kubectl get nodes
 
 1.  接下来，让我们检查一个名为`gke-kubectl-lab-we-app-pool`的节点。运行以下命令：
 
-```
-$ kubectl describe node gke-kubectl-lab-we-app-pool-1302ab74-pg34
-```
+[PRE8]
 
 上述命令的输出如下截图所示：
 
@@ -162,21 +112,7 @@ $ kubectl describe node gke-kubectl-lab-we-app-pool-1302ab74-pg34
 
 1.  让我们使用`nodeAffinity`规则更新`deployment.yaml`文件，这样`nginx`应用程序只会被调度到`gke-kubectl-lab-we-app-pool`：
 
-```
-...
-spec:
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: node-pool
-            operator: In
-            values:
-            - "web-app"
-containers:
-...
-```
+[PRE9]
 
 1.  要部署更改，请运行`$ kubectl apply -f deployment.yaml`命令，然后按照以下截图中显示的`get`命令：![图 5.5 - 节点亲和性](img/B16411_05_005.jpg)
 
@@ -190,9 +126,7 @@ containers:
 
 1.  让我们删除一个 Pod 来验证它是否被调度到`gke-kubectl-lab-we-app-pool`：
 
-```
-$ kubectl delete pod nginx-55b7cd4f4b-tnmpx
-```
+[PRE10]
 
 让我们再次获取 Pod 列表：
 
@@ -208,30 +142,7 @@ $ kubectl delete pod nginx-55b7cd4f4b-tnmpx
 
 让我们使用`podAntiAffinity`规则更新`deployment.yaml`文件，以便`nginx`应用程序只被调度到`gke-kubectl-lab-we-app-pool`上，并且被调度到不同的节点上：
 
-```
-...
-spec:
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: node-pool
-            operator: In
-            values:
-            - "web-app"
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-            - nginx
-          topologyKey: "kubernetes.io/hostname"
-containers:
-...
-```
+[PRE11]
 
 要部署新更改，运行`$ kubectl apply -f deployment.yaml`命令，然后运行`get`命令，如下截图所示：
 
@@ -259,12 +170,7 @@ LoadBalancer 功能取决于供应商集成，因为外部 LoadBalancer 是由�
 
 使用以下内容更新`service.yaml`文件：
 
-```
-...
-spec:
-  type: LoadBalancer
-...
-```
+[PRE12]
 
 要部署新更改，运行`$ kubectl apply -f service.yaml`命令，然后运行`get`命令，如下截图所示：
 
@@ -298,41 +204,21 @@ spec:
 
 要检查部署，请运行以下命令：
 
-```
-$ kubectl get deployment
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   3/3     3            3           6d17h
-```
+[PRE13]
 
 要检查活动服务，请运行以下命令：
 
-```
-$ kubectl get service
-NAME         TYPE         CLUSTER-IP    EXTERNAL-IP     PORT(S)
-kubernetes   ClusterIP    10.16.0.1     <none>          443/TCP
-nginx        LoadBalancer 10.16.12.134  104.197.177.53  80:30295/TCP
-```
+[PRE14]
 
 我们有一个名为`nginx`的部署和一个名为`nginx`的服务。
 
 首先，让我们使用以下命令删除`nginx`服务：
 
-```
-$ kubectl delete service nginx
-service "nginx" deleted
-$ kubectl get service
-NAME         TYPE         CLUSTER-IP    EXTERNAL-IP     PORT(S)
-kubernetes   ClusterIP    10.16.0.1     <none>          443/TCP
-```
+[PRE15]
 
 正如您在上面的截图中所看到的，`nginx`服务已被删除，该应用程序不再暴露在互联网上，也可以安全地被删除。要删除`nginx`部署，请运行以下命令：
 
-```
-$ kubectl delete deployment nginx
-deployment.apps "nginx" deleted
-$ kubectl get deployment
-No resources found in default namespace.
-```
+[PRE16]
 
 使用几个命令轻松删除应用程序的部署资源。
 
@@ -348,23 +234,11 @@ No resources found in default namespace.
 
 要使用相同的命令安装部署和服务，请运行以下命令：
 
-```
-$ kubectl apply –f code/
-deployment.apps/nginx created
-service/nginx created
-```
+[PRE17]
 
 要检查部署和服务，请运行以下命令：
 
-```
-$ kubectl get deployment
-NAME    READY   UP-TO-DATE   AVAILABLE   AGE
-nginx   3/3     3            3           13s
-$ kubectl get service
-NAME         TYPE         CLUSTER-IP    EXTERNAL-IP     PORT(S)
-kubernetes   ClusterIP    10.16.0.1     <none>          443/TCP
-nginx        LoadBalancer 10.16.4.143   pending         80:32517/TCP
-```
+[PRE18]
 
 这一次，我们使用了一个命令来安装应用程序，同样，您也可以对应用程序进行更改，因为 Kubernetes 足够聪明，它只会更新已更改的资源。
 
@@ -374,16 +248,7 @@ nginx        LoadBalancer 10.16.4.143   pending         80:3
 
 我们也可以使用相同的方法来删除应用程序。要使用一个命令删除部署和服务，请运行以下命令：
 
-```
-$ kubectl delete –f code/
-deployment.apps/nginx deleted
-service/nginx deleted
-$ kubectl get deployment
-No resources found in default namespace.
-$ kubectl get service
-NAME         TYPE         CLUSTER-IP    EXTERNAL-IP     PORT(S)
-kubernetes   ClusterIP    10.16.0.1     <none>          443/TCP
-```
+[PRE19]
 
 如您所见，我们只使用了一个命令来清理所有已安装资源的应用程序。
 

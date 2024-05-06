@@ -40,10 +40,7 @@
 
 您可以使用`-s`选项更改 Docker 守护程序的默认存储驱动程序。您可以更新特定于发行版的配置/系统文件，以在服务重新启动时进行更改。对于 Fedora/RHEL/CentOS，您需要在`/etc/sysconfig/docker`中更新`OPTIONS`字段。类似以下内容可用于使用`btrfs`后端：
 
-```
-**OPTIONS=-s btrfs**
-
-```
+[PRE0]
 
 以下图表显示了使用不同存储驱动程序配置启动和停止 1,000 个容器所需的时间：
 
@@ -61,40 +58,23 @@
 
 +   **CPU 份额**：通过这个，我们可以为容器分配比例权重，并相应地共享资源。考虑以下示例：
 
-```
-**$ docker run -it -c 100 fedora bash**
-
-```
+[PRE1]
 
 +   CPUsets：这允许您创建 CPU 掩码，使用它可以控制容器内线程在主机 CPU 上的执行。例如，以下代码将在容器内的第 0 和第 3 个核心上运行线程：
 
-```
-**$ docker run -it  --cpuset=0,3 fedora bash**
-
-```
+[PRE2]
 
 +   内存限制：我们可以为容器设置内存限制。例如，以下命令将限制容器的内存使用量为 512 MB：
 
-```
-**$ docker run -it -m 512M fedora bash**
-
-```
+[PRE3]
 
 +   Sysctl 和 ulimit 设置：在某些情况下，您可能需要根据用例更改一些`sysclt`值以获得最佳性能，例如更改打开文件的数量。使用 Docker 1.6（[`docs.docker.com/v1.6/release-notes/`](https://docs.docker.com/v1.6/release-notes/)）及以上版本，我们可以使用以下命令更改`ulimit`设置：
 
-```
-**$ docker run -it --ulimit data=8192 fedora bash**
-
-```
+[PRE4]
 
 前面的命令将仅更改给定容器的设置，这是一个每个容器的调整变量。我们还可以通过 Docker 守护程序的 systemd 配置文件设置其中一些设置，默认情况下将适用于所有容器。例如，在 Fedora 上查看 Docker 的 systemd 配置文件，您将在服务部分看到类似以下内容：
 
-```
-**LimitNOFILE=1048576  # Open file descriptor setting**
-**LimitNPROC=1048576   # Number of processes settings**
-**LimitCORE=infinity   # Core size settings**
-
-```
+[PRE5]
 
 您可以根据需要进行更新。
 
@@ -148,15 +128,7 @@
 
 我们将使用 CentOS 7 容器在容器内运行基准测试。理想情况下，我们应该有一个安装了 CentOS 7 的系统，以便在裸机上获得基准测试结果。对于容器测试，让我们从之前提到的 GitHub 存储库构建镜像：
 
-```
-**$ git clone https://github.com/jeremyeder/docker-performance.git** 
-**$ cd docker-performance/Dockerfiles/**
-**$ docker build -t c7perf --rm=true - < Dockerfile**
-**$ docker images** 
-**REPOSITORY           TAG            IMAGE ID          CREATED              VIRTUAL SIZE** 
-**c7perf              latest         59a10df39a82    About a minute ago         678.3 MB** 
-
-```
+[PRE6]
 
 ## 如何做…
 
@@ -164,53 +136,31 @@
 
 1.  作为 root 用户，在主机上创建`/results`目录：
 
-```
-**$ mkdir -p /results**
-
-```
+[PRE7]
 
 现在，在将容器环境变量设置为与 Docker 不同的值后运行基准测试，我们在主机上使用该值构建`c7perf`镜像，运行以下命令：
 
-```
-**$ cd docker-performance/bench/sysbench**
-**$ export container=no**
-**$ sh ./run-sysbench.sh  cpu test1**
-
-```
+[PRE8]
 
 默认情况下，结果会收集在`/results`中。确保您对其具有写访问权限，或者在基准测试脚本中更改`OUTDIR`参数。
 
 1.  要在容器内运行基准测试，我们需要先启动容器，然后运行基准测试脚本：
 
-```
-**$ mkdir /results_container**
-**$ docker run -it -v /results_container:/results c7perf bash** 
-**$ docker-performance/bench/sysbench/run-sysbench.sh cpu test1**
-
-```
+[PRE9]
 
 由于我们挂载了主机目录`/results_container`到容器内的`/results`，因此结果将在主机上收集。
 
 1.  在 Fedora/RHEL/CentOS 上运行上述测试时，如果启用了 SELinux，您将收到`Permission denied`错误。要解决此问题，请在将其挂载到容器内时重新标记主机目录，如下所示：
 
-```
-**$ docker run -it -v /results_container:/results:z c7perf bash**
-
-```
+[PRE10]
 
 或者，暂时将 SELinux 设置为宽松模式：
 
-```
-**$  setenforce 0**
-
-```
+[PRE11]
 
 然后，在测试之后，将其恢复为宽松模式：
 
-```
-**$  setenforce 1**
-
-```
+[PRE12]
 
 ### 注意
 
@@ -238,24 +188,7 @@
 
 准备工作负载文件。我们可以选择[`github.com/thewmf/kvm-docker-comparison/blob/master/fio/mixed.fio`](https://github.com/thewmf/kvm-docker-comparison/blob/master/fio/mixed.fio)：
 
-```
-[global]
-ioengine=libaio
-direct=1
-size=16g
-group_reporting
-thread
-filename=/ferrari/fio-test-file
-
-[mixed-random-rw-32x8]
-stonewall
-rw=randrw
-rwmixread=70
-bs=4K
-iodepth=32
-numjobs=8
-runtime=60
-```
+[PRE13]
 
 使用上述作业文件，我们可以在`/ferrari/fio-test-file`上进行 4K 块大小的随机直接 I/O，使用 16GB 文件上的`libaio`驱动程序。I/O 深度为 32，并行作业数为 8。这是一个混合工作负载，其中 70％为读取，30％为写入。
 
@@ -263,43 +196,23 @@ runtime=60
 
 1.  对于裸机和虚拟机测试，您只需运行 FIO 作业文件并收集结果：
 
-```
-**$ fio mixed.fio**
-
-```
+[PRE14]
 
 1.  对于 Docker 测试，您可以按以下方式准备 Docker 文件：
 
-```
-FROM ubuntu
-MAINTAINER nkhare@example.com
-RUN apt-get update
-RUN apt-get -qq install -y fio
-ADD mixed.fio /
-VOLUME ["/ferrari"]
-ENTRYPOINT ["fio"]
-```
+[PRE15]
 
 1.  现在，使用以下命令创建一个镜像：
 
-```
-**$ docker build -t docker_fio_perf .**
-
-```
+[PRE16]
 
 1.  按照以下方式启动容器以运行基准测试并收集结果：
 
-```
-**$ docker run --rm -v /ferrari:/ferrari docker_fio_perf mixed.fio**
-
-```
+[PRE17]
 
 1.  在 Fedora/RHEL/CentOS 上运行上述测试时，启用 SELinux，您将收到“权限被拒绝”的错误。要解决此问题，请在容器内部挂载主机目录时重新标记主机目录，如下所示：
 
-```
-**$ docker run --rm -v /ferrari:/ferrari:z docker_fio_perf mixed.fio**
-
-```
+[PRE18]
 
 ## 它是如何工作的...
 
@@ -333,10 +246,7 @@ FIO 将运行作业文件中给定的工作负载并输出结果。
 
 确保两个端点可以相互到达并安装了必要的软件包/软件。在 Fedora 21 上，您可以使用以下命令安装`nuttcp`：
 
-```
-**$ yum install -y nuttcp**
-
-```
+[PRE19]
 
 然后，从其网站获取`netperf`。
 
@@ -346,49 +256,31 @@ FIO 将运行作业文件中给定的工作负载并输出结果。
 
 1.  在一个端点上启动`nuttcp`服务器：
 
-```
-**$ nuttcp -S**
-
-```
+[PRE20]
 
 1.  使用以下命令从客户端测量传输吞吐量（客户端到服务器）：
 
-```
-**$ nuttcp -t <SERVER_IP>**
-
-```
+[PRE21]
 
 1.  使用以下命令在客户端上测量接收吞吐量（服务器到客户端）：
 
-```
-**$ nuttcp -r <SERVER_IP>**
-
-```
+[PRE22]
 
 1.  使用`netperf`运行请求/响应基准测试，执行以下步骤：
 
 1.  在一个端点上启动`netserver`：
 
-```
-**$ netserver** 
-
-```
+[PRE23]
 
 1.  从另一个端点连接到服务器并运行请求/响应测试：
 
 +   对于 TCP：
 
-```
-**$ netperf  -H 172.17.0.6 -t TCP_RR**
-
-```
+[PRE24]
 
 +   对于 UDP：
 
-```
-**$ netperf  -H 172.17.0.6 -t UDP_RR**
-
-```
+[PRE25]
 
 ## 它是如何工作的…
 
@@ -414,17 +306,11 @@ FIO 将运行作业文件中给定的工作负载并输出结果。
 
 1.  运行以下命令从一个或多个容器获取统计信息：
 
-```
-**$ docker stats [CONTAINERS]**
-
-```
+[PRE26]
 
 例如，如果我们有两个名为`some-mysql`和`backstabbing_turing`的容器，然后运行以下命令以获取统计信息：
 
-```
-**$ docker stats some-mysql backstabbing_turing**
-
-```
+[PRE27]
 
 ![操作方法…](img/image00376.jpeg)
 
@@ -446,18 +332,7 @@ Docker 守护程序从 Cgroups 获取资源信息，并通过 API 提供它。
 
 +   运行 cAdvisor 的最简单方法是运行其 Docker 容器，可以使用以下命令完成：
 
-```
-**sudo docker run \** 
- **--volume=/:/rootfs:ro \** 
- **--volume=/var/run:/var/run:rw \** 
- **--volume=/sys:/sys:ro \** 
- **--volume=/var/lib/docker/:/var/lib/docker:ro \** 
- **--publish=8080:8080 \** 
- **--detach=true \** 
- **--name=cadvisor \** 
- **google/cadvisor:latest**
-
-```
+[PRE28]
 
 +   如果您想在 Docker 之外运行 cAdvisor，请按照 cAdvisor 主页上给出的说明进行操作[`github.com/google/cadvisor/blob/master/docs/running.md#standalone`](https://github.com/google/cadvisor/blob/master/docs/running.md#standalone)
 

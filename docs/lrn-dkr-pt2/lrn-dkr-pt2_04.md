@@ -38,20 +38,11 @@ Docker Hub 中的帐户创建已成功完成，现在您可以使用[`hub.docker
 
 Docker Hub 还支持使用 Ubuntu 终端对 Docker Hub 进行命令行访问：
 
-```
-**ubuntu@ip-172-31-21-44:~$ sudo docker login**
-**Username: vinoddandy**
-**Password:**
-**Email: vinoddandy@gmail.com**
-
-```
+[PRE0]
 
 成功登录后，输出如下：
 
-```
-**Login Succeeded**
-
-```
+[PRE1]
 
 您可以浏览 Docker Hub 中的可用图像，如下所示：
 
@@ -77,31 +68,15 @@ Docker Hub 还支持使用 Ubuntu 终端对 Docker Hub 进行命令行访问：
 
 我们将从基本的`ubuntu`图像中使用名称为`containerforhub`的容器运行容器，如下终端代码所示：
 
-```
-**$ sudo docker run -i --name="containerforhub" -t ubuntu /bin/bash**
-**root@e3bb4b138daf:/#**
-
-```
+[PRE2]
 
 接下来，我们将在`containerforhub`容器中创建一个新目录和文件。我们还将更新新文件，以便稍后进行测试：
 
-```
-**root@bd7cc5df6d96:/# mkdir mynewdir**
-**root@bd7cc5df6d96:/# cd mynewdir**
-**root@bd7cc5df6d96:/mynewdir# echo 'this is my new container to make image and then push to hub' >mynewfile**
-**root@bd7cc5df6d96:/mynewdir# cat mynewfile**
-**This is my new container to make image and then push to hub**
-**root@bd7cc5df6d96:/mynewdir#**
-
-```
+[PRE3]
 
 让我们使用刚刚创建的容器的`docker commit`命令构建新图像。请注意，`commit`命令将从主机机器上执行，从容器正在运行的位置执行，而不是从容器内部执行：
 
-```
-**$ sudo docker commit -m="NewImage" containerforhub vinoddandy/imageforhub**
-**3f10a35019234af2b39d5fab38566d586f00b565b99854544c4c698c4a395d03**
-
-```
+[PRE4]
 
 现在，我们在本地机器上有一个名为`vinoddandy/imageforhub`的新 Docker 图像。此时，本地创建了一个带有`mynewdir`和`mynewfile`的新图像。
 
@@ -109,46 +84,21 @@ Docker Hub 还支持使用 Ubuntu 终端对 Docker Hub 进行命令行访问：
 
 让我们从主机机器将此图像推送到 Docker Hub：
 
-```
-**$ sudo docker push vinoddandy/imageforhub**
-**The push refers to a repository [vinoddandy/imageforhub] (len: 1)**
-**Sending image list**
-**Pushing tag for rev [c664d94bbc55] on {https://cdn-registry-1.docker.io/v1/repositories/vinoddandy/imageforhub/tags/latest}**
-
-```
+[PRE5]
 
 现在，我们将`登录`到 Docker Hub 并在**存储库**中验证图像。
 
 为了测试来自 Docker Hub 的图像，让我们从本地机器中删除此图像。要删除图像，首先需要停止容器，然后删除容器：
 
-```
-**$ sudo docker stop containerforhub**
-**$ sudo docker rm containerforhub**
-**$**
-
-```
+[PRE6]
 
 我们还将删除`vinoddandy/imageforhub`图像：
 
-```
-**$ sudo docker rmi vinoddandy/imageforhub**
-
-```
+[PRE7]
 
 我们将从 Docker Hub 中拉取新创建的图像，并在本地机器上运行新容器：
 
-```
-**$ sudo docker run -i --name="newcontainerforhub" -t vinoddandy/imageforhub /bin/bash**
-**Unable to find image 'vinoddandy/imageforhub' locally**
-**Pulling repository vinoddandy/imageforhub**
-**c664d94bbc55: Pulling image (latest) from vinoddandy/imageforhub, endpoint: http**
-**c664d94bbc55: Download complete**
-**5506de2b643b: Download complete**
-**root@9bd40f1b5585:/# cat /mynewdir/mynewfile**
-**This is my new container to make image and then push to hub**
-**root@9bd40f1b5585:/#**
-
-```
+[PRE8]
 
 因此，我们已经从 Docker Hub 中拉取了最新的图像，并使用新图像`vinoddandy/imageforhub`创建了容器。请注意，`无法在本地找到图像'vinoddandy/imageforhub'`的消息证实了该图像是从 Docker Hub 的远程存储库中下载的。
 
@@ -162,83 +112,21 @@ Docker Hub 还支持使用 Ubuntu 终端对 Docker Hub 进行命令行访问：
 
 本地机器上的`Dockerfile`如下所示：
 
-```
-###########################################
-# Dockerfile to build a new image
-###########################################
-# Base image is Ubuntu
-FROM ubuntu:14.04
-# Author: Dr. Peter
-MAINTAINER Dr. Peter <peterindia@gmail.com>
-# create 'mynewdir' and 'mynewfile'
-RUN mkdir mynewdir
-RUN touch /mynewdir/mynewfile
-# Write the message in file
-RUN echo 'this is my new container to make image and then push to hub' \
- >/mynewdir/mynewfile
-```
+[PRE9]
 
 现在，我们使用以下命令在本地构建图像：
 
-```
-**$ sudo docker build -t="vinoddandy/dockerfileimageforhub" .**
-**Sending build context to Docker daemon  2.56 kB**
-**Sending build context to Docker daemon**
-**Step 0 : FROM ubuntu:14.04**
-**---> 5506de2b643b**
-**Step 1 : MAINTAINER Vinod Singh <vinod.puchi@gmail.com>**
-**---> Running in 9f6859e2ca75**
-**---> a96cfbf4a810**
-**removing intermediate container 9f6859e2ca75**
-**Step 2 : RUN mkdir mynewdir**
-**---> Running in d4eba2a31467**
-**---> 14f4c15610a7**
-**removing intermediate container d4eba2a31467**
-**Step 3 : RUN touch /mynewdir/mynewfile**
-**---> Running in 7d810a384819**
-**---> b5bbd55f221c**
-**removing intermediate container 7d810a384819**
-**Step 4 : RUN echo 'this is my new container to make image and then push to hub'**
-**/mynewdir/mynewfile**
-**---> Running in b7b48447e7b3**
-**---> bcd8f63cfa79**
-**removing intermediate container b7b48447e7b3**
-**successfully built 224affbf9a65**
-**ubuntu@ip-172-31-21-44:~/dockerfile_image_hub$**
-
-```
+[PRE10]
 
 我们将使用此图像运行容器，如下所示：
 
-```
-**$ sudo docker run -i --name="dockerfilecontainerforhub" –t vinoddandy/dockerfileimageforhub**
-**root@d3130f21a408:/# cat /mynewdir/mynewfile**
-**this is my new container to make image and then push to hub**
-
-```
+[PRE11]
 
 `mynewdir`中的这段文字证实了新图像是通过新目录和新文件正确构建的。
 
 重复`登录`过程，在 Docker Hub 中，然后推送这个新创建的镜像：
 
-```
-**$ sudo docker login**
-**Username (vinoddandy):**
-**Login Succeeded**
-**$ sudo docker push vinoddandy/dockerfileimageforhub**
-**The push refers to a repository [vinoddandy/dockerfileimageforhub] (len: 1)**
-**Sending image list**
-**Pushing repository vinoddandy/dockerfileimageforhub (1 tags)**
-**511136ea3c5a: Image already pushed, skipping**
-**d497ad3926c8: Image already pushed, skipping**
-**b5bbd55f221c: Image successfully pushed**
-**bcd8f63cfa79: Image successfully pushed**
-**224affbf9a65: Image successfully pushed**
-**Pushing tag for rev [224affbf9a65] on {https://cdn-registry-1.docker.io/v1/repos**
-**itories/vinoddandy/dockerfileimageforhub/tags/latest}**
-**$**
-
-```
+[PRE12]
 
 最后，我们可以验证 Docker Hub 上图像的可用性：
 
@@ -282,37 +170,15 @@ Docker 已经将他们的公共仓库代码发布为开源，网址是[`github.c
 
 让我们使用 Docker 提供的注册表镜像在本地机器上创建一个仓库。我们将在本地机器上运行注册表容器，使用来自 Docker 的注册表镜像：
 
-```
-**$ sudo docker run -p 5000:5000 -d registry**
-**768fb5bcbe3a5a774f4996f0758151b1e9917dec21aedf386c5742d44beafa41**
-
-```
+[PRE13]
 
 在自动构建部分，我们构建了`vinoddandy/dockerfileforhub`镜像。让我们将镜像 ID `224affbf9a65`标记到我们本地创建的`registry`镜像上。这个镜像的标记是为了在本地仓库中进行唯一标识。这个`registry`镜像可能在仓库中有多个变体，所以这个`tag`将帮助您识别特定的镜像：
 
-```
-**$ sudo docker tag 224affbf9a65localhost:5000/vinoddandy/dockerfileimageforhub**
-
-```
+[PRE14]
 
 标记完成后，使用`docker push`命令将此镜像推送到新的注册表：
 
-```
-**$ sudo docker push localhost:5000/vinoddandy/dockerfile**
-**imageforhub**
-**The push refers to a repository [localhost:5000/vinoddandy/dockerfileimageforhub**
-**] (len: 1)**
-**Sending image list**
-**Pushing repository localhost:5000/vinoddandy/dockerfileimageforhub (1 tags)**
-**511136ea3c5a: Image successfully pushed**
-**d497ad3926c8: Image successfully pushed**
-**----------------------------------------------------**
-**224affbf9a65: Image successfully pushed**
-**Pushing tag for rev [224affbf9a65] on {http://localhost:5000/v1/repositories/vin**
-**oddandy/dockerfileimageforhub/tags/latest}**
-**ubuntu@ip-172-31-21-44:~$**
-
-```
+[PRE15]
 
 现在，新的镜像已经在本地仓库中可用。您现在可以从本地注册表中检索此镜像并运行容器。这个任务留给你来完成。
 
@@ -338,44 +204,23 @@ Docker Hub 提供了 REST API，通过程序集成 Hub 功能。 REST API 支持
 
 +   用户登录：用于用户登录到 Docker Hub：
 
-```
-GET /v1/users
-
-**$ curl --raw -L --user vinoddandy:password https://index.docker.io/v1/users**
-**4**
-**"OK"**
-**0**
-**$**
-
-```
+[PRE16]
 
 +   用户注册：用于注册新用户：
 
-```
-POST /v1/users
-```
+[PRE17]
 
 +   更新用户：用于更新用户的密码和电子邮件：
 
-```
-PUT /v1/users/(usename)/
-```
+[PRE18]
 
 存储库管理支持以下功能：
 
 +   创建用户存储库：这将创建一个用户存储库：
 
-```
-PUT /v1/repositories/(namespace)/(repo_name)/
-```
+[PRE19]
 
-```
-**$ curl --raw -L -X POST --post301 -H "Accept:application/json" -H "Content-Type: application/json" --data-ascii '{"email": "singh_vinod@yahoo.com", "password": "password", "username": "singhvinod494" }' https://index.docker.io/v1/users**
-**e**
-**"User created"**
-**0**
-
-```
+[PRE20]
 
 创建存储库后，您的存储库将在此处列出，如此屏幕截图所示：
 
@@ -383,57 +228,39 @@ PUT /v1/repositories/(namespace)/(repo_name)/
 
 +   删除用户存储库：这将删除用户存储库：
 
-```
-DELETE /v1/repositories/(namespace)/(repo_name)/
-```
+[PRE21]
 
 +   创建库存储库：这将创建库存储库，仅供 Docker 管理员使用：
 
-```
-PUT /v1/repositories/(repo_name)/
-```
+[PRE22]
 
 +   删除库存储库：这将删除库存储库，仅供 Docker 管理员使用：
 
-```
-DELETE /v1/repositories/(repo_name)/
-```
+[PRE23]
 
 +   更新用户存储库图像：这将更新用户存储库的图像：
 
-```
-PUT /v1/repositories/(namespace)/(repo_name)/images
-```
+[PRE24]
 
 +   列出用户存储库图像：这将列出用户存储库的图像：
 
-```
-GET /v1/repositories/(namespace)/(repo_name)/images
-```
+[PRE25]
 
 +   更新库存储库图像：这将更新库存储库的图像：
 
-```
-PUT /v1/repositories/(repo_name)/images
-```
+[PRE26]
 
 +   列出库存储库图像：这将列出库存储库的图像：
 
-```
-GET /v1/repositories/(repo_name)/images
-```
+[PRE27]
 
 +   为库存储库授权令牌：为库存储库授权令牌：
 
-```
-PUT /v1/repositories/(repo_name)/auth
-```
+[PRE28]
 
 +   为用户存储库授权令牌：为用户存储库授权令牌：
 
-```
-PUT /v1/repositories/(namespace)/(repo_name)/auth
-```
+[PRE29]
 
 # 总结
 

@@ -34,38 +34,15 @@ Docker 提供了网络原语，允许管理员指定不同容器如何与每个�
 
 代码块设置如下：
 
-```
-# * Fine Tuning
-#
-key_buffer = 16M
-key_buffer_size = 32M
-max_allowed_packet = 16M
-thread_stack = 512K
-thread_cache_size = 8
-max_connections = 300
-```
+[PRE0]
 
 当我们希望引起您对代码块的特定部分的注意时，相关的行或项目会以粗体显示：
 
-```
-# * Fine Tuning
-#
-key_buffer = 16M
-key_buffer_size = 32M
-**max_allowed_packet = 16M**
-thread_stack = 512K
-thread_cache_size = 8
-max_connections = 300
-```
+[PRE1]
 
 任何命令行输入或输出都会以以下形式书写：
 
-```
-**cd /ProgramData/Propeople**
-**rm -r Drush**
-**git clone --branch master http://git.drupal.org/project/drush.git**
-
-```
+[PRE2]
 
 **新术语**和**重要单词**会以粗体显示。您在屏幕上看到的单词，比如菜单或对话框中的单词，会以这样的形式出现在文本中：“在**选择目标位置**屏幕上，点击**下一步**以接受默认目标。”
 

@@ -76,9 +76,7 @@ Kubernetes 上的 Azure 函数需要一个镜像注册表来存储其容器镜�
 
 1.  当您的注册表创建好后，打开 Cloud Shell，这样我们就可以配置我们的 AKS 集群以访问我们的容器注册表。使用以下命令为您的注册表授予 AKS 权限：
 
-```
-az aks update -n handsonaks -g rg-handsonaks --attach-acr <acrName>
-```
+[PRE0]
 
 我们现在有了一个与 AKS 集成的 ACR。在下一节中，我们将创建一个开发机器，用于构建 Azure 函数。
 
@@ -102,9 +100,7 @@ az aks update -n handsonaks -g rg-handsonaks --attach-acr <acrName>
 
 1.  首先，我们将生成一组用于连接到 VM 的 SSH 密钥：
 
-```
-ssh-keygen
-```
+[PRE1]
 
 系统会提示您输入位置和密码。保持默认位置并输入空密码。
 
@@ -116,11 +112,7 @@ ssh-keygen
 
 1.  现在我们将创建我们的开发机器。我们将使用以下命令创建一个 Ubuntu VM：
 
-```
-az vm create -g rg-handsonaks -n devMachine \
-  --image UbuntuLTS --ssh-key-value ~/.ssh/id_rsa.pub \
-  --admin-username handsonaks --size Standard_D1_v2
-```
+[PRE2]
 
 1.  这将需要几分钟的时间才能完成。创建 VM 后，Cloud Shell 应该会显示其公共 IP，如*图 11.3*中所示：![显示位置、MAC 地址、电源状态、私有 IP 和 Ubuntu VM 的公共 IP 等详细信息的输出。输出显示 VM 的公共 IP 地址。](img/Figure_11.3.jpg)
 
@@ -128,26 +120,17 @@ az vm create -g rg-handsonaks -n devMachine \
 
 使用以下命令连接到 VM：
 
-```
-ssh handsonaks@<public IP>
-```
+[PRE3]
 
 系统会询问您是否信任该机器的身份。输入`yes`以确认。
 
 1.  您现在已连接到 Azure 上的一台新机器。在这台机器上，我们将开始安装 Docker：
 
-```
-sudo apt-get update
-sudo apt-get install docker.io -y
-sudo systemctl enable docker
-sudo systemctl start docker
-```
+[PRE4]
 
 1.  要验证 Docker 是否已安装并运行，可以运行以下命令：
 
-```
-sudo docker run hello-world
-```
+[PRE5]
 
 这应该向您显示来自 Docker 的`hello-world`消息：
 
@@ -157,28 +140,19 @@ sudo docker run hello-world
 
 1.  为了使操作更加顺畅，我们将把我们的用户添加到 Docker 组，这样在 Docker 命令前将不再需要`sudo`：
 
-```
-sudo usermod -aG docker handsonaks
-newgrp docker
-```
+[PRE6]
 
 现在您应该能够在不使用`sudo`的情况下运行`hello-world`命令：
 
-```
-docker run hello-world
-```
+[PRE7]
 
 1.  接下来，我们将在开发机器上安装 Azure CLI。您可以使用以下命令安装 CLI：
 
-```
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-```
+[PRE8]
 
 1.  通过登录验证安装了 CLI：
 
-```
-az login
-```
+[PRE9]
 
 这将显示一个登录代码，您需要在[`microsoft.com/devicelogin`](https://microsoft.com/devicelogin)输入：
 
@@ -190,9 +164,7 @@ az login
 
 现在，我们可以使用 CLI 将我们的机器认证到 ACR。可以使用以下命令完成：
 
-```
-az acr login -n <registryname>
-```
+[PRE10]
 
 这将显示一个警告，指出密码将以未加密的形式存储。您可以忽略这一点，以便进行演示。
 
@@ -204,25 +176,15 @@ ACR 的凭据在一定时间后会过期。如果在此演示过程中遇到以�
 
 1.  接下来，我们将在我们的机器上安装`kubectl`。`az` CLI 有一个安装 CLI 的快捷方式，我们将使用它：
 
-```
-sudo az aks install-cli
-```
+[PRE11]
 
 让我们验证`kubectl`是否可以连接到我们的集群。为此，我们首先获取凭据，然后执行一个`kubectl`命令：
 
-```
-az aks get-credentials -n handsonaks -g rg-handsonaks
-kubectl get nodes
-```
+[PRE12]
 
 1.  现在，我们可以在这台机器上安装 Azure Functions 工具。要做到这一点，请运行以下命令：
 
-```
-wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb
-sudo dpkg -i packages-microsoft-prod.deb
-sudo apt-get update
-sudo apt-get install azure-functions-core-tools -y
-```
+[PRE13]
 
 #### 注意
 
@@ -236,16 +198,11 @@ sudo apt-get install azure-functions-core-tools -y
 
 1.  首先，我们将创建一个新目录并导航到该目录：
 
-```
-mkdir http
-cd http
-```
+[PRE14]
 
 1.  现在，我们将使用以下命令初始化一个函数。`--docker`参数指定我们将构建我们的函数作为 Docker 容器。这将导致为我们创建一个 Dockerfile。我们将在以下截图中选择 Python 语言，选项`3`：
 
-```
-func init --docker
-```
+[PRE15]
 
 这将创建我们的函数所需的文件：
 
@@ -255,9 +212,7 @@ func init --docker
 
 1.  接下来，我们将创建实际的函数。输入以下代码，并选择第五个选项，`HTTP 触发器`，并将函数命名为`python-http`：
 
-```
-func new
-```
+[PRE16]
 
 这应该会产生一个类似*图 11.8*的输出：
 
@@ -267,15 +222,11 @@ func new
 
 1.  函数的代码存储在名为`python-http`的目录中。我们不打算对函数进行代码更改。如果您想查看函数的源代码，可以运行以下命令：
 
-```
-cat python-http/__init__.py
-```
+[PRE17]
 
 1.  我们需要对函数的配置文件进行一次更改。默认情况下，函数需要经过身份验证的请求。我们将在演示中将其更改为匿名。我们将通过执行以下命令在`vi`中进行更改：
 
-```
-vi python-http/function.json
-```
+[PRE18]
 
 我们将在第 5 行将`authLevel`替换为`anonymous`。要进行此更改，请执行以下步骤：
 
@@ -295,10 +246,7 @@ vi python-http/function.json
 
 1.  现在我们准备将函数部署到 AKS。我们可以使用以下命令部署函数：
 
-```
-func kubernetes deploy --name python-http \
---registry <registry name>.azurecr.io
-```
+[PRE19]
 
 这将导致函数的运行时执行一些步骤。首先，它将构建一个容器映像，然后将该映像推送到我们的注册表，最后将函数部署到 Kubernetes：
 
@@ -308,15 +256,11 @@ func kubernetes deploy --name python-http \
 
 1.  这将在 Kubernetes 之上创建一个常规 Pod。要检查 Pods，您可以运行以下命令：
 
-```
-kubectl get pods
-```
+[PRE20]
 
 1.  一旦该 Pod 处于运行状态，您可以获取部署的 Service 的公共 IP 并连接到它：
 
-```
-kubectl get service
-```
+[PRE21]
 
 打开一个网络浏览器，浏览到`http://<external-ip>/api/python-http?name=handsonaks`。您应该会看到一个网页，上面显示着*Hello handsonaks!*，这就是我们的函数应该显示的内容。
 
@@ -326,11 +270,7 @@ kubectl get service
 
 我们现在已经创建了一个带有 HTTP 触发器的函数。在转到下一部分之前，让我们清理一下这个部署：
 
-```
-Kubectl delete deploy python-http-http
-kubectl delete service python-http-http
-kubectl delete secret python-http
-```
+[PRE22]
 
 在这一部分，我们使用 HTTP 触发器创建了一个示例函数。让我们进一步将一个新函数与存储队列集成并设置自动缩放。
 
@@ -376,18 +316,11 @@ kubectl delete secret python-http
 
 1.  我们将从创建一个新目录并导航到它开始：
 
-```
-mkdir ~/js-queue
-cd ~/js-queue
-```
+[PRE23]
 
 1.  现在我们可以创建函数。我们将从初始化开始：
 
-```
-func init --docker
-<select node, option 2>
-<select javascript, option 1>
-```
+[PRE24]
 
 这应该导致*图 11.16*中显示的输出：
 
@@ -397,11 +330,7 @@ func init --docker
 
 初始化后，我们可以创建实际的函数：
 
-```
-func new
-<select Azure queue storage trigger, option 10>
-<provide a name, suggested name: js-queue>
-```
+[PRE25]
 
 这应该会产生*图 11.17*中显示的输出：
 
@@ -411,9 +340,7 @@ func new
 
 1.  现在我们需要进行一些配置更改。我们需要为函数提供连接到 Azure 存储的连接字符串，并提供队列名称。首先，打开`local.settings.json`文件以配置存储的连接字符串：
 
-```
-vi local.settings.json
-```
+[PRE26]
 
 要进行更改，请按照以下说明操作：
 
@@ -423,9 +350,7 @@ vi local.settings.json
 
 +   添加一行，然后在该行上添加以下文本：
 
-```
-"QueueConnString": "<your connection string>"
-```
+[PRE27]
 
 ![通过编辑 local.settings.json 文件更改 AzureWebJobsStorage 参数的值并添加 QueueConnString。](img/Figure_11.18.jpg)
 
@@ -435,9 +360,7 @@ vi local.settings.json
 
 1.  我们需要编辑的下一个文件是函数配置本身。在这里，我们将引用之前的连接字符串，并提供队列名称。为此，请使用以下命令：
 
-```
-vi js-queue/function.json
-```
+[PRE28]
 
 要进行更改，请按照以下说明操作：
 
@@ -453,30 +376,19 @@ vi js-queue/function.json
 
 1.  我们现在准备将我们的函数发布到 Kubernetes。我们将通过在 Kubernetes 集群上设置 KEDA 来开始发布：
 
-```
-kubectl create ns keda
-func kubernetes install --keda --namespace keda
-```
+[PRE29]
 
 这将在我们的集群上设置 KEDA。安装过程不会花费很长时间。要验证安装是否成功，请确保 KEDA Pod 正在运行：
 
-```
-kubectl get pod -n keda
-```
+[PRE30]
 
 1.  现在我们可以将我们的函数部署到 Kubernetes。我们将配置 KEDA 每 5 秒查看一次队列消息数量（`polling-interval=5`），最多有 15 个副本（`max-replicas=15`），并在删除 Pod 之前等待 15 秒（`cooldown-period=15`）。要部署和配置 KEDA，请使用以下命令：
 
-```
-func kubernetes deploy --name js-queue \
---registry <registry name>.azurecr.io \
---polling-interval=5 --max-replicas=15 --cooldown-period=15
-```
+[PRE31]
 
 要验证部署，可以运行以下命令：
 
-```
-kubectl get all
-```
+[PRE32]
 
 这将显示部署的所有资源。正如您在*图 11.20*中所看到的，此部署创建了一个部署、ReplicaSet 和 HPA。在 HPA 中，您应该看到当前没有副本在运行：
 
@@ -486,9 +398,7 @@ kubectl get all
 
 1.  我们现在将在队列中创建一条消息，以唤醒部署并创建一个 Pod。要查看扩展事件，请运行以下命令：
 
-```
-kubectl get hpa -w
-```
+[PRE33]
 
 1.  在队列中创建一条消息，我们将打开一个新的云 shell 会话。要打开新会话，请在云 shell 中选择*打开新会话*按钮：![在 Bash 窗口中选择打开新会话按钮。](img/Figure_11.21.jpg)
 
@@ -496,9 +406,7 @@ kubectl get hpa -w
 
 1.  在这个新的 shell 中，运行以下命令在队列中创建一条消息。
 
-```
-az storage message put --queue-name function --connection-string <your connection string> --content "test"
-```
+[PRE34]
 
 创建完这条消息后，切换回到之前的 shell。可能需要几秒钟，但很快，您的 HPA 应该会扩展到 1 个副本。之后，它还应该缩减到 0 个副本：
 
@@ -514,9 +422,7 @@ az storage message put --queue-name function --connection-string <your connectio
 
 1.  在当前的云 shell 中，使用以下命令观察 HPA：
 
-```
-kubectl get hpa -w
-```
+[PRE35]
 
 1.  要开始推送消息，我们将打开一个新的云 shell 会话。要打开新会话，请在云 shell 中选择“打开新会话”按钮：
 
@@ -524,16 +430,11 @@ kubectl get hpa -w
 
 1.  要将 1,000 条消息发送到队列中，我们提供了一个名为`sendMessages.py`的 Python 脚本，在代码包中。Cloud Shell 已经安装了 Python 和 pip（Python 包管理器）。要运行此脚本，您首先需要安装两个依赖项：
 
-```
-pip3 install azure
-pip3 install azure-storage-blob==12.0.0
-```
+[PRE36]
 
 安装完毕后，打开`sendMessages.py`文件：
 
-```
-code sendMessages.py
-```
+[PRE37]
 
 编辑第 4 行的存储连接字符串为您的连接字符串：
 
@@ -543,9 +444,7 @@ code sendMessages.py
 
 1.  一旦您粘贴了连接字符串，您就可以执行 Python 脚本，向您的队列发送 1,000 条消息：
 
-```
-python3 sendMessages.py
-```
+[PRE38]
 
 在消息发送的同时，切换回到之前的云 shell 实例，并观察 KEDA 从 0 扩展到 1，然后观察 HPA 扩展到最大的 15 个副本。HPA 使用 KEDA 提供的指标来做出扩展决策。默认情况下，Kubernetes 不知道 KEDA 提供给 HPA 的 Azure 存储队列中的消息数量。
 
@@ -557,13 +456,7 @@ python3 sendMessages.py
 
 这结束了我们在 Kubernetes 上运行无服务器函数的示例。让我们确保清理我们的部署。从我们创建的开发机器中运行以下命令（最后一步将删除此虚拟机。如果您想保留虚拟机，请不要运行最后一步）：
 
-```
-kubectl delete secret js-queue
-kubectl delete scaled object js-queue
-kubectl delete deployment js-queue
-func kubernetes remove --namespace keda
-az vm delete -g rg-handsonaks -n devMachine
-```
+[PRE39]
 
 #### 注意
 

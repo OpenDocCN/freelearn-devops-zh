@@ -94,14 +94,7 @@ Kubernetes 最初设计为在具有多个服务器的集群上运行。这是一
 
 1.  下载适用于您操作系统的最新版本的`minikube`可执行文件，并通过在终端中运行以下命令将二进制文件设置为本地系统可执行：
 
-```
-# Linux
-curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-# MacOS
-curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-darwin-amd64 
-chmod +x minikube 
-sudo mv minikube /usr/local/bin
-```
+[PRE0]
 
 上述命令下载了 Linux 或 Mac 的二进制文件，并使其在终端中可用：
 
@@ -111,9 +104,7 @@ sudo mv minikube /usr/local/bin
 
 1.  使用以下命令在终端中启动 Kubernetes 集群：
 
-```
-minikube start
-```
+[PRE1]
 
 前面的单个命令执行多个步骤，成功创建一个集群。您可以按如下方式检查每个阶段及其输出：
 
@@ -125,9 +116,7 @@ minikube start
 
 1.  使用以下命令连接到由`minikube`启动的集群节点：
 
-```
-minikube ssh
-```
+[PRE2]
 
 使用`ssh`命令，您可以继续在集群中运行的节点上工作：
 
@@ -137,9 +126,7 @@ minikube ssh
 
 1.  使用以下命令检查每个控制平面组件：
 
-```
-docker ps --filter „name=kube-apiserver" --filter „name=etcd" --filter „name=kube-scheduler" --filter „name=kube-controller-manager" | grep -v „pause"
-```
+[PRE3]
 
 此命令检查 Docker 容器并使用控制平面组件名称进行过滤。以下输出不包含暂停容器，该容器负责 Kubernetes 中容器组的网络设置，以便进行分析：
 
@@ -151,9 +138,7 @@ docker ps --filter „name=kube-apiserver" --filter „name=etcd" --filter „na
 
 1.  使用以下命令检查第一个节点组件`kube-proxy`：
 
-```
-docker ps --filter "name=kube-proxy"  | grep -v "pause"
-```
+[PRE4]
 
 与*步骤 4*类似，此命令列出了一个在 Docker 容器中运行的`kube-proxy`组件：
 
@@ -165,29 +150,21 @@ docker ps --filter "name=kube-proxy"  | grep -v "pause"
 
 1.  使用以下命令检查第二个节点组件`kubelet`：
 
-```
-pgrep -l kubelet
-```
+[PRE5]
 
 此命令列出了在`minikube`中运行的进程及其 ID：
 
-```
-2554 kubelet
-```
+[PRE6]
 
 由于`kubelet`在容器运行时和 API 服务器之间进行通信，因此它被配置为直接在机器上运行，而不是在 Docker 容器内部运行。
 
 1.  使用以下命令断开与*步骤 3*中连接的`minikube`节点的连接：
 
-```
-exit
-```
+[PRE7]
 
 你应该已经返回到你的终端并获得类似以下的输出：
 
-```
-logout
-```
+[PRE8]
 
 在这个练习中，您已经安装了一个 Kubernetes 集群并检查了架构组件。在下一节中，将介绍 Kubernetes API 和访问方法，以连接和使用本节中创建的集群。
 
@@ -233,14 +210,7 @@ Kubernetes 集群安装在云系统中，并可以从各种位置访问。要安
 
 1.  下载适用于您操作系统的 `kubectl` 可执行文件的最新版本，并通过在终端中运行以下命令将其设置为本地系统的可执行文件：
 
-```
-# Linux
-curl -LO https://storage.googleapis.com/kubernetes-release/release/'curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt'/bin/linux/amd64/kubectl
-# MacOS
-curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/darwin/amd64/kubectl"
-chmod +x kubectl 
-sudo mv kubectl /usr/local/bin
-```
+[PRE9]
 
 上述命令下载了适用于 Linux 或 Mac 的二进制文件，并使其在终端中准备就绪：
 
@@ -250,63 +220,39 @@ sudo mv kubectl /usr/local/bin
 
 1.  在您的终端中，运行以下命令来配置 `kubectl` 连接到 `minikube` 集群并将其用于进一步访问：
 
-```
-kubectl config use-context minikube
-```
+[PRE10]
 
 `use-context` 命令配置 `kubectl` 上下文以使用 `minikube` 集群。在接下来的步骤中，所有命令将与在 `minikube` 内运行的 Kubernetes 集群通信：
 
-```
-Switched to context "minikube".
-```
+[PRE11]
 
 1.  使用以下命令检查集群和客户端版本：
 
-```
-kubectl version --short
-```
+[PRE12]
 
 该命令返回可读的客户端和服务器版本信息：
 
-```
-Client Version: v1.17.2
-Server Version: v1.17.0
-```
+[PRE13]
 
 1.  使用以下命令检查有关集群的更多信息：
 
-```
-kubectl cluster-info
-```
+[PRE14]
 
 此命令显示 Kubernetes 组件的摘要，包括主节点和 DNS：
 
-```
-Kubernetes master is running at https://192.168.64.5:8443
-KubeDNS is running at https://192.168.64.5:8445/api/v1/
-namespaces/kube-system/Services/kube-dns:dns/proxy
-To further debug and diagnose cluster problems, use 
-'kubectl cluster-info dump'.
-```
+[PRE15]
 
 1.  使用以下命令获取集群中节点的列表：
 
-```
-kubectl get nodes
-```
+[PRE16]
 
 由于集群是一个 `minikube` 本地集群，只有一个名为 `minikube` 的节点具有 `master` 角色：
 
-```
-NAME        STATUS        ROLES        AGE        VERSION
-Minikube    Ready         master       41h        v1.17.0
-```
+[PRE17]
 
 1.  使用以下命令列出 Kubernetes API 中支持的资源：
 
-```
-kubectl api-resources --output="name"
-```
+[PRE18]
 
 此命令列出 Kubernetes API 服务器支持的 `api-resources` 的 `name` 字段。长列表显示了 Kubernetes 如何创建不同的抽象来运行容器化应用程序：
 
@@ -350,16 +296,7 @@ Pod 是 Kubernetes 中容器化应用程序的基本构建块。它由一个或�
 
 Pod 的定义很简单，有四个主要部分：
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: server
-spec:
-  containers:
-  - name: main
-    image: nginx
-```
+[PRE19]
 
 所有 Kubernetes 资源都需要这四个部分：
 
@@ -381,27 +318,7 @@ Pods 是 Kubernetes 对容器的第一个抽象，它们是更复杂资源的构
 
 部署和 Pod 的定义类似，尽管在部署的模式中添加了标签和副本：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: server
-spec:
-  replicas: 10
-  selector:
-    matchLabels:
-      app: server
-  template:
-    metadata:
-      labels:
-        app: server
-    spec:
-      containers:
-      - name: main
-        image: nginx
-        ports:
-        - containerPort: 80 
-```
+[PRE20]
 
 部署`server`具有带有标签`app:server`的 Pod 规范的 10 个副本。此外，每个服务器实例的主容器的端口`80`都被发布。部署控制器将创建或删除实例以匹配定义的 Pod 的 10 个副本。换句话说，如果具有两个运行实例的服务器部署的节点下线，控制器将在剩余节点上创建两个额外的 Pod。Kubernetes 的这种自动化使我们能够轻松创建可伸缩和高可用的应用程序。
 
@@ -413,44 +330,7 @@ Kubernetes 支持在磁盘卷上存储其状态的有状态应用程序的运行
 
 StatefulSets 的定义类似于**部署**的定义，具有**卷挂载**和**声明添加**：
 
-```
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: database
-spec:
-  selector:
-    matchLabels:
-      app: mysql
-  serviceName: mysql
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: mysql
-    spec:
-      containers:
-      - name: mysql
-        image: mysql:5.7
-        env:
-        - name: MYSQL_ROOT_PASSWORD
-          value: "root"
-        ports:
-        - name: mysql
-          containerPort: 3306
-        volumeMounts:
-        - name: data
-          mountPath: /var/lib/mysql
-        subPath: mysql
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      resources:
-        requests:
-          storage: 2Gi
-```
+[PRE21]
 
 数据库资源定义了一个具有**2GB**磁盘卷的**MySQL**数据库。当在 Kubernetes API 中创建服务器`StatefulSet`资源时，`cloud-controller-manager`将创建一个卷并在预定的节点上准备好。在创建卷时，它使用`volumeClaimTemplates`下的规范。然后，节点将根据`spec`中的`volumeMounts`部分在容器中挂载卷。
 
@@ -474,19 +354,7 @@ Kubernetes 集群托管在各个节点上运行的多个应用程序，大多数
 
 服务资源的定义相当简单，如下所示：
 
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-db
-spec:
-  selector:
-    app: mysql
-  ports:
-    - protocol: TCP
-      port: 3306
-      targetPort: 3306
-```
+[PRE22]
 
 创建`my-db`服务后，集群中的所有其他 Pod 都将能够通过地址`my-db`连接到标有`app:mysql`标签的 Pod 的`3306`端口。在下面的资源中，将介绍使用 Kubernetes Ingress 资源对集群中服务进行外部访问的方法。
 
@@ -500,21 +368,7 @@ Kubernetes 集群旨在为集群内外的应用程序提供服务。Ingress 资�
 
 具有主机 URL 为`my-db.docker-workshop.io`，连接到`my-db`服务上的端口`3306`的 Ingress 资源如下所示：
 
-```
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: my-db
-spec:
-  rules:
-  - host: my-db.docker-workshop.io
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: my-db
-          servicePort: 3306
-```
+[PRE23]
 
 Ingress 资源对于向外界打开服务至关重要。然而，它们的配置可能比看起来更复杂。根据您集群中运行的 Ingress 控制器，Ingress 资源可能需要单独的注释。
 
@@ -526,20 +380,7 @@ Kubernetes 集群提供了可扩展和可靠的容器化应用环境。然而，
 
 水平 Pod 自动缩放器是 Kubernetes 资源，具有用于缩放和目标指标的目标资源。
 
-```
-apiVersion: Autoscaling/v1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: server-scaler
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: server
-  minReplicas: 1
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 50
-```
+[PRE24]
 
 当创建`server-scaler`资源时，Kubernetes 控制平面将尝试通过扩展或缩减名为`server`的部署来实现`50%`的目标 CPU 利用率。此外，最小和最大副本数设置为`1`和`10`。这确保了当部署未被使用时不会缩减到`0`，也不会扩展得太高以至于消耗集群中的所有资源。水平 Pod 自动缩放器资源是 Kubernetes 中创建可扩展和可靠应用程序的重要部分，这些应用程序是自动管理的。
 
@@ -553,34 +394,11 @@ Kubernetes 集群旨在安全地连接和更改资源。然而，当应用程序
 
 让我们从`Role`资源开始定义能力：
 
-```
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  namespace: critical-project
-  name: Pod-reader
-rules:
-  - apiGroups: [""]
-    resources: ["Pods"]
-    verbs: ["get", "watch", "list"]
-```
+[PRE25]
 
 在前面片段中定义的`Pod-reader`角色只允许在`critical-project`命名空间中`get`、`watch`和`list` Pod 资源。当用户只有`Pod-reader`角色时，他们将无法删除或修改`critical-project`命名空间中的资源。让我们看看如何使用`RoleBinding`资源将角色分配给用户：
 
-```
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: read-Pods
-  namespace: critical-project
-subjects:
-  - kind: User
-    name: new-intern
-roleRef:
-  kind: Role
-  name: Pod-reader
-  apiGroup: rbac.authorization.k8s.io
-```
+[PRE26]
 
 `RoleBinding`资源将`Role`资源与主体结合起来。在`read-Pods RoleBinding`中，用户`new-intern`被分配到`Pod-reader`角色。当在 Kubernetes API 中创建`read-Pods`资源时，`new-intern`用户将无法修改或删除`critical-project`命名空间中的 Pods。
 
@@ -594,171 +412,63 @@ roleRef:
 
 1.  在一个名为`database.yaml`的文件中创建一个`StatefulSet`定义，内容如下：
 
-```
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: database
-spec:
-  selector:
-    matchLabels:
-      app: mysql
-  serviceName: mysql
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: mysql
-    spec:
-      containers:
-      - name: mysql
-        image: mysql:5.7
-        env:
-        - name: MYSQL_ROOT_PASSWORD
-          value: "root"
-        ports:
-        - name: mysql
-          containerPort: 3306
-        volumeMounts:
-        - name: data
-          mountPath: /var/lib/mysql
-          subPath: mysql
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      resources:
-        requests:
-          storage: 2Gi
-```
+[PRE27]
 
 这个`StatefulSet`资源定义了一个数据库，将在接下来的步骤中被 WordPress 使用。只有一个名为`mysql`的容器，使用`mysql:5.7`的 Docker 镜像。容器规范中定义了一个根密码的环境变量和一个端口。此外，在前述定义中声明了一个卷并将其附加到`/var/lib/mysql`。
 
 1.  通过在终端中运行以下命令将`StatefulSet`部署到集群中：
 
-```
-kubectl apply -f database.yaml
-```
+[PRE28]
 
 这个命令将应用`database.yaml`文件中的定义，因为它带有`-f`标志：
 
-```
-StatefulSet.apps/database created
-```
+[PRE29]
 
 1.  在本地计算机上创建一个`database-service.yaml`文件，包含以下内容：
 
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: database-service
-spec:
-  selector:
-    app: mysql
-  ports:
-    - protocol: TCP
-      port: 3306
-      targetPort: 3306
-```
+[PRE30]
 
 这个 Service 资源定义了数据库实例上的 Service 抽象。WordPress 实例将使用指定的 Service 连接到数据库。
 
 1.  使用以下命令部署 Service 资源：
 
-```
-kubectl apply -f database-service.yaml
-```
+[PRE31]
 
 这个命令部署了在`database-service.yaml`文件中定义的资源：
 
-```
-Service/database-service created
-```
+[PRE32]
 
 1.  创建一个名为`wordpress.yaml`的文件，并包含以下内容：
 
-```
-apiVersion: apps/v1 
-kind: Deployment
-metadata:
-  name: wordpress
-  labels:
-    app: wordpress
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: wordpress
-  template:
-    metadata:
-      labels:
-        app: wordpress
-    spec:
-      containers:
-      - image: wordpress:4.8-apache
-        name: wordpress
-        env:
-        - name: WORDPRESS_DB_HOST
-          value: database-Service
-        - name: WORDPRESS_DB_PASSWORD
-          value: root
-        ports:
-        - containerPort: 80
-          name: wordpress
-```
+[PRE33]
 
 这个`Deployment`资源定义了一个三个副本的 WordPress 安装。有一个容器定义了`wordpress:4.8-apache`镜像，并且`database-service`作为环境变量传递给应用程序。通过这个环境变量的帮助，WordPress 连接到*步骤 3*中部署的数据库。此外，定义了一个容器端口，端口号为`80`，以便我们可以在接下来的步骤中从浏览器中访问应用程序。
 
 1.  使用以下命令部署 WordPress Deployment：
 
-```
-kubectl apply -f wordpress.yaml
-```
+[PRE34]
 
 这个命令部署了在`wordpress.yaml`文件中定义的资源：
 
-```
-Deployment.apps/wordpress created
-```
+[PRE35]
 
 1.  在本地计算机上创建一个`wordpress-service.yaml`文件，包含以下内容：
 
-```
-apiVersion: v1
-kind: Service
-metadata:
-  name: wordpress-service
-spec:
-  type: LoadBalancer
-  selector:
-    app: wordpress
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-```
+[PRE36]
 
 这个 Service 资源定义了 WordPress 实例上的 Service 抽象。该 Service 将用于通过端口`80`从外部世界连接到 WordPress。
 
 1.  使用以下命令部署`Service`资源：
 
-```
-kubectl apply -f wordpress-service.yaml
-```
+[PRE37]
 
 这个命令部署了在`wordpress-service.yaml`文件中定义的资源：
 
-```
-Service/wordpress-service created
-```
+[PRE38]
 
 1.  使用以下命令检查所有运行中的 Pod 的状态：
 
-```
-kubectl get pods
-```
+[PRE39]
 
 这个命令列出了所有 Pod 及其状态，有一个数据库和三个 WordPress Pod 处于`Running`状态：
 
@@ -768,15 +478,11 @@ kubectl get pods
 
 1.  通过运行以下命令获取`wordpress-service`的 URL：
 
-```
-minikube service wordpress-service --url
-```
+[PRE40]
 
 这个命令列出了可以从主机机器访问的 Service 的 URL：
 
-```
-http://192.168.64.5:32765
-```
+[PRE41]
 
 在浏览器中打开 URL 以访问 WordPress 的设置屏幕：
 
@@ -822,9 +528,7 @@ Helm 图表由官方客户端工具`helm`安装和管理。您需要在本地安
 
 1.  在终端中运行以下命令以下载带有安装脚本的`helm`可执行文件的最新版本：
 
-```
-curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-```
+[PRE42]
 
 该脚本将下载适用于您的操作系统的`helm`二进制文件，并使其在终端中可用。
 
@@ -834,21 +538,15 @@ curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bas
 
 1.  通过在终端中运行以下命令，将图表存储库添加到`helm`中：
 
-```
-helm repo add stable https://kubernetes-charts.storage.googleapis.com/
-```
+[PRE43]
 
 此命令将图表存储库的 URL 添加到本地安装的`helm`实例中：
 
-```
-"stable" has been added to your repositories
-```
+[PRE44]
 
 1.  使用以下命令列出*步骤 2*中`stable`存储库中的图表：
 
-```
-helm search repo stable
-```
+[PRE45]
 
 此命令将列出存储库中所有可用的图表：
 
@@ -858,9 +556,7 @@ helm search repo stable
 
 1.  使用以下命令安装 MySQL 图表：
 
-```
-helm install database stable/mysql
-```
+[PRE46]
 
 此命令将从`stable`存储库中安装 MySQL Helm 图表，并打印如何连接到数据库的信息：
 
@@ -872,9 +568,7 @@ helm install database stable/mysql
 
 1.  使用以下命令检查安装的状态：
 
-```
-helm ls
-```
+[PRE47]
 
 我们可以看到有一个名为`mysql-chart-1.6.2`的安装，状态为`deployed`：
 
@@ -886,9 +580,7 @@ helm ls
 
 1.  使用以下命令检查与*步骤 4*中安装相关的 Kubernetes 资源：
 
-```
-kubectl get all -l release=database
-```
+[PRE48]
 
 此命令列出所有具有标签`release = database`的资源：
 

@@ -16,11 +16,7 @@
 
 本章中的所有命令都可以在`04-instrument.sh` ([`gist.github.com/vfarcic/851b37be06bb7652e55529fcb28d2c16`](https://gist.github.com/vfarcic/851b37be06bb7652e55529fcb28d2c16)) Gist 中找到。就像上一章一样，它不仅包含命令，还包括 Prometheus 的表达式。它们都被注释了（用`#`）。如果您打算从 Gist 中复制和粘贴表达式，请排除注释。每个表达式顶部都有`# Prometheus expression`的注释，以帮助您识别它。
 
-```
- 1  cd k8s-specs
- 2
- 3  git pull
-```
+[PRE0]
 
 鉴于我们已经学会了如何安装一个完全可操作的 Prometheus 和其图表中的其他工具，并且我们将继续使用它们，我将其移至 Gists。接下来的内容是我们在上一章中使用的内容的副本，还增加了环境变量 `PROM_ADDR` 和 `AM_ADDR`，以及安装 **Prometheus Chart** 的步骤。请创建一个符合（或超出）下面 Gists 中指定要求的集群，除非您已经有一个满足这些要求的集群。
 
@@ -42,43 +38,21 @@
 
 我们将从安装已经熟悉的`go-demo-5`应用程序开始。
 
-```
- 1  GD5_ADDR=go-demo-5.$LB_IP.nip.io
- 2
- 3  helm install \
- 4      https://github.com/vfarcic/go-demo-5/releases/download/
-    0.0.1/go-demo-5-0.0.1.tgz \
- 5      --name go-demo-5 \
- 6      --namespace go-demo-5 \
- 7      --set ingress.host=$GD5_ADDR
- 8
- 9  kubectl -n go-demo-5 \
-10      rollout status \
-11      deployment go-demo-5
-```
+[PRE1]
 
 我们使用`GD5_ADDR`声明了地址，通过该地址我们将能够访问应用程序。我们在安装`go-demo-5`图表时将其用作`ingress.host`变量。为了安全起见，我们等到应用程序部署完成，从部署的角度来看，唯一剩下的就是通过发送 HTTP 请求来确认它正在运行。
 
-```
- 1  curl http://$GD5_ADDR/demo/hello
-```
+[PRE2]
 
 输出是开发人员最喜欢的消息`hello, world!`。
 
 接下来，我们将通过发送二十个持续时间长达十秒的慢请求来模拟问题。这将是我们模拟可能需要修复的问题。
 
-```
- 1  for i in {1..20}; do
- 2      DELAY=$[ $RANDOM % 10000 ]
- 3      curl "http://$GD5_ADDR/demo/hello?delay=$DELAY"
- 4  done
-```
+[PRE3]
 
 由于我们已经有了 Prometheus 的警报，我们应该在 Slack 上收到通知，说明应用程序太慢了。然而，许多读者可能会在同一个频道进行这些练习，并且可能不清楚消息是来自我们。相反，我们将打开 Prometheus 的警报屏幕以确认存在问题。在“真实”环境中，您不会检查 Prometheus 警报，而是等待在 Slack 上收到通知，或者您选择的其他通知工具。
 
-```
- 1  open "http://$PROM_ADDR/alerts"
-```
+[PRE4]
 
 几分钟后（不要忘记刷新屏幕），`AppTooSlow`警报应该触发，让我们知道我们的一个应用程序运行缓慢，我们应该采取措施解决问题。
 
@@ -100,18 +74,7 @@
 
 请键入以下表达式，然后点击执行按钮。
 
-```
- 1  sum(rate(
- 2      nginx_ingress_controller_request_duration_seconds_sum{
- 3          ingress="go-demo-5"
- 4      }[5m]
- 5  )) /
- 6  sum(rate(
- 7      nginx_ingress_controller_request_duration_seconds_count{
- 8          ingress="go-demo-5"
- 9      }[5m]
-10  ))
-```
+[PRE5]
 
 该图表显示了请求持续时间的历史记录，但它并没有让我们更接近揭示问题的原因，或者更准确地说，是应用程序的哪一部分慢。我们可以尝试使用其他指标，但它们或多或少同样泛泛，并且可能不会让我们有所收获。我们需要更详细的特定于应用程序的指标。我们需要来自`go-demo-5`应用程序内部的数据。
 
@@ -133,30 +96,13 @@
 
 让我们来看一个`go-demo-5`中已经标记的指标的例子。
 
-```
- 1  open "https://github.com/vfarcic/go-demo-5/blob/master/main.go"
-```
+[PRE6]
 
 该应用程序是用 Go 语言编写的。如果这不是您选择的语言，不要担心。我们只是快速看一下一些例子，以了解仪表化背后的逻辑，而不是确切的实现。
 
 第一个有趣的部分如下。
 
-```
- 1  ...
- 2  var (
- 3    histogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
- 4      Subsystem: "http_server",
- 5      Name:      "resp_time",
- 6      Help:      "Request response time",
- 7    }, []string{
- 8      "service",
- 9      "code",
-10      "method",
-11      "path",
-12    })
-13  )
-14  ...
-```
+[PRE7]
 
 我们定义了一个包含一些选项的 Prometheus 直方图向量的变量。`Sybsystem`和`Name`形成了基本指标`http_server_resp_time`。由于它是一个直方图，最终的指标将通过添加`_bucket`、`_sum`和`_count`后缀来创建。
 
@@ -166,73 +112,25 @@
 
 兴趣点是`recordMetrics`函数。
 
-```
- 1  ...
- 2  func recordMetrics(start time.Time, req *http.Request, code int) {
- 3    duration := time.Since(start)
- 4    histogram.With(
- 5      prometheus.Labels{
- 6        "service": serviceName,
- 7        "code":    fmt.Sprintf("%d", code),
- 8        "method":  req.Method,
- 9        "path":    req.URL.Path,
-10      },
-11    ).Observe(duration.Seconds())
-12  }
-13  ...
-```
+[PRE8]
 
 我创建了一个辅助函数，可以从代码的不同位置调用。它接受`start`时间、`Request`和返回的`code`作为参数。函数本身通过将当前时间与`start`时间相减来计算`duration`。`duration`在`Observe`函数中使用，并提供指标的值。还有标签，将帮助我们在以后微调我们的表达式。
 
 最后，我们将看一个示例，其中调用了`recordMetrics`函数。
 
-```
- 1  ...
- 2  func HelloServer(w http.ResponseWriter, req *http.Request) {
- 3    start := time.Now()
- 4    defer func() { recordMetrics(start, req, http.StatusOK) }()
- 5    ...
- 6  }
- 7  ...
-```
+[PRE9]
 
 `HelloServer`函数是返回您已经看到多次的`hello, world!`响应的函数。该函数的细节并不重要。在这种情况下，唯一重要的部分是`defer func() { recordMetrics(start, req, http.StatusOK) }()`这一行。在 Go 中，`defer`允许我们在它所在的函数结束时执行某些操作。在我们的情况下，这个操作是调用`recordMetrics`函数，记录请求的持续时间。换句话说，在执行离开`HelloServer`函数之前，它将通过调用`recordMetrics`函数记录持续时间。
 
 我不会深入探讨包含仪表的代码，因为那将意味着您对 Go 背后的复杂性感兴趣，而我试图让这本书与语言无关。我会让您参考您喜欢的语言的文档和示例。相反，我们将看一下`go-demo-5`中的仪表指标的实际应用。
 
-```
- 1  kubectl -n metrics \
- 2      run -it test \
- 3      --image=appropriate/curl \
- 4      --restart=Never \
- 5      --rm \
- 6      -- go-demo-5.go-demo-5:8080/metrics
-```
+[PRE10]
 
 我们创建了一个基于`appropriate/curl`镜像的 Pod，并通过使用地址`go-demo-5.go-demo-5:8080/metrics`向服务发送了一个请求。第一个`go-demo-5`是服务的名称，第二个是它所在的命名空间。结果，我们得到了该应用程序中所有可用的受监控指标的输出。我们不会逐个讨论所有这些指标，而只会讨论由`http_server_resp_time`直方图创建的指标。
 
 输出的相关部分如下。
 
-```
-...
-# HELP http_server_resp_time Request response time
-# TYPE http_server_resp_time histogram
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="0.005"} 931
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="0.01"} 931
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="0.025"} 931
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="0.05"} 931
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="0.1"} 934
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="0.25"} 935
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="0.5"} 935
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="1"} 936
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="2.5"} 936
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="5"} 937
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="10"} 942
-http_server_resp_time_bucket{code="200",method="GET",path="/demo/hello",service="go-demo",le="+Inf"} 942
-http_server_resp_time_sum{code="200",method="GET",path="/demo/hello",service="go-demo"} 38.87928942600006
-http_server_resp_time_count{code="200",method="GET",path="/demo/hello",service="go-demo"} 942
-...
-```
+[PRE11]
 
 我们可以看到，在应用程序代码中使用的 Go 库从`http_server_resp_time`直方图中创建了相当多的指标。我们得到了每个十二个桶的指标（`http_server_resp_time_bucket`），一个持续时间的总和指标（`http_server_resp_time_sum`），以及一个计数指标（`http_server_resp_time_count`）。如果我们发出具有不同标签的请求，我们将得到更多指标。目前，这十四个指标都来自于响应 HTTP 代码`200`的请求，使用`GET`方法，发送到`/demo/hello`路径，并来自`go-demo`服务（应用程序）。如果我们创建具有不同方法（例如`POST`）或不同路径的请求，指标数量将增加。同样，如果我们在其他应用程序中实现相同的受监控指标（但具有不同的`service`标签），我们将拥有具有相同键（`http_server_resp_time`）的指标，这将提供有关多个应用程序的见解。这引发了一个问题，即我们是否应该统一所有应用程序中的指标名称，还是不统一。
 
@@ -246,9 +144,7 @@ http_server_resp_time_count{code="200",method="GET",path="/demo/hello",service="
 
 一个很好的起点是 Prometheus 的目标屏幕。
 
-```
- 1  open "http://$PROM_ADDR/targets"
-```
+[PRE12]
 
 最有趣的目标组是`kubernetes-service-endpoints`。如果我们仔细看标签，我们会发现每个标签都有`kubernetes_name`，其中三个目标将其设置为`go-demo-5`。Prometheus 不知何故发现我们有该应用程序的三个副本，并且指标可以通过端口`8080`获得。如果我们进一步观察，我们会注意到`prometheus-node-exporter`也在其中，每个节点在集群中都有一个。
 
@@ -262,15 +158,11 @@ Prometheus 通过 Kubernetes 服务发现了所有目标。它从每个服务中
 
 接下来，我们将快速查看一下我们可以使用来自`go-demo-5`的仪表化指标编写的一些表达式。
 
-```
- 1  open "http://$PROM_ADDR/graph"
-```
+[PRE13]
 
 请键入接下来的表达式，按“执行”按钮，然后切换到*图表*选项卡。
 
-```
- 1  http_server_resp_time_count
-```
+[PRE14]
 
 我们可以看到三条线对应于`go-demo-5`的三个副本。这应该不会让人感到惊讶，因为每个副本都是从应用程序的每个副本的仪表化指标中提取的。由于这些指标是只能增加的计数器，图表的线条不断上升。
 
@@ -280,14 +172,7 @@ Prometheus 通过 Kubernetes 服务发现了所有目标。它从每个服务中
 
 请键入接下来的表达式，然后按“执行”按钮。
 
-```
- 1  http_server_resp_time_sum{
- 2      kubernetes_name="go-demo-5"
- 3  } /
- 4  http_server_resp_time_count{
- 5      kubernetes_name="go-demo-5"
- 6  }
-```
+[PRE15]
 
 表达式本身应该很容易理解。我们将所有请求的总和除以计数。由于我们已经发现问题出现在`go-demo-5`应用程序中，我们使用`kubernetes_name`标签来限制结果。尽管这是我们集群中当前唯一运行该指标的应用程序，但习惯于这样做是个好主意，因为在将来我们将扩展到其他应用程序时，可能会有其他应用程序。
 
@@ -305,14 +190,7 @@ Prometheus 通过 Kubernetes 服务发现了所有目标。它从每个服务中
 
 我们将重新发送慢响应的请求，以便我们回到开始本章的同一点。
 
-```
- 1  for i in {1..20}; do
- 2      DELAY=$[ $RANDOM % 10000 ]
- 3      curl "http://$GD5_ADDR/demo/hello?delay=$DELAY"
- 4  done
- 5
- 6  open "http://$PROM_ADDR/alerts"
-```
+[PRE16]
 
 我们发送了二十个请求，这些请求将产生随机持续时间的响应（最长十秒）。随后，我们打开了 Prometheus 的警报屏幕。
 
@@ -326,19 +204,7 @@ Prometheus 通过 Kubernetes 服务发现了所有目标。它从每个服务中
 
 请键入以下表达式，然后按“执行”按钮。
 
-```
- 1  sum(rate(
- 2      http_server_resp_time_bucket{
- 3          le="0.1",
- 4          kubernetes_name="go-demo-5"
- 5      }[5m]
- 6  )) /
- 7  sum(rate(
- 8      http_server_resp_time_count{
- 9          kubernetes_name="go-demo-5"
-10      }[5m]
-11  ))
-```
+[PRE17]
 
 如果你还没有切换到*图表*选项卡，请切换到那里。
 
@@ -354,21 +220,7 @@ Prometheus 通过 Kubernetes 服务发现了所有目标。它从每个服务中
 
 请键入以下表达式，然后按“执行”按钮。
 
-```
- 1  sum(rate(
- 2      http_server_resp_time_bucket{
- 3          le="0.1",
- 4          kubernetes_name="go-demo-5"
- 5      }[5m]
- 6  ))
- 7  by (method, path) /
- 8  sum(rate(
- 9      http_server_resp_time_count{
-10          kubernetes_name="go-demo-5"
-11      }[5m]
-12  ))
-13  by (method, path)
-```
+[PRE18]
 
 该表达式几乎与之前的表达式相同。唯一的区别是添加了`by (method, path)`语句。因此，我们得到了按`method`和`path`分组的快速响应百分比。
 
@@ -378,21 +230,7 @@ Prometheus 通过 Kubernetes 服务发现了所有目标。它从每个服务中
 
 请键入以下表达式，然后按“执行”按钮。
 
-```
- 1  sum(rate(
- 2      http_server_resp_time_bucket{
- 3          le="0.1",
- 4          kubernetes_name="go-demo-5"
- 5      }[5m]
- 6  ))
- 7  by (method, path) /
- 8  sum(rate(
- 9      http_server_resp_time_count{
-10          kubernetes_name="go-demo-5"
-11      }[5m]
-12  ))
-13  by (method, path) < 0.99
-```
+[PRE19]
 
 唯一的添加是 `<0.99` 的阈值。因此，我们的图表排除了所有结果（所有路径和方法），只留下低于百分之九十九（0.99）的结果。我们去除了所有噪音，只关注超过百分之一的所有请求缓慢的情况（或者少于百分之九十九的请求快速）。结果现在很明确。问题出在处理 `/demo/hello` 路径上的 `GET` 请求的函数中。我们通过图表下方提供的标签知道了这一点。
 
@@ -412,11 +250,7 @@ Prometheus 通过 Kubernetes 服务发现了所有目标。它从每个服务中
 
 又一个章节完成了。销毁你的集群，开始下一个新的，或者保留它。如果你选择后者，请执行接下来的命令来移除`go-demo-5`应用程序。
 
-```
- 1  helm delete go-demo-5 --purge
- 2
- 3  kubectl delete ns go-demo-5
-```
+[PRE20]
 
 在你离开之前，记住接下来的要点。它总结了仪表化。
 

@@ -180,9 +180,7 @@ Swarm 服务是一个抽象的东西。它是对我们想要在 Swarm 中运行�
 
 让我们初始化一个 Swarm。在命令行上，只需输入以下命令：
 
-```
-$ docker swarm init
-```
+[PRE0]
 
 在非常短的时间后，你应该看到类似以下截图的东西：
 
@@ -196,9 +194,7 @@ $ docker swarm init
 
 现在，在前面的输出中，我们可以看到一个命令，可以用来加入我们刚刚创建的 Swarm 的其他节点。命令如下：
 
-```
-$ docker swarm join --token <join-token> <IP address>:2377
-```
+[PRE1]
 
 在这里，我们有以下内容：
 
@@ -224,24 +220,11 @@ $ docker swarm join --token <join-token> <IP address>:2377
 
 假设我们的笔记本电脑上已安装了 VirtualBox 和 docker-machine。然后，我们可以使用 docker-machine 列出当前定义并可能在 VirtualBox 中运行的所有 Docker 主机：
 
-```
-$ docker-machine ls
-NAME ACTIVE DRIVER STATE URL SWARM DOCKER ERRORS
-default - virtualbox Stopped Unknown
-```
+[PRE2]
 
 在我的情况下，我定义了一个名为 default 的 VM，当前已停止。我可以通过发出 docker-machine start default 命令轻松启动 VM。此命令需要一段时间，并将导致以下（缩短的）输出：
 
-```
-$ docker-machine start default
-Starting "default"...
-(default) Check network to re-create if needed...
-(default) Waiting for an IP...
-Machine "default" was started.
-Waiting for SSH to be available...
-Detecting the provisioner...
-Started machines may have new IP addresses. You may need to re-run the `docker-machine env` command.
-```
+[PRE3]
 
 现在，如果我再次列出我的虚拟机，我应该看到以下截图：
 
@@ -249,9 +232,7 @@ Started machines may have new IP addresses. You may need to re-run the `docker-m
 
 如果我们还没有名为`default`的虚拟机，我们可以使用`create`命令轻松创建一个：
 
-```
-docker-machine create --driver virtualbox default
-```
+[PRE4]
 
 这将产生以下输出：
 
@@ -265,11 +246,7 @@ docker-machine create --driver virtualbox default
 
 现在，让我们为一个五节点的 Swarm 创建五个虚拟机。我们可以使用一些脚本来减少手动工作：
 
-```
-$ for NODE in `seq 1 5`; do
-  docker-machine create --driver virtualbox "node-${NODE}"
-done
-```
+[PRE5]
 
 `docker-machine`现在将创建五个名为`node-1`到`node-5`的虚拟机。这可能需要一些时间，所以现在是喝杯热茶的好时机。虚拟机创建完成后，我们可以列出它们：
 
@@ -277,39 +254,19 @@ done
 
 现在，我们准备构建一个 Swarm。从技术上讲，我们可以 SSH 到第一个 VM `node-1`并初始化一个 Swarm，然后 SSH 到所有其他 VM 并加入它们到 Swarm 领导者。但这并不高效。让我们再次使用一个可以完成所有繁重工作的脚本：
 
-```
-# get IP of Swarm leader
-$ export IP=$(docker-machine ip node-1)
-# init the Swarm
-$ docker-machine ssh node-1 docker swarm init --advertise-addr $IP
-# Get the Swarm join-token
-$ export JOIN_TOKEN=$(docker-machine ssh node-1 \
-    docker swarm join-token worker -q)
-```
+[PRE6]
 
 现在我们有了加入令牌和 Swarm 领导者的 IP 地址，我们可以要求其他节点加入 Swarm，如下所示：
 
-```
-$ for NODE in `seq 2 5`; do
-  NODE_NAME="node-${NODE}"
-  docker-machine ssh $NODE_NAME docker swarm join \
-        --token $JOIN_TOKEN $IP:2377
-done
-```
+[PRE7]
 
 为了使 Swarm 具有高可用性，我们现在可以将例如`node-2`和`node-3`提升为管理者：
 
-```
-$ docker-machine ssh node-1 docker node promote node-2 node-3
-Node node-2 promoted to a manager in the swarm.
-Node node-3 promoted to a manager in the swarm.
-```
+[PRE8]
 
 最后，我们可以列出 Swarm 的所有节点：
 
-```
-$ docker-machine ssh node-1 docker node ls
-```
+[PRE9]
 
 我们应该看到以下内容：
 
@@ -317,23 +274,7 @@ $ docker-machine ssh node-1 docker node ls
 
 这证明我们刚刚在本地笔记本电脑或工作站上创建了一个高可用的 Docker Swarm。让我们把所有的代码片段放在一起，使整个过程更加健壮。脚本如下所示：
 
-```
-alias dm="docker-machine"
-for NODE in `seq 1 5`; do
-  NODE_NAME=node-${NODE}
-  dm rm --force $NODE_NAME
-  dm create --driver virtualbox $NODE_NAME
-done
-alias dms="docker-machine ssh"
-export IP=$(docker-machine ip node-1)
-dms node-1 docker swarm init --advertise-addr $IP;
-export JOIN_TOKEN=$(dms node-1 docker swarm join-token worker -q);
-for NODE in `seq 2 5`; do
-  NODE_NAME="node-${NODE}"
-  dms $NODE_NAME docker swarm join --token $JOIN_TOKEN $IP:2377
-done;
-dms node-1 docker node promote node-2 node-3
-```
+[PRE10]
 
 上述脚本首先删除（如果存在），然后重新创建名为`node-1`到`node-5`的五个虚拟机，然后在`node-1`上初始化一个 Swarm。之后，剩下的四个虚拟机被添加到 Swarm 中，最后，`node-2`和`node-3`被提升为管理者状态，使 Swarm 高可用。整个脚本执行时间不到 5 分钟，可以重复执行多次。完整的脚本可以在存储库的`docker-swarm`子文件夹中找到；它被称为`create-swarm.sh`。
 
@@ -355,9 +296,7 @@ dms node-1 docker node promote node-2 node-3
 
 但现在我们想要创建一个 Docker Swarm。在浏览器的终端中执行以下命令：
 
-```
-$ docker swarm init --advertise-addr=eth0
-```
+[PRE11]
 
 前面命令生成的输出与我们之前在工作站上使用单节点集群和在 VirtualBox 或 Hyper-V 上使用本地集群时已经知道的内容相对应。重要的信息再次是我们想要用来加入额外节点到我们刚刚创建的集群的`join`命令。
 
@@ -375,11 +314,7 @@ $ docker swarm init --advertise-addr=eth0
 
 仍然在`node1`上，我们现在可以提升，比如说，`node2`和`node3`，使 Swarm 高度可用：
 
-```
-$ docker node promote node2 node3
-Node node2 promoted to a manager in the swarm.
-Node node3 promoted to a manager in the swarm.
-```
+[PRE12]
 
 有了这个，我们在 PWD 上的 Swarm 已经准备好接受工作负载。我们已经创建了一个高可用的 Docker Swarm，其中包括三个管理节点，形成一个 Raft 共识组，以及两个工作节点。
 
@@ -389,20 +324,13 @@ Node node3 promoted to a manager in the swarm.
 
 创建 Swarm 的一种方法是使用**docker-machine**（**DM**）。DM 在 AWS 上有一个驱动程序。如果我们在 AWS 上有一个账户，我们需要 AWS 访问密钥 ID 和 AWS 秘密访问密钥。我们可以将这两个值添加到一个名为`~/.aws/configuration`的文件中。它应该看起来像下面这样：
 
-```
-[default]
-aws_access_key_id = AKID1234567890
-aws_secret_access_key = MY-SECRET-KEY
-```
+[PRE13]
 
 每次我们运行`docker-machine create`，DM 都会在该文件中查找这些值。有关如何获取 AWS 账户和获取两个秘钥的更深入信息，请参考此链接：[`dockr.ly/2FFelyT`](http://dockr.ly/2FFelyT)。
 
 一旦我们有了 AWS 账户并将访问密钥存储在配置文件中，我们就可以开始构建我们的 Swarm。所需的代码看起来与我们在 VirtualBox 上的本地机器上创建 Swarm 时使用的代码完全相同。让我们从第一个节点开始：
 
-```
-$ docker-machine create --driver amazonec2 \
- --amazonec2-region us-east-1 aws-node-1
-```
+[PRE14]
 
 这将在请求的区域（在我的情况下是`us-east-1`）中创建一个名为`aws-node-1`的 EC2 实例。前面命令的输出如下截图所示：
 
@@ -410,9 +338,7 @@ $ docker-machine create --driver amazonec2 \
 
 它看起来与我们已经知道的与 VirtualBox 一起工作的输出非常相似。我们现在可以配置我们的终端以远程访问该 EC2 实例：
 
-```
-$ eval $(docker-machine env aws-node-1)
-```
+[PRE15]
 
 这将相应地配置 Docker CLI 使用的环境变量：
 
@@ -422,15 +348,11 @@ $ eval $(docker-machine env aws-node-1)
 
 我们现在在终端中执行的所有 Docker 命令都将在我们的 EC2 实例上远程执行。让我们尝试在此节点上运行 Nginx：
 
-```
-$ docker container run -d -p 8000:80 nginx:alpine
-```
+[PRE16]
 
 我们可以使用`docker container ls`来验证容器是否正在运行。如果是的话，让我们使用`curl`进行测试：
 
-```
-$ curl -4 <IP address>:8000
-```
+[PRE17]
 
 这里，`<IP 地址>`是 AWS 节点的公共 IP 地址；在我的情况下，它将是`35.172.240.127`。遗憾的是，这不起作用；前面的命令超时：
 
@@ -456,12 +378,7 @@ $ curl -4 <IP address>:8000
 
 现在，让我们继续创建剩下的四个节点。我们可以再次使用脚本来简化这个过程：
 
-```
-$ for NODE in `seq 2 5`; do
- docker-machine create --driver amazonec2 \
- --amazonec2-region us-east-1 aws-node-${NODE}
-done
-```
+[PRE18]
 
 节点的配置完成后，我们可以使用 DM 列出所有节点。在我的情况下，我看到了这个：
 
@@ -471,47 +388,27 @@ done
 
 因为我们的 CLI 仍然配置为远程访问`aws-node-1`节点，所以我们可以直接运行以下`swarm init`命令：
 
-```
-$ docker swarm init
-```
+[PRE19]
 
 要获取加入令牌，请执行以下操作：
 
-```
-$ export JOIN_TOKEN=$(docker swarm join-token -q worker)
-```
+[PRE20]
 
 要获取领导者的 IP 地址，请使用以下命令：
 
-```
-$ export LEADER_ADDR=$(docker node inspect \
- --format "{{.ManagerStatus.Addr}}" self)
-```
+[PRE21]
 
 有了这些信息，我们现在可以将其他四个节点加入到 Swarm 的领导者中：
 
-```
-$ for NODE in `seq 2 5`; do
- docker-machine ssh aws-node-${NODE} \
- sudo docker swarm join --token ${JOIN_TOKEN} ${LEADER_ADDR}
-done
-```
+[PRE22]
 
 实现相同目标的另一种方法是，无需登录到各个节点，每次想要访问不同的节点时都重新配置我们的客户端 CLI：
 
-```
-$ for NODE in `seq 2 5`; do
- eval $(docker-machine env aws-node-${NODE})
- docker swarm join --token ${JOIN_TOKEN} ${LEADER_ADDR}
-done
-```
+[PRE23]
 
 作为最后一步，我们希望将节点`2`和`3`提升为管理节点：
 
-```
-$ eval $(docker-machine env node-1)
-$ docker node promote aws-node-2 aws-node-3
-```
+[PRE24]
 
 然后，我们可以列出所有 Swarm 节点，如下截图所示：
 
@@ -519,11 +416,7 @@ $ docker node promote aws-node-2 aws-node-3
 
 因此，我们在云中拥有一个高可用的 Docker Swarm。为了清理云中的 Swarm 并避免产生不必要的成本，我们可以使用以下命令：
 
-```
-$ for NODE in `seq 1 5`; do
- docker-machine rm -f aws-node-${NODE}
-done
-```
+[PRE25]
 
 # 部署第一个应用程序
 
@@ -531,36 +424,13 @@ done
 
 现在我们有一个高可用的 Docker Swarm 正在运行，是时候在其上运行一些工作负载了。我正在使用通过 docker-machine 创建的本地 Swarm。我们将首先创建一个单一服务。为此，我们需要 SSH 登录到其中一个管理节点。我选择`node-1`：
 
-```
-$ docker-machine ssh node-1
-```
+[PRE26]
 
 # 创建一个服务
 
 服务可以作为堆栈的一部分创建，也可以直接使用 Docker CLI 创建。让我们首先看一个定义单一服务的示例堆栈文件：
 
-```
-version: "3.7"
-services:
-  whoami:
-    image: training/whoami:latest
-    networks:
-      - test-net
-    ports:
-      - 81:8000
-    deploy:
-      replicas: 6
-      update_config:
-        parallelism: 2
-        delay: 10s
-      labels:
-        app: sample-app
-        environment: prod-south
-
-networks:
-  test-net:
-    driver: overlay
-```
+[PRE27]
 
 在前面的示例中，我们看到了一个名为`whoami`的服务的期望状态：
 
@@ -580,17 +450,11 @@ networks:
 
 要创建前面的服务，我们使用`docker stack deploy`命令。假设存储前面内容的文件名为`stack.yaml`，我们有以下内容：
 
-```
-$ docker stack deploy -c stack.yaml sample-stack
-```
+[PRE28]
 
 在这里，我们创建了一个名为`sample-stack`的堆栈，其中包含一个名为`whoami`的服务。我们可以列出我们的 Swarm 上的所有堆栈，然后我们应该得到这个：
 
-```
-$ docker stack ls
-NAME             SERVICES
-sample-stack     1
-```
+[PRE29]
 
 如果我们列出我们的 Swarm 中定义的服务，我们会得到以下输出：
 
@@ -620,9 +484,7 @@ Docker Swarm 堆栈的对象层次结构
 
 **堆栈**可以由一个到多个服务组成。每个服务都有一组任务。每个任务与一个容器有一对一的关联。堆栈和服务是在 Swarm 管理节点上创建和存储的。然后将任务调度到 Swarm 工作节点，工作节点在那里创建相应的容器。我们还可以通过检查来获取有关我们的服务的更多信息。执行以下命令：
 
-```
-$ docker service inspect sample-stack_whoami
-```
+[PRE30]
 
 这提供了有关服务的所有相关设置的丰富信息。这包括我们在`stack.yaml`文件中明确定义的设置，但也包括我们没有指定的设置，因此被分配了它们的默认值。我们不会在这里列出整个输出，因为它太长了，但我鼓励读者在自己的机器上检查它。我们将在*Swarm 路由网格*部分更详细地讨论部分信息。
 
@@ -646,9 +508,7 @@ $ docker service inspect sample-stack_whoami
 
 让我们用安排在`node-1`上的容器来做这个：
 
-```
-$ docker container rm -f sample-stack_whoami.2.n21e7ktyvo4b2sufalk0aibzy
-```
+[PRE31]
 
 如果我们这样做，然后立即运行`docker service ps`，我们将看到以下输出：
 
@@ -658,9 +518,7 @@ $ docker container rm -f sample-stack_whoami.2.n21e7ktyvo4b2sufalk0aibzy
 
 让我们尝试另一种失败场景。这一次，我们将关闭整个节点，并看看 Swarm 的反应。让我们选择`node-2`，因为它上面有两个任务（任务 3 和任务 4）正在运行。为此，我们需要打开一个新的终端窗口，并使用`docker-machine`来停止`node-2`：
 
-```
-$ docker-machine stop node-2
-```
+[PRE32]
 
 回到`node-1`，我们现在可以再次运行`docker service ps`来看看发生了什么：
 
@@ -686,31 +544,7 @@ $ docker-machine stop node-2
 
 在第十一章中，*Docker Compose*，我们使用了一个由两个服务组成的应用程序，在 Docker compose 文件中进行了声明性描述。我们可以使用这个 compose 文件作为模板，创建一个堆栈文件，允许我们将相同的应用程序部署到 Swarm 中。我们的堆栈文件的内容，名为`pet-stack.yaml`，如下所示：
 
-```
-version: "3.7"
-services:
- web:
-   image: fundamentalsofdocker/ch11-web:2.0
-   networks:
-   - pets-net
-   ports:
-   - 3000:3000
-   deploy:
-     replicas: 3
- db:
-   image: fundamentalsofdocker/ch11-db:2.0
-   networks:
-   - pets-net
-   volumes:
-   - pets-data:/var/lib/postgresql/data
-
-volumes:
- pets-data:
-
-networks:
- pets-net:
- driver: overlay
-```
+[PRE33]
 
 我们要求`web`服务有三个副本，并且两个服务都连接到叠加网络`pets-net`。我们可以使用`docker stack deploy`命令部署这个应用程序：
 

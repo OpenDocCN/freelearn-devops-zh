@@ -76,9 +76,7 @@
 
 使用以下命令创建名为`myvol`的新卷。
 
-```
-$ docker volume create myvol 
-```
+[PRE0]
 
 默认情况下，Docker 会使用内置的`local`驱动程序创建新卷。顾名思义，本地卷仅适用于在其上创建的节点上的容器。使用`-d`标志指定不同的驱动程序。
 
@@ -98,24 +96,7 @@ $ docker volume create myvol
 
 现在卷已创建，您可以使用`docker volume ls`命令查看它，并使用`docker volume inspect`命令检查它。
 
-```
-$ docker volume ls
-DRIVER              VOLUME NAME
-`local`               myvol
-
-$ docker volume inspect myvol
-`[`
-    `{`
-        `"CreatedAt"`: `"2018-01-12T12:12:10Z"`,
-        `"Driver"`: `"local"`,
-        `"Labels"`: `{}`,
-        `"Mountpoint"`: `"/var/lib/docker/volumes/myvol/_data"`,
-        `"Name"`: `"myvol"`,
-        `"Options"`: `{}`,
-        `"Scope"`: `"local"`
-    `}`
-`]` 
-```
+[PRE1]
 
 `从`inspect`命令的输出中得出一些有趣的观点。`driver`和`scope`都是`local`。这意味着卷是使用默认的`local`驱动程序创建的，并且仅适用于此 Docker 主机上的容器。`mountpoint`属性告诉我们卷在主机上的哪个位置被展示。在这个例子中，卷在 Docker 主机上的`/var/lib/docker/volumes/myvol/_data`处被展示。在 Windows Docker 主机上，它将报告为`Mountpoint": "C:\\ProgramData\\Docker\\volumes\\myvol\\_data`。
 
@@ -133,16 +114,7 @@ $ docker volume inspect myvol
 
 由于`myvol`卷未被使用，可以使用`prune`命令删除它。
 
-```
-$ docker volume prune
-
-WARNING! This will remove all volumes not used by at least one container.
-Are you sure you want to `continue`? `[`y/N`]` y
-
-Deleted Volumes:
-myvol
-Total reclaimed space: 0B 
-```
+[PRE2]
 
 “恭喜，您已经创建、检查和删除了一个 Docker 卷。而且您做到了所有这一切都没有与容器进行交互。这展示了卷的独立性。”
 
@@ -158,21 +130,13 @@ Total reclaimed space: 0B
 
 **Linux 示例：**
 
-```
-$ docker container run -dit --name voltainer `\`
-    --mount `source``=`bizvol,target`=`/vol `\`
-    alpine 
-```
+[PRE3]
 
 **Windows 示例：**
 
 对于所有 Windows 示例，请使用 PowerShell，并注意使用反引号（`）将命令拆分成多行。
 
-```
-> docker container run -dit --name voltainer `
-    --mount source=bizvol,target=c:\vol `
-    microsoft/powershell:nanoserver 
-```
+[PRE4]
 
 `即使系统中没有名为`bizvol`的卷，该命令也应该成功运行。这提出了一个有趣的观点：
 
@@ -182,52 +146,23 @@ $ docker container run -dit --name voltainer `\`
 
 在这种情况下，`bizvol`不存在，因此 Docker 创建了它并将其挂载到新容器中。这意味着您将能够通过`docker volume ls`看到它。
 
-```
-$ docker volume ls
-DRIVER              VOLUME NAME
-`local`               bizvol 
-```
+[PRE5]
 
 `尽管容器和卷有各自的生命周期，但您不能删除正在被容器使用的卷。试试看。
 
-```
-$ docker volume rm bizvol
-Error response from daemon: unable to remove volume: volume is in use - `[`b44`\`
-d3f82...dd2029ca`]` 
-```
+[PRE6]
 
 `卷目前是空的。让我们进入容器并向其中写入一些数据。如果您在 Windows 上进行操作，请记得在`docker container exec`命令的末尾将`sh`替换为`pwsh.exe`。所有其他命令都适用于 Linux 和 Windows。
 
-```
-$ docker container `exec` -it voltainer sh
-
-/# `echo` `"I promise to write a review of the book on Amazon"` > /vol/file1
-
-/# ls -l /vol
-total `4`
--rw-r--r-- `1` root  root   `50` Jan `12` `13`:49 file1
-
-/# cat /vol/file1
-I promise to write a review of the book on Amazon 
-```
+[PRE7]
 
 键入`exit`返回到 Docker 主机的 shell，然后使用以下命令删除容器。
 
-```
-$ docker container rm voltainer -f
-voltainer 
-```
+[PRE8]
 
 即使容器被删除，卷仍然存在：
 
-```
-$ docker container ls -a
-CONTAINER ID     IMAGE    COMMAND    CREATED       STATUS
-
-$ docker volume ls
-DRIVER              VOLUME NAME
-`local`               bizvol 
-```
+[PRE9]
 
 `因为卷仍然存在，您可以查看宿主机上的挂载点，以检查您写入的数据是否仍然存在。
 
@@ -235,56 +170,27 @@ DRIVER              VOLUME NAME
 
 如果您在 Windows 上进行操作，请确保使用`C:\ProgramData\Docker\volumes\bizvol\_data`目录。
 
-```
-$ ls -l /var/lib/docker/volumes/bizvol/_data/
-total `4`
--rw-r--r-- `1` root root `50` Jan `12` `14`:25 file1
-
-$ cat /var/lib/docker/volumes/bizvol/_data/file1
-I promise to write a review of the book on Amazon 
-```
+[PRE10]
 
 `很好，卷和数据仍然存在。
 
 甚至可以将`bizvol`卷挂载到一个新的服务或容器中。以下命令创建一个名为 hellcat 的新 Docker 服务，并将 bizvol 挂载到服务副本的`/vol`目录中。
 
-```
-$ docker service create `\`
-  --name hellcat `\`
-  --mount `source``=`bizvol,target`=`/vol `\`
-  alpine sleep 1d
-
-overall progress: `1` out of `1` tasks
-`1`/1: running   `[====================================`>`]`
-verify: Service converged 
-```
+[PRE11]
 
 `我们没有指定`--replicas`标志，因此只会部署一个服务副本。找出它在 Swarm 中运行的节点。
 
-```
-$ docker service ps hellcat
-ID         NAME         NODE      DESIRED STATE     CURRENT STATE
-l3nh...    hellcat.1    node1     Running           Running `19` seconds ago 
-```
+[PRE12]
 
 `在这个例子中，副本正在`node1`上运行。登录`node1`并获取服务副本容器的 ID。
 
-```
-node1$ docker container ls
-CTR ID     IMAGE             COMMAND       STATUS        NAMES
-df6..a7b   alpine:latest     "sleep 1d"    Up 25 secs    hellcat.1.l3nh... 
-```
+[PRE13]
 
 `请注意，容器名称是由`service-name`、`replica-number`和`replica-ID`组合而成，用句点分隔。
 
 进入容器并检查`/vol`中是否存在数据。我们将在`exec`示例中使用服务副本的容器 ID。如果您在 Windows 上进行操作，请记得将`sh`替换为`pwsh.exe`。
 
-```
-node1$ docker container exec -it df6 sh
-
-/# cat /vol/file1
-I promise to write a review of the book on Amazon 
-```
+[PRE14]
 
 `我想现在是时候跳到亚马逊去写那篇书评了 :-D`
 
@@ -324,4 +230,4 @@ I promise to write a review of the book on Amazon
 
 Docker 卷是 Docker API 中的一流公民，并且独立于容器进行管理，具有自己的`docker volume`子命令。这意味着删除容器不会删除它正在使用的卷。
 
-卷是在 Docker 环境中处理持久数据的推荐方式。```````````````
+卷是在 Docker 环境中处理持久数据的推荐方式。[PRE15]

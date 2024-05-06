@@ -194,15 +194,11 @@
 
 要获取访问集群所需的凭据，您需要输入以下命令：
 
-```
-az aks get-credentials --resource-group rg-handsonaks --name handsonaks
-```
+[PRE0]
 
 要验证您是否有访问权限，请输入以下内容：
 
-```
-kubectl get nodes
-```
+[PRE1]
 
 你应该看到类似*图 2.21*的东西：
 
@@ -218,106 +214,21 @@ kubectl get nodes
 
 为了本书的目的，所有的代码示例都托管在一个 GitHub 存储库中。您可以将此存储库克隆到您的 Cloud Shell，并直接使用代码示例。要将 GitHub 存储库克隆到您的 Cloud Shell，请使用以下命令：
 
-```
-git clone https://github.com/PacktPublishing/Hands-On-Kubernetes-on-Azure---Second-Edition.git Hands-On-Kubernetes-on-Azure
-```
+[PRE2]
 
 要访问本章的代码示例，请进入代码示例目录并转到`Chapter02`目录：
 
-```
-cd Hands-On-Kubernetes-on-Azure/Chapter02/
-```
+[PRE3]
 
 我们现在将直接在那里使用代码。在本书的这一部分，我们暂时不会关注`YAML`文件中的内容。本章的目标是在集群上启动一个应用程序。在接下来的章节中，我们将深入探讨它们是如何构建的，以及您如何创建自己的应用程序。
 
 我们将根据`azure-vote.yaml`文件中的定义创建一个应用程序。要在 Cloud Shell 中打开该文件，您可以输入以下命令：
 
-```
-code azure-vote.yaml
-```
+[PRE4]
 
 以下是您方便的代码示例：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: azure-vote-back
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: azure-vote-back
-  template:
-    metadata:
-      labels:
-        app: azure-vote-back
-    spec:
-      containers:
-      - name: azure-vote-back
-        image: redis
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 250m
-            memory: 256Mi
-        ports:
-        - containerPort: 6379
-          name: redis
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: azure-vote-back
-spec:
-  ports:
-  - port: 6379
-  selector:
-    app: azure-vote-back
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: azure-vote-front
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: azure-vote-front
-  template:
-    metadata:
-      labels:
-        app: azure-vote-front
-    spec:
-      containers:
-      - name: azure-vote-front
-        image: microsoft/azure-vote-front:v1
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 250m
-            memory: 256Mi
-        ports:
-        - containerPort: 80
-        env:
-        - name: REDIS
-          value: "azure-vote-back"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: azure-vote-front
-spec:
-  type: LoadBalancer
-  ports:
-  - port: 80
-  selector:
-    app: azure-vote-front
-```
+[PRE5]
 
 您可以在 Cloud Shell 代码编辑器中对文件进行更改。如果您进行了更改，可以点击右上角的**...**图标，然后点击**保存**来保存文件：
 
@@ -327,9 +238,7 @@ spec:
 
 文件应该已保存。您可以使用以下命令检查：
 
-```
-cat azure-vote.yaml
-```
+[PRE6]
 
 #### 注意：
 
@@ -337,9 +246,7 @@ cat azure-vote.yaml
 
 现在，让我们启动应用程序：
 
-```
-kubectl create -f azure-vote.yaml
-```
+[PRE7]
 
 您应该很快就会看到*图 2.23*中显示的输出，告诉您已创建了哪些资源：
 
@@ -349,9 +256,7 @@ kubectl create -f azure-vote.yaml
 
 您可以通过输入以下内容来检查进度：
 
-```
-kubectl get pods
-```
+[PRE8]
 
 如果您输入得很快，您可能会看到某个 pod 仍处于`ContainerCreating`过程中：
 
@@ -365,9 +270,7 @@ kubectl get pods
 
 按上箭头键并按*Enter*，直到所有 pod 的状态都为`Running`。设置所有 pod 需要一些时间，您可以使用以下命令跟踪它们的状态：
 
-```
-kubectl get pods --watch
-```
+[PRE9]
 
 要停止跟踪 pod 的状态（当它们全部处于运行状态时），可以按*Ctrl* + *C*（Mac 上为*command* + *C*）。
 
@@ -375,9 +278,7 @@ kubectl get pods --watch
 
 键入以下命令以获取负载均衡器的公共 IP：
 
-```
-kubectl get service azure-vote-front --watch
-```
+[PRE10]
 
 起初，外部 IP 可能显示为“待定”。等待公共 IP 出现，然后按*Ctrl* + *C*（Mac 上为*command* + *C*）退出：
 

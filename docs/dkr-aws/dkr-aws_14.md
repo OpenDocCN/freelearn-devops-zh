@@ -80,27 +80,11 @@
 
 在 todobackend 存储库中，您首先需要将 X-Ray SDK 包添加到`src/requirements.txt`文件中，这将确保 SDK 与 todobackend 应用程序的其他依赖项一起安装：
 
-```
-Django==2.0
-django-cors-headers==2.1.0
-djangorestframework==3.7.3
-mysql-connector-python==8.0.11
-pytz==2017.3
-uwsgi==2.0.17
-aws-xray-sdk
-```
+[PRE0]
 
 接下来，您需要将 Django X-Ray 中间件组件（包含在 SDK 中）添加到位于`src/todobackend/settings_release.py`中的 Django 项目的`MIDDLEWARE`配置元素中：
 
-```
-from .settings import *
-...
-...
-STATIC_ROOT = os.environ.get('STATIC_ROOT', '/public/static')
-MEDIA_ROOT = os.environ.get('MEDIA_ROOT', '/public/media')
-
-MIDDLEWARE.insert(0,'aws_xray_sdk.ext.django.middleware.XRayMiddleware')
-```
+[PRE1]
 
 这种配置与[Django 的 X 射线文档](https://docs.aws.amazon.com/xray-sdk-for-python/latest/reference/frameworks.html)有所不同，但通常情况下，您只想在 AWS 环境中运行 X-Ray，并且使用标准方法可能会导致本地开发环境中的 X-Ray 配置问题。因为我们有一个单独的发布设置文件，导入基本设置文件，我们可以简单地使用`insert()`函数将 X-Ray 中间件组件插入到基本的`MIDDLEWARE`列表的开头，如所示。这种方法确保我们将在使用发布设置的 AWS 环境中运行 X-Ray，但不会在本地开发环境中使用 X-Ray。
 
@@ -108,32 +92,7 @@ MIDDLEWARE.insert(0,'aws_xray_sdk.ext.django.middleware.XRayMiddleware')
 
 最后，Python X-Ray SDK 包括对许多流行软件包的跟踪支持，包括`mysql-connector-python`软件包，该软件包被 todobackend 应用程序用于连接其 MySQL 数据库。在 Python 中，X-Ray 使用一种称为 patching 的技术来包装受支持软件包的调用，这允许 X-Ray 拦截软件包发出的调用并捕获跟踪信息。对于我们的用例，对`mysql-connector-python`软件包进行 patching 将使我们能够跟踪应用程序发出的数据库调用，这对于解决性能问题非常有用。要对此软件包进行 patching，您需要向应用程序入口点添加几行代码，对于 Django 来说，该入口点位于文件`src/todobackend.wsgi.py`中：
 
-```
-"""
-WSGI config for todobackend project.
-
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/2.0/howto/deployment/wsgi/
-"""
-
-import os
-
-from django.core.wsgi import get_wsgi_application
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "todobackend.settings")
-
-from aws_xray_sdk.core import xray_recorder
-from aws_xray_sdk.core import patch_all
-
-# Required to avoid SegmentNameMissingException errors
-xray_recorder.configure(service="todobackend")
-
-patch_all()
-
-application = get_wsgi_application()
-```
+[PRE2]
 
 `xray_recorder`配置将向每个跟踪段添加服务名称，否则您将观察到 SegmentNameMissingException 错误。在这一点上，您已经在应用程序级别上添加了支持以开始跟踪传入请求，并且在提交并将更改推送到 GitHub 之前，您应该能够成功运行“make workflow”（运行`make test`和`make release`）。因为您现在已经建立了一个持续交付管道，这将触发该管道，该管道确保一旦管道构建阶段完成，您的应用程序更改将被发布到 ECR。如果您尚未完成上一章，或者已删除管道，则需要在运行`make test`和`make release`后使用`make login`和`make publish`命令手动发布新镜像。
 
@@ -141,85 +100,25 @@ application = get_wsgi_application()
 
 在我们的应用程序可以发布 X-Ray 跟踪信息之前，您必须部署一个 X-Ray 守护程序，以便您的应用程序可以将此信息发送到它。我们的目标是使用 AWS Fargate 运行 X-Ray 守护程序，但在此之前，我们需要创建一个将运行守护程序的 Docker 镜像。AWS 提供了如何构建 X-Ray 守护程序镜像的示例，我们将按照 AWS 文档中记录的类似方法创建一个名为`Dockerfile.xray`的文件，该文件位于`todobackend-aws`存储库的根目录中：
 
-```
-FROM amazonlinux
-RUN yum install -y unzip
-RUN curl -o daemon.zip https://s3.dualstack.us-east-2.amazonaws.com/aws-xray-assets.us-east-2/xray-daemon/aws-xray-daemon-linux-2.x.zip
-RUN unzip daemon.zip && cp xray /usr/bin/xray
-
-ENTRYPOINT ["/usr/bin/xray", "-b", "0.0.0.0:2000"]
-EXPOSE 2000/udp
-```
+[PRE3]
 
 您现在可以使用`docker build`命令在本地构建此镜像，如下所示：
 
-```
-> docker build -t xray -f Dockerfile.xray .
-Sending build context to Docker daemon 474.1kB
-Step 1/6 : FROM amazonlinux
- ---> 81bb3e78db3d
-Step 2/6 : RUN yum install -y unzip
- ---> Running in 35aca63a625e
-Loaded plugins: ovl, priorities
-Resolving Dependencies
-...
-...
-Step 6/6 : EXPOSE 2000/udp
- ---> Running in 042542d22644
-Removing intermediate container 042542d22644
- ---> 63b422e40099
-Successfully built 63b422e40099
-Successfully tagged xray:latest
-```
+[PRE4]
 
 现在我们的镜像已构建，我们需要将其发布到 ECR。在此之前，您需要为 X-Ray 镜像创建一个新的存储库，然后将其添加到`todobackend-aws`存储库的根目录中的现有`ecr.yml`文件中：
 
-```
-AWSTemplateFormatVersion: "2010-09-09"
-
-Description: ECR Resources
-
-Resources:
-  XrayRepository:
- Type: AWS::ECR::Repository
- Properties:
- RepositoryName: docker-in-aws/xray
-  CodebuildRepository:
-    Type: AWS::ECR::Repository
-  ...
-  ...
-```
+[PRE5]
 
 在前面的示例中，您使用名称`docker-in-aws/xray`创建了一个新的存储库，这将导致一个完全合格的存储库名称为`<account-id>.dkr.ecr.<region>.amazonaws.com/docker-in-aws/xray`（例如，`385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/xray`）。
 
 您现在可以通过运行`aws cloudformation deploy`命令来创建新的存储库：
 
-```
-> export AWS_PROFILE=docker-in-aws
-> aws cloudformation deploy --template-file ecr.yml --stack-name ecr-repositories
-Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga:
-
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - ecr-repositories
-  ...
-  ...
-```
+[PRE6]
 
 部署完成后，您可以登录到 ECR，然后使用新的 ECR 存储库的完全合格名称对之前创建的图像进行标记和发布。
 
-```
-> eval $(aws ecr get-login --no-include-email)
-Login Succeeded
-> docker tag xray 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/xray
-> docker push 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/xray
-The push refers to repository [385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/xray]
-c44926e8470e: Pushed
-1c9da599a308: Pushed
-9d486dac1b0b: Pushed
-0c1715974ca1: Pushed
-latest: digest: sha256:01d9b6982ce3443009c7f07babb89b134c9d32ea6f1fc380cb89ce5639c33938 size: 1163
-```
+[PRE7]
 
 # 配置 ECS 服务发现资源
 
@@ -237,19 +136,7 @@ ECS 服务发现支持 DNS 服务（SRV）记录的配置，其中包括有关�
 
 以下示例演示了创建初始模板和创建服务发现命名空间资源：
 
-```
-AWSTemplateFormatVersion: "2010-09-09"
-
-Description: X-Ray Daemon
-
-Resources:
-  ApplicationServiceDiscoveryNamespace:
-    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
-    Properties:
-      Name: services.dockerinaws.org.
-      Description: services.dockerinaws.org namespace
-      Vpc: vpc-f8233a80
-```
+[PRE8]
 
 在前面的示例中，我们创建了一个私有服务发现命名空间，它只需要命名空间的 DNS 名称、可选描述和关联的私有 Route 53 区域的 VPC ID。为了保持简单，我还硬编码了与我的 AWS 账户相关的 VPC ID 的适当值，通常您会通过堆栈参数注入这个值。
 
@@ -257,29 +144,7 @@ Resources:
 
 现在，您可以使用`aws cloudformation deploy`命令将初始堆栈部署到 CloudFormation，这应该会创建一个服务发现命名空间和相关的 Route 53 私有区域。
 
-```
-> aws cloudformation deploy --template-file xray.yml --stack-name xray-daemon
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - xray-daemon
-> aws servicediscovery list-namespaces
-{
-    "Namespaces": [
-        {
-            "Id": "ns-lgd774j6s2cmxwq3",
-            "Arn": "arn:aws:servicediscovery:us-east-1:385605022855:namespace/ns-lgd774j6s2cmxwq3",
-            "Name": "services.dockerinaws.org",
-            "Type": "DNS_PRIVATE"
-        }
-    ]
-}
-> aws route53 list-hosted-zones --query HostedZones[].Name --output table
--------------------------------
-| ListHostedZones             |
-+-----------------------------+
-| services.dockerinaws.org.   |
-+-----------------------------+
-```
+[PRE9]
 
 在前面的示例中，一旦您的堆栈成功部署，您将使用`aws servicediscovery list-namespaces`命令来验证是否创建了一个私有命名空间，而`aws route53 list-hosted-zones`命令将显示已创建一个 Route 53 区域，其区域名称为`services.dockerinaws.org`。
 
@@ -287,31 +152,7 @@ Successfully created/updated stack - xray-daemon
 
 现在您已经有了一个服务发现命名空间，下一步是创建一个服务发现服务，它与每个 ECS 服务都有一对一的关系，这意味着您需要创建一个代表稍后在本章中创建的 X-Ray ECS 服务的服务发现服务。
 
-```
-AWSTemplateFormatVersion: "2010-09-09"
-
-Description: X-Ray Daemon
-
-Resources:
-  ApplicationServiceDiscoveryService:
- Type: AWS::ServiceDiscovery::Service
- Properties:
- Name: xray
- Description: xray service 
- DnsConfig: 
- NamespaceId: !Ref ApplicationServiceDiscoveryNamespace
- DnsRecords:
- - Type: A
- TTL: 60
- HealthCheckCustomConfig:
- FailureThreshold: 1
-  ApplicationServiceDiscoveryNamespace:
-    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
-    Properties:
-      Name: services.dockerinaws.org.
-      Description: services.dockerinaws.org namespace
-      Vpc: vpc-f8233a80
-```
+[PRE10]
 
 在前面的示例中，您添加了一个名为`ApplicationServiceDiscoveryService`的新资源，并配置了以下属性：
 
@@ -323,23 +164,7 @@ Resources:
 
 您现在可以使用`aws cloudformation deploy`命令将更新后的堆栈部署到 CloudFormation，这应该会创建一个服务发现服务。
 
-```
-> aws cloudformation deploy --template-file xray.yml --stack-name xray-daemon
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - xray-daemon
-> aws servicediscovery list-services
-{
-    "Services": [
-        {
-            "Id": "srv-wkdxwh4pzo7ea7w3",
-            "Arn": "arn:aws:servicediscovery:us-east-1:385605022855:service/srv-wkdxwh4pzo7ea7w3",
-            "Name": "xray",
-            "Description": "xray service"
-        }
-    ]
-}
-```
+[PRE11]
 
 这将为`xray.services.dockerinaws.org`创建一个 DNS 记录集，直到我们在本章后面将要创建的 X-Ray ECS 服务的 ECS 服务发现支持配置之前，它将不会有任何地址（`A`）记录与之关联。
 
@@ -361,49 +186,7 @@ Successfully created/updated stack - xray-daemon
 
 考虑到上述情况，现在让我们为我们的 X-Ray 守护程序服务定义一个任务定义：
 
-```
-...
-...
-Resources:
-  ApplicationTaskDefinition:
- Type: AWS::ECS::TaskDefinition
- Properties:
- Family: !Sub ${AWS::StackName}-task-definition
- NetworkMode: awsvpc
- ExecutionRoleArn: !Sub ${ApplicationTaskExecutionRole.Arn}
- TaskRoleArn: !Sub ${ApplicationTaskRole.Arn}
- Cpu: 256
- Memory: 512
- RequiresCompatibilities:
- - FARGATE
- ContainerDefinitions:
- - Name: xray
- Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/docker-in-aws/xray
- Command:
- - -o
- LogConfiguration:
- LogDriver: awslogs
- Options:
- awslogs-group: !Sub /${AWS::StackName}/ecs/xray
- awslogs-region: !Ref AWS::Region
- awslogs-stream-prefix: docker
- PortMappings:
- - ContainerPort: 2000
- Protocol: udp
- Environment:
- - Name: AWS_REGION
- Value: !Ref AWS::Region
-  ApplicationLogGroup:
- Type: AWS::Logs::LogGroup
- DeletionPolicy: Delete
- Properties:
- LogGroupName: !Sub /${AWS::StackName}/ecs/xray
- RetentionInDays: 7
-  ApplicationServiceDiscoveryService:
-    Type: AWS::ServiceDiscovery::Service
-  ...
-  ...
-```
+[PRE12]
 
 在上面的示例中，请注意`RequiresCompatibilities`参数指定`FARGATE`作为支持的启动类型，并且`NetworkMode`参数配置为所需的`awsvpc`模式。`Cpu`和`Memory`设置分别配置为 256 CPU 单位（0.25 vCPU）和 512 MB，这代表了最小可用的 Fargate CPU/内存配置。对于`ExecutionRoleArn`参数，您引用了一个名为`ApplicationTaskExecutionRole`的 IAM 角色，我们将很快单独配置，与为`TaskRoleArn`参数配置的角色分开。
 
@@ -417,75 +200,11 @@ Resources:
 
 如前所述，任务执行角色定义了将分配给 ECS 代理和 Fargate 运行时的 IAM 权限，通常包括拉取任务定义中定义的容器所需的 ECR 镜像的权限，以及写入容器日志配置中引用的 CloudWatch 日志组的权限：
 
-```
-...
-...
-Resources:
-  ApplicationTaskExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ecs-tasks.amazonaws.com
-            Action:
-              - sts:AssumeRole
-      Policies:
-        - PolicyName: EcsTaskExecutionRole
-          PolicyDocument:
-            Statement:
-              - Sid: EcrPermissions
-                Effect: Allow
-                Action:
-                  - ecr:BatchCheckLayerAvailability
-                  - ecr:BatchGetImage
-                  - ecr:GetDownloadUrlForLayer
-                  - ecr:GetAuthorizationToken
-                Resource: "*"
-              - Sid: CloudwatchLogsPermissions
-                Effect: Allow
-                Action:
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: !Sub ${ApplicationLogGroup.Arn}
-  ApplicationTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-  ...
-  ...
-```
+[PRE13]
 
 任务角色定义了从您的 ECS 任务定义中运行的应用程序可能需要的任何 IAM 权限。对于我们的用例，X-Ray 守护程序需要权限将跟踪发布到 X-Ray 服务，如下例所示：
 
-```
-Resources:
- ApplicationTaskRole:
- Type: AWS::IAM::Role
- Properties:
- AssumeRolePolicyDocument:
- Version: "2012-10-17"
- Statement:
- - Effect: Allow
- Principal:
- Service:
- - ecs-tasks.amazonaws.com
- Action:
- - sts:AssumeRole
- Policies:
- - PolicyName: EcsTaskRole
- PolicyDocument:
- Statement:
- - Effect: Allow
- Action:
- - xray:PutTraceSegments
- - xray:PutTelemetryRecords
- Resource: "*"    ApplicationTaskExecutionRole:
-    Type: AWS::IAM::Role
-  ...
-  ...
-```
+[PRE14]
 
 在前面的例子中，您授予`xray:PutTraceSegments`和`xray:PutTelemetryRecords`权限给 X-Ray 守护程序，这允许守护程序将从您的应用程序捕获的应用程序跟踪发布到 X-Ray 服务。请注意，对于`ApplicationTaskExecutionRole`和`ApplicationTaskRole`资源，`AssumeRolePolicyDocument`部分中的受信任实体必须配置为`ecs-tasks.amazonaws.com`服务。
 
@@ -505,42 +224,7 @@ Resources:
 
 以下示例演示了为 Fargate 和 ECS 服务发现配置 ECS 服务：
 
-```
-...
-...
-Resources:
- ApplicationCluster:
- Type: AWS::ECS::Cluster
- Properties:
- ClusterName: !Sub ${AWS::StackName}-cluster
- ApplicationService:
- Type: AWS::ECS::Service
- DependsOn:
- - ApplicationLogGroup
- Properties:
- ServiceName: !Sub ${AWS::StackName}-application-service
- Cluster: !Ref ApplicationCluster
- TaskDefinition: !Ref ApplicationTaskDefinition
- DesiredCount: 2
- LaunchType: FARGATE
- NetworkConfiguration:
- AwsvpcConfiguration:
- AssignPublicIp: ENABLED
- SecurityGroups:
- - !Ref ApplicationSecurityGroup
- Subnets:
- - subnet-a5d3ecee
- - subnet-324e246f
- DeploymentConfiguration:
- MinimumHealthyPercent: 100
- MaximumPercent: 200
- ServiceRegistries:
- - RegistryArn: !Sub ${ApplicationServiceDiscoveryService.Arn}
-  ApplicationTaskRole:
-    Type: AWS::IAM::Role
-  ...
-  ...
-```
+[PRE15]
 
 在前面的示例中，首先要注意的是，尽管在使用 Fargate 时您不运行任何 ECS 容器实例或其他基础设施，但在为 Fargate 配置 ECS 服务时仍需要定义一个 ECS 集群，然后在您的 ECS 服务中引用它。
 
@@ -552,45 +236,7 @@ ECS 服务配置类似于在*隔离网络访问*章节中使用 ECS 任务网络
 
 在这一点上，还有一个最终需要配置的资源——您需要定义被您的 ECS 服务引用的`ApplicationSecurityGroup`资源：
 
-```
-...
-...
-Resources:
-  ApplicationSecurityGroup:
- Type: AWS::EC2::SecurityGroup
- Properties:
- VpcId: vpc-f8233a80
- GroupDescription: !Sub ${AWS::StackName} Application Security Group
- SecurityGroupIngress:
- - IpProtocol: udp
- FromPort: 2000
- ToPort: 2000
- CidrIp: 172.31.0.0/16
- SecurityGroupEgress:
- - IpProtocol: tcp
- FromPort: 80
- ToPort: 80
- CidrIp: 0.0.0.0/0
- - IpProtocol: tcp
- FromPort: 443
- ToPort: 443
- CidrIp: 0.0.0.0/0
- - IpProtocol: udp
- FromPort: 53
- ToPort: 53
- CidrIp: 0.0.0.0/0
- Tags:
- - Key: Name
- Value: !Sub ${AWS::StackName}-ApplicationSecurityGroup
-  ApplicationCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: !Sub ${AWS::StackName}-cluster
-  ApplicationService:
-    Type: AWS::ECS::Service
-  ...
-  ...
-```
+[PRE16]
 
 在上面的示例中，再次注意，我在这里使用了硬编码的值，而我通常会使用堆栈参数，以保持简单和简洁。安全组允许从 VPC 内的任何主机对 UDP 端口 2000 进行入口访问，而出口安全规则允许访问 DNS、HTTP 和 HTTPS，这是为了确保 ECS 代理可以与 ECS、ECR 和 CloudWatch 日志进行通信，以及 X-Ray 守护程序可以与 X-Ray 服务进行通信。
 
@@ -598,13 +244,7 @@ Resources:
 
 此时，我们已经完成了配置 CloudFormation 模板的工作，该模板将使用启用了 ECS 服务发现的 Fargate 服务将 X-Ray 守护程序部署到 AWS；您可以使用`aws cloudformation deploy`命令将更改部署到您的堆栈中，包括`--capabilities`参数，因为我们的堆栈现在正在创建 IAM 资源：
 
-```
-> aws cloudformation deploy --template-file xray.yml --stack-name xray-daemon \
- --capabilities CAPABILITY_NAMED_IAM
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - xray-daemon
-```
+[PRE17]
 
 一旦部署完成，如果您在 AWS 控制台中打开 ECS 仪表板并选择集群，您应该会看到一个名为 xray-daemon-cluster 的新集群，其中包含一个单一服务和两个正在运行的任务，在 FARGATE 部分：
 
@@ -626,82 +266,11 @@ Successfully created/updated stack - xray-daemon
 
 以下示例演示了在`todobackend-aws`堆栈中的`ApplicationAutoscalingSecurityGroup`资源中添加安全规则，该规则允许与 X 射线守护程序进行通信：
 
-```
-...
-...
-Resources:
-  ...
-  ...
-  ApplicationAutoscalingSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: !Sub ${AWS::StackName} Application Autoscaling Security Group
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
- - IpProtocol: udp
- FromPort: 2000
- ToPort: 2000
- CidrIp: 172.31.0.0/16
-        - IpProtocol: udp
-          FromPort: 53
-          ToPort: 53
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-...
-...
-```
+[PRE18]
 
 以下示例演示了为`ApplicationTaskDefinition`资源中的 todobackend 容器定义配置环境设置：
 
-```
-...
-...
-Resources:
-  ...
-  ...
-  ApplicationAutoscalingSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-    ...
-    ...
-      ContainerDefinitions:
-        - Name: todobackend
-          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/docker-in-aws/todobackend:${ApplicationImageTag}
-          MemoryReservation: 395
-          Cpu: 245
-          MountPoints:
-            - SourceVolume: public
-              ContainerPath: /public
-          Environment:
-            - Name: DJANGO_SETTINGS_MODULE
-              Value: todobackend.settings_release
-            - Name: MYSQL_HOST
-              Value: !Sub ${ApplicationDatabase.Endpoint.Address}
-            - Name: MYSQL_USER
-              Value: todobackend
-            - Name: MYSQL_DATABASE
-              Value: todobackend
-            - Name: SECRETS
-              Value: todobackend/credentials
-            - Name: AWS_DEFAULT_REGION
-              Value: !Ref AWS::Region
-            - Name: AWS_XRAY_DAEMON_ADDRESS
- Value: xray.services.dockerinaws.org:2000
-...
-...
-```
+[PRE19]
 
 在前面的示例中，您添加了一个名为`AWS_XRAY_DAEMON_ADDRESS`的变量，该变量引用了我们的 X 射线守护程序服务的`xray.services.dockerinaws.org`服务端点，并且必须以`<hostname>:<port>`的格式表示。
 

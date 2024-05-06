@@ -194,33 +194,11 @@ Travis CI 中的主要元素是创建`.travis.yml`文件。
 
 我们将开始`.travis.yml`，确保存在有效的`docker-compose`版本（1.23.2），使用以下代码：
 
-```py
-services:
-  - docker
-
-env:
-  - DOCKER_COMPOSE_VERSION=1.23.2
-
-before_install:
-  - sudo rm /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
-  - chmod +x docker-compose
-  - sudo mv docker-compose /usr/local/bin
-  - docker --version
-  - docker-compose version
-```
+[PRE0]
 
 `before_install`块将在所有虚拟机中执行。现在，为了运行测试，我们添加一个`script`块：
 
-```py
-script:
-- cd ch4
-- docker-compose build db
-- docker-compose build static-analysis
-- docker-compose build test-postgresql
-- docker-compose run test-postgresql
-- docker-compose run static-analysis
-```
+[PRE1]
 
 我们构建所有要使用的镜像，然后运行测试。请注意，使用 PostgreSQL 数据库运行测试需要构建`db`容器。
 
@@ -248,23 +226,7 @@ Travis 将整个构建划分为一系列将依次运行的阶段。在每个阶�
 
 正如我们之前所见，可以通过用`jobs`部分替换`script`部分来配置测试和静态分析并行运行：
 
-```py
-jobs:
-  include:
-    - stage: tests
-      name: "Unit Tests"
-      script:
-      - cd ch4
-      - docker-compose build db
-      - docker-compose build test-postgresql
-      - docker-compose run test-postgresql
-    - stage: tests
-      name: "Static Analysis"
-      script:
-      - cd ch4
-      - docker-compose build static-analysis
-      - docker-compose run static-analysis
-```
+[PRE2]
 
 这在一个阶段隐式地创建了两个作业。该阶段命名为`tests`，作业分别称为“单元测试”和“静态分析”。
 
@@ -344,70 +306,39 @@ Travis 允许我们配置通知电子邮件并连接更多通知系统，包括 
 
 1.  使用`gem`安装`travis`命令行。这假设你的系统上已经安装了`gem`（Ruby 1.93 或更高版本）。如果没有，请查看安装说明（[`github.com/travis-ci/travis.rb#installation`](https://github.com/travis-ci/travis.rb#installation)）：
 
-```py
-$ gem install travis
-```
+[PRE3]
 
 1.  登录到 Travis：
 
-```py
-travis login --pro
-```
+[PRE4]
 
 1.  使用 Docker Hub 用户名创建一个安全变量：
 
-```py
-$ travis encrypt --com DOCKER_USERNAME="<your user name>"
-```
+[PRE5]
 
 1.  你会看到类似以下的输出：
 
-```py
-secure: ".... encrypted data ...."
-```
+[PRE6]
 
 1.  然后，您需要将加密数据添加到环境变量中，如下所示：
 
-```py
-env:
-  global:
-    - DOCKER_COMPOSE_VERSION=1.23.2
-    - secure: ".... encrypted data ...."
-```
+[PRE7]
 
 1.  现在，请注意新的`global`部分，并重复第 3 步，使用 Docker Hub 密码：
 
-```py
-$ travis encrypt --com DOCKER_PASSWORD="<password>"
-```
+[PRE8]
 
 1.  在第一个之后添加另一个安全变量：
 
-```py
-env:
-  global:
-    - DOCKER_COMPOSE_VERSION=1.23.2
-    - secure: ".... encrypted data ...."
-    - secure: ".... encrypted data ...."
-```
+[PRE9]
 
 此操作创建了两个环境变量，在构建期间可用。不用担心——它们不会显示在日志中：
 
-```py
-Setting environment variables from .travis.yml
-$ export DOCKER_COMPOSE_VERSION=1.23.2
-$ export DOCKER_PASSWORD=[secure]
-$ export DOCKER_USERNAME=[secure]
-```
+[PRE10]
 
 现在，我们可以在`before_install`部分添加适当的登录命令，以便 Docker 服务可以连接并推送图像：
 
-```py
-before_install:
-  ...
-  - echo "Login into Docker Hub"
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-```
+[PRE11]
 
 下一阶段是构建和标记结果图像。
 
@@ -415,30 +346,11 @@ before_install:
 
 以下代码将添加一个新的阶段，用于构建、标记和最终将结果推送到 Docker 注册表：
 
-```py
-jobs:
-  include:
-    ...
-    - stage: push
-      script:
-      - cd Chapter04
-      - docker-compose build server
-      - docker tag thoughts_server:latest <registry>/thoughts-backend:$TRAVIS_BRANCH
-```
+[PRE12]
 
 这第一部分构建了服务器的最终镜像，并使用分支的名称进行标记。为了部署它，我们将添加一个`deploy`部分：
 
-```py
-- stage: push
-  script:
-  ...
-  - docker tag thoughts_server:latest <registry>/thoughts-backend:$TRAVIS_BRANCH
-  deploy:
-  - provider: script
-    script: docker push <registry>/thoughts-backend:$TRAVIS_BRANCH
-    on:
-      branch: master 
-```
+[PRE13]
 
 当分支是`master`时，`deploy`部分将执行一个`script`命令。现在，我们的构建还将生成一个最终镜像并推送它。这将确保我们的注册表中有主分支的最新版本。
 
@@ -448,17 +360,7 @@ jobs:
 
 我们可以在`deploy`部分添加标签：
 
-```py
-      deploy:
-      - provider: script
-        script: docker push <registry>/thoughts-backend:$TRAVIS_BRANCH
-        on:
-          branch: master 
-      - provider: script
-        script: docker push <registry>/thoughts-backend:$TRAVIS_TAG
-        on:
-          tags: True
-```
+[PRE14]
 
 请注意，这里我们推送的是主分支或有定义标签的情况，因为这两种情况都不会匹配。
 
@@ -470,24 +372,11 @@ jobs:
 
 为此，我们需要在`before_install`部分创建一个包含 Git SHA 的环境变量：
 
-```py
-before_install:
-  ...
-  - export GIT_SHA=`git rev-parse --short HEAD`
-  - echo "Building commit $GIT_SHA"
-```
+[PRE15]
 
 然后，`push`部分添加了图像的标记和推送：
 
-```py
-- stage: push
-  script:
-  - cd Chapter04
-  - docker-compose build server
-  - docker tag thoughts_server:latest <registry>/thoughts-backend:$GIT_SHA
-  - docker push <registry>/thoughts-backend:$GIT_SHA
-  - docker tag thoughts_server:latest <registry>/thoughts-backend:$TRAVIS_BRANCH
-```
+[PRE16]
 
 由于此操作发生在`deploy`部分之前，因此它将在达到此部分的每次构建中产生。
 

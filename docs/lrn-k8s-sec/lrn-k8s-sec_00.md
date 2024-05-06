@@ -88,30 +88,15 @@
 
 代码块设置如下：
 
-```
-{
-  "filename": "/tmp/minerd2",
-  "gid": 0,
-  "linkdest": null,
-}
-```
+[PRE0]
 
 当我们希望引起您对代码块的特定部分的注意时，相关行或项目将以粗体显示：
 
-```
-{
-  "scans": {
-    "Fortinet": {
-      "detected": true,
-    }
-  }
-```
+[PRE1]
 
 任何命令行输入或输出都以以下方式编写：
 
-```
-$ kubectl get pods -n insecure-nginx
-```
+[PRE2]
 
 **粗体**：表示新术语、重要词汇或屏幕上看到的词语。例如，菜单或对话框中的词语在文本中显示为这样。例如："屏幕截图显示了由 Prometheus 和 Grafana 监控的**insecure-nginx** pod 的 CPU 使用情况。"
 

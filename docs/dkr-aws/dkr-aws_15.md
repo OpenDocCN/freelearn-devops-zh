@@ -94,71 +94,7 @@
 
 让我们在`todobackend-aws`存储库中创建一个名为`eb`的文件夹，并定义一个名为`Dockerrun.aws.json`的新文件，如下所示：
 
-```
-{
-  "AWSEBDockerrunVersion": 2,
-  "volumes": [
-    {
-      "name": "public",
-      "host": {"sourcePath": "/tmp/public"}
-    }
-  ],
-  "containerDefinitions": [
-    {
-      "name": "todobackend",
-      "image": "385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend",
-      "essential": true,
-      "memoryReservation": 395,
-      "mountPoints": [
-        {
-          "sourceVolume": "public",
-          "containerPath": "/public"
-        }
-      ],
-      "environment": [
-        {"name":"DJANGO_SETTINGS_MODULE","value":"todobackend.settings_release"}
-      ],
-      "command": [
-        "uwsgi",
-        "--http=0.0.0.0:8000",
-        "--module=todobackend.wsgi",
-        "--master",
-        "--die-on-term",
-        "--processes=4",
-        "--threads=2",
-        "--check-static=/public"
-      ],
-      "portMappings": [
-        {
-          "hostPort": 80,
-          "containerPort": 8000
-        }
-      ]
-    },
-    {
-      "name": "collectstatic",
-      "image": "385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend",
-      "essential": false,
-      "memoryReservation": 5,
-      "mountPoints": [
-        {
-          "sourceVolume": "public",
-          "containerPath": "/public"
-        }
-      ],
-      "environment": [
-        {"name":"DJANGO_SETTINGS_MODULE","value":"todobackend.settings_release"}
-      ],
-      "command": [
-        "python3",
-        "manage.py",
-        "collectstatic",
-        "--no-input"
-      ]
-    }
-  ]
-}
-```
+[PRE0]
 
 在定义多容器 Docker 应用程序时，您必须指定并使用规范格式的第 2 版本，该版本通过`AWSEBDockerrunVersion`属性进行配置。如果您回顾一下章节*使用 ECS 部署应用程序*中的*使用 CloudFormation 定义 ECS 任务定义*，您会发现`Dockerrun.aws.json`文件的第 2 版本规范非常相似，尽管格式是 JSON，而不是我们在 CloudFormation 模板中使用的 YAML 格式。我们使用驼峰命名来定义每个参数。
 
@@ -176,10 +112,7 @@
 
 现在我们已经定义了一个`Dockerrun.aws.json`文件，我们需要创建一个 ZIP 存档，其中包括这个文件。Elastic Beanstalk 要求您的应用程序源代码以 ZIP 或 WAR 存档格式上传，因此有这个要求。您可以通过使用`zip`实用程序从命令行执行此操作：
 
-```
-todobackend-aws/eb> zip -9 -r app.zip . -x .DS_Store
-adding: Dockerrun.aws.json (deflated 69%)
-```
+[PRE1]
 
 这将在`todobackend-aws/eb`文件夹中创建一个名为`app.zip`的存档，使用`-r`标志指定 zip 应该递归添加所有可能存在的文件夹中的所有文件（这将在本章后面的情况下发生）。在指定`app.zip`的存档名称后，我们通过指定`.`而不是`*`来引用当前工作目录，因为使用`.`语法将包括任何隐藏的目录或文件（同样，这将在本章后面的情况下发生）。
 
@@ -277,111 +210,29 @@ adding: Dockerrun.aws.json (deflated 69%)
 
 为了解决这个问题，我们可以通过首先将用户从`Users`组中删除来临时删除 MFA 要求：
 
-```
-> aws iam remove-user-from-group --user-name justin.menga --group-name Users
-```
+[PRE2]
 
 接下来，在本地的`~/.aws/config`文件中的`docker-in-aws`配置文件中注释掉`mfa_serial`行：
 
-```
-[profile docker-in-aws]
-source_profile = docker-in-aws
-role_arn = arn:aws:iam::385605022855:role/admin
-role_session_name=justin.menga
-region = us-east-1
-# mfa_serial = arn:aws:iam::385605022855:mfa/justin.menga
-```
+[PRE3]
 
 请注意，这并不理想，在实际情况下，您可能无法或不想临时禁用特定用户的 MFA。在考虑 Elastic Beanstalk 时，请记住这一点，因为您通常会依赖 Elastic Beanstalk CLI 执行许多操作。
 
 现在 MFA 已被临时禁用，您可以安装 Elastic Beanstalk CLI，您可以使用 Python 的`pip`软件包管理器来安装它。安装完成后，可以通过`eb`命令访问它：
 
-```
-> pip3 install awsebcli --user
-Collecting awsebcli
-...
-...
-Installing collected packages: awsebcli
-Successfully installed awsebcli-3.14.2
-> eb --version
-EB CLI 3.14.2 (Python 3.6.5)
-```
+[PRE4]
 
 下一步是在您之前创建的`todobackend/eb`文件夹中初始化 CLI：
 
-```
-todobackend/eb> eb init --profile docker-in-aws
-
-Select a default region
-1) us-east-1 : US East (N. Virginia)
-2) us-west-1 : US West (N. California)
-3) us-west-2 : US West (Oregon)
-4) eu-west-1 : EU (Ireland)
-5) eu-central-1 : EU (Frankfurt)
-6) ap-south-1 : Asia Pacific (Mumbai)
-7) ap-southeast-1 : Asia Pacific (Singapore)
-8) ap-southeast-2 : Asia Pacific (Sydney)
-9) ap-northeast-1 : Asia Pacific (Tokyo)
-10) ap-northeast-2 : Asia Pacific (Seoul)
-11) sa-east-1 : South America (Sao Paulo)
-12) cn-north-1 : China (Beijing)
-13) cn-northwest-1 : China (Ningxia)
-14) us-east-2 : US East (Ohio)
-15) ca-central-1 : Canada (Central)
-16) eu-west-2 : EU (London)
-17) eu-west-3 : EU (Paris)
-(default is 3): 1
-
-Select an application to use
-1) todobackend
-2) [ Create new Application ]
-(default is 2): 1
-Cannot setup CodeCommit because there is no Source Control setup, continuing with initialization
-```
+[PRE5]
 
 `eb init`命令使用`--profile`标志来指定本地 AWS 配置文件，然后提示您将要交互的区域。然后 CLI 会检查是否存在任何现有的 Elastic Beanstalk 应用程序，并询问您是否要管理现有应用程序或创建新应用程序。一旦您做出选择，CLI 将在名为`.elasticbeanstalk`的文件夹下将项目信息添加到当前文件夹中，并创建或追加到`.gitignore`文件。鉴于我们的`eb`文件夹是**todobackend**存储库的子目录，将`.gitignore`文件的内容追加到**todobackend**存储库的根目录是一个好主意：
 
-```
-todobackend-aws/eb> cat .gitignore >> ../.gitignore todobackend-aws/eb> rm .gitignore 
-```
+[PRE6]
 
 您现在可以使用 CLI 查看应用程序的当前状态，列出应用程序环境，并执行许多其他管理任务：
 
-```
-> eb status
-Environment details for: Todobackend-env
-  Application name: todobackend
-  Region: us-east-1
-  Deployed Version: todobackend-source
-  Environment ID: e-amv5i5upx4
-  Platform: arn:aws:elasticbeanstalk:us-east-1::platform/multicontainer Docker running on 64bit Amazon Linux/2.11.0
-  Tier: WebServer-Standard-1.0
-  CNAME: Todobackend-env.p6z6jvd24y.us-east-1.elasticbeanstalk.com
-  Updated: 2018-07-14 23:23:28.931000+00:00
-  Status: Ready
-  Health: Red
-> eb list
-* Todobackend-env
-> eb open
-> eb logs 
-Retrieving logs...
-============= i-0f636f261736facea ==============
--------------------------------------
-/var/log/ecs/ecs-init.log
--------------------------------------
-2018-07-14T22:41:24Z [INFO] pre-start
-2018-07-14T22:41:25Z [INFO] start
-2018-07-14T22:41:25Z [INFO] No existing agent container to remove.
-2018-07-14T22:41:25Z [INFO] Starting Amazon Elastic Container Service Agent
-
--------------------------------------
-/var/log/eb-ecs-mgr.log
--------------------------------------
-2018-07-14T23:20:37Z "cpu": "0",
-2018-07-14T23:20:37Z "containers": [
-...
-...
-```
+[PRE7]
 
 请注意，`eb status`命令会列出应用程序的 URL 在`CNAME`属性中，请记下这个 URL，因为您需要在本章中测试您的应用程序。您还可以使用`eb open`命令访问您的应用程序，这将在您的默认浏览器中打开应用程序的 URL。
 
@@ -391,23 +242,7 @@ Retrieving logs...
 
 CLI 包括建立与 Elastic Beanstalk EC2 实例的 SSH 连接的功能，您可以通过运行`eb ssh --setup`命令来设置它：
 
-```
-> eb ssh --setup
-WARNING: You are about to setup SSH for environment "Todobackend-env". If you continue, your existing instances will have to be **terminated** and new instances will be created. The environment will be temporarily unavailable.
-To confirm, type the environment name: Todobackend-env
-
-Select a keypair.
-1) admin
-2) [ Create new KeyPair ]
-(default is 1): 1
-Printing Status:
-Printing Status:
-INFO: Environment update is starting.
-INFO: Updating environment Todobackend-env's configuration settings.
-INFO: Created Auto Scaling launch configuration named: awseb-e-amv5i5upx4-stack-AWSEBAutoScalingLaunchConfiguration-8QN6BJJX43H
-INFO: Deleted Auto Scaling launch configuration named: awseb-e-amv5i5upx4-stack-AWSEBAutoScalingLaunchConfiguration-JR6N80L37H2G
-INFO: Successfully deployed new configuration to environment.
-```
+[PRE8]
 
 请注意，设置 SSH 访问需要您终止现有实例并创建新实例，因为您只能在创建 EC2 实例时将 SSH 密钥对与实例关联。在选择您在本书中早期创建的现有 `admin` 密钥对后，CLI 终止现有实例，创建一个新的自动缩放启动配置以启用 SSH 访问，然后启动新实例。
 
@@ -415,36 +250,13 @@ INFO: Successfully deployed new configuration to environment.
 
 现在，您可以按照以下步骤 SSH 进入您的弹性 Beanstalk EC2 实例：
 
-```
-> eb ssh -e "ssh -i ~/.ssh/admin.pem"
-INFO: Attempting to open port 22.
-INFO: SSH port 22 open.
-INFO: Running ssh -i ~/.ssh/admin.pem ec2-user@34.239.245.78
-The authenticity of host '34.239.245.78 (34.239.245.78)' can't be established.
-ECDSA key fingerprint is SHA256:93m8hag/EtCPb5i7YrYHUXFPloaN0yUHMVFFnbMlcLE.
-Are you sure you want to continue connecting (yes/no)? yes
-Warning: Permanently added '34.239.245.78' (ECDSA) to the list of known hosts.
- _____ _ _ _ ____ _ _ _
-| ____| | __ _ ___| |_(_) ___| __ ) ___ __ _ _ __ ___| |_ __ _| | | __
-| _| | |/ _` / __| __| |/ __| _ \ / _ \/ _` | '_ \/ __| __/ _` | | |/ /
-| |___| | (_| \__ \ |_| | (__| |_) | __/ (_| | | | \__ \ || (_| | | <
-|_____|_|\__,_|___/\__|_|\___|____/ \___|\__,_|_| |_|___/\__\__,_|_|_|\_\
- Amazon Linux AMI
-
-This EC2 instance is managed by AWS Elastic Beanstalk. Changes made via SSH
-WILL BE LOST if the instance is replaced by auto-scaling. For more information
-on customizing your Elastic Beanstalk environment, see our documentation here:
-http://docs.aws.amazon.com/elasticbeanstalk/latest/dg/customize-containers-ec2.html
-```
+[PRE9]
 
 默认情况下，`eb ssh` 命令将尝试使用名为 `~/.ssh/<ec2-keypair-name>.pem` 的 SSH 私钥，本例中为 `~/.ssh/admin.pem`。如果您的 SSH 私钥位于不同位置，您可以使用 `-e` 标志来覆盖使用的文件，就像上面的示例中演示的那样。
 
 现在，您可以查看一下您的弹性 Beanstalk EC2 实例。鉴于我们正在运行一个 Docker 应用程序，您可能首先倾向于运行 `docker ps` 命令以查看当前正在运行的容器：
 
-```
-[ec2-user@ip-172-31-20-192 ~]$ docker ps
-Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get http://%2Fvar%2Frun%2Fdocker.sock/v1.37/containers/json: dial unix /var/run/docker.sock: connect: permission denied
-```
+[PRE10]
 
 令人惊讶的是，标准的 `ec2-user` 没有访问 Docker 的权限 - 为了解决这个问题，我们需要添加更高级的配置，称为 **ebextensions**。
 
@@ -454,47 +266,23 @@ Got permission denied while trying to connect to the Docker daemon socket at uni
 
 要配置 `ebextensions`，首先需要在存储 `Dockerrun.aws.json` 文件的 `eb` 文件夹中创建一个名为 `.ebextensions` 的文件夹（请注意，您需要断开 SSH 会话，转到您的弹性 Beanstalk EC2 实例，并在本地环境中执行此操作）：
 
-```
-todobackend/eb> mkdir .ebextensions todobackend/eb> touch .ebextensions/init.config
-```
+[PRE11]
 
 `.ebextensions` 文件夹中具有 `.config` 扩展名的每个文件都将被视为 ebextension，并在应用程序部署期间由弹性 Beanstalk 处理。在上面的示例中，我们创建了一个名为 `init.config` 的文件，现在我们可以配置它以允许 `ec2-user` 访问 Docker 引擎：
 
-```
-commands:
-  01_add_ec2_user_to_docker_group:
-    command: usermod -aG docker ec2-user
-    ignoreErrors: true
-```
+[PRE12]
 
 我们在`commands`键中添加了一个名为`01_add_ec2_user_to_docker_group`的命令指令，这是一个顶级属性，定义了在设置和部署最新版本应用程序到实例之前应该运行的命令。该命令运行`usermod`命令，以确保`ec2-user`是`docker`组的成员，这将授予`ec2-user`访问 Docker 引擎的权限。请注意，您可以使用`ignoreErrors`属性来确保忽略任何命令失败。
 
 有了这个配置，我们可以通过在`eb`文件夹中运行`eb deploy`命令来部署我们应用程序的新版本，这将自动创建我们现有的`Dockerrun.aws.json`和新的`.ebextensions/init.config`文件的 ZIP 存档。
 
-```
-todobackend-aws/eb> rm app.zip
-todobackend-aws/eb> eb deploy
-Uploading todobackend/app-180715_195517.zip to S3\. This may take a while.
-Upload Complete.
-INFO: Environment update is starting.
-INFO: Deploying new version to instance(s).
-INFO: Stopping ECS task arn:aws:ecs:us-east-1:385605022855:task/dd2a2379-1b2c-4398-9f44-b7c25d338c67.
-INFO: ECS task: arn:aws:ecs:us-east-1:385605022855:task/dd2a2379-1b2c-4398-9f44-b7c25d338c67 is STOPPED.
-INFO: Starting new ECS task with awseb-Todobackend-env-amv5i5upx4:3.
-INFO: ECS task: arn:aws:ecs:us-east-1:385605022855:task/d9fa5a87-1329-401a-ba26-eb18957f5070 is RUNNING.
-INFO: New application version was deployed to running EC2 instances.
-INFO: Environment update completed successfully.
-```
+[PRE13]
 
 我们首先删除您第一次创建 Elastic Beanstalk 应用程序时创建的初始`app.zip`存档，因为`eb deploy`命令会自动处理这个问题。您可以看到一旦新配置上传，部署过程涉及停止和启动运行我们应用程序的 ECS 任务。
 
 部署完成后，如果您建立一个新的 SSH 会话到 Elastic Beanstalk EC2 实例，您应该能够运行`docker`命令：
 
-```
-[ec2-user@ip-172-31-20-192 ~]$ docker ps --format "{{.ID}}: {{.Image}}"
-63183a7d3e67: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
-45bf3329a686: amazon/amazon-ecs-agent:latest
-```
+[PRE14]
 
 您可以看到实例当前正在运行 todobackend 容器，并且还运行 ECS 代理。这表明 Elastic Beanstalk 中的 Docker 支持在后台使用 ECS 来管理和部署基于容器的应用程序。
 
@@ -504,16 +292,7 @@ INFO: Environment update completed successfully.
 
 正如我们已经看到的，`ebextensions`功能可以在 Elastic Beanstalk EC2 实例上运行命令，我们将再次利用这个功能来确保公共卷被配置为允许我们容器中的`app`用户读写`.ebextensions/init.config`文件：
 
-```
-commands:
-  01_add_ec2_user_to_docker_group:
-    command: usermod -aG docker ec2-user
-    ignoreErrors: true
- 02_docker_volumes:
- command: |
- mkdir -p /tmp/public
- chown -R 1000:1000 /tmp/public
-```
+[PRE15]
 
 我们添加了一个名为`02_docker_volumes`的新命令指令，它将在`01_add_ec2_user_to_docker_group`命令之后执行。请注意，您可以使用 YAML 管道运算符（`|`）来指定多行命令字符串，从而允许您指定要运行的多个命令。我们首先创建`/tmp/public`文件夹，该文件夹是`Dockerrun.aws.json`文件中公共卷主机`sourcePath`属性所指的位置，然后确保用户 ID/组 ID 值为`1000:1000`拥有此文件夹。因为应用程序用户的用户 ID 为 1000，组 ID 为 1000，这将使任何以该用户身份运行的进程能够写入和读取公共卷。
 
@@ -537,84 +316,19 @@ todobackend 应用程序的问题在于它期望以 MYSQL 为前缀的与数据�
 
 另一种选择，尽管更复杂的方法是将环境变量映射写入 Elastic Beanstalk 实例上的文件，将其配置为 todobackend 应用程序容器可以访问的卷，然后修改我们的 Docker 镜像以在容器启动时注入这些映射。这要求我们修改位于`todobackend`存储库根目录中的`entrypoint.sh`文件中的 todobackend 应用程序的入口脚本：
 
-```
-#!/bin/bash
-set -e -o pipefail
-
-# Inject AWS Secrets Manager Secrets
-# Read space delimited list of secret names from SECRETS environment variable
-echo "Processing secrets [${SECRETS}]..."
-read -r -a secrets <<< "$SECRETS"
-for secret in "${secrets[@]}"
-do
-  vars=$(aws secretsmanager get-secret-value --secret-id $secret \
-    --query SecretString --output text \
-    | jq -r 'to_entries[] | "export \(.key)='\''\(.value)'\''"')
-  eval $vars
-done
-
-# Inject runtime environment variables
-if [ -f /init/environment ]
-then
- echo "Processing environment variables from /init/environment..."
- export $(cat /init/environment | xargs)
-fi
-
-# Run application
-exec "$@"
-```
+[PRE16]
 
 在上面的例子中，我们添加了一个新的测试表达式，用于检查是否存在一个名为`/init/environment`的文件，使用语法`[ -f /init/environment ]`。如果找到了这个文件，我们假设该文件包含一个或多个环境变量设置，格式为`<环境变量>=<值>` - 例如：
 
-```
-MYSQL_HOST=abc.xyz.com
-MYSQL_USERNAME=todobackend
-...
-...
-```
+[PRE17]
 
 有了前面的格式，我们接着使用`export $(cat /init/environment | xargs)`命令，该命令会扩展为`export MYSQL_HOST=abc.xyz.com MYSQL_USERNAME=todobackend ... ...`，使用前面的例子，确保在`/init/environment`文件中定义的每个环境变量都被导出到环境中。
 
 如果您现在提交您对`todobackend`存储库的更改，并运行`make login`，`make test`，`make release`和`make publish`命令，最新的`todobackend` Docker 镜像现在将包括更新后的入口脚本。现在，我们需要修改`todobackend-aws/eb`文件夹中的`Dockerrun.aws.json`文件，以定义一个名为`init`的新卷和挂载：
 
-```
-{
-  "AWSEBDockerrunVersion": 2,
-  "volumes": [
-    {
-      "name": "public",
-      "host": {"sourcePath": "/tmp/public"}
-    },
- {
- "name": "init",
- "host": {"sourcePath": "/tmp/init"}
- }
-  ],
-  "containerDefinitions": [
-    {
-      "name": "todobackend",
-      "image": "385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend",
-      "essential": true,
-      "memoryReservation": 395,
-      "mountPoints": [
-        {
-          "sourceVolume": "public",
-          "containerPath": "/public"
-        },
-{
- "sourceVolume": "init",
- "containerPath": "/init"
- }
-      ],
-      "environment": [
-```
+[PRE18]
 
-```
-{"name":"DJANGO_SETTINGS_MODULE","value":"todobackend.settings_release"}
-      ],
-   ...
-   ...
-```
+[PRE19]
 
 有了这个卷映射到弹性 Beanstalk EC2 实例上的`/tmp/init`和`todobackend`容器中的`/init`，现在我们所需要做的就是将环境变量设置写入到 EC2 实例上的`/tmp/init/environment`，这将显示为`todobackend`容器中的`/init/environment`，并使用我们对入口脚本所做的修改来触发文件的处理。这里的想法是，我们将弹性 Beanstalk RDS 实例设置写入到 todobackend 应用程序所期望的适当环境变量设置中。
 
@@ -622,43 +336,11 @@ MYSQL_USERNAME=todobackend
 
 如果您 SSH 到一个实例，您可以使用`jq`实用程序（它已经预先安装在弹性 Beanstalk 实例上）来提取您的弹性 Beanstalk 应用程序的 RDS 实例设置：
 
-```
-> sudo jq '.plugins.rds.env' -r \ 
- /opt/elasticbeanstalk/deploy/configuration/containerconfiguration
-{
-  "RDS_PORT": "3306",
-  "RDS_HOSTNAME": "aa2axvguqnh17c.cz8cu8hmqtu1.us-east-1.rds.amazonaws.com",
-  "RDS_USERNAME": "todobackend",
-  "RDS_DB_NAME": "ebdb",
-  "RDS_PASSWORD": "some-super-secret"
-}
-```
+[PRE20]
 
 有了这个提取 RDS 设置的机制，我们现在可以修改`.ebextensions/init.config`文件，将这些设置中的每一个写入到`/tmp/init/environment`文件中，该文件将通过`init`卷暴露给`todobackend`容器，位于`/init/environment`：
 
-```
-commands:
-  01_add_ec2_user_to_docker_group:
-    command: usermod -aG docker ec2-user
-    ignoreErrors: true
-  02_docker_volumes:
-    command: |
-      mkdir -p /tmp/public
- mkdir -p /tmp/init
-      chown -R 1000:1000 /tmp/public
- chown -R 1000:1000 /tmp/init
-
-container_commands:
- 01_rds_settings:
- command: |
- config=/opt/elasticbeanstalk/deploy/configuration/containerconfiguration
- environment=/tmp/init/environment
- echo "MYSQL_HOST=$(jq '.plugins.rds.env.RDS_HOSTNAME' -r $config)" >> $environment
- echo "MYSQL_USER=$(jq '.plugins.rds.env.RDS_USERNAME' -r $config)" >> $environment
- echo "MYSQL_PASSWORD=$(jq '.plugins.rds.env.RDS_PASSWORD' -r $config)" >> $environment
- echo "MYSQL_DATABASE=$(jq '.plugins.rds.env.RDS_DB_NAME' -r $config)" >> $environment
- chown -R 1000:1000 $environment
-```
+[PRE21]
 
 我们首先修改`02_docker_volumes`指令，创建 init 卷映射到的`/tmp/init`路径，并确保在 todobackend 应用程序中运行的 app 用户对此文件夹具有读/写访问权限。接下来，我们添加`container_commands`键，该键指定应在应用程序配置应用后但在应用程序启动之前执行的命令。请注意，这与`commands`键不同，后者在应用程序配置应用之前执行命令。
 
@@ -678,121 +360,27 @@ container_commands:
 
 在上一节中介绍的`container_commands`键中包含一个有用的属性叫做`leader_only`，它配置 Elastic Beanstalk 只在领导者实例上运行指定的命令。这是第一个可用于部署的实例。因此，我们可以在`todobackend-aws/eb`文件夹中的`.ebextensions/init.config`文件中添加一个新的指令，每次应用程序部署时只运行一次迁移：
 
-```
-commands:
-  01_add_ec2_user_to_docker_group:
-    command: usermod -aG docker ec2-user
-    ignoreErrors: true
-  02_docker_volumes:
-    command: |
-      mkdir -p /tmp/public
-      mkdir -p /tmp/init
-      chown -R 1000:1000 /tmp/public
-      chown -R 1000:1000 /tmp/init
-
-container_commands:
-  01_rds_settings:
-    command: |
-      config=/opt/elasticbeanstalk/deploy/configuration/containerconfiguration
-      environment=/tmp/init/environment
-      echo "MYSQL_HOST=$(jq '.plugins.rds.env.RDS_HOSTNAME' -r $config)" >> $environment
-      echo "MYSQL_USER=$(jq '.plugins.rds.env.RDS_USERNAME' -r $config)" >> $environment
-      echo "MYSQL_PASSWORD=$(jq '.plugins.rds.env.RDS_PASSWORD' -r $config)" >> $environment
-      echo "MYSQL_DATABASE=$(jq '.plugins.rds.env.RDS_DB_NAME' -r $config)" >> $environment
-      chown -R 1000:1000 $environment
-  02_migrate:
- command: |
- echo "python3 manage.py migrate --no-input" >> /tmp/init/commands
- chown -R 1000:1000 /tmp/init/commands
- leader_only: true
-```
+[PRE22]
 
 在这里，我们将`python3 manage.py migrate --no-input`命令写入`/tmp/init/commands`文件，该文件将暴露给应用程序容器，位置在`/init/commands`。当然，这要求我们现在修改`todobackend`存储库中的入口脚本，以查找这样一个文件并执行其中包含的命令，如下所示：
 
-```
-#!/bin/bash
-set -e -o pipefail
-
-# Inject AWS Secrets Manager Secrets
-# Read space delimited list of secret names from SECRETS environment variable
-echo "Processing secrets [${SECRETS}]..."
-read -r -a secrets <<< "$SECRETS"
-for secret in "${secrets[@]}"
-do
-  vars=$(aws secretsmanager get-secret-value --secret-id $secret \
-    --query SecretString --output text \
-    | jq -r 'to_entries[] | "export \(.key)='\''\(.value)'\''"')
-  eval $vars
-done
-
-# Inject runtime environment variables
-if [ -f /init/environment ]
-then
-  echo "Processing environment variables from /init/environment..."
-  export $(cat /init/environment | xargs)
-fi # Inject runtime init commands
-if [ -f /init/commands ]
-then
-  echo "Processing commands from /init/commands..."
-  source /init/commands
-fi
-
-# Run application
-exec "$@"
-```
+[PRE23]
 
 在这里，我们添加了一个新的测试表达式，检查`/init/commands`文件是否存在，如果存在，我们使用`source`命令来执行文件中包含的每个命令。因为这个文件只会在领导者弹性 Beanstalk 实例上写入，入口脚本将在每次部署时只调用这些命令一次。
 
 在这一点上，您需要通过运行`make login`，`make test`，`make release`和`make publish`命令来重新构建 todobackend Docker 镜像，之后您可以通过从`todobackend-aws/eb`目录运行`eb deploy`命令来部署 Elastic Beanstalk 更改。一旦这个成功完成，如果您 SSH 到您的 Elastic Beanstalk 实例并审查当前活动的 todobackend 应用程序容器的日志，您应该会看到数据库迁移是在容器启动时执行的：
 
-```
-> docker ps --format "{{.ID}}: {{.Image}}"
-45b8cdac0c92: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
-45bf3329a686: amazon/amazon-ecs-agent:latest
-> docker logs 45b8cdac0c92
-Processing secrets []...
-Processing environment variables from /init/environment...
-Processing commands from /init/commands...
-Operations to perform:
-  Apply all migrations: admin, auth, contenttypes, sessions, todo
-Running migrations:
-  Applying contenttypes.0001_initial... OK
-  Applying auth.0001_initial... OK
-  Applying admin.0001_initial... OK
-  Applying admin.0002_logentry_remove_auto_add... OK
-  Applying contenttypes.0002_remove_content_type_name... OK
-  Applying auth.0002_alter_permission_name_max_length... OK
-  Applying auth.0003_alter_user_email_max_length... OK
-  Applying auth.0004_alter_user_username_opts... OK
-  Applying auth.0005_alter_user_last_login_null... OK
-  Applying auth.0006_require_contenttypes_0002... OK
-  Applying auth.0007_alter_validators_add_error_messages... OK
-  Applying auth.0008_alter_user_username_max_length... OK
-  Applying auth.0009_alter_user_last_name_max_length... OK
-  Applying sessions.0001_initial... OK
-  Applying todo.0001_initial... OK
-[uwsgi-static] added check for /public
-*** Starting uWSGI 2.0.17 (64bit) on [Sun Jul 15 11:18:06 2018] ***
-```
+[PRE24]
 
 如果您现在浏览应用程序 URL，您应该会发现应用程序是完全可用的，并且您已成功将 Docker 应用程序部署到 Elastic Beanstalk。
 
 在结束本章之前，您应该通过将您的用户帐户重新添加到`Users`组来恢复您在本章前面暂时禁用的 MFA 配置：
 
-```
-> aws iam add-user-to-group --user-name justin.menga --group-name Users
-```
+[PRE25]
 
 然后在本地的`~/.aws/config`文件中重新启用`docker-in-aws`配置文件中的`mfa_serial`行：
 
-```
-[profile docker-in-aws]
-source_profile = docker-in-aws
-role_arn = arn:aws:iam::385605022855:role/admin
-role_session_name=justin.menga
-region = us-east-1
-mfa_serial = arn:aws:iam::385605022855:mfa/justin.menga 
-```
+[PRE26]
 
 您还可以通过浏览主 Elastic Beanstalk 仪表板并单击**操作|删除**按钮旁边的**todobackend**应用程序来删除 Elastic Beanstalk 环境。这将删除 Elastic Beanstalk 环境创建的 CloudFormation 堆栈，其中包括应用程序负载均衡器、RDS 数据库实例和 EC2 实例。
 

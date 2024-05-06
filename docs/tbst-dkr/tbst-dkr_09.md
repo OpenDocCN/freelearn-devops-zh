@@ -36,15 +36,7 @@ Docker 卷的一些重要特性如下：
 
 在这种情况下，数据只能在 Docker 容器内部可见，而不是来自主机系统。如果容器关闭或 Docker 主机死机，数据将丢失。这种情况主要适用于打包在 Docker 容器中的服务，并且在它们返回时不依赖于持久数据：
 
-```
-**$ docker run -it ubuntu:14.04 
-root@358b511effb0:/# cd /tmp/ 
-root@358b511effb0:/tmp# cat > hello.txt 
-hii 
-root@358b511effb0:/tmp# ls 
-hello.txt** 
-
-```
+[PRE0]
 
 如前面的例子所示，`hello.txt`文件只存在于容器内部，一旦容器关闭，它将不会被保存。
 
@@ -62,40 +54,19 @@ hello.txt**
 
 ## 创建数据专用容器
 
-```
-**$ docker create -v /tmp --name ubuntuvolume Ubuntu:14.04**
-
-```
+[PRE1]
 
 在前面的命令中，我们创建了一个 Ubuntu 容器并附加了`/tmp`。它是基于 Ubuntu 镜像的数据专用容器，并存在于`/tmp`目录中。如果新的 Ubuntu 容器需要向我们的数据专用容器的`/tmp`目录写入一些数据，可以通过`--volumes-from`选项实现。现在，我们在新容器的`/tmp`目录中写入的任何内容都将保存在 Ubuntu 数据容器的`/tmp`卷中：
 
-```
-**$ docker create -v /tmp --name ubuntuvolume ubuntu:14.04 
-d694752455f7351e95d1563ed921257654a1867c467a2813ae25e7d99c067234**
-
-```
+[PRE2]
 
 在容器-1 中使用数据卷容器：
 
-```
-**$ docker run -t -i --volumes-from ubuntuvolume ubuntu:14.04 /bin/bash 
-root@127eba0504cd:/# echo "testing data container" > /tmp/hello 
-root@127eba0504cd:/# exit 
-exit** 
-
-```
+[PRE3]
 
 在容器-2 中使用数据卷容器来获取容器-1 共享的数据：
 
-```
-**$ docker run -t -i --volumes-from ubuntuvolume ubuntu:14.04 /bin/bash 
-root@5dd8152155de:/# cd tmp/ 
-root@5dd8152155de:/tmp# ls 
-hello 
-root@5dd8152155de:/tmp# cat hello 
-testing data container** 
-
-```
+[PRE4]
 
 正如我们所看到的，容器-2 获得了容器-1 在`/tmp`空间中写入的数据。这些示例演示了数据专用容器的基本用法。
 
@@ -111,32 +82,15 @@ testing data container**
 
 在主机系统中创建一个`serverlogs`目录：
 
-```
-**$ mkdir /home/serverlogs**
-
-```
+[PRE5]
 
 运行 NGINX 容器，并将`/home/serverlogs`映射到 Docker 容器内的`/var/log/nginx`目录：
 
-```
-**$ docker run -d -v /home/serverlogs:/var/log/nginx -p 5000:80 nginx 
-Unable to find image 'nginx:latest' locally 
-latest: Pulling from library/nginx 
-5040bd298390: Pull complete** 
-**...**
-
-```
+[PRE6]
 
 从主机系统访问`http://localhost:5000`，之后将生成日志，并且可以在主机系统中的`/home/serverlogs`目录中访问这些日志，该目录映射到 Docker 容器内的`/var/log/nginx`，如下所示：
 
-```
-**$ cd serverlogs/ 
-$ ls 
-access.log  error.log 
-$ cat access.log  
-172.17.42.1 - - [20/Jan/2017:14:57:41 +0000] "GET / HTTP/1.1" 200 612 "-" "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0" "-"** 
-
-```
+[PRE7]
 
 # 由共享存储支持的主机映射卷
 
@@ -166,26 +120,13 @@ Flocker 可以通过以下步骤轻松部署到 AWS 上：
 
 设置以下参数：
 
-```
-**$ export FLOCKER_CERTS_PATH=/etc/flocker 
-$ export FLOCKER_USER=user1 
-$ export FLOCKER_CONTROL_SERVICE=<ControlNodeIP> # not ClientNodeIP! 
-$ export DOCKER_TLS_VERIFY=1 
-$ export DOCKER_HOST=tcp://<ControlNodeIP>:2376 
-$ flockerctl status # should list two servers (nodes) running 
-$ flockerctl ls # should display no datasets yet 
-$ docker info |grep Nodes # should output "Nodes: 2"**
-
-```
+[PRE8]
 
 如果 Flocker 的`status`和`ls`命令成功运行，这意味着 Docker Swarm 和 Flocker 已成功在 AWS 上设置。
 
 Flocker 卷可以轻松设置，并允许您创建一个将超出容器或容器主机生命周期的容器：
 
-```
-**$ docker run --volume-driver flocker -v flocker-volume:/cont-dir --name=testing-container** 
-
-```
+[PRE9]
 
 将创建并挂载外部存储块到我们的主机上，并将容器目录绑定到它。如果容器被删除或主机崩溃，数据仍然受到保护。可以使用相同的命令在第二个主机上启动备用容器，并且我们将能够访问我们的共享存储。前面的教程是为了在 AWS 上为生产用例设置 Flocker，但我们也可以通过 Docker Swarm 设置在本地测试 Flocker。让我们考虑一个使用情况，您有两个 Docker Swarm 节点和一个 Flocker 客户端节点。
 
@@ -193,75 +134,35 @@ Flocker 卷可以轻松设置，并允许您创建一个将超出容器或容器
 
 创建一个`docker-compose.yml`文件，并定义容器`redis`和`clusterhq/flask`。提供相应的配置 Docker 镜像、名称、端口和数据卷：
 
-```
-**$ nano docker-compose.yml**
-**web: 
-  image: clusterhq/flask 
-  links: 
-   - "redis:redis" 
-  ports: 
-   - "80:80" 
-redis: 
-  image: redis:latest 
-  ports: 
-   - "6379:6379" 
-  volumes: ["/data"]**
-
-```
+[PRE10]
 
 创建一个名为`flocker-deploy.yml`的文件，在其中我们将定义将部署在相同节点`node-1`上的两个容器；暂时将`node-2`留空作为 Swarm 集群的一部分：
 
-```
-**$ nano flocker-deploy.yml**
-**"version": 1 
-"nodes": 
-  "node-1": ["web", "redis"] 
-  "node-2": []**
-
-```
+[PRE11]
 
 使用前述的`.yml`文件部署容器；我们只需要运行以下命令即可：
 
-```
-**$ flocker-deploy control-service flocker-deploy.yml docker-compose.yml** 
-
-```
+[PRE12]
 
 集群配置已更新。可能需要一段时间才能生效，特别是如果需要拉取 Docker 镜像。
 
 两个容器都可以在`node-1`上运行。一旦设置完成，我们可以在`http://node-1`上访问应用程序。它将显示此网页的访问计数：
 
-```
-"Hello... I have been seen 8 times" 
-
-```
+[PRE13]
 
 重新创建部署文件以将容器移动到`node-2`：
 
-```
-**$ nano flocker-deply-alt.yml 
-"version": 1\. 
-"nodes": 
-  "node-1": ["web"] 
-  "node-2": ["redis"]** 
-
-```
+[PRE14]
 
 现在，我们将把容器从`node-1`迁移到`node-2`，我们将看到 Flocker 将自动处理卷管理。当 Redis 容器在`node-2`上启动时，它将连接到现有的卷：
 
-```
-**$ flocker-deploy control-service flocker-deploy-alt.yml docker-compose.yml**
-
-```
+[PRE15]
 
 集群配置已更新。这可能需要一段时间才能生效，特别是如果需要拉取 Docker 镜像。
 
 我们可以 SSH 进入`node-2`并列出正在运行的 Redis 容器。尝试访问`http://node2`上的应用程序；我们将能够看到计数仍然保持在`node-1`中，并且当从`node-2`访问应用程序时，计数会增加`1`：
 
-```
-"Hello... I have been seen 9 times" 
-
-```
+[PRE16]
 
 这个例子演示了我们如何在 Flocker 集群中轻松地将容器及其数据卷从一个节点迁移到另一个节点。
 
@@ -285,93 +186,37 @@ Convoy 是另一个广泛使用的 Docker 卷插件，用于提供存储后端�
 
 1.  通过本地下载插件 tar 文件并解压缩来安装 Convoy 插件：
 
-```
- **$ wget https://github.com/rancher/convoy/releases/download
-        /v0.5.0/convoy.tar.gz 
-        $ tar xvf convoy.tar.gz 
-        convoy/ 
-        convoy/convoy-pdata_tools 
-        convoy/convoy 
-        convoy/SHA1SUMS 
-        $ sudo cp convoy/convoy convoy/convoy-pdata_tools /usr/local/bin/ 
-        $ sudo mkdir -p /etc/docker/plugins/ 
-        $ sudo bash -c 'echo "unix:///var/run/convoy/convoy.sock" > 
-        /etc/docker/plugins/convoy.spec'**
-
-```
+[PRE17]
 
 1.  我们可以继续使用文件支持的环回设备，它充当伪设备，并使文件可在块设备中访问，以演示 Convoy 设备映射驱动程序：
 
-```
- **$ truncate -s 100G data.vol 
-        $ truncate -s 1G metadata.vol 
-        $ sudo losetup /dev/loop5 data.vol 
-        $ sudo losetup /dev/loop6 metadata.vol**
-
-```
+[PRE18]
 
 1.  一旦数据和元数据设备设置好，启动 Convoy 插件守护程序：
 
-```
- **sudo convoy daemon --drivers devicemapper --driver-opts 
-        dm.datadev=/dev/loop5 --driver-opts dm.metadatadev=/dev/loop6**
-
-```
+[PRE19]
 
 1.  在前面的终端中，Convoy 守护程序将开始运行；打开下一个终端实例并创建一个使用 Convoy 卷`test_volume`挂载到容器内`/sample`目录的`busybox` Docker 容器：
 
-```
- **$ sudo docker run -it -v test_volume:/sample --volume-driver=convoy 
-        busybox 
-        Unable to find image 'busybox:latest' locally 
-        latest: Pulling from library/busybox 
-        4b0bc1c4050b: Pull complete   
-        Digest: sha256:817a12c32a39bbe394944ba49de563e085f1d3c5266eb8
-        e9723256bc4448680e 
-        Status: Downloaded newer image for busybox:latest**
-
-```
+[PRE20]
 
 1.  在挂载的目录中创建一个示例文件：
 
-```
- **/ # cd sample/ 
-        / # cat > test 
-        testing 
-        /sample # exit**
-
-```
+[PRE21]
 
 1.  使用 Convoy 作为卷驱动程序启动不同的容器，并挂载相同的 Convoy 卷：
 
-```
- **$ sudo docker run -it -v test_volume:/sample --volume-driver=convoy --
-        name=new-container busybox** 
-
-```
+[PRE22]
 
 1.  当我们执行`ls`时，我们将能够看到在先前容器中创建的文件：
 
-```
- **/ # cd sample/ 
-        /sample # ls 
-        lost+found  test 
-        /sample # exit**
-
-```
+[PRE23]
 
 因此，前面的例子显示了 Convoy 如何允许在同一主机或不同主机上的容器之间共享卷。
 
 基本上，卷驱动程序应该用于持久数据，例如 WordPress MySQL DB：
 
-```
-**$ docker run --name wordpressdb --volume-driver=convoy -v test_volume:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=password -e MYSQL_DATABASE=wordpress -d mysql:5.7 
-1e7908c60ceb3b286c8fe6a183765c1b81d8132ddda24a6ba8f182f55afa2167 
-
-$ docker run -e WORDPRESS_DB_PASSWORD=password -d --name wordpress --link wordpressdb:mysql  wordpress 
-0ef9a9bdad448a6068f33a8d88391b6f30688ec4d3341201b1ddc9c2e641f263**
-
-```
+[PRE24]
 
 在前面的例子中，我们使用 Convoy 卷驱动程序启动了 MySQL DB，以便在主机故障时提供持久性。然后我们将 MySQL 数据库链接到 WordPress Docker 容器中。
 
@@ -443,10 +288,7 @@ BTRFS 的主要设计目标是开发一种通用文件系统，可以在任何�
 
 存储驱动程序可以通过将`--storage-driver`选项传递给`dockerd`命令行，或在`/etc/default/docker`文件中设置`DOCKER_OPTS`选项来选择：
 
-```
-**$ dockerd --storage-driver=devicemapper &**
-
-```
+[PRE25]
 
 我们已经考虑了前面三种广泛使用的文件系统与 Docker，以便使用微基准测试工具对以下 Docker 命令进行性能分析；`fio`是用于分析文件系统详细信息的工具，比如随机写入：
 

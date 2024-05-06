@@ -46,18 +46,13 @@ HTTPS 已经成为任何面向公众的网站的必需品。它不仅提高了�
 
 1.  输入以下命令开始安装：
 
-```
-helm repo add stable https://kubernetes-charts.storage.googleapis.com/ 
-helm install ingress stable/nginx-ingress
-```
+[PRE0]
 
 这将为我们的集群设置 Ingress 控制器。这还将创建一个我们将用于访问 Ingress 控制器的公共 IP。
 
 1.  让我们连接到 Ingress 控制器。要获取`ingress-controller`服务的公开 IP，请输入此命令：
 
-```
-kubectl get service 
-```
+[PRE1]
 
 您应该看到 Ingress 控制器的条目，如*图 6.1*所示：
 
@@ -83,9 +78,7 @@ kubectl get service
 
 让我们从重新启动我们的留言板应用程序开始。要启动留言板应用程序，请输入以下命令：
 
-```
-kubectl create -f guestbook-all-in-one.yaml
-```
+[PRE2]
 
 这将创建我们信任的留言板应用程序。您应该看到对象被创建，如*图 6.3*所示：
 
@@ -95,20 +88,7 @@ kubectl create -f guestbook-all-in-one.yaml
 
 然后，我们可以使用以下 YAML 文件通过 Ingress 公开前端服务。这在本章的源代码中提供为`simple-frontend-ingress.yaml`：
 
-```
-1   apiVersion: extensions/v1beta1
-2   kind: Ingress
-3   metadata:
-4     name: simple-frontend-ingress
-5   spec:
-6     rules:
-7     - http:
-8         paths:
-9         - path: /
-10          backend:
-11            serviceName: frontend
-12            servicePort: 80
-```
+[PRE3]
 
 让我们看看我们在这个 YAML 文件中定义了什么：
 
@@ -122,9 +102,7 @@ kubectl create -f guestbook-all-in-one.yaml
 
 我们可以使用以下命令创建此 Ingress：
 
-```
-kubectl apply -f simple-frontend-ingress.yaml 
-```
+[PRE4]
 
 如果您现在转到`https://<EXTERNAL-IP>/`，您应该会得到如*图 6.4*所示的输出：
 
@@ -140,9 +118,7 @@ kubectl apply -f simple-frontend-ingress.yaml
 
 您可以通过运行以下命令来验证这一点：
 
-```
-kubectl get svc
-```
+[PRE5]
 
 这应该只显示一个公共服务：
 
@@ -174,11 +150,7 @@ kubectl get svc
 
 以下命令在您的集群中安装`cert-manager`：
 
-```
-kubectl create ns cert-manager
-helm repo add jetstack https://charts.jetstack.io
-helm install cert-manager --namespace cert-manager jetstack/cert-manager
-```
+[PRE6]
 
 这些命令在您的集群中执行了一些操作：
 
@@ -198,9 +170,7 @@ helm install cert-manager --namespace cert-manager jetstack/cert-manager
 
 1.  让我们继续将 DNS 名称链接到我们的公共 IP 地址。首先，请确保从您的 Ingress 服务获取 IP 地址：
 
-```
-kubectl get service
-```
+[PRE7]
 
 记下 Ingress 服务的 IP。在 Azure 搜索栏中，现在搜索`public ip`：
 
@@ -226,22 +196,7 @@ kubectl get service
 
 在本节中，我们将安装 Let's Encrypt 的 staging 证书颁发机构。一个证书可以由多个颁发机构颁发。例如，`letsencrypt-staging`是用于测试目的。由于我们正在构建测试，我们将使用 staging 服务器。证书颁发机构的代码已经在本章的源代码中提供在`certificate-issuer.yaml`文件中。像往常一样，使用`kubectl create -f certificate-issuer.yaml`，其中包含以下内容：
 
-```
-1   apiVersion: cert-manager.io/v1alpha2
-2   kind: Issuer
-3   metadata:
-4     name: letsencrypt-staging
-5   spec:
-6     acme:
-7       server: https://acme-staging-v02.api.letsencrypt.org/directory
-8       email: <your e-mailaddress>
-9       privateKeySecretRef:
-10        name: letsencrypt-staging
-11      solvers:
-12      - http01:
-13          ingress:
-14            class: nginx
-```
+[PRE8]
 
 现在，让我们看看我们在这里定义了什么：
 
@@ -257,27 +212,7 @@ kubectl get service
 
 在本节中，我们将创建一个 TLS 证书。您可以通过两种方式配置`cert-manager`来创建证书。您可以手动创建证书并将其链接到 Ingress 控制器，或者您可以配置 Ingress 控制器，以便`cert-manager`自动创建证书。在本例中，我们将向您展示第二种方法，即通过编辑我们的 Ingress 来使其看起来像以下的 YAML 代码。此文件在 GitHub 上的源代码中存在，名称为`ingress-with-tls.yaml`：
 
-```
-1   apiVersion: extensions/v1beta1
-2   kind: Ingress
-3   metadata:
-4     name: simple-frontend-ingress
-5     annotations:
-6       cert-manager.io/issuer: "letsencrypt-staging"
-7   spec:
-8     tls:
-9     - hosts:
-10      - <your DNS prefix>.<your azure region>.cloudapp.azure.com
-11      secretName: frontend-tls
-12    rules:
-13    - host: <your DNS prefix>.<your Azure location>.cloudapp.azure.com
-14      http:
-15        paths:
-16        - path: /
-17          backend:
-18            serviceName: frontend
-19            servicePort: 80
-```
+[PRE9]
 
 我们对原始 Ingress 进行了以下更改：
 
@@ -289,17 +224,13 @@ kubectl get service
 
 您可以使用以下命令更新我们之前创建的 Ingress：
 
-```
-kubectl apply -f ingress-with-tls.yaml
-```
+[PRE10]
 
 `cert-manager`大约需要一分钟来请求证书并配置我们的 Ingress 以使用该证书。在等待期间，让我们来看看`cert-manager`代表我们创建的中间资源。
 
 首先，`cert-manager`为我们创建了一个`certificate`对象。我们可以使用以下命令查看该对象的状态：
 
-```
-kubectl get certificate
-```
+[PRE11]
 
 执行此命令将生成一个输出，如*图 6.11*所示：
 
@@ -309,9 +240,7 @@ kubectl get certificate
 
 如您所见，我们的证书尚未准备就绪。`cert-manager`创建了另一个对象来实际获取证书。这个对象是`certificaterequest`。我们可以使用以下命令获取其状态：
 
-```
-kubectl get certificaterequest
-```
+[PRE12]
 
 这将生成如*图 6.12*所示的输出：
 
@@ -321,9 +250,7 @@ kubectl get certificaterequest
 
 我们还可以通过针对`certificaterequest`对象发出`describe`命令来获取有关请求的更多详细信息：
 
-```
-kubectl describe certificaterequest
-```
+[PRE13]
 
 当我们在等待证书签发时，状态将类似于*图 6.13*：
 
@@ -351,53 +278,15 @@ kubectl describe certificaterequest
 
 在本节中，我们将从临时证书切换到生产级证书。要做到这一点，您可以通过在集群中创建一个新的签发者来重新执行上一个练习，就像以下所示（在`certificate-issuer-prod.yaml`中提供）。不要忘记在文件中更改您的电子邮件地址：
 
-```
-1   apiVersion: cert-manager.io/v1alpha2
-2   kind: Issuer
-3   metadata:
-4     name: letsencrypt-prod
-5   spec:
-6     acme:
-7       server: https://acme-v02.api.letsencrypt.org/directory
-8       email: <your e-mail>
-9       privateKeySecretRef:
-10        name: letsencrypt-staging
-11      solvers:
-12      - http01:
-13          ingress:
-14            class: nginx
-```
+[PRE14]
 
 然后将`ingress-with-tls.yaml`文件中对签发者的引用替换为`letsencrypt-prod`，就像这样（在`ingress-with-tls-prod.yaml`文件中提供）：
 
-```
-1   apiVersion: extensions/v1beta1
-2   kind: Ingress
-3   metadata:
-4     name: simple-frontend-ingress
-5     annotations:
-6       cert-manager.io/issuer: "letsencrypt-prod"
-7   spec:
-8     tls:
-9     - hosts:
-10      - <your dns prefix>.<your azure region>.cloudapp.azure.com
-11      secretName: frontend-tls
-12    rules:
-13    - host: <your dns prefix>.<your azure region>.cloudapp.azure.com
-14      http:
-15        paths:
-16        - path: /
-17          backend:
-18            serviceName: frontend
-19            servicePort: 80
-```
+[PRE15]
 
 要应用这些更改，请执行以下命令：
 
-```
-kubectl create -f certificate-issuer-prod.yaml
-kubectl apply -f ingress-with-tls-prod.yaml
-```
+[PRE16]
 
 证书再次生效大约需要一分钟。一旦新证书发放，您可以再次浏览到您的 DNS 名称，并且不应该再看到关于无效证书的警告。如果您单击浏览器中的挂锁项目，您应该会看到您的连接是安全的，并使用有效的证书。
 
@@ -441,9 +330,7 @@ kubectl apply -f ingress-with-tls-prod.yaml
 
 让我们从清理之前部署的 Ingress 开始。我们将保留集群中部署的证书颁发机构。我们可以使用以下方式清理 Ingress：
 
-```
-kubectl delete -f ingress-with-tls-prod.yaml
-```
+[PRE17]
 
 我们将实现来自 Pusher 的`oauth2_proxy` ([`github.com/pusher/oauth2_proxy`](https://github.com/pusher/oauth2_proxy))。按照以下步骤配置`oauth2_proxy`以使用 Azure AD 作为身份验证系统。
 
@@ -501,46 +388,7 @@ kubectl delete -f ingress-with-tls-prod.yaml
 
 1.  让我们从第一项开始 - 创建部署。 部署可以在源代码中找到`oauth2_deployment.yaml`文件：
 
-```
-1    apiVersion: extensions/v1beta1
-2    kind: Deployment
-3    metadata:
-4      name: oauth2-proxy
-5    spec:
-6      replicas: 1
-7      selector:
-8        matchLabels:
-9          app: oauth2-proxy
-10     template:
-11       metadata:
-12         labels:
-13           app: oauth2-proxy
-14       spec:
-15         containers:
-16         - env:
-17             - name: OAUTH2_PROXY_PROVIDER
-18               value: azure
-19             - name: OAUTH2_PROXY_AZURE_TENANT
-20               value: <paste in directory ID>
-21             - name: OAUTH2_PROXY_CLIENT_ID
-22               value: <paste in application ID>
-23             - name: OAUTH2_PROXY_CLIENT_SECRET
-24               value: <paste in client secret>
-25             - name: OAUTH2_PROXY_COOKIE_SECRET
-26               value: somethingveryrandom
-27             - name: OAUTH2_PROXY_HTTP_ADDRESS
-28               value: "0.0.0.0:4180"
-29             - name: OAUTH2_PROXY_UPSTREAM
-30               value: "https://<your DNS prefix>.<your azure region>.cloudapp.azure.com/"
-31             - name: OAUTH2_PROXY_EMAIL_DOMAINS
-32               value: '*'
-33           image: quay.io/pusher/oauth2_proxy:latest
-34           imagePullPolicy: IfNotPresent
-35           name: oauth2-proxy
-36           ports:
-37           - containerPort: 4180
-38             protocol: TCP
-```
+[PRE18]
 
 这个部署有几行有趣的内容需要讨论。 我们在*第三章*的先前示例中讨论了其他行。 我们将在这里重点讨论以下行：
 
@@ -552,90 +400,31 @@ kubectl delete -f ingress-with-tls-prod.yaml
 
 使用以下命令创建部署：
 
-```
-kubectl create -f oauth2_deployment.yaml
-```
+[PRE19]
 
 1.  接下来，`oauth2`需要被公开为一个服务，以便 Ingress 可以与其通信，通过创建以下服务（`oauth2_service.yaml`）：
 
-```
-1   apiVersion: v1
-2   kind: Service
-3   metadata:
-4     name: oauth2-proxy
-5     namespace: default
-6   spec:
-7     ports:
-8     - name: http
-9       port: 4180
-10      protocol: TCP
-11      targetPort: 4180
-12    selector:
-13      app: oauth2-proxy
-```
+[PRE20]
 
 使用以下命令创建此服务：
 
-```
-kubectl create oauth2_service.yaml
-```
+[PRE21]
 
 1.  接下来，我们将创建一个 Ingress，以便任何访问`handsonaks-ingress-<yourname>.<your azure region>.cloudapp.azure.com/oauth`的 URL 将被重定向到`oauth2-proxy`服务。 这里使用相同的 Let's Encrypt 证书颁发者（本章的源代码中的`oauth2_ingress.yaml`文件）：
 
-```
-1   apiVersion: extensions/v1beta1
-2   kind: Ingress
-3   metadata:
-4     name: oauth2-proxy-ingress
-5     annotations:
-6       kubernetes.io/ingress.class: nginx
-7       cert-manager.io/issuer: "letsencrypt-prod"
-8   spec:
-9     tls:
-10     - hosts:
-11       - <your DNS prefix>.<your azure region>.cloudapp.azure.com
-12       secretName: tls-secret
-13     rules:
-14     - host: <your DNS prefix>.<your azure region>.cloudapp.azure.com
-15       http:
-16         paths:
-17         - path: /oauth2
-18           backend:
-19             serviceName: oauth2-proxy
-20             servicePort: 4180
-```
+[PRE22]
 
 在这个 Ingress 中有一行很有趣。 **第 17 行**引入了一个新的路径到我们的 Ingress。 正如本章前面提到的，同一个 Ingress 可以将多个路径指向不同的后端服务。 这就是我们在这里配置的内容。
 
 使用以下命令创建此 Ingress：
 
-```
-kubectl create -f oauth2_ingress.yaml
-```
+[PRE23]
 
 1.  最后，我们将通过创建 Ingress 将`oauth2`代理链接到前端服务，以配置`nginx`，以便使用`auth-url`和`auth-signin`中的路径进行身份验证检查。如果请求未经身份验证，则流量将发送到`oauth2_proxy`。如果成功经过身份验证，则流量将重定向到后端服务（在我们的案例中是前端服务）。
 
 在 GitHub 存储库中的以下代码执行身份验证成功后的重定向（`frontend-oauth2-ingress.yaml`）：
 
-```
-1  apiVersion: extensions/v1beta1
-2  kind: Ingress
-3  metadata:
-4    name: frontend-oauth2-ingress
-5    annotations:
-6      kubernetes.io/ingress.class: nginx
-7      nginx.ingress.kubernetes.io/auth-url: "http://oauth2-proxy.default.svc.cluster.local:4180/oauth2/auth"
-8      nginx.ingress.kubernetes.io/auth-signin: "http://<your DNS prefix>.<your azure region>.cloudapp.azure.com/oauth2/start"
-9  spec:
-10   rules:
-11   - host: <your DNS prefix>.<your azure region>.cloudapp.azure.com
-12     http:
-13       paths:
-14       - path: /
-15         backend:
-16           serviceName: frontend
-17           servicePort: 80 
-```
+[PRE24]
 
 在这个 Ingress 配置中有一些有趣的地方要指出。其他行与我们在本章中创建的其他 Ingress 一样普通：
 
@@ -645,9 +434,7 @@ kubectl create -f oauth2_ingress.yaml
 
 使用以下命令创建此 Ingress：
 
-```
-kubectl create -f frontend-oauth2-ingress.yaml
-```
+[PRE25]
 
 我们现在已经完成了配置。您现在可以使用现有的 Microsoft 帐户登录到`https://handsonaks-ingress-<yourname>.<your azure region>.cloudapp.azure.net/`的服务。为了确保您获得身份验证重定向，请确保使用新的浏览器窗口或私人窗口。您应该会自动重定向到 Azure AD 的登录页面。
 
@@ -657,15 +444,7 @@ kubectl create -f frontend-oauth2-ingress.yaml
 
 现在一切都已部署完成，让我们清理一下我们在集群中创建的资源：
 
-```
-kubectl delete -f guestbook-all-in-one.yaml
-kubectl delete -f frontend-oauth2-ingress.yaml
-kubectl delete -f oauth2_ingress.yaml
-kubectl delete -f oauth2_deployment.yaml
-kubectl delete -f oauth2_service.yaml
-kubectl delete ns cert-manager
-helm delete ingress
-```
+[PRE26]
 
 在本节中，我们已将 Azure AD 身份验证添加到您的应用程序。我们通过将`oauth2_proxy`添加到我们的集群，然后重新配置现有的 Ingress 以将未经身份验证的请求重定向到`oauth2_proxy`来实现这一点。
 

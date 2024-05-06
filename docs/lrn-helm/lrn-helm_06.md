@@ -30,28 +30,19 @@ YAML 文件遵循键值格式来声明配置。让我们探索 YAML 键值构造
 
 这里展示了一个最基本的 YAML 键值对示例：
 
-```
-name: LearnHelm
-```
+[PRE0]
 
 在前面的示例中，`name`键被赋予了`LearnHelm`值。在 YAML 中，键和值由冒号（:）分隔。冒号左边的字符代表键，而冒号右边的字符代表值。
 
 在 YAML 格式中，间距很重要。以下行不构成键值对：
 
-```
-name:LearnHelm
-```
+[PRE1]
 
 请注意，冒号和`LearnHelm`字符串之间缺少空格。这将导致解析错误。冒号和值之间必须存在空格。
 
 虽然前面的示例代表了一个简单的键值对，但 YAML 允许用户配置具有嵌套元素或块的更复杂的配对。下面是一个示例：
 
-```
-resources:
-  limits:
-    cpu: 100m
-    memory: 512Mi
-```
+[PRE2]
 
 前面的示例演示了一个包含两个键值对的资源对象的映射：
 
@@ -69,30 +60,19 @@ YAML 不支持**制表符**，使用制表符会导致解析错误。
 
 YAML 文件中的值可以是不同的类型。最常见的类型是字符串，它是一个文本值。字符串可以通过用引号括起来来声明，但这并不总是必需的。如果一个值包含至少一个字母或特殊字符，那么这个值被认为是一个字符串，无论是否有引号。多行字符串可以通过使用管道（`|`）符号来设置，如下所示：
 
-```
-configuration: |
-  server.port=8443
-  logging.file.path=/var/log
-```
+[PRE3]
 
 值也可以是整数。当一个数值字符没有用引号括起来时，它就是一个整数值。以下的 YAML 声明了一个整数值：
 
-```
-replicas: 1
-```
+[PRE4]
 
 将其与以下 YAML 进行比较，该 YAML 将副本分配给一个字符串值：
 
-```
-replicas: '1'
-```
+[PRE5]
 
 布尔值也经常被使用，可以用 true 或 false 来声明：
 
-```
-ingress:
-  enable: true
-```
+[PRE6]
 
 这个 YAML 将`ingress.enable`设置为`true`布尔值。其他可接受的布尔值包括`yes`、`no`、`on`、`off`、`y`、`n`、`Y`和`N`。
 
@@ -100,22 +80,11 @@ ingress:
 
 以下演示了一个 YAML 列表：
 
-```
-servicePorts:
-  - 8080
-  - 8443
-```
+[PRE7]
 
 这个 YAML 将`servicePorts`设置为整数列表（比如`8080`和`8443`）。这种语法也可以用来描述对象列表：
 
-```
-deployment:
-  env:
-    - name: MY_VAR
-      value: MY_VALUE
-    - name: SERVICE_NAME
-      value: MY_SERVICE
-```
+[PRE8]
 
 在这种情况下，`env`被设置为一个包含`name`和`value`字段的对象列表。列表在 Kubernetes 和 Helm 配置中经常被使用，理解它们对于充分利用 Helm 是很有价值的。
 
@@ -127,21 +96,7 @@ YAML 是另一种广泛使用的格式 JSON 的超集。JSON 是一串键值对�
 
 以下示例将前面的 YAML 示例转换为 JSON 格式：
 
-```
-{
-  'deployment': {
-    'env': [
-      {
-        'name': 'MY_VAR',
-        'value': 'MY_VALUE'
-      },
-      {
-        'name': 'SERVICE_NAME',
-        'value': 'MY_SERVICE'
-      }
-    ]
-  }
-```
+[PRE9]
 
 JSON 中的所有键都用引号括起来，并放在冒号之前：
 
@@ -157,10 +112,7 @@ Helm 图表结构
 
 正如您可能还记得之前的章节，Helm 图表是 Kubernetes 资源的打包，允许用户将各种复杂性的应用程序部署到 Kubernetes。然而，为了被视为 Helm 图表，必须遵循一定的文件结构：
 
-```
-my-chart/
-  # chart files and directories
-```
+[PRE10]
 
 最佳实践是将顶层目录命名为 Helm 图表的名称。这不是技术要求，但它可以更简单地识别 Helm 图表的名称。对于前面的示例文件结构，Helm 图表的名称很可能是`my-chart`。
 
@@ -176,24 +128,11 @@ Helm 图表的主要目的是创建和管理组成应用程序的 Kubernetes 资
 
 Helm 图表必须包含一个`templates/`目录，该目录定义要部署的 Kubernetes 资源（尽管如果图表声明了依赖项，则不严格需要此目录）。`templates/`目录下的内容是由 Kubernetes 资源组成的 YAML 文件。`templates/`目录的内容可能类似于以下内容：
 
-```
-templates/
-  configmap.yaml
-  deployment.yaml
-  service.yaml
-```
+[PRE11]
 
 然后`configmap.yaml`资源可能如下所示：
 
-```
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}
-data:
-  configuration.txt: |-
-    {{ .Values.configurationData }}
-```
+[PRE12]
 
 您可能会质疑先前的示例是否是有效的 YAML 语法。这是因为`configmap.yaml`文件实际上是一个 Helm 模板，它将根据一定的一组值修改此资源的配置，以生成有效的 YAML 资源。开放和关闭的大括号代表了**Golang**（**Go**）模板的输入文本，这些将在安装或升级过程中被移除。
 
@@ -213,12 +152,7 @@ Helm 图表在其图表目录中包含一个`values.yaml`文件。该文件声�
 
 图表的`values.yaml`文件可以定义如下的值：
 
-```
-## chapterNumber lists the current chapter number
-chapterNumber: 4
-## chapterName gives a description of the current chapter
-chapterName: Understanding Helm Charts
-```
+[PRE13]
 
 以井号（`#`）开头的行是注释（在执行过程中被忽略），应提供有关它们描述的值的详细信息，以便用户了解应如何应用它们。注释还可以包括值的名称，以便在搜索值时出现注释。文件中的其他行表示键值对。本章开头描述了 YAML 格式的介绍。
 
@@ -226,23 +160,11 @@ chapterName: Understanding Helm Charts
 
 以下示例表示模板在处理之前的样子：
 
-```
-env:
-  - name: CHAPTER_NUMBER
-    value: {{ .Values.chapterNumber }}
-  - name: CHAPTER_NAME
-    values: {{ .Values.chapterName }}
-```
+[PRE14]
 
 模板处理后，YAML 资源的片段呈现如下：
 
-```
-env:
-  - name: CHAPTER_NUMBER
-    value: 4
-  - name: CHAPTER_NAME
-    values: Understanding Helm Charts
-```
+[PRE15]
 
 用于引用图表值的`.Values`构造是一个内置对象，可用于参数化。Helm 文档中可以找到内置对象的完整列表（https://helm.sh/docs/chart_template_guide/builtin_objects/），但最常见的对象在下表中描述：
 
@@ -256,20 +178,7 @@ env:
 
 以下片段显示了`values.schema.json`文件的外观：
 
-```
-{
-  '$schema': 'https://json-schema.org/draft-07/schema#',
-  'properties': {
-    'replicas': {
-      'description': 'number of application instances to deploy',
-      'minimum': 0
-      'type' 'integer'
-    },
-    . . .
-  'title': 'values',
-  'type': 'object'
-}
-```
+[PRE16]
 
 有了这个模式文件，`replicas`值应该设置为`0`作为最小值。添加到此文件的其他值会对可以提供的值施加额外的限制。这个文件是确保用户只提供图表模板中支持的值的好方法。
 
@@ -283,20 +192,7 @@ env:
 
 在图表模板化过程中，有时需要包含或排除某些 Kubernetes 资源或某些资源的某些部分。`if…else`操作可以用于此目的。以下来自部署模板的片段包括一个条件块：
 
-```
-readinessProbe:
-{{- if .Values.probeType.httpGet }}
-  httpGet:
-    path: /healthz
-    port: 8080
-    scheme: HTTP
-{{- else }}
-  tcpSocket:
-    port: 8080
-{{- end }}
-  initialDelaySeconds: 30
-  periodSeconds: 10
-```
+[PRE17]
 
 `if`块用于有条件地设置`readinessProbe`段。如果`probeType.httpGet`值计算为`true`或非空，则将模板化`httpGet` `readinessProbe`。否则，创建的`readinessProbe`将是`tcpSocket` `readinessProbe`类型。大括号中使用的破折号用于指示在处理后应删除空格。在开括号后使用破折号删除括号前的空格，在闭括号前使用破折号删除括号后的空格。
 
@@ -304,61 +200,27 @@ readinessProbe:
 
 以下代码描述了一个`values`文件，其中包含了深度嵌套的值：
 
-```
-application:
-  resources:
-    limits:
-      cpu: 100m
-      memory: 512Mi
-```
+[PRE18]
 
 没有`with`操作，这些值将在`template`文件中被引用，如下所示：
 
-```
-cpu: {{ .Values.application.resources.limits.cpu }}
-memory: {{ .Values.application.resources.limits.memory }}
-```
+[PRE19]
 
 `with`操作允许开发人员修改这些值的范围，并使用缩短的语法引用它们：
 
-```
-{{- with .Values.application.resources.limits }}
-cpu: {{ .cpu }}
-memory: {{ .memory }}
-{{- end }}
-```
+[PRE20]
 
 最后，开发人员可以使用`range`操作执行重复的操作。这个操作允许开发人员循环遍历一个值列表。假设一个图表有以下值：
 
-```
-servicePorts:
-  - name: http
-    port: 8080
-  - name: https
-    port: 8443
-  - name: jolokia
-    port: 8778
-```
+[PRE21]
 
 上述代码提供了一个`servicePorts`列表，可以循环遍历，如下例所示：
 
-```
-spec:
-  ports:
-{{- range .Values.servicePorts }}
-  - name: {{ - name }}
-  port: {{ .port }}
-{{- end }}
-```
+[PRE22]
 
 `with`和`range`操作限制了提供的对象的范围。在`range`示例中，`range`作用于`.Values.servicePorts`对象，将点（.）符号的范围限制在此对象下定义的值。要在`range`下实施全局范围，其中所有值和内置对象都被引用，开发人员应该使用美元符号（`$`）符号作为前缀引用，如下所示：
 
-```
-{{- range .Values.servicePorts }}
-  - name: {{ $.Release.Name }}-{{ .name }}
-  port: {{ .port }}
-{{- end }}
-```
+[PRE23]
 
 除了图表的值，开发人员还可以创建变量来帮助渲染资源。我们将在下一节中探讨这一点。
 
@@ -368,82 +230,41 @@ spec:
 
 图表模板中的变量定义如下：
 
-```
-{{ $myvar := 'Hello World!' }}
-```
+[PRE24]
 
 将`myvar`变量设置为`Hello World!`字符串。变量也可以分配给对象，比如图表的值：
 
-```
-{{ $myvar := .Values.greeting }}
-```
+[PRE25]
 
 然后在模板中以以下方式引用设置的变量：
 
-```
-data:
-  greeting.txt: |
-    {{ $myvar }}
-```
+[PRE26]
 
 使用变量的最佳情况之一是在范围块中，其中变量被设置为捕获列表迭代的索引和值：
 
-```
-data:
-  greetings.txt: |
-{{- range $index, $value := .Values.greetings }}
-    Greeting {{ $index }}: {{ $value }}
-{{- end }}
-```
+[PRE27]
 
 结果可以如下呈现：
 
-```
-data:
-  greetings.txt: |
-    Greeting 0: Hello
-    Greeting 1: Hola
-    Greeting 2: Hallo
-```
+[PRE28]
 
 变量还可以简化地图迭代的处理，如下所示：
 
-```
-data:
-  greetings.txt: |
-{{- range $key, $val := .Values.greetings }}
-    Greeting in {{ $key }}: {{ $val }}
-{{- end }}
-```
+[PRE29]
 
 可能的结果可能如下所示：
 
-```
-data:
-  greetings.txt: |
-    Greeting in English: Hello
-    Greeting in Spanish: Hola
-    Greeting in German: Hallo
-```
+[PRE30]
 
 最后，变量可以用来引用当前范围之外的值。
 
 考虑以下`with`块：
 
-```
-{{- with .Values.application.configuration }}
-My application is called {{ .Release.Name }}
-{{- end }}
-```
+[PRE31]
 
 这样的模板将无法处理，因为`.Release.Name`不在`.Values.application.configuration`的范围内。可以通过在`with`块上方设置一个变量为`.Release.Name`来解决这个问题：
 
-```
-{{ $appName := .Release.Name }}
-{{- with .Values.application.configuration }}
-My application is called {{ $appName }}
-{{- end }}
-```
+[PRE32]
 
 虽然这是解决这个问题的一种可能的方法，但使用美元符号来引用全局范围的方法更受欢迎，因为它需要更少的配置行，并且在图表复杂性增加时更容易阅读。
 
@@ -457,45 +278,29 @@ Go 模板函数类似于您在其他语言和结构中遇到的其他函数。�
 
 对于 Go 模板，可以使用以下语法调用函数：
 
-```
-functionName arg1 arg2 . . .
-```
+[PRE33]
 
 常用的一个 Go 函数是`indent`函数。此函数用于缩进指定数量的字符的字符串，以确保字符串格式正确，因为 YAML 是一种对空格敏感的标记语言。`indent`函数接受缩进的空格数和应该缩进的字符串作为输入。
 
 以下模板说明了这一点：
 
-```
-data:
-  application-config: |-
-{{ indent 4 .Values.config }}
-```
+[PRE34]
 
 这个例子通过`4`个空格缩进`config`值中包含的字符串，以确保该字符串在`application-config` YAML 键下正确缩进。
 
 Helm 提供的另一个结构是管道。管道是从 UNIX 借鉴的概念，其中一个命令的输出被作为输入传递给另一个命令：
 
-```
-cat file.txt | grep helm
-```
+[PRE35]
 
 前面的示例显示了 UNIX 管道。管道的左侧（`|`）是第一个命令，右侧是第二个命令。第一个命令`cat file.txt`打印名为`file.txt`的文件的内容，并将其作为输入传递给`grep helm`命令，该命令过滤第一个命令的输出以获取单词`helm`。
 
 Go 管道的工作方式类似。这可以再次通过`indent`函数来演示：
 
-```
-data:
-  application-config: |-
-{{ .Values.config | indent 4 }}
-```
+[PRE36]
 
 这也将`config`值缩进 4 个空格。管道最适合用于将多个命令链接在一起。第三个命令可以添加到管道中，称为`quote`，它在最终模板化产品周围添加引号引号：
 
-```
-data:
-  application-config: |-
-{{ .Values.config | indent 4 | quote }}
-```
+[PRE37]
 
 因为这是以管道形式编写的，所以阅读起来很容易和自然。
 
@@ -551,11 +356,7 @@ Go 模板语言还包括以下布尔运算符，可以在`if`操作中使用，�
 
 一个例子是资源的标签，可以指定如下：
 
-```
-labels:
-  'app.kubernetes.io/instance': {{ .Release.Name }}
-  'app.kubernetes.io/managed-by': {{ .Release.Service }}
-```
+[PRE38]
 
 为了保持一致，这些标签中的每一个都可以添加到 Helm 图表中的每个资源中。如果图表包含许多不同的 Kubernetes 资源，那么在每个文件中包含所需的标签可能会很麻烦，特别是如果需要修改标签或者将来需要向每个资源中添加新标签。
 
@@ -563,13 +364,7 @@ Helm 提供了一种称为命名模板的构造，允许图表开发人员创建
 
 要在`tpl`文件中创建一个命名模板，开发人员可以利用`define`操作。以下示例创建了一个命名模板，可用于封装资源标签：
 
-```
-{{- define 'mychart.labels' }}
-labels:
-  'app.kubernetes.io/instance': {{ .Release.Name }}
-  'app.kubernetes.io/managed-by': {{ .Release.Service }}
-{{- end }}
-```
+[PRE39]
 
 `define`操作以模板名称作为参数。在前面的示例中，模板名称称为`mychart.labels`。命名模板的常见约定是`$CHART_NAME.$TEMPLATE_NAME`，其中`$CHART_NAME`是 Helm 图表的名称，`$TEMPLATE_NAME`是一个简短的描述性名称，描述模板的目的。
 
@@ -577,29 +372,17 @@ labels:
 
 要在 Kubernetes YAML 模板中使用命名模板，可以使用`include`函数，其用法如下：
 
-```
-include [TEMPLATE_NAME] [SCOPE]
-```
+[PRE40]
 
 `TEMPLATE_NAME`参数是应该处理的命名模板的名称。`SCOPE`参数是应该处理的值和内置对象的范围。大多数情况下，这个参数是一个点（`.`）来表示当前顶层范围，但如果命名模板引用当前范围之外的值，则应该使用美元符号（`$`）。
 
 以下示例演示了如何使用`include`函数来处理命名模板：
 
-```
-metadata:
-  name: {{ .Release.Name }}
-{{- include 'mychart.labels' . | indent 2 }}
-```
+[PRE41]
 
 这个例子首先将资源的名称设置为发布的名称。然后使用`include`函数来处理标签，并且通过管道声明每行缩进两个空格。处理完成后，发布中的资源`template-demonstration`可能如下所示：
 
-```
-metadata:
-  name: template-demonstration
-  labels:
-    'app.kubernetes.io/instance': template-demonstration
-    'app.kubernetes.io/managed-by': Helm
-```
+[PRE42]
 
 Helm 还提供了一个`template`操作，可以扩展命名模板。这个操作与`include`具有相同的用法，但有一个主要限制——它不能在管道中用于提供额外的格式化和处理。`template`操作用于简单地内联显示数据。由于这个限制，图表开发者应该使用`include`函数而不是`template`操作，因为`include`具有与`template`相同的功能，但还提供了管道处理的额外好处。
 
@@ -617,35 +400,15 @@ Helm 图表在`Chart.yaml`文件中定义了一个`type`字段，可以设置为
 
 Helm 图表可以包括一个`crds/`文件夹，其中包含必须在安装模板之前呈现的 CRDs。这里显示了一个示例`crds/`文件夹：
 
-```
-crds/
-  my-custom-resource-crd.yaml
-```
+[PRE43]
 
 文件`my-custom-resource-crd.yaml`可能包含以下内容：
 
-```
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  name: my-custom-resources.learnhelm.io
-spec:
-  group: learnhelm.io
-  names:
-    kind: MyCustomResource
-    listKind: MyCustomResourceList
-    plural: MyCustomResources
-    singular: MyCustomResource
-    scope: Namespaced
-    version: v1
-```
+[PRE44]
 
 模板/目录然后可以包含 MyCustomResource 资源的一个实例。
 
-```
-templates/
-  my-custom-resource.yaml
-```
+[PRE45]
 
 这样的文件结构将确保在`templates/`目录下定义的 CR 之前安装`MyCustomResource` CRD。
 
@@ -661,15 +424,11 @@ templates/
 
 `Chart.yaml`文件，也称为图表定义，是声明有关 Helm 图表的不同元数据的资源。此文件是必需的，如果它没有包含在图表的文件结构中，您将收到以下错误：
 
-```
-Error: validation: chart.metadata is required
-```
+[PRE46]
 
 在*第三章*，*安装您的第一个 Helm 图表*中，我们通过运行`helm show chart`命令来探索**Bitnami 的 WordPress 图表**的图表定义。再次运行此命令来回忆这个图表定义。我们将假设 Bitnami 图表存储库已经被添加，因为这个任务是在*第三章*，*安装您的第一个 Helm 图表*中执行的：
 
-```
-$ helm show chart bitnami/wordpress --version 8.1.0
-```
+[PRE47]
 
 以下列出了 wordpress 图表的图表定义。
 
@@ -743,9 +502,7 @@ $ helm show chart bitnami/wordpress --version 8.1.0
 
 要首次下载依赖项，可以运行`helm dependency update`命令，将每个依赖项下载到给定 Helm 图表的`charts/`目录中：
 
-```
-$ helm dependency update $CHART_PATH
-```
+[PRE48]
 
 `helm dependency update`命令从存储库中下载以`.tgz`文件扩展名的`GZip`存档形式的依赖项。此命令还生成一个名为`Chart.lock`的文件。`Chart.lock`文件类似于`Chart.yaml`文件。但是，`Chart.yaml`文件包含图表依赖项的期望状态，而`Chart.lock`文件定义了应用的依赖项的实际状态。
 
@@ -765,9 +522,7 @@ $ helm dependency update $CHART_PATH
 
 有了`Chart.lock`文件，Helm 能够重新下载最初下载的确切依赖项，以防`charts/`目录被删除或需要重建。这可以通过针对图表运行`helm dependency build`命令来实现：
 
-```
-$ helm dependency build $CHART_PATH
-```
+[PRE49]
 
 因为你可以使用`helm dependency build`命令下载依赖项，所以可以省略`charts/`目录，以减少存储库的大小。
 
@@ -775,9 +530,7 @@ $ helm dependency build $CHART_PATH
 
 `helm dependency list`命令可用于查看保存在本地计算机上的 Helm 图表的已下载依赖项：
 
-```
-$ helm dependency list $CHART_NAME
-```
+[PRE50]
 
 您将看到类似以下的输出：
 
@@ -793,36 +546,17 @@ $ helm dependency list $CHART_NAME
 
 `condition`和`flags`字段可以在安装或升级过程中有条件地包含依赖项。考虑`Chart.yaml`文件中的一个示例`dependencies`块：
 
-```
-dependencies:
-  - name: dependency1
-    repository: https://example.com
-    version: 1.x.x
-    condition: dependency1.enabled
-    tags:
-      - monitoring
-  - name: dependency2
-    repository: https://example.com
-    version: 2.x.x
-    condition: dependency2.enabled
-    tags:
-      - monitoring
-```
+[PRE51]
 
 请注意`condition`和`tags`字段的包含。`condition`字段列出了用户应提供的值，或者在图表的`values.yaml`文件中设置的值。如果评估为`true`，`condition`字段将导致图表作为依赖项被包括进来。如果为`false`，则不会包括依赖项。可以通过用逗号分隔每个条件来定义多个条件，如下所示：
 
-```
-condition: dependency1.enabled, global.dependency1.enabled
-```
+[PRE52]
 
 设置条件的最佳实践是遵循`chartname.enabled`值格式，其中每个依赖项根据依赖项的图表名称设置唯一的条件。这允许用户通过遵循直观的值模式来启用或禁用单个图表。如果条件值未包含在图表的`values.yaml`文件中，或者用户未提供该字段，则将忽略此字段。
 
 `condition`字段用于启用或禁用单个依赖项，`tags`字段用于启用或禁用依赖项组。在前面的`dependencies`块中，两个依赖项都列出了一个名为`monitoring`的标签。这意味着如果启用了`monitoring`标签，两个依赖项都会被包括进来。如果`monitoring`标签设置为`false`，则依赖项将被省略。通过在父图表的`values.yaml`文件中的`tags` YAML 对象下设置它们来启用或禁用标签，如下所示：
 
-```
-tags:
-  monitoring: true
-```
+[PRE53]
 
 依赖项可以通过遵循列表的 YAML 语法在`Chart.yaml`文件中定义多个标签。只需要一个标签被评估为`true`，依赖项就会被包括进来。
 
@@ -836,23 +570,11 @@ tags:
 
 默认情况下，属于依赖图表（也称为**子图表**）的值可以通过将它们包装在名称设置为与子图表相同的映射中来被覆盖或引用。想象一个名为`my-dep`的子图表，支持以下值：
 
-```
-replicas: 1
-servicePorts:
-  - 8080
-  - 8443
-```
+[PRE54]
 
 当此图表作为依赖项安装时，可以通过在父图表的`values.yaml`文件中设置`my-dep` YAML 对象来覆盖这些值，如下所示：
 
-```
-my-dep:
-  replicas: 3
-  servicePorts:
-    - 8080
-    - 8443
-    - 8778
-```
+[PRE55]
 
 前面的例子覆盖了`my-dep`中定义的`replicas`和`servicePorts`的值，将`replicas`设置为`3`，并将`8778`添加到`servicePorts`中。这些值可以通过点表示法在父图的模板中引用，例如`my-dep.replicas`。除了覆盖和引用值之外，您还可以通过定义`import-values`字段直接导入依赖值，下一节将对此进行解释。
 
@@ -860,44 +582,19 @@ my-dep:
 
 `Chart.yaml`文件的`dependencies`块支持一个`import-values`字段，可用于导入子图的默认值。该字段有两种工作方式。第一种方式是提供要从子图导入的键列表。为了使其工作，子图必须在`exports`块下声明值，如下所示：
 
-```
-exports:
-  image:
-    registry: 'my-registry.io'
-    name: learnhelm/my-image
-    tag: latest
-```
+[PRE56]
 
 然后父图可以在`Chart.yaml`文件中定义`import-values`字段：
 
-```
-dependencies:
-  - name: mariadb
-    repository: https://charts.bitnami.com
-    version: 7.x.x
-    import-values:
-      - image
-```
+[PRE57]
 
 这允许在父图中如下引用子图中`exports.image`下的默认值：
 
-```
-registry: 'my-registry.io'
-name: learnhelm/my-image
-tag: latest
-```
+[PRE58]
 
 请注意，这已经删除了`image`映射，并且只留下了其下面的键值对。如果您不希望发生这种情况，`import-values`字段可以通过遵循所谓的`child-parent`格式保留`image`映射。这允许图表开发人员指定应从子图导入的值，并提供它们在父图中应被称为的名称。`child-parent`格式允许在不需要子图中的`exports`块中的值的情况下完成此操作。以下`dependencies`块演示了这种情况的示例：
 
-```
-dependencies:
-  - name: mariadb
-    repository: https://charts.bitnami.com
-    version: 7.x.x
-    import-values:
-      - child: image
-        parent: image
-```
+[PRE59]
 
 此示例将子图中`image`块下的每个值导入到父图中的`image`块下。
 
@@ -931,24 +628,7 @@ Helm 图表及其相关发布的主要优势之一是能够在 Kubernetes 上管
 
 以下是如何将钩子定义为作业的示例：
 
-```
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: helm-auditing
-  annotations:
-    'helm.sh/hook': pre-install,post-install
-spec:
-  template:
-    metadata:
-      name: helm-auditing
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: helm-auditing
-        command: ["/bin/sh", "-c", "echo Hook Executed at $(date)"]
-        image: alpine
-```
+[PRE60]
 
 这个微不足道的例子在休眠 10 秒之前打印出容器中的当前日期和时间。Helm 在安装图表之前和之后执行这个钩子，如'helm.sh/hook'注释的值所示。这种类型的钩子的一个用例是连接到一个审计系统，跟踪应用程序在 Kubernetes 环境中的安装。类似的钩子可以在安装完成后添加，以跟踪完成图表安装过程所花费的总时间。
 
@@ -964,10 +644,7 @@ spec:
 
 `helm.sh/hook`注释可以包含多个值，表示在图表发布周期内的不同时间点执行相同的资源。例如，为了在图表安装之前和之后执行钩子，可以在 pod 或作业上定义以下注释：
 
-```
-annotations:
-  'helm.sh/hook': pre-install,post-install
-```
+[PRE61]
 
 了解钩子何时以及如何执行是有用的，以确定需要选择的图表生命周期中的期望阶段。如前面的示例所述，当钩子被指定在执行`helm install`命令的`pre-install`和`post-install`部分时，将发生以下操作：
 
@@ -1007,24 +684,13 @@ annotations:
 
 此外，Kubernetes 提供了定义**生存时间**（**TTL**）机制的选项，以限制资源在完成后保留的时间量，使用作业的`ttlSecondsAfterFinished`属性，如下所示：
 
-```
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: ttl-job
-  annotations:
-    'helm.sh/hook': post-install
-spec:
-  ttlSecondsAfterFinished: 60
-```
+[PRE62]
 
 在此示例中，资源在完成或失败后的 60 秒内被删除。
 
 发布生命周期的最后阶段是删除，尽管在调用`helm uninstall`命令时会删除标准图表模板，但您可能希望保留某些资源，以便 Helm 不对其采取行动。一个常见的用例是，在发布生命周期的开始时通过`PersistentVolumeClaim`命令创建新的持久卷，但在结束时不应与其他资源一起删除，以便保留卷的数据。通过使用`helm.sh/resource-policy`注释启用此选项，如下所示：
 
-```
-'helm.sh/resource-policy': keep
-```
+[PRE63]
 
 Helm 将不再在执行`helm uninstall`命令期间考虑删除此资源。需要注意的是，当资源不再受管理时，一旦其余资源被删除，它就变成了孤立的。如果使用`helm install`命令，可能会导致资源命名冲突，因为之前未删除的现有资源。可以使用`kubectl delete`命令手动删除孤立的资源。
 
@@ -1058,26 +724,13 @@ Helm READMEs 使用**Markdown**格式语言编写。 Markdown 通常用于 GitHu
 
 假设 Helm 图表在其`values.yaml`文件中配置了以下值：
 
-```
-## serviceType can be set to NodePort or LoadBalancer
-serviceType: NodePort
-```
+[PRE64]
 
 根据设置的服务类型，访问应用程序的说明将有所不同。如果服务是`NodePort`服务，则可以使用在每个 Kubernetes 节点上设置的特定端口号来访问。如果服务设置为`LoadBalancer`，则将使用在创建服务时自动配置的负载均衡器的 URL 来访问应用程序。根据所使用的服务类型访问应用程序的方式可能对经验不足的 Kubernetes 用户来说有些困难，因此该图表的维护者应该在`templates/`目录下提供一个`NOTES.txt`文件，其中提供了关于如何访问应用程序的说明。
 
 以下示例说明了如何使用`templates/NOTES.txt`文件来实现此目的：
 
-```
-Follow these instructions to access your application.
-{{- if eq .Values.serviceType 'NodePort' }}
-export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath='{.spec.ports[0].nodePort}' services {{.Release.Name }})
-export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath='{.items[0].status.addresses[0].address}')
-echo "URL: http://$NODE_IP:$NODE_PORT"
-{{- else }}
-export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Name }} wordpress --template '{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}')
-echo "URL: http://$SERVICE_IP"
-{{- end }}
-```
+[PRE65]
 
 此文件将在应用程序的安装、升级和回滚阶段生成和显示，并且可以通过运行`helm get notes`命令来调用。通过提供此文件，用户将更好地了解如何使用应用程序。
 
@@ -1087,25 +740,17 @@ echo "URL: http://$SERVICE_IP"
 
 虽然 Helm 图表遵循通用的文件结构，但它们应该打包以便于分发。图表以`tgz`存档的形式打包。虽然可以使用`tar` bash 实用程序或存档管理器手动创建这些存档，但 Helm 提供了`helm package`命令来简化此任务。`helm package`命令的语法如下所示：
 
-```
-$ helm package [CHART_NAME] [...] [flags]
-```
+[PRE66]
 
 `helm package`命令针对本地图表目录运行。如果此命令成功，它将生成一个具有以下文件格式的`tgz`存档：
 
-```
-$CHART_NAME-$CHART_VERSION.tgz
-```
+[PRE67]
 
 存档然后可以通过推送到图表存储库来分发，这是在*第五章*中进一步探讨的任务，*构建您的第一个 Helm 图表*。
 
 `helm package`命令包括图表目录下的每个文件。虽然这通常是首选行为，但如果目录中包含对 Helm 不必要的文件，则可能并非总是如此。一个常见的例子是`.git/`目录，它存在于由**Git SCM**管理的项目中。如果将此文件打包到图表的`tgz`存档中，它将毫无意义，只会增加存档的大小。Helm 支持一个名为`.helmignore`的文件，可用于从 Helm 存档中省略某些文件和文件夹。以下是一个示例`.helmignore`文件：
 
-```
-# Ignore git directories and files
-.git/
-.gitignore
-```
+[PRE68]
 
 上述文件指示，如果`.git/`目录或`.gitignore`文件出现在图表目录中，它们将被`helm package`命令忽略，这意味着它们不会出现在生成的`tgz`存档中。在此文件中以井号符号(`#`)开头的行用作注释。如果您的图表目录包含对图表的整体功能不必要的文件和文件夹，请确保在 Helm 图表中包含一个`.helmignore`文件。
 

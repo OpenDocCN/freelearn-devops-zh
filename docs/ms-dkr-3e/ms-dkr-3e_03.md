@@ -178,10 +178,7 @@ Docker Hub 是免费使用的，如果您不需要上传或管理自己的镜像
 
 构建完成后，您应该能够通过运行以下命令移动到本地的 Docker 安装中，确保拉取您自己的镜像（如果一直在跟进的话）：
 
-```
-$ docker image pull masteringdockerthirdedition/dockerfiles-example
-$ docker image ls
-```
+[PRE0]
 
 命令如下截图所示：
 
@@ -189,84 +186,23 @@ $ docker image ls
 
 您也可以使用以下命令运行 Docker Hub 创建的镜像，再次确保使用您自己的镜像（如果有的话）：
 
-```
-$ docker container run -d -p8080:80 --name example masteringdockerthirdedition/dockerfiles-example
-```
+[PRE1]
 
 我也以完全相同的方式添加了多阶段构建。Docker Hub 对构建没有任何问题，您可以从以下日志中看到，它开始于一些关于 Docker 构建环境的信息：
 
-```
-Building in Docker Cloud's infrastructure...
-Cloning into '.'...
-
-KernelVersion: 4.4.0-1060-aws
-Components: [{u'Version': u'18.03.1-ee-1-tp5', u'Name': u'Engine', u'Details': {u'KernelVersion': u'4.4.0-1060-aws', u'Os': u'linux', u'BuildTime': u'2018-06-23T07:58:56.000000000+00:00', u'ApiVersion': u'1.37', u'MinAPIVersion': u'1.12', u'GitCommit': u'1b30665', u'Arch': u'amd64', u'Experimental': u'false', u'GoVersion': u'go1.10.2'}}]
-Arch: amd64
-BuildTime: 2018-06-23T07:58:56.000000000+00:00
-ApiVersion: 1.37
-Platform: {u'Name': u''}
-Version: 18.03.1-ee-1-tp5
-MinAPIVersion: 1.12
-GitCommit: 1b30665
-Os: linux
-GoVersion: go1.10.2
-```
+[PRE2]
 
 然后构建过程开始编译我们的代码如下：
 
-```
-Starting build of index.docker.io/masteringdockerthirdedition/multi-stage:latest...
-Step 1/8 : FROM golang:latest as builder
- ---> d0e7a411e3da
-Step 2/8 : WORKDIR /go-http-hello-world/
-Removing intermediate container ea4bd2a1e92a
- ---> 0735d98776ef
-Step 3/8 : RUN go get -d -v golang.org/x/net/html
- ---> Running in 5b180ef58abf
-Fetching https://golang.org/x/net/html?go-get=1
-Parsing meta tags from https://golang.org/x/net/html?go-get=1 (status code 200)
-get "golang.org/x/net/html": found meta tag get.metaImport{Prefix:"golang.org/x/net", VCS:"git", RepoRoot:"https://go.googlesource.com/net"} at https://golang.org/x/net/html?go-get=1
-get "golang.org/x/net/html": verifying non-authoritative meta tag
-Fetching https://golang.org/x/net?go-get=1
-Parsing meta tags from https://golang.org/x/net?go-get=1 (status code 200)
-golang.org/x/net (download)
-Removing intermediate container 5b180ef58abf
- ---> e2d566167ecd
-Step 4/8 : ADD https://raw.githubusercontent.com/geetarista/go-http-hello-world/master/hello_world/hello_world.go ./hello_world.go
- ---> c5489fee49e0
-Step 5/8 : RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
- ---> Running in 0c5892f9db02
-Removing intermediate container 0c5892f9db02
- ---> 94087063b79a
-```
+[PRE3]
 
 现在我们的代码已经编译完成，接下来将应用程序二进制文件复制到最终镜像中：
 
-```
-Step 6/8 : FROM scratch
- ---> 
-Step 7/8 : COPY --from=builder /go-http-hello-world/app .
- ---> e16f25bc4201
-Step 8/8 : CMD ["./app"]
- ---> Running in c93cfe262c15
-Removing intermediate container c93cfe262c15
- ---> bf3498b1f51e
-
-Successfully built bf3498b1f51e
-Successfully tagged masteringdockerthirdedition/multi-stage:latest
-Pushing index.docker.io/masteringdockerthirdedition/multi-stage:latest...
-Done!
-Build finished
-```
+[PRE4]
 
 您可以使用以下命令拉取和启动包含该镜像的容器：
 
-```
-$ docker image pull masteringdockerthirdedition/multi-stage
-$ docker image ls
-$ docker container run -d -p 8000:80 --name go-hello-world masteringdockerthirdedition/multi-stage
-$ curl http://localhost:8000/
-```
+[PRE5]
 
 如下截图所示，该镜像的行为方式与我们在本地创建时完全相同：
 
@@ -274,12 +210,7 @@ $ curl http://localhost:8000/
 
 如果您启动了容器，可以使用以下命令删除它们：
 
-```
-$ docker container stop example
-$ docker container rm example
-$ docker container stop go-hello-world
-$ docker container rm go-hello-world
-```
+[PRE6]
 
 现在我们已经了解了自动化构建，我们可以讨论如何以其他方式将镜像推送到 Docker Hub。
 
@@ -291,9 +222,7 @@ $ docker container rm go-hello-world
 
 为此，我们首先需要通过运行以下命令将本地 Docker 客户端链接到 Docker Hub：
 
-```
-$ docker login
-```
+[PRE7]
 
 然后会提示您输入 Docker ID 和密码：
 
@@ -305,9 +234,7 @@ $ docker login
 
 现在我们的客户端已被授权与 Docker Hub 交互，我们需要一个要构建的镜像。让我们看看如何推送我们在第二章中构建的 scratch 镜像，*构建容器镜像*。首先，我们需要构建镜像。为此，我使用以下命令：
 
-```
-$ docker build --tag masteringdockerthirdedition/scratch-example:latest .
-```
+[PRE8]
 
 如果您在跟着做，那么您应该将`masteringdockerthirdedition`替换为您自己的用户名或组织：
 
@@ -315,9 +242,7 @@ $ docker build --tag masteringdockerthirdedition/scratch-example:latest .
 
 构建完镜像后，我们可以通过运行以下命令将其推送到 Docker Hub：
 
-```
-$ docker image push masteringdockerthirdedition/scratch-example:latest
-```
+[PRE9]
 
 以下屏幕截图显示了输出：
 
@@ -373,28 +298,19 @@ Docker Registry 具有以下功能：
 
 正如您可能已经猜到的，Docker Registry 作为 Docker Hub 的一个镜像分发，这使得部署它就像运行以下命令一样简单：
 
-```
-$ docker image pull registry:2
-$ docker container run -d -p 5000:5000 --name registry registry:2
-```
+[PRE10]
 
 这些命令将为您提供最基本的 Docker Registry 安装。让我们快速看一下如何将图像推送到其中并从中拉取。首先，我们需要一个图像，所以让我们再次获取 Alpine 图像：
 
-```
-$ docker image pull alpine
-```
+[PRE11]
 
 现在我们有了 Alpine Linux 图像的副本，我们需要将其推送到我们的本地 Docker Registry，该 Registry 位于`localhost:5000`。为此，我们需要使用我们本地 Docker Registry 的 URL 来标记 Alpine Linux 图像，并使用不同的图像名称：
 
-```
-$ docker image tag alpine localhost:5000/localalpine
-```
+[PRE12]
 
 现在我们已经标记了我们的图像，我们可以通过运行以下命令将其推送到我们本地托管的 Docker Registry：
 
-```
-$ docker image push localhost:5000/localalpine
-```
+[PRE13]
 
 以下截图显示了上述命令的输出：
 
@@ -402,9 +318,7 @@ $ docker image push localhost:5000/localalpine
 
 尝试运行以下命令：
 
-```
-$ docker image ls
-```
+[PRE14]
 
 输出应该向您显示具有相同`IMAGE ID`的两个图像：
 
@@ -412,16 +326,11 @@ $ docker image ls
 
 在我们从本地 Docker Registry 中重新拉取图像之前，我们应该删除图像的两个本地副本。我们需要使用`REPOSITORY`名称来执行此操作，而不是`IMAGE ID`，因为我们有两个位置的两个相同 ID 的图像，Docker 会抛出错误：
 
-```
-$ docker image rm alpine localhost:5000/localalpine
-```
+[PRE15]
 
 现在原始和标记的图像已被删除，我们可以通过运行以下命令从本地 Docker Registry 中拉取图像：
 
-```
-$ docker image pull localhost:5000/localalpine
-$ docker image ls
-```
+[PRE16]
 
 正如您所看到的，我们现在有一个从 Docker Registry 中拉取的图像副本在`localhost:5000`上运行：
 
@@ -429,10 +338,7 @@ $ docker image ls
 
 您可以通过运行以下命令停止和删除 Docker Registry：
 
-```
-$ docker container stop registry
-$ docker container rm -v registry
-```
+[PRE17]
 
 现在，在启动 Docker Registry 时有很多选项和考虑因素。正如您所想象的那样，最重要的是围绕存储。
 

@@ -52,17 +52,11 @@ Docker 平台需要 64 位硬件系统才能运行。本书的 Docker 应用程�
 
 代码块设置如下：
 
-```
-FROM busybox:latest
-CMD echo Hello World!!
-```
+[PRE0]
 
 任何命令行输入或输出都以以下形式书写：
 
-```
-**$ sudo docker tag 224affbf9a65localhost:5000/vinoddandy/dockerfileimageforhub**
-
-```
+[PRE1]
 
 **新术语**和**重要单词**以粗体显示。屏幕上看到的单词，例如菜单或对话框中的单词，会以这样的方式出现在文本中：“选择**Docker**选项，它在下拉菜单中，然后点击**立即启动**。”
 

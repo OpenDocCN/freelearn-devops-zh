@@ -24,27 +24,11 @@
 
 使用以下命令检查版本：
 
-```py
-$ docker version
-Client: Docker Engine - Community
- Version: 18.09.2
- API version: 1.39
- Go version: go1.10.8
- Git commit: 6247962
- Built: Sun Feb 10 04:12:39 2019
- OS/Arch: darwin/amd64
- Experimental: false
-```
+[PRE0]
 
 您还需要安装 Docker Compose 版本 1.24.0 或更高版本。请注意，在某些安装中，如 macOS，这是自动为您安装的。请查看 Docker 文档中的安装说明：[`docs.docker.com/compose/install/`](https://docs.docker.com/compose/install/)。
 
-```py
-$ docker-compose version
-docker-compose version 1.24.0, build 0aa5906
-docker-py version: 3.7.2
-CPython version: 3.7.3
-OpenSSL version: OpenSSL 1.0.2r 26 Feb 2019
-```
+[PRE1]
 
 代码可以在 GitHub 上找到，位于此目录：[`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/tree/master/Chapter03`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/tree/master/Chapter03)。在第二章中介绍了`ThoughtsBackend`的副本，*使用 Python 创建 REST 服务*，但代码略有不同。我们将在本章中看到这些差异。
 
@@ -58,30 +42,11 @@ OpenSSL version: OpenSSL 1.0.2r 26 Feb 2019
 
 例如，让我们创建一个非常简单的 Dockerfile。创建一个名为`example.txt`的文件，其中包含一些示例文本，另一个名为`Dockerfile.simple`，内容如下：
 
-```py
-# scratch is a special container that is totally empty
-FROM scratch
-COPY example.txt /example.txt
-```
+[PRE2]
 
 现在使用以下命令构建它：
 
-```py
-$ # docker build -f <dockerfile> --tag <tag> <context>
-$   docker build -f Dockerfile.simple --tag simple .
-Sending build context to Docker daemon 3.072kB
-Step 1/2 : FROM scratch
- --->
-Step 2/2 : COPY example.txt /example.txt
- ---> Using cache
- ---> f961aef9f15c
-Successfully built f961aef9f15c
-Successfully tagged simple:latest
-
-$ docker images
-REPOSITORY TAG IMAGE ID CREATED SIZE
-simple latest f961aef9f15c 4 minutes ago 11B
-```
+[PRE3]
 
 这将创建一个只包含`example.txt`文件的 Docker 镜像。这并不是很有用，但非常小-只有 11 个字节。这是因为它继承自空容器`scratch`，然后将`example.txt`文件复制到容器中的`/example.txt`位置。
 
@@ -101,43 +66,15 @@ simple latest f961aef9f15c 4 minutes ago 11B
 
 以下 Dockerfile 将继承自基础`alpine`容器，并添加`example.txt`文件：
 
-```py
-FROM alpine
-
-RUN mkdir -p /opt/
-COPY example.txt /opt/example.txt
-```
+[PRE4]
 
 这个容器允许我们运行命令，因为通常的命令行实用程序都包括在内：
 
-```py
-$ docker build -f Dockerfile.run --tag container-run .
-Sending build context to Docker daemon 4.096kB
-Step 1/3 : FROM alpine
- ---> 055936d39205
-Step 2/3 : RUN mkdir -p /opt/
- ---> Using cache
- ---> 4f565debb941
-Step 3/3 : COPY example.txt /opt/example.txt
- ---> Using cache
- ---> d67a72454d75
-Successfully built d67a72454d75
-Successfully tagged container-run:latest
-
-$ # docker run <image name> <command> 
-$   docker run container-run cat /opt/example.txt
-An example file
-```
+[PRE5]
 
 注意`cat /opt/example.txt`命令行的执行。这实际上是在容器内部发生的。我们在`stdout`控制台中打印结果。但是，如果有文件被创建，当容器停止时，该文件不会保存在我们的本地文件系统中，而只保存在容器内部：
 
-```py
-$ ls
-Dockerfile.run example.txt
-$ docker run container-run /bin/sh -c 'cat /opt/example.txt > out.txt'
-$ ls
-Dockerfile.run example.txt
-```
+[PRE6]
 
 文件实际上是保存在一个已停止的容器中。一旦容器完成运行，它将被 Docker 保持停止状态，直到被移除。您可以使用`docker ps -a`命令查看已停止的容器。尽管已停止的容器并不是很有趣，但它的文件系统已保存在磁盘上。
 
@@ -145,31 +82,17 @@ Dockerfile.run example.txt
 
 您可以通过添加以下内容来添加默认命令，当没有给出命令时将执行该命令：
 
-```py
-CMD cat /opt/example.txt
-```
+[PRE7]
 
 使用以下命令使其自动运行：
 
-```py
-$ docker run container-run
-An example file
-```
+[PRE8]
 
 定义标准命令使容器变得非常简单。只需运行它，它将执行其配置的任何操作。记得在您的容器中包含一个默认命令。
 
 我们还可以在容器中执行 shell 并与其交互。记得添加`-it`标志以保持连接正常打开，`-i`保持`stdin`打开，`-t`创建伪终端，您可以将其记住为交互式终端：
 
-```py
-$ docker run -it container-run /bin/sh
-/ # cd opt/
-/opt # ls
-example.txt
-/opt # cat example.txt
-An example file
-/opt # exit
-$
-```
+[PRE9]
 
 在发现问题或执行探索性测试时非常有用。
 
@@ -219,35 +142,7 @@ Dockerfile 上的每个命令都是按顺序执行的，并在前一个图层的
 
 让我们来看一下`docker/app/Dockerfile`文件。它有两个阶段；第一个是编译依赖项：
 
-```py
-########
-# This image will compile the dependencies
-# It will install compilers and other packages, that won't be carried
-# over to the runtime image
-########
-FROM alpine:3.9 AS compile-image
-
-# Add requirements for python and pip
-RUN apk add --update python3
-
-RUN mkdir -p /opt/code
-WORKDIR /opt/code
-
-# Install dependencies
-RUN apk add python3-dev build-base gcc linux-headers postgresql-dev libffi-dev
-
-# Create a virtual environment for all the Python dependencies
-RUN python3 -m venv /opt/venv
-# Make sure we use the virtualenv:
-ENV PATH="/opt/venv/bin:$PATH"
-RUN pip3 install --upgrade pip
-
-# Install and compile uwsgi
-RUN pip3 install uwsgi==2.0.18
-# Install other dependencies
-COPY ThoughtsBackend/requirements.txt /opt/
-RUN pip3 install -r /opt/requirements.txt
-```
+[PRE10]
 
 这个阶段执行以下步骤：
 
@@ -269,38 +164,7 @@ RUN pip3 install -r /opt/requirements.txt
 
 第二阶段是准备运行容器。让我们来看一下：
 
-```py
-########
-# This image is the runtime, will copy the dependencies from the other
-########
-FROM alpine:3.9 AS runtime-image
-
-# Install python
-RUN apk add --update python3 curl libffi postgresql-libs
-
-# Copy uWSGI configuration
-RUN mkdir -p /opt/uwsgi
-ADD docker/app/uwsgi.ini /opt/uwsgi/
-ADD docker/app/start_server.sh /opt/uwsgi/
-
-# Create a user to run the service
-RUN addgroup -S uwsgi
-RUN adduser -H -D -S uwsgi
-USER uwsgi
-
-# Copy the venv with compile dependencies from the compile-image
-COPY --chown=uwsgi:uwsgi --from=compile-image /opt/venv /opt/venv
-# Be sure to activate the venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Copy the code
-COPY --chown=uwsgi:uwsgi ThoughtsBackend/ /opt/code/
-
-# Run parameters
-WORKDIR /opt/code
-EXPOSE 8000
-CMD ["/bin/sh", "/opt/uwsgi/start_server.sh"]
-```
+[PRE11]
 
 执行以下操作：
 
@@ -330,25 +194,11 @@ CMD ["/bin/sh", "/opt/uwsgi/start_server.sh"]
 
 现在让我们构建我们的容器。请注意，已创建了两个镜像，尽管只有一个被命名。另一个是编译镜像，它更大，因为它包含了编译器等。
 
-```py
-$ docker build -f docker/app/Dockerfile --tag thoughts-backend .
-...
- ---> 027569681620
-Step 12/26 : FROM alpine:3.9 AS runtime-image
-...
-Successfully built 50efd3830a90
-Successfully tagged thoughts-backend:latest
-$ docker images | head
-REPOSITORY TAG IMAGE ID CREATED SIZE
-thoughts-backend latest 50efd3830a90 10 minutes ago 144MB
-<none>           <none> 027569681620 12 minutes ago 409MB
-```
+[PRE12]
 
 现在我们可以运行容器了。为了能够访问内部端口`8000`，我们需要使用`-p`选项进行路由：
 
-```py
-$ docker run -it  -p 127.0.0.1:8000:8000/tcp thoughts-backend
-```
+[PRE13]
 
 访问我们的本地浏览器`127.0.0.1`会显示我们的应用程序。您可以在标准输出中看到访问日志：
 
@@ -356,38 +206,15 @@ $ docker run -it  -p 127.0.0.1:8000:8000/tcp thoughts-backend
 
 您可以使用`docker exec`从不同的终端访问正在运行的容器，并执行一个新的 shell。记得添加`-it`以保持终端开启。使用`docker ps`检查当前正在运行的容器以找到容器 ID：
 
-```py
-$ docker ps
-CONTAINER ID IMAGE            COMMAND ... PORTS ...
-ac2659958a68 thoughts-backend ... ...     127.0.0.1:8000->8000/tcp 
-$ docker exec -it ac2659958a68 /bin/sh
-/opt/code $ ls
-README.md __pycache__ db.sqlite3 init_db.py pytest.ini requirements.txt tests thoughts_backend wsgi.py
-/opt/code $ exit
-$ 
-```
+[PRE14]
 
 您可以使用*Ctrl* + *C*停止容器，或者更优雅地，从另一个终端停止它：
 
-```py
-$ docker ps
-CONTAINER ID IMAGE            COMMAND ... PORTS ...
-ac2659958a68 thoughts-backend ... ...     127.0.0.1:8000->8000/tcp 
-$ docker stop ac2659958a68
-ac2659958a68
-```
+[PRE15]
 
 日志将显示`graceful stop`：
 
-```py
-...
-spawned uWSGI master process (pid: 6)
-spawned uWSGI worker 1 (pid: 7, cores: 1)
-spawned uWSGI http 1 (pid: 8)
-Caught SIGTERM signal! Sending graceful stop to uWSGI through the master-fifo
-Fri May 31 10:29:47 2019 - graceful shutdown triggered...
-$ 
-```
+[PRE16]
 
 正确捕获`SIGTERM`并优雅地停止我们的服务对于避免服务突然终止很重要。我们将看到如何在 uWSGI 中配置这一点，以及其他元素。
 
@@ -395,20 +222,7 @@ $
 
 `uwsgi.ini`文件包含了 uWSGI 的配置：
 
-```py
-[uwsgi]
-uid=uwsgi
-chdir=/opt/code
-wsgi-file=wsgi.py
-master=True
-pidfile=/tmp/uwsgi.pid
-http=:8000
-vacuum=True
-processes=1
-max-requests=5000
-# Used to send commands to uWSGI
-master-fifo=/tmp/uwsgi-fifo
-```
+[PRE17]
 
 其中大部分信息都是我们从 Dockerfile 中获取的，尽管它需要匹配，以便 uWSGI 知道在哪里找到应用程序代码、启动 WSGI 文件的名称、以及从哪个用户开始等。
 
@@ -432,29 +246,7 @@ uWSGI 文档（[`uwsgi-docs.readthedocs.io/en/latest/`](https://uwsgi-docs.readt
 
 为了允许优雅的停止，我们将 uWSGI 的执行包装在我们的`start_server.sh`脚本中：
 
-```py
-#!/bin/sh
-
-_term() {
-  echo "Caught SIGTERM signal! Sending graceful stop to uWSGI through the master-fifo"
-  # See details in the uwsgi.ini file and
-  # in http://uwsgi-docs.readthedocs.io/en/latest/MasterFIFO.html
-  # q means "graceful stop"
-  echo q > /tmp/uwsgi-fifo
-}
-
-trap _term SIGTERM
-
-uwsgi --ini /opt/uwsgi/uwsgi.ini &
-
-# We need to wait to properly catch the signal, that's why uWSGI is started
-# in the background. $! is the PID of uWSGI
-wait $!
-# The container exits with code 143, which means "exited because SIGTERM"
-# 128 + 15 (SIGTERM)
-# http://www.tldp.org/LDP/abs/html/exitcodes.html
-# http://tldp.org/LDP/Bash-Beginners-Guide/html/sect_12_02.html
-```
+[PRE18]
 
 脚本的核心是调用`uwsgi`来启动服务。然后它会等待直到服务停止。
 
@@ -502,33 +294,13 @@ Docker 文档（[`docs.docker.com/v17.12/engine/reference/commandline/docker/`](
 
 我们需要在`docker-compose.yaml`文件中定义一个服务，如下所示：
 
-```py
-version: '3.7'
-
-services:
-    # Development related
-    test-sqlite:
-        environment:
-            - PYTHONDONTWRITEBYTECODE=1
-        build:
-            dockerfile: docker/app/Dockerfile
-            context: .
-        entrypoint: pytest
-        volumes:
-            - ./ThoughtsBackend:/opt/code
-```
+[PRE19]
 
 此部分定义了一个名为`test-sqlite`的服务。构建定义了要使用的 Dockerfile 和上下文，方式与`docker build`命令相同。`docker-compose`会自动设置名称。
 
 我们可以使用以下命令构建容器：
 
-```py
-$ docker-compose build test-sqlite
-Building test-sqlite
-...
-Successfully built 8751a4a870d9
-Successfully tagged ch3_test-sqlite:latest
-```
+[PRE20]
 
 `entrypoint`指定要运行的命令，在本例中通过`pytest`命令运行测试。
 
@@ -536,31 +308,11 @@ Successfully tagged ch3_test-sqlite:latest
 
 要运行容器，请调用`run`命令：
 
-```py
-$ docker-compose run test-sqlite
-=================== test session starts ===================
-platform linux -- Python 3.6.8, pytest-4.5.0, py-1.8.0, pluggy-0.12.0 -- /opt/venv/bin/python3
-cachedir: .pytest_cache
-rootdir: /opt/code, inifile: pytest.ini
-plugins: flask-0.14.0
-collected 17 items
-
-tests/test_thoughts.py::test_create_me_thought PASSED [ 5%]
-...
-tests/test_token_validation.py::test_valid_token_header PASSED [100%]
-
-========== 17 passed, 177 warnings in 1.25 seconds ============
-$ 
-```
+[PRE21]
 
 您可以附加要传递给内部`entrypoint`的`pytest`参数。例如，要运行与*validation*字符串匹配的测试，请运行以下命令：
 
-```py
-$ docker-compose run test-sqlite -k validation
-...
-===== 9 passed, 8 deselected, 13 warnings in 0.30 seconds =======
-$
-```
+[PRE22]
 
 还有两个额外的细节：当前代码通过卷挂载，并覆盖容器中的代码。看看如何将`./ThoughtsBackend`中的当前代码挂载到容器中的代码位置`/opt/code`。这对开发非常方便，因为它将避免每次更改时都需要重新构建容器。
 
@@ -580,9 +332,7 @@ $
 
 例如，在`/thoughts_backend/api_namespace.py`中，以下行是不区分大小写的，这是我们想要的行为：
 
-```py
-query = (query.filter(ThoughtModel.text.contains(search_param)))
-```
+[PRE23]
 
 将其翻译成 PostgreSQL，它是区分大小写的，这需要你进行检查。如果在 SQLite 中进行测试并在 PostgreSQL 中运行，这将是一个生产中的错误。
 
@@ -602,51 +352,15 @@ query = (query.filter(ThoughtModel.text.contains(search_param)))
 
 `ARG`元素也被定义为`ENV`变量，因此我们将它们定义为环境变量：
 
-```py
-# This Dockerfile is for localdev purposes only, so it won't be
-# optimised for size
-FROM alpine:3.9
-
-# Add the proper env variables for init the db
-ARG POSTGRES_DB
-ENV POSTGRES_DB $POSTGRES_DB
-ARG POSTGRES_USER
-ENV POSTGRES_USER $POSTGRES_USER
-ARG POSTGRES_PASSWORD
-ENV POSTGRES_PASSWORD $POSTGRES_PASSWORD
-ARG POSTGRES_PORT
-ENV LANG en_US.utf8
-EXPOSE $POSTGRES_PORT
-
-# For usage in startup
-ENV POSTGRES_HOST localhost
-ENV DATABASE_ENGINE POSTGRESQL
-# Store the data inside the container, as we don't care for
-# persistence
-RUN mkdir -p /opt/data
-ENV PGDATA /opt/data
-```
+[PRE24]
 
 1.  安装`postgresql`包及其所有依赖项，如 Python 3 及其编译器。我们需要它们来运行应用程序代码：
 
-```py
-RUN apk update
-RUN apk add bash curl su-exec python3
-RUN apk add postgresql postgresql-contrib postgresql-dev
-RUN apk add python3-dev build-base linux-headers gcc libffi-dev
-```
+[PRE25]
 
 1.  安装并运行`postgres-setup.sh`脚本：
 
-```py
-# Adding our code
-WORKDIR /opt/code
-
-RUN mkdir -p /opt/code/db
-# Add postgres setup
-ADD ./docker/db/postgres-setup.sh /opt/code/db/
-RUN /opt/code/db/postgres-setup.sh
-```
+[PRE26]
 
 这初始化了数据库，设置了正确的用户、密码等。请注意，这并没有为我们的应用程序创建特定的表。
 
@@ -654,24 +368,11 @@ RUN /opt/code/db/postgres-setup.sh
 
 1.  安装我们应用程序的要求和在数据库容器中运行的特定命令：
 
-```py
-## Install our code to prepare the DB
-ADD ./ThoughtsBackend/requirements.txt /opt/code
-
-RUN pip3 install -r requirements.txt
-```
+[PRE27]
 
 1.  复制存储在`docker/db`中的应用程序代码和数据库命令。运行`prepare_db.sh`脚本，该脚本创建应用程序数据库结构。在我们的情况下，它设置了`thoughts`表：
 
-```py
-## Need to import all the code, due dependencies to initialize the DB
-ADD ./ThoughtsBackend/ /opt/code/
-# Add all DB commands
-ADD ./docker/db/* /opt/code/db/
-
-## get the db ready
-RUN /opt/code/db/prepare_db.sh
-```
+[PRE28]
 
 该脚本首先在后台启动运行 PostgreSQL 数据库，然后调用`init_db.py`，最后优雅地停止数据库。
 
@@ -679,43 +380,17 @@ RUN /opt/code/db/prepare_db.sh
 
 1.  要启动数据库运行，CMD 只是`postgres`命令。它需要以`postgres`用户身份运行：
 
-```py
-# Start the database in normal operation
-USER postgres
-CMD ["postgres"]
-```
+[PRE29]
 
 运行数据库服务，我们需要将其设置为`docker-compose`文件的一部分：
 
-```py
-    db:
-        build:
-            context: .
-            dockerfile: ./docker/db/Dockerfile
-            args:
-                # These values should be in sync with environment
-                # for development. If you change them, you'll 
-                # need to rebuild the container
-                - POSTGRES_DB=thoughts
-                - POSTGRES_USER=postgres
-                - POSTGRES_PASSWORD=somepassword
-                - POSTGRES_PORT=5432
-        ports:
-            - "5432:5432"
-```
+[PRE30]
 
 请注意，`args`参数将在构建期间设置`ARG`值。我们还将路由 PostgreSQL 端口以允许访问数据库。
 
 现在，您可以构建和启动服务器：
 
-```py
-$ docker-compose up build
-$ docker-compose up db
-Creating ch3_db_1 ... done
-Attaching to ch3_db_1
-...
-db_1 | 2019-06-02 13:55:38.934 UTC [1] LOG: database system is ready to accept connections
-```
+[PRE31]
 
 在另一个终端中，您可以使用 PostgreSQL 客户端访问数据库。我建议使用 fantastic `pgcli`。您可以查看其文档（[`www.pgcli.com/`](https://www.pgcli.com/)）。
 
@@ -723,21 +398,7 @@ db_1 | 2019-06-02 13:55:38.934 UTC [1] LOG: database system is ready to accept c
 
 在这里，我们使用`PGPASSWORD`环境变量来显示密码是先前配置的密码：
 
-```py
-$ PGPASSWORD=somepassword pgcli -h localhost -U postgres thoughts
-Server: PostgreSQL 11.3
-Version: 2.0.2
-Chat: https://gitter.im/dbcli/pgcli
-Mail: https://groups.google.com/forum/#!forum/pgcli
-Home: http://pgcli.com
-postgres@localhost:thoughts> select * from thought_model
-+------+------------+--------+-------------+
-|  id  |  username  |  text  |  timestamp  |
-|------+------------+--------+-------------|
-+------+------------+--------+-------------+
-SELECT 0
-Time: 0.016s
-```
+[PRE32]
 
 能够访问数据库对于调试目的很有用。
 
@@ -753,57 +414,13 @@ Time: 0.016s
 
 我们将配置测试以访问我们新创建的数据库容器。为此，我们首先需要通过配置选择 SQLite 或 PostgreSQL 的能力。查看`./ThoughtsBackend/thoughts_backend/db.py`文件：
 
-```py
-import os
-from pathlib import Path
-from flask_sqlalchemy import SQLAlchemy
-
-DATABASE_ENGINE = os.environ.get('DATABASE_ENGINE', 'SQLITE')
-
-if DATABASE_ENGINE == 'SQLITE':
-    dir_path = Path(os.path.dirname(os.path.realpath(__file__)))
-    path = dir_path / '..'
-
-    # Database initialisation
-    FILE_PATH = f'{path}/db.sqlite3'
-    DB_URI = 'sqlite+pysqlite:///{file_path}'
-    db_config = {
-        'SQLALCHEMY_DATABASE_URI': DB_URI.format(file_path=FILE_PATH),
-        'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-    }
-
-elif DATABASE_ENGINE == 'POSTGRESQL':
-    db_params = {
-        'host': os.environ['POSTGRES_HOST'],
-        'database': os.environ['POSTGRES_DB'],
-        'user': os.environ['POSTGRES_USER'],
-        'pwd': os.environ['POSTGRES_PASSWORD'],
-        'port': os.environ['POSTGRES_PORT'],
-    }
-    DB_URI = 'postgresql://{user}:{pwd}@{host}:{port}/{database}'
-    db_config = {
-        'SQLALCHEMY_DATABASE_URI': DB_URI.format(**db_params),
-        'SQLALCHEMY_TRACK_MODIFICATIONS': False,
-    }
-
-else:
-    raise Exception('Incorrect DATABASE_ENGINE')
-
-db = SQLAlchemy()
-```
+[PRE33]
 
 当使用`DATABASE_ENGINE`环境变量设置为`POSTGRESQL`时，它将正确配置。其他环境变量需要正确设置；也就是说，如果数据库引擎设置为 PostgreSQL，则需要设置`POSTGRES_HOST`变量。
 
 环境变量可以单独存储在`docker-compose.yaml`文件中，但更方便的是将多个环境变量存储在一个文件中。让我们看一下`environment.env`：
 
-```py
-DATABASE_ENGINE=POSTGRESQL
-POSTGRES_DB=thoughts
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=somepassword
-POSTGRES_PORT=5432
-POSTGRES_HOST=db
-```
+[PRE34]
 
 请注意，用户的定义等与为测试创建 Dockerfile 的参数一致。`POSTGRES_HOST`被定义为`db`，这是服务的名称。
 
@@ -811,42 +428,13 @@ POSTGRES_HOST=db
 
 我们使用 PostgreSQL 容器的测试服务定义如下：
 
-```py
-    test-postgresql:
-        env_file: environment.env
-        environment:
-            - PYTHONDONTWRITEBYTECODE=1
-        build:
-            dockerfile: docker/app/Dockerfile
-            context: .
-        entrypoint: pytest
-        depends_on:
-            - db
-        volumes:
-            - ./ThoughtsBackend:/opt/code
-```
+[PRE35]
 
 这与`test-sqlite`服务非常相似，但它在`environment.env`中添加了环境配置，并添加了对`db`的依赖。这意味着如果不存在`db`服务，`docker-compose`将启动`db`服务。
 
 现在可以针对 PostgreSQL 数据库运行测试：
 
-```py
-$ docker-compose run test-postgresql
-Starting ch3_db_1 ... done
-============== test session starts ====================
-platform linux -- Python 3.6.8, pytest-4.6.0, py-1.8.0, pluggy-0.12.0 -- /opt/venv/bin/python3
-cachedir: .pytest_cache
-rootdir: /opt/code, inifile: pytest.ini
-plugins: flask-0.14.0
-collected 17 items
-
-tests/test_thoughts.py::test_create_me_thought PASSED [ 5%]
-...
-tests/test_token_validation.py::test_valid_token_header PASSED [100%]
-
-===== 17 passed, 177 warnings in 2.14 seconds ===
-$
-```
+[PRE36]
 
 这个环境文件对于任何需要连接到数据库的服务都很有用，比如在本地部署服务。
 
@@ -854,18 +442,7 @@ $
 
 有了所有这些元素，我们可以创建服务来本地部署 Thoughts 服务：
 
-```py
-     server:
-        env_file: environment.env
-        image: thoughts_server
-        build:
-            context: .
-            dockerfile: docker/app/Dockerfile
-        ports:
-            - "8000:8000"
-        depends_on:
-            - db
-```
+[PRE37]
 
 我们需要确保添加`db`数据库服务的依赖关系。我们还绑定了内部端口，以便可以在本地访问它。
 
@@ -873,19 +450,7 @@ $
 
 现在我们可以使用以下命令启动服务：
 
-```py
-$ docker-compose up server
-Creating network "ch3_default" with the default driver
-Creating ch3_db_1 ... done
-Creating ch3_server_1 ... done
-Attaching to ch3_server_1
-server_1 | [uWSGI] getting INI configuration from /opt/uwsgi/uwsgi.ini
-server_1 | *** Starting uWSGI 2.0.18 (64bit) on Sun Jun 2 
-...
-server_1 | spawned uWSGI master process (pid: 6)
-server_1 | spawned uWSGI worker 1 (pid: 7, cores: 1)
-server_1 | spawned uWSGI http 1 (pid: 8)
-```
+[PRE38]
 
 现在在浏览器中访问`localhost:8000`中的服务：
 
@@ -893,70 +458,27 @@ server_1 | spawned uWSGI http 1 (pid: 8)
 
 您可以在终端中查看日志。按下*Ctrl* + *C*将停止服务器。该服务也可以使用`-d`标志启动，以分离终端并以守护程序模式运行：
 
-```py
-$ docker-compose up -d server
-Creating network "ch3_default" with the default driver
-Creating ch3_db_1 ... done
-Creating ch3_server_1 ... done
-$
-```
+[PRE39]
 
 使用`docker-compose ps`检查运行的服务、它们的当前状态和打开的端口：
 
-```py
-$ docker-compose ps
- Name Command State Ports
-------------------------------------------------------------------------------
-ch3_db_1 postgres Up 0.0.0.0:5432->5432/tcp
-ch3_server_1 /bin/sh /opt/uwsgi/start_s ... Up 0.0.0.0:8000->8000/tcp
-```
+[PRE40]
 
 正如我们之前所见，我们可以直接访问数据库并在其中运行原始的 SQL 命令。这对于调试问题或进行实验非常有用：
 
-```py
-$ PGPASSWORD=somepassword pgcli -h localhost -U postgres thoughts
-Server: PostgreSQL 11.3
-Version: 2.0.2
-
-postgres@localhost:thoughts> 
-INSERT INTO thought_model (username, text, timestamp) 
-VALUES ('peterparker', 'A great power carries a great
- responsability', now());
-
-INSERT 0 1
-Time: 0.014s
-postgres@localhost:thoughts>
-```
+[PRE41]
 
 现在 Thoughts 通过以下 API 可用：
 
-```py
-$ curl http://localhost:8000/api/thoughts/
-[{"id": 1, "username": "peterparker", "text": "A great power carries a great responsability", "timestamp": "2019-06-02T19:44:34.384178"}]
-```
+[PRE42]
 
 如果需要以分离模式查看日志，可以使用`docker-compose logs <optional: service>`命令：
 
-```py
-$ docker-compose logs server
-Attaching to ch3_server_1
-server_1 | [uWSGI] getting INI configuration from /opt/uwsgi/uwsgi.ini
-server_1 | *** Starting uWSGI 2.0.18 (64bit) on [Sun Jun 2 19:44:15 2019] ***
-server_1 | compiled with version: 8.3.0 on 02 June 2019 11:00:48
-...
-server_1 | [pid: 7|app: 0|req: 2/2] 172.27.0.1 () {28 vars in 321 bytes} [Sun Jun 2 19:44:41 2019] GET /api/thoughts/ => generated 138 bytes in 4 msecs (HTTP/1.1 200) 2 headers in 72 bytes (1 switches on core 0)
-```
+[PRE43]
 
 要完全停止集群，请调用`docker-compose down`：
 
-```py
-$ docker-compose down
-Stopping ch3_server_1 ... done
-Stopping ch3_db_1 ... done
-Removing ch3_server_1 ... done
-Removing ch3_db_1 ... done
-Removing network ch3_default
-```
+[PRE44]
 
 这将停止所有容器。
 
@@ -988,31 +510,15 @@ Docker 是一种分发工具的绝佳方式。现在很常见的是，一个开�
 
 例如，这些镜像具有相同的效果。第一个是包含 Python 3.7 解释器的完整镜像：
 
-```py
-$ docker run -it python:3.7
-Python 3.7.3 (default, May 8 2019, 05:28:42)
-[GCC 6.3.0 20170516] on linux
-Type "help", "copyright", "credits" or "license" for more information.
->>>
-```
+[PRE45]
 
 第二个也有一个 Python 3.7 解释器。请注意名称中的`slim`变化：
 
-```py
-$ docker run -it python:3.7-slim
-Python 3.7.3 (default, May 8 2019, 05:31:59)
-[GCC 6.3.0 20170516] on linux
-Type "help", "copyright", "credits" or "license" for more information.
->>>
-```
+[PRE46]
 
 然而，镜像的大小相当不同：
 
-```py
-$ docker images | grep python
-python 3.7-slim ca7f9e245002 4 weeks ago 143MB
-python 3.7      a4cc999cf2aa 4 weeks ago 929MB
-```
+[PRE47]
 
 如果没有指定其他标签，任何构建都会自动使用`latest`标签。
 
@@ -1020,13 +526,7 @@ python 3.7      a4cc999cf2aa 4 weeks ago 929MB
 
 单个镜像可以多次打标签，使用不同的标签。例如，`latest`标签也可以是版本`v1.5`：
 
-```py
-$ docker tag thoughts-backend:latest thoughts-backend:v1.5
-$ docker images
-REPOSITORY       TAG    IMAGE ID     CREATED    SIZE
-thoughts-backend latest c7a8499623e7 5 min ago 144MB
-thoughts-backend v1.5   c7a8499623e7 5 min ago 144MB
-```
+[PRE48]
 
 请注意`image id`是相同的。使用标签允许您标记特定的镜像，以便我们知道它们已经准备部署或赋予它们某种意义。
 
@@ -1052,37 +552,15 @@ thoughts-backend v1.5   c7a8499623e7 5 min ago 144MB
 
 创建仓库后，我们需要相应地给我们的镜像打标签。这意味着它应该包括 Docker Hub 中的用户名以标识仓库。另一种选择是直接使用包含用户名的镜像名称：
 
-```py
-$ docker tag thoughts-backend:latest jaimebuelta/thoughts-backend:latest
-```
+[PRE49]
 
 为了能够访问仓库，我们需要使用我们在 Docker Hub 中的用户名和密码登录 Docker：
 
-```py
-$ docker login
-Login with your Docker ID to push and pull images from Docker Hub. If you don't have a Docker ID, head over to https://hub.docker.com to create one.
-Username: jaimebuelta
-Password:
-Login Succeeded
-```
+[PRE50]
 
 一旦登录，您就可以推送您的镜像：
 
-```py
-$ docker push jaimebuelta/thoughts-backend:latest
-The push refers to repository [docker.io/jaimebuelta/thoughts-backend]
-1ebb4000a299: Pushed
-669047e32cec: Pushed
-6f7246363f55: Pushed
-ac1d27280799: Pushed
-c43bb774a4bb: Pushed
-992e49acee35: Pushed
-11c1b6dd59b3: Pushed
-7113f6aae2a4: Pushed
-5275897866cf: Pushed
-bcf2f368fe23: Mounted from library/alpine
-latest: digest: sha256:f1463646b5a8dec3531842354d643f3d5d62a15cc658ac4a2bdbc2ecaf6bb145 size: 2404
-```
+[PRE51]
 
 现在你可以分享镜像并从任何地方拉取它，只要本地的 Docker 已经正确登录。当我们部署生产集群时，我们需要确保执行它的 Docker 服务器能够访问注册表并且已经正确登录。
 

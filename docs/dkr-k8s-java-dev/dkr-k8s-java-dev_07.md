@@ -72,12 +72,7 @@ Pod 由一个或多个 Docker 容器组成。这是 Kubernetes 平台的基本�
 
 网络命名空间和卷不是 Pod 的唯一属性。正如您在 Pod 的图表中所看到的，Pod 可以附加标签和注释。标签在 Kubernetes 中非常重要。它们是附加到对象（在本例中是 Pod）的键/值对。标签的理念是它们可以用于标识对象--标签对用户来说是有意义和相关的。标签的一个示例可能是：
 
-```
-app=my-rest-service 
-
-layer=backend
-
-```
+[PRE0]
 
 稍后，我们将使用标签选择器来选择具有指定标签的对象（如 Pods）。通过标签选择器，在 Kubernetes 中是核心分组原语，客户端或用户可以识别对象或一组对象。选择器类似于标签，也是用于使用匹配标签识别资源的键值表达式。例如，选择器表达式`app = my-rest-service`将选择所有具有标签`app = my-rest-service`的 Pods。另一方面，注释是一种可以附加到 Pods 的元数据。它们不是用于识别属性；它们是可以被工具或库读取的属性。关于注释应包含什么的规则没有规定--这取决于您。注释可以包含诸如构建或发布版本、时间戳、Git 分支名称、Git`pull`请求编号或任何其他内容，如手机号码。
 
@@ -87,67 +82,11 @@ layer=backend
 
 Pod 的定义是一个名为`Pod`清单的 JSON 或 YAML 文件。看一个包含一个容器的简单示例：
 
-```
-apiVersion: v1
-
-kind: Pod
-
-metadata:
-
- name: rest_service
-
-spec:
-
- containers:
-
- name: rest_service
-
- image: rest_service
-
- ports:
-
- - containerPort: 8080
-
-```
+[PRE1]
 
 在 JSON 文件中相同的`pod`清单看起来与以下内容相同：
 
-```
-{
-
- "apiVersion": "v1", 
-
- "kind": "Pod",
-
- "metadata":{
-
- "name": ”rest_service”,
-
- "labels": {
-
- "name": "rest_service"
-
- }
-
- },
-
- "spec": {
-
- "containers": [{
-
- "name": "rest_service",
-
- "image": "rest_service",
-
- "ports": [{"containerPort": 8080}],
-
- }]
-
- }
-
-}
-
-```
+[PRE2]
 
 容器的`image`是 Docker 镜像名称。`containerPort`公开来自 REST 服务容器的端口，因此我们可以连接到 Pod 的 IP 上的服务。默认情况下，正如您从第一章中记得的那样，*Docker 简介*中定义的`image`中的入口点将运行。
 
@@ -187,40 +126,7 @@ ReplicaSet 确保在任何给定时间运行指定数量的 Pod 克隆，称为�
 
 您只需指定所需的副本数量和每个 Pod 中要运行的容器，部署控制器将启动它们。 YAML 文件中的示例部署清单定义看起来与以下内容相同：
 
-```
-apiVersion: 1.0
-
-kind: Deployment
-
-metadata:
-
- name: rest_service-deployment
-
-spec:
-
- replicas: 3
-
- template:
-
- metadata:
-
- labels:
-
- app: rest_service
-
- spec:
-
- containers:
-
- - name: rest_service
-
- image: rest_service
-
- ports:
-
- - containerPort: 8080
-
-```
+[PRE3]
 
 在前面的示例中，部署控制器将创建一个包含三个运行我们的 Java REST 服务的 Pod 的 ReplicaSet。
 

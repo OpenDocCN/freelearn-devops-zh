@@ -24,21 +24,7 @@
 
 要安装集群，您需要使用以下命令构建每个单独的微服务：
 
-```py
-$ cd Chapter11/microservices/
-$ cd rsyslog
-$ docker-compose build
-...
-$ cd frontend
-$ ./build-test.sh
-...
-$ cd thoughts_backend
-$./build-test.sh
-...
-$ cd users_backend
-$ ./build-test.sh
-... 
-```
+[PRE0]
 
 这将构建所需的服务。
 
@@ -46,12 +32,7 @@ $ ./build-test.sh
 
 然后，创建`namespace`示例，并使用`Chapter11/kubernetes`子目录中的配置启动 Kubernetes 集群：
 
-```py
-$ cd Chapter11/kubernetes
-$ kubectl create namespace example
-$ kubectl apply --recursive -f .
-...
-```
+[PRE1]
 
 这将在集群中部署微服务。
 
@@ -61,11 +42,7 @@ $ kubectl apply --recursive -f .
 
 要能够访问不同的服务，您需要更新您的`/etc/hosts`文件，包括以下行：
 
-```py
-127.0.0.1 thoughts.example.local
-127.0.0.1 users.example.local
-127.0.0.1 frontend.example.local
-```
+[PRE2]
 
 有了这些，您就可以访问本章的服务了。
 
@@ -81,21 +58,7 @@ ConfigMap 是一组键/值元素。它们可以作为环境变量或文件添加
 
 `configuration.yaml`文件包含系统的公共配置。它位于`Chapter11/kubernetes`子目录中：
 
-```py
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: shared-config
-  namespace: example
-data:
-  DATABASE_ENGINE: POSTGRES
-  POSTGRES_USER: postgres
-  POSTGRES_HOST: "127.0.0.1"
-  POSTGRES_PORT: "5432"
-  THOUGHTS_BACKEND_URL: http://thoughts-service
-  USER_BACKEND_URL: http://users-service
-```
+[PRE3]
 
 与数据库相关的变量，如`DATABASE_ENGINE`、`POSTGRES_USER`、`POSTGRES_HOST`和`POSTGRES_PORT`，在 Thoughts Backend 和 Users Backend 之间共享。
 
@@ -119,49 +82,15 @@ data:
 
 可以使用通常的一组`kubectl`命令来检查 ConfigMap 信息。这使我们能够发现集群中定义的 ConfigMap 实例：
 
-```py
-$ kubectl get configmap -n example shared-config
-NAME               DATA AGE
-shared-config      6    46m
-```
+[PRE4]
 
 请注意，ConfigMap 包含的键或变量的数量是显示的；在这里，它是`6`。要查看 ConfigMap 的内容，请使用`describe`：
 
-```py
-$ kubectl describe configmap -n example shared-config
-Name: shared-config
-Namespace: example
-Labels: <none>
-Annotations: kubectl.kubernetes.io/last-applied-configuration:
- {"apiVersion":"v1","data":{"DATABASE_ENGINE":"POSTGRES","POSTGRES_HOST":"127.0.0.1","POSTGRES_PORT":"5432","POSTGRES_USER":"postgres","THO...
-
-Data
-====
-POSTGRES_HOST:
-----
-127.0.0.1
-POSTGRES_PORT:
-----
-5432
-POSTGRES_USER:
-----
-postgres
-THOUGHTS_BACKEND_URL:
-----
-http://thoughts-service
-USER_BACKEND_URL:
-----
-http://users-service
-DATABASE_ENGINE:
-----
-POSTGRES
-```
+[PRE5]
 
 如果需要更改 ConfigMap，可以使用`kubectl edit`命令，或者更好的是更改`configuration.yaml`文件，并使用以下命令重新应用它：
 
-```py
-$ kubectl apply -f kubernetes/configuration.yaml
-```
+[PRE6]
 
 这将覆盖所有的值。
 
@@ -181,22 +110,7 @@ $ kubectl apply -f kubernetes/configuration.yaml
 
 Thoughts Backend 部署定义如下：
 
-```py
-spec:
-    containers:
-        - name: thoughts-backend-service
-          image: thoughts_server:v1.5
-          imagePullPolicy: Never
-          ports:
-              - containerPort: 8000
-          envFrom:
-              - configMapRef:
-                    name: shared-config
-          env:
-              - name: POSTGRES_DB
-                value: thoughts
-          ...
-```
+[PRE7]
 
 完整的`shared-config` ConfigMap 将被注入到 pod 中。请注意，这包括以前在 pod 中不可用的`THOUGHTS_BACKEND_URL`和`USER_BACKEND_URL`环境变量。可以添加更多环境变量。在这里，我们保留了`POSTGRES_DB`，而没有将其添加到 ConfigMap 中。
 
@@ -206,23 +120,7 @@ spec:
 
 要在容器内部检查，请检索 pod 名称并在其中使用`exec`，如下面的命令所示：
 
-```py
-$ kubectl get pods -n example
-NAME                              READY STATUS  RESTARTS AGE
-thoughts-backend-5c8484d74d-ql8hv 2/2   Running 0        17m
-...
-$ kubectl exec -it thoughts-backend-5c8484d74d-ql8hv -n example /bin/sh
-Defaulting container name to thoughts-backend-service.
-/opt/code $ env | grep POSTGRES
-DATABASE_ENGINE=POSTGRESQL
-POSTGRES_HOST=127.0.0.1
-POSTGRES_USER=postgres
-POSTGRES_PORT=5432
-POSTGRES_DB=thoughts
-/opt/code $ env | grep URL
-THOUGHTS_BACKEND_URL=http://thoughts-service
-USER_BACKEND_URL=http://users-service
-```
+[PRE8]
 
 `env`命令返回所有环境变量，但 Kubernetes 会自动添加很多环境变量。
 
@@ -230,22 +128,7 @@ USER_BACKEND_URL=http://users-service
 
 用户后端配置与我们刚刚看到的前一种类型的配置类似：
 
-```py
-spec:
-    containers:
-        - name: users-backend-service
-          image: users_server:v2.3
-          imagePullPolicy: Never
-          ports:
-              - containerPort: 8000
-          envFrom:
-              - configMapRef:
-                    name: shared-config
-          env:
-              - name: POSTGRES_DB
-                value: thoughts
-          ...
-```
+[PRE9]
 
 `POSTGRES_DB`的值与 Thoughts 后端中的相同，但我们将其留在这里以展示如何添加更多环境变量。
 
@@ -253,18 +136,7 @@ spec:
 
 前端配置仅使用 ConfigMap，因为不需要额外的环境变量：
 
-```py
-spec:
-    containers:
-        - name: frontend-service
-          image: thoughts_frontend:v3.7
-          imagePullPolicy: Never
-          ports:
-              - containerPort: 8000
-          envFrom:
-              - configMapRef:
-                    name: shared-config
-```
+[PRE10]
 
 前端 pod 现在还将包括连接到数据库的信息，尽管它不需要。对于大多数配置参数来说，这是可以的。
 
@@ -312,17 +184,7 @@ Kubernetes 将秘密视为一种特殊类型的 ConfigMap 值。它们可以在�
 
 我们将它们存储在同一个 Kubernetes 秘密中，该秘密可以有多个密钥。以下命令显示了如何生成一对密钥：
 
-```py
-$ openssl genrsa -out private_key.pem 2048
-Generating RSA private key, 2048 bit long modulus
-........+++
-.................+++
-e is 65537 (0x10001)
-$ openssl rsa -in private_key.pem -outform PEM -pubout -out public_key.pub
-writing RSA key
-$ ls 
-private_key.pem public_key.pub
-```
+[PRE11]
 
 这些密钥是唯一的。我们将使用它们来替换前几章中存储的示例密钥。
 
@@ -330,35 +192,15 @@ private_key.pem public_key.pub
 
 将秘密存储在集群中，在`thoughts-secrets`秘密下。请记住将其存储在`example`命名空间中：
 
-```py
-$ kubectl create secret generic thoughts-secrets --from-literal=postgres-password=somepassword --from-file=private_key.pem --from-file=public_key.pub -n example
-```
+[PRE12]
 
 您可以列出命名空间中的秘密：
 
-```py
-$ kubectl get secrets -n example
-NAME             TYPE   DATA AGE
-thoughts-secrets Opaque 3    41s
-```
+[PRE13]
 
 您还可以描述更多信息的秘密：
 
-```py
-$ kubectl describe secret thoughts-secrets -n example
-Name: thoughts-secrets
-Namespace: default
-Labels: <none>
-Annotations: <none>
-
-Type: Opaque
-
-Data
-====
-postgres-password: 12 bytes
-private_key.pem: 1831 bytes
-public_key.pub: 408 bytes
-```
+[PRE14]
 
 您可以获取秘密的内容，但数据以 Base64 编码检索。
 
@@ -366,16 +208,7 @@ Base64 是一种编码方案，允许您将二进制数据转换为文本，反�
 
 要获取秘密，请使用如下所示的常规`kubectl get`命令。我们使用`base64`命令对其进行解码：
 
-```py
-$ kubectl get secret thoughts-secrets -o yaml -n example
-apiVersion: v1
-data:
- postgres-password: c29tZXBhc3N3b3Jk
- private_key.pem: ...
- public_key.pub: ...
-$ echo c29tZXBhc3N3b3Jk | base64 --decode
-somepassword
-```
+[PRE15]
 
 同样，如果要编辑秘密以更新它，输入应该以 Base64 编码。
 
@@ -383,32 +216,7 @@ somepassword
 
 我们需要在部署配置中配置秘密的使用，以便在所需的 pod 中可用。例如，在用户后端的`deployment.yaml`配置文件中，我们有以下代码：
 
-```py
-spec:
-    containers:
-    - name: users-backend-service
-      ...
-      env:
-      ...
-      - name: POSTGRES_PASSWORD
-        valueFrom:
-          secretKeyRef:
-            name: thoughts-secrets
-            key: postgres-password
-        volumeMounts:
-        - name: sign-keys
-          mountPath: "/opt/keys/"
-
-    volumes:
-    - name: sign-keys
-      secret:
-        secretName: thoughts-secrets
-        items:
-        - key: public_key.pub
-          path: public_key.pub
-        - key: private_key.pem
-          path: private_key.pem
-```
+[PRE16]
 
 我们创建了来自秘密的`POSTGRES_PASSWORD`环境变量。我们还创建了一个名为`sign-keys`的卷，其中包含两个密钥文件，`public_key.pub`和`private_key.pem`。它挂载在`/opt/keys/`路径中。
 
@@ -424,22 +232,7 @@ spec:
 
 现在，让我们来看一下用户后端的`config.py`文件：
 
-```py
-import os
-PRIVATE_KEY = ...
-PUBLIC_KEY = ...
-
-PUBLIC_KEY_PATH = '/opt/keys/public_key.pub'
-PRIVATE_KEY_PATH = '/opt/keys/private_key.pem'
-
-if os.path.isfile(PUBLIC_KEY_PATH):
-    with open(PUBLIC_KEY_PATH) as fp:
-        PUBLIC_KEY = fp.read()
-
-if os.path.isfile(PRIVATE_KEY_PATH):
-    with open(PRIVATE_KEY_PATH) as fp:
-        PRIVATE_KEY = fp.read()
-```
+[PRE17]
 
 当前密钥仍然作为默认值存在。当秘密文件没有挂载时，它们将用于单元测试。
 
@@ -449,28 +242,11 @@ if os.path.isfile(PRIVATE_KEY_PATH):
 
 在 Thoughts 后端的`config.py`文件中，我们只检索公钥，如下所示：
 
-```py
-import os
-PUBLIC_KEY = ...
-
-PUBLIC_KEY_PATH = '/opt/keys/public_key.pub'
-
-if os.path.isfile(PUBLIC_KEY_PATH):
-    with open(PUBLIC_KEY_PATH) as fp:
-        PUBLIC_KEY = fp.read()
-```
+[PRE18]
 
 前端服务将公钥添加到`settings.py`文件中：
 
-```py
-TOKENS_PUBLIC_KEY = ...
-
-PUBLIC_KEY_PATH = '/opt/keys/public_key.pub'
-
-if os.path.isfile(PUBLIC_KEY_PATH):
-    with open(PUBLIC_KEY_PATH) as fp:
-        TOKENS_PUBLIC_KEY = fp.read()
-```
+[PRE19]
 
 此配置使秘密对应用程序可用，并为秘密值关闭了循环。现在，微服务集群使用来自秘密值的签名密钥，这是一种安全存储敏感数据的方式。
 
@@ -634,29 +410,17 @@ SHA-1 是一个唯一的标识符，用于标识每个提交。它是通过对 G
 
 提交的 SHA-1 可以通过以下命令获得：
 
-```py
-$ git log --format=format:%H -n 1
-```
+[PRE20]
 
 这将打印出最后一次提交的信息，以及带有`%H`描述符的 SHA。
 
 要获取此提交所指的标签，我们将使用`git-describe`命令：
 
-```py
-$ git describe --tags
-```
+[PRE21]
 
 基本上，`git-describe`会找到最接近当前提交的标签。如果此提交由标签标记，正如我们的部署应该做的那样，它将返回标签本身。如果没有，它将在标签后缀中添加有关提交的额外信息，直到达到当前提交。以下代码显示了如何使用`git describe`，具体取决于代码的提交版本。请注意，与标签不相关的代码将返回最接近的标签和额外的数字：
 
-```py
-$ # in master branch, 17 commits from the tag v2.3
-$ git describe
-v2.3-17-g2257f9c
-$ # go to the tag
-$ git checkout v2.3
-$ git describe
-v2.3
-```
+[PRE22]
 
 这将始终返回一个版本，并允许我们一目了然地检查当前提交的代码是否在`git`中标记。
 
@@ -672,27 +436,13 @@ v2.3
 
 通过`ARG`参数传递值的最简单方法。作为构建过程的一部分，我们将把它们转换为环境变量，这样它们将像配置的任何其他部分一样容易获取。让我们来看看以下代码中的 Dockerfile：
 
-```py
-# Prepare the version
-ARG VERSION_SHA="BAD VERSION"
-ARG VERSION_NAME="BAD VERSION"
-ENV VERSION_SHA $VERSION_SHA
-ENV VERSION_NAME $VERSION_NAME
-```
+[PRE23]
 
 我们接受一个`ARG`参数，然后通过`ENV`参数将其转换为环境变量。为了简单起见，两者都具有相同的名称。`ARG`参数对于特殊情况有一个默认值。
 
 使用`build.sh`脚本构建后，这使得版本在构建后（在容器内部）可用，该脚本获取值并调用`docker-compose`进行构建，使用版本作为参数，具体步骤如下：
 
-```py
-# Obtain the SHA and VERSION
-VERSION_SHA=`git log --format=format:%H -n 1`
-VERSION_NAME=`git describe --tags`
-# Build using docker-compose with arguments
-docker-compose build --build-arg VERSION_NAME=${VERSION_NAME} --build-arg VERSION_SHA=${VERSION_SHA}
-# Tag the resulting image with the version
-docker tag thoughts_server:latest throughs_server:${VERSION_NAME}
-```
+[PRE24]
 
 在构建过程之后，版本作为标准环境变量在容器内部可用。
 
@@ -702,21 +452,7 @@ docker tag thoughts_server:latest throughs_server:${VERSION_NAME}
 
 此外，`VERSION_NAME`也可以作为 CI 管道的参数传递给脚本。为此，您需要替换脚本以接受外部参数，就像在`build-ci.sh`脚本中看到的那样：
 
-```py
-#!/bin/bash
-if [ -z "$1" ]
-  then
-    # Error, not version name
-    echo "No VERSION_NAME supplied"
-    exit -1
-fi
-
-VERSION_SHA=`git log --format=format:%H -n 1`
-VERSION_NAME=$1
-
-docker-compose build --build-arg VERSION_NAME=${VERSION_NAME} --build-arg VERSION_SHA=${VERSION_SHA}
-docker tag thoughts_server:latest throughs_server:${VERSION_NAME}
-```
+[PRE25]
 
 所有这些脚本的版本都包括使用`VERSION_NAME`作为标签对镜像进行标记。
 
@@ -726,56 +462,17 @@ docker tag thoughts_server:latest throughs_server:${VERSION_NAME}
 
 在`admin_namespace.py`文件中，我们将使用以下代码创建一个新的`Version`端点：
 
-```py
-import os
-
-@admin_namespace.route('/version/')
-class Version(Resource):
-
-    @admin_namespace.doc('get_version')
-    def get(self):
-        '''
-        Return the version of the application
-        '''
-        data = {
-            'commit': os.environ['VERSION_SHA'],
-            'version': os.environ['VERSION_NAME'],
-        }
-
-        return data
-```
+[PRE26]
 
 现在，这段代码非常简单。它使用`os.environ`来检索在构建过程中注入的环境变量作为配置参数，并返回一个包含提交 SHA-1 和标签（描述为版本）的字典。
 
 可以使用`docker-compose`在本地构建和运行服务。要测试对`/admin/version`端点的访问并进行检查，请按照以下步骤进行：
 
-```py
-$ cd Chapter11/microservices/thoughts_backend
-$ ./build.sh
-...
-Successfully tagged thoughts_server:latest
-$ docker-compose up -d server
-Creating network "thoughts_backend_default" with the default driver
-Creating thoughts_backend_db_1 ... done
-Creating thoughts_backend_server_1 ... done
-$ curl http://localhost:8000/admin/version/
-{"commit": "2257f9c5a5a3d877f5f22e5416c27e486f507946", "version": "tag-17-g2257f9c"}
-```
+[PRE27]
 
 由于版本可用，我们可以更新自动生成的文档以显示正确的值，如`app.py`中所示：
 
-```py
-import os
-...
-VERSION = os.environ['VERSION_NAME']
-...
-
-def create_app(script=False):
-    ...
-    api = Api(application, version=VERSION, 
-              title='Thoughts Backend API',
-              description='A Simple CRUD API')
-```
+[PRE28]
 
 因此，版本将在自动生成的 Swagger 文档中正确显示。一旦微服务的版本通过 API 中的端点可访问，其他外部服务就可以访问它以发现版本并加以利用。
 
@@ -795,15 +492,7 @@ def create_app(script=False):
 
 第一部分描述了每个依赖项和所需的最低版本。在我们的示例中，我们规定`thoughts_backend`需要是版本`v1.6`或更高：
 
-```py
-import os
-
-VERSIONS = {
-    'thoughts_backend': 
-        (f'{os.environ["THOUGHTS_BACKEND_URL"]}/admin/version',
-         'v1.6'),
-}
-```
+[PRE29]
 
 这里重用环境变量`THOUGHTS_BACKEND_URL`，并使用特定版本路径完成 URL。
 
@@ -821,29 +510,7 @@ VERSIONS = {
 
 如果失败，它以`-1`状态结束，因此脚本报告为失败。这些步骤通过以下代码执行：
 
-```py
-import requests
-
-def main():
-    for service, (url, min_version) in VERSIONS.items():
-        print(f'Checking minimum version for {service}')
-        resp = requests.get(url)
-        if resp.status_code != 200:
-            print(f'Error connecting to {url}: {resp}')
-            exit(-1)
-
-        result = resp.json()
-        version = result['version']
-        print(f'Minimum {min_version}, found {version}')
-        if not check_version(min_version, version):
-            msg = (f'Version {version} is '
-                    'incorrect (min {min_version})')
-            print(msg)
-            exit(-1)
-
-if __name__ == '__main__':
-    main()
-```
+[PRE30]
 
 主要函数还打印一些消息，以帮助理解不同的阶段。为了调用版本端点，它使用`requests`包，并期望`200`状态代码和可解析的 JSON 结果。
 
@@ -859,37 +526,15 @@ if __name__ == '__main__':
 
 基本上，`natsort`支持常见的版本排序模式，其中包括我们之前描述的标准版本模式（`v1.6`高于`v1.5`）。以下代码使用该库对版本进行排序，并验证最低版本是否为较低版本：
 
-```py
-from natsort import natsorted
-
-def check_version(min_version, version):
-    versions = natsorted([min_version, version])
-    # Return the lower is the minimum version
-    return versions[0] == min_version
-```
+[PRE31]
 
 有了这个脚本，我们现在可以启动服务，并检查 Thoughts 后端是否具有正确的版本。如果您按照*技术要求*部分中描述的方式启动了服务，您会发现前端无法正确启动，并产生`CrashLoopBackOff`状态，如下所示：
 
-```py
-$ kubectl get pods -n example
-NAME READY STATUS RESTARTS AGE
-frontend-54fdfd565b-gcgtt 0/1 CrashLoopBackOff 1 12s
-frontend-7489cccfcc-v2cz7 0/1 CrashLoopBackOff 3 72s
-grafana-546f55d48c-wgwt5 1/1 Running 2 80s
-prometheus-6dd4d5c74f-g9d47 1/1 Running 2 81s
-syslog-76fcd6bdcc-zrx65 2/2 Running 4 80s
-thoughts-backend-6dc47f5cd8-2xxdp 2/2 Running 0 80s
-users-backend-7c64564765-dkfww 2/2 Running 0 81s
-```
+[PRE32]
 
 检查一个前端 pod 的日志，以查看原因，使用`kubectl logs`命令，如下所示：
 
-```py
-$ kubectl logs frontend-54fdfd565b-kzn99 -n example
-Checking minimum version for thoughts_backend
-Minimum v1.6, found v1.5
-Version v1.5 is incorrect (min v1.6)
-```
+[PRE33]
 
 要解决问题，您需要构建一个具有更高版本的 Thoughts 后端版本，或者减少依赖要求。这将作为本章结束时的评估留下。
 

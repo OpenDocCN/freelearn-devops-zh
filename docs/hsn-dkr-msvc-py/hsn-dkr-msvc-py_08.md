@@ -30,21 +30,7 @@ k3s 是 Kubernetes 的一个简化安装，您可以使用它来运行包含在�
 
 为了能够使用运行在 k3s 集群内的 Docker 版本，我们需要使用以下代码：
 
-```py
-$ # Install k3s
-$ curl -sfL https://get.k3s.io | sh -
-$ # Restart k3s in docker mode
-$ sudo systemctl edit --full k3s.service
-# Replace `ExecStart=/usr/local/bin/k3s` with `ExecStart=/usr/local/bin/k3s server --docker`
-$ sudo systemctl daemon-reload
-$ sudo systemctl restart k3s
-$ sudo systemctl enable k3s
-$ # Allow access outside of root to KUBECTL config
-$ sudo chmod 644 /etc/rancher/k3s/k3s.yaml
-$ # Add your user to the docker group, to be able to run docker commands
-$ # You may need to log out and log in again for the group to take effect
-$ sudo usermod -a -G docker $USER
-```
+[PRE0]
 
 确保安装`kubectl`（k3s 默认安装了一个单独的版本）。安装`kubectl`的步骤可以在[`kubernetes.io/docs/tasks/tools/install-kubectl/`](https://kubernetes.io/docs/tasks/tools/install-kubectl/)找到。`kubectl`命令控制 Kubernetes 操作。
 
@@ -52,28 +38,13 @@ $ sudo usermod -a -G docker $USER
 
 如果一切安装正确，您应该能够使用以下命令检查运行中的 pod：
 
-```py
-$ kubectl get pods --all-namespaces
-NAMESPACE NAME                                         READY STATUS  RESTARTS AGE
-docker    compose-89fb656cf-cw7bb                      1/1   Running 0        1m
-docker    compose-api-64d7d9c945-p98r2                 1/1   Running 0        1m
-kube-system etcd-docker-for-desktop                    1/1   Running 0        260d
-kube-system kube-apiserver-docker-for-desktop          1/1   Running 0        2m
-kube-system kube-controller-manager-docker-for-desktop 1/1   Running 0        2m
-kube-system kube-dns-86f4d74b45-cgpsj                  3/3   Running 1        260d
-kube-system kube-proxy-rm82n                           1/1   Running 0        2m
-kube-system kube-scheduler-docker-for-desktop          1/1   Running 0        2m
-kube-system kubernetes-dashboard-7b9c7bc8c9-hzpkj      1/1   Running 1        260d
-```
+[PRE1]
 
 注意不同的命名空间。它们都是 Kubernetes 自己创建的默认命名空间。
 
 转到以下页面安装 Ingress 控制器：[`github.com/kubernetes/ingress-nginx/blob/master/docs/deploy/index.md`](https://github.com/kubernetes/ingress-nginx/blob/master/docs/deploy/index.md)。在 Docker 桌面上，您需要运行以下两个命令：
 
-```py
-$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
-$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/cloud-generic.yaml
-```
+[PRE2]
 
 这将创建一个带有控制器 pod 的`ingress-nginx`命名空间。Kubernetes 将使用该 pod 来设置 Ingress 配置。
 
@@ -187,17 +158,7 @@ Kubernetes 中的服务解决了分布式系统中的一个旧问题，即*服�
 
 我们可以使用`kubectl`来`create`一个新元素。例如，要创建和列出命名空间，我们可以使用以下代码：
 
-```py
-$ kubectl create namespace example
-namespace/example created
-$ kubectl get namespaces
-NAME        STATUS AGE
-default     Active 260d
-docker      Active 260d
-example     Active 9s
-kube-public Active 260d
-kube-system Active 260d
-```
+[PRE3]
 
 我们可以创建各种元素，其中一些我们将在本书中介绍。
 
@@ -205,18 +166,7 @@ kube-system Active 260d
 
 命名空间是一个特殊情况，因为它不需要任何配置。要创建新元素，需要创建一个描述该元素的 YAML 文件。例如，我们可以使用 Docker Hub 中的官方 NGINX 镜像创建一个新的 pod：
 
-```py
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx
-  namespace: example
-spec:
-  containers:
-    - name: nginx
-      image: library/nginx:latest
-```
+[PRE4]
 
 作为最低要求，元素应包含以下内容：
 
@@ -232,120 +182,39 @@ YAML 文件有时可能有点反复无常，特别是涉及缩进和语法时。
 
 我们将此文件保存为`example_pod.yml`。我们将使用`apply`命令创建它，并使用以下命令监视其运行情况：
 
-```py
-$ kubectl apply -f example_pod.yml
-pod/nginx created
-$ kubectl get pods -n example
-NAME  READY STATUS            RESTARTS AGE
-nginx 0/1   ContainerCreating 0        2s
-$ kubectl get pods -n example
-NAME  READY STATUS  RESTARTS AGE
-nginx 1/1   Running 0        51s
-```
+[PRE5]
 
 注意使用`-n`参数来确定命名空间。
 
 现在我们可以`exec`进入容器并在其中运行命令。例如，要检查 NGINX 服务器是否正在运行并提供文件，我们可以使用以下代码：
 
-```py
-$ kubectl exec -it nginx -n example /bin/bash
-root@nginx:/# apt-get update
-...
-root@nginx:/# apt-get install -y curl
-...
-root@nginx:/# curl localhost
-<!DOCTYPE html>
-<html>
-<head>
-<title>Welcome to nginx!</title>
-...
-</head>
-<body>
-<h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully installed and
-working. Further configuration is required.</p>
-
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-Commercial support is available at
-<a href="http://nginx.com/">nginx.com</a>.</p>
-
-<p><em>Thank you for using nginx.</em></p>
-</body>
-</html>
-```
+[PRE6]
 
 pod 可以以两种方式更改。第一种方法是手动运行`edit`，它会打开您预定义的终端编辑器，以便您可以编辑文件：
 
-```py
-$ kubectl edit pod nginx -n example
-```
+[PRE7]
 
 您将看到带有所有默认参数的 pod。这种更改 pod 的方式对于小型测试很有用，但一般来说，最好更改原始的 YAML 文件，以便您可以跟踪发生的更改。例如，我们可以更改 NGINX，以便我们使用其以前的版本：
 
-```py
----
-apiVersion: v1
-kind: Pod
-metadata:
-  name: nginx
-  namespace: example
-spec:
-  containers:
-    - name: nginx
-      image: library/nginx:1.16
-```
+[PRE8]
 
 然后，我们可以再次`apply`这些更改，这将重新启动 pod：
 
-```py
-$ kubectl apply -f example_pod.yml
-pod/nginx configured
-$ kubectl get pods -n example
-NAME  READY STATUS  RESTARTS AGE
-nginx 1/1   Running 1        36s
-```
+[PRE9]
 
 # 获取更多信息
 
 `get`命令接受更多配置。您可以使用`wide`输出选项检索更多信息：
 
-```py
-$ kubectl get pods -n example -o wide
-NAME  READY STATUS  RESTARTS AGE IP        NODE
-nginx 1/1   Running 1        30m 10.1.0.11 docker-for-desktop
-```
+[PRE10]
 
 如果您进行更改并对此更改产生兴趣，可以使用`-w`参数来监视任何更改。例如，以下代码显示了 pod 的重启结果。此重启是由于对容器图像进行更改而产生的：
 
-```py
-$ kubectl get pods -n example -w
-NAME  READY STATUS  RESTARTS AGE
-nginx 1/1   Running 2        32m
-nginx 1/1   Running 3        32m
-```
+[PRE11]
 
 如果您需要有关特定元素的更多信息，可以使用`describe`：
 
-```py
-$ kubectl describe pod nginx -n example
-Name: nginx
-Namespace: example
-Node: docker-for-desktop/192.168.65.3
-Start Time: Sun, 23 Jun 2019 20:56:23 +0100
-Labels: <none>
-Annotations: ...
-Status: Running
-IP: 10.1.0.11
-...
-Events:
- Type Reason Age From Message
- ---- ------ ---- ---- -------
- Normal Scheduled 40m default-scheduler Successfully assigned nginx to docker-for-desktop
- ...
- Normal Created 4m43s (x5 over 40m) kubelet, docker-for-desktop Created container
- Normal Started 4m43s (x5 over 40m) kubelet, docker-for-desktop Started container
-```
+[PRE12]
 
 这返回了大量信息。最有用的信息通常是关于事件的信息，它将返回有关元素的生命周期的信息。
 
@@ -353,12 +222,7 @@ Events:
 
 `delete`命令删除一个元素及其下的所有内容：
 
-```py
-$ kubectl delete namespace example
-namespace "example" deleted
-$ kubectl get pods -n example
-No resources found.
-```
+[PRE13]
 
 请注意，有时删除元素将导致其重新创建。这在通过部署创建 pod 时很常见，因为部署将努力使 pod 的数量达到配置的数量。
 
@@ -372,15 +236,11 @@ No resources found.
 
 1.  `CrashLoopBackOff`状态表示容器的进程已中断。Pod 将尝试一遍又一遍地重新启动。这通常是由于容器的潜在问题引起的。检查配置是否正确。您可以使用以下命令检查容器的`stdout`日志：
 
-```py
-$ kubectl logs <pod> -n <namespace> -c <container>
-```
+[PRE14]
 
 确保容器可运行。尝试使用以下命令手动运行它：
 
-```py
-$ docker run <image>
-```
+[PRE15]
 
 1.  Pod 通常不会被外部暴露。这通常是由于暴露它们的服务和/或 Ingress 存在问题。您可以通过使用`exec`进入另一个容器，然后尝试访问服务和 Pod 的内部 IP，通常使用`curl`来检测 Pod 在集群内是否响应。
 
@@ -390,9 +250,7 @@ $ docker run <image>
 
 在排查问题时，请记住，可以通过`exec`命令访问 Pod 和容器，这将允许我们检查运行中的进程、文件等。这类似于访问物理服务器的终端。您可以使用以下代码来执行此操作：
 
-```py
-$ kubectl exec -it <pod> -n <namespace> /bin/sh
-```
+[PRE16]
 
 要小心，因为 Kubernetes 集群的性质可能需要您检查一个 Pod 中是否有多个容器运行，如果是这样，您可能需要检查特定的容器。
 

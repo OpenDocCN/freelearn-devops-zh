@@ -100,52 +100,13 @@ StatefulSets 提供这种功能的方式，正如我们在本节开头提到的�
 
 statefulset-mysql.yaml
 
-```
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: mysql
-spec:
-  selector:
-    matchLabels:
-      app: mysql
-  serviceName: mysql
-  replicas: 3
-  template:
-    metadata:
-      labels:
-        app: mysql
-```
+[PRE0]
 
 正如你所看到的，我们将创建一个具有三个`replicas`的 MySQL 集群。
 
 这段内容没有太多其他令人兴奋的地方，所以让我们继续讨论`initContainers`的开始。在`initContainers`和常规容器之间，将有相当多的容器在此 Pod 中运行，因此我们将分别解释每个容器。接下来是第一个`initContainer`实例：
 
-```
-    spec:
-      initContainers:
-      - name: init-mysql
-        image: mysql:5.7
-        command:
-        - bash
-        - "-c"
-        - |
-          set -ex
-          [[ `hostname` =~ -([0-9]+)$ ]] || exit 1
-          ordinal=${BASH_REMATCH[1]}
-          echo [mysqld] > /mnt/conf.d/server-id.cnf
-          echo server-id=$((100 + $ordinal)) >> /mnt/conf.d/server-id.cnf
-          if [[ $ordinal -eq 0 ]]; then
-            cp /mnt/config-map/master.cnf /mnt/conf.d/
-          else
-            cp /mnt/config-map/slave.cnf /mnt/conf.d/
-          fi
-        volumeMounts:
-        - name: conf
-          mountPath: /mnt/conf.d
-        - name: config-map
-          mountPath: /mnt/config-map
-```
+[PRE1]
 
 这个第一个`initContainer`，正如你所看到的，是 MySQL 容器镜像。现在，这并不意味着我们不会在 Pod 中持续运行 MySQL 容器。这是一个你会经常在复杂应用中看到的模式。有时相同的容器镜像既用作`initContainer`实例，又用作 Pod 中正常运行的容器。这是因为该容器具有正确的嵌入式脚本和工具，可以以编程方式执行常见的设置任务。
 
@@ -155,20 +116,7 @@ spec:
 
 接下来，让我们看一下下一节中的第二个`initContainer`（为了简洁起见，我们省略了一些卷挂载信息的代码，但完整的代码可以在本书的 GitHub 存储库中找到）：
 
-```
-      - name: clone-mysql
-        image: gcr.io/google-samples/xtrabackup:1.0
-        command:
-        - bash
-        - "-c"
-        - |
-          set -ex
-          [[ -d /var/lib/mysql/mysql ]] && exit 0
-          [[ `hostname` =~ -([0-9]+)$ ]] || exit 1
-          ordinal=${BASH_REMATCH[1]}
-          [[ $ordinal -eq 0 ]] && exit 0          ncat --recv-only mysql-$(($ordinal-1)).mysql 3307 | xbstream -x -C /var/lib/mysql
-          xtrabackup --prepare --target-dir=/var/lib/mysql
-```
+[PRE2]
 
 正如你所看到的，这个`initContainer`根本不是 MySQL！相反，容器镜像是一个叫做 Xtra Backup 的工具。为什么我们需要这个容器呢？
 
@@ -180,56 +128,13 @@ spec:
 
 现在，让我们继续讨论 StatefulSet 定义中的实际容器，从 MySQL 本身开始：
 
-```
-      containers:
-      - name: mysql
-        image: mysql:5.7
-        env:
-        - name: MYSQL_ALLOW_EMPTY_PASSWORD
-          value: "1"
-        ports:
-        - name: mysql
-          containerPort: 3306
-        volumeMounts:
-        - name: data
-          mountPath: /var/lib/mysql
-          subPath: mysql
-        - name: conf
-          mountPath: /etc/mysql/conf.d
-```
+[PRE3]
 
 正如你所看到的，这个 MySQL 容器设置相当基本。除了环境变量外，我们还挂载了之前创建的配置。这个 Pod 还有一些存活和就绪探针配置 - 请查看本书的 GitHub 存储库了解详情。
 
 现在，让我们继续查看我们的最终容器，这看起来很熟悉 - 实际上是另一个 Xtra Backup 的实例！让我们看看它是如何配置的：
 
-```
-- name: xtrabackup
-containerPort: 3307
-command:
-- bash
-- "-c"
-- |
-set -ex
-cd /var/lib/mysql if [[ -f xtrabackup_slave_info && "x$(<xtrabackup_slave_info)" != "x" ]]; thencat xtrabackup_slave_info | sed -E 's/;$//g' > change_master_to.sql.inrm -f xtrabackup_slave_info xtrabackup_binlog_info
-elif [[ -f xtrabackup_binlog_info ]]; then[[ `cat xtrabackup_binlog_info` =~ ^(.*?)[[:space:]]+(.*?)$ ]] || exit 1
-rm -f xtrabackup_binlog_info xtrabackup_slave_info
-echo "CHANGE MASTER TO MASTER_LOG_FILE='${BASH_REMATCH[1]}',\
-MASTER_LOG_POS=${BASH_REMATCH[2]}" > change_master_to.sql.in
-fi if [[ -f change_master_to.sql.in ]]; then
-echo "Waiting for mysqld to be ready (accepting connections)"
-until mysql -h 127.0.0.1 -e "SELECT 1"; do sleep 1; done
-echo "Initializing replication from clone position"
-mysql -h 127.0.0.1 \
--e "$(<change_master_to.sql.in), \
-MASTER_HOST='mysql-0.mysql', \
-MASTER_USER='root', \
-MASTER_PASSWORD='', \
-MASTER_CONNECT_RETRY=10; \
-START SLAVE;" || exit 1
-mv change_master_to.sql.in change_master_to.sql.orig
-fi exec ncat --listen --keep-open --send-only --max-conns=1 3307 -c \
-"xtrabackup --backup --slave-info --stream=xbstream --host=127.0.0.1 --user=root"
-```
+[PRE4]
 
 这个容器设置有点复杂，所以让我们逐节审查一下。
 
@@ -241,16 +146,7 @@ fi exec ncat --listen --keep-open --send-only --max-conns=1 3307 -c \
 
 最后，让我们来看一下`volumeClaimTemplate`。规范的这一部分还列出了先前容器的卷挂载和 Pod 的卷设置（但出于简洁起见，我们将其省略。请查看本书的 GitHub 存储库以获取其余部分）：
 
-```
-  volumeClaimTemplates:
-  - metadata:
-      name: data
-    spec:
-      accessModes: ["ReadWriteOnce"]
-      resources:
-        requests:
-          storage: 10Gi
-```
+[PRE5]
 
 正如您所看到的，最后一个容器或卷列表的卷设置并没有什么特别有趣的地方。然而，值得注意的是`volumeClaimTemplates`部分，因为只要 Pod 在相同的序数位置重新启动，数据就会保持不变。集群中添加的新 Pod 将以空白的 PersistentVolume 开始，这将触发初始数据克隆。
 
@@ -282,29 +178,17 @@ Minio 支持使用运算符和 Helm 图表进行 Kubernetes 部署。在本书�
 
 1.  首先，让我们使用以下终端命令安装 Krew CLI 工具：
 
-```
-(
-  set -x; cd "$(mktemp -d)" &&
-  curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew.tar.gz" &&
-  tar zxvf krew.tar.gz &&
-  KREW=./krew-"$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed -e 's/x86_64/amd64/' -e 's/arm.*$/arm/')" &&
-  "$KREW" install krew
-)
-```
+[PRE6]
 
 1.  现在，我们可以使用以下命令将 Krew 添加到我们的`PATH`变量中：
 
-```
-export PATH="${KREW_ROOT:-$HOME/.krechw}/bin:$PATH"
-```
+[PRE7]
 
 在新的 shell 中，我们现在可以开始使用 Krew！Krew 可以使用`kubectl krew`命令访问。
 
 1.  要安装 Minio kubectl 插件，您可以运行以下`krew`命令：
 
-```
-kubectl krew install minio
-```
+[PRE8]
 
 现在，安装了 Minio kubectl 插件，让我们看看如何在我们的集群上设置 Minio。
 
@@ -314,32 +198,19 @@ kubectl krew install minio
 
 1.  我们可以使用以下命令安装 Minio Operator：
 
-```
-kubectl minio init
-```
+[PRE9]
 
 这将导致以下输出：
 
-```
-CustomResourceDefinition tenants.minio.min.io: created
-ClusterRole minio-operator-role: created
-ServiceAccount minio-operator: created
-ClusterRoleBinding minio-operator-binding: created
-MinIO Operator Deployment minio-operator: created
-```
+[PRE10]
 
 1.  要检查 Minio Operator 是否准备就绪，让我们用以下命令检查我们的 Pods：
 
-```
-kubectl get pods
-```
+[PRE11]
 
 您应该在输出中看到 Minio Operator Pod 正在运行：
 
-```
-NAMESPACE     NAME                               READY   STATUS    RESTARTS   AGE
-default       minio-operator-85ccdcfb6-r8g8b     1/1     Running   0          5m37s
-```
+[PRE12]
 
 现在，我们在 Kubernetes 上正确运行 Minio Operator。接下来，我们可以创建一个 Minio 租户。
 
@@ -355,71 +226,37 @@ default       minio-operator-85ccdcfb6-r8g8b     1/1     Running 
 
 默认.env
 
-```
-DIRECT_CSI_DRIVES=data{1...4}
-DIRECT_CSI_DRIVES_DIR=/mnt
-KUBELET_DIR_PATH=/var/lib/kubelet
-```
+[PRE13]
 
 正如你所看到的，这个环境文件确定了 Direct CSI 驱动程序将挂载卷的位置。
 
 1.  一旦我们创建了`default.env`，让我们使用以下命令将这些变量加载到内存中：
 
-```
-export $(cat default.env)
-```
+[PRE14]
 
 1.  最后，让我们使用以下命令安装 Direct CSI 驱动程序：
 
-```
-kubectl apply -k github.com/minio/direct-csi
-```
+[PRE15]
 
 这应该会产生以下输出：
 
-```
-kubenamespace/direct-csi created
-storageclass.storage.k8s.io/direct.csi.min.io created
-serviceaccount/direct-csi-min-io created
-clusterrole.rbac.authorization.k8s.io/direct-csi-min-io created
-clusterrolebinding.rbac.authorization.k8s.io/direct-csi-min-io created
-configmap/direct-csi-config created
-secret/direct-csi-min-io created
-service/direct-csi-min-io created
-deployment.apps/direct-csi-controller-min-io created
-daemonset.apps/direct-csi-min-io created
-csidriver.storage.k8s.io/direct.csi.min.io created
-```
+[PRE16]
 
 1.  在继续创建 Minio 租户之前，让我们检查一下我们的 CSI Pods 是否已经正确启动。运行以下命令进行检查：
 
-```
-kubectl get pods –n direct-csi
-```
+[PRE17]
 
 如果 CSI Pods 已经启动，你应该会看到类似以下的输出：
 
-```
-NAME                                          READY   STATUS    RESTARTS   AGE
-direct-csi-controller-min-io-cd598c4b-hn9ww   2/2     Running   0          9m
-direct-csi-controller-min-io-cd598c4b-knvbn   2/2     Running   0          9m
-direct-csi-controller-min-io-cd598c4b-tth6q   2/2     Running   0          9m
-direct-csi-min-io-4qlt7                       3/3     Running   0          9m
-direct-csi-min-io-kt7bw                       3/3     Running   0          9m
-direct-csi-min-io-vzdkv                       3/3     Running   0          9m
-```
+[PRE18]
 
 1.  现在我们的 CSI 驱动程序已安装，让我们创建 Minio 租户 - 但首先，让我们看一下`kubectl minio tenant create`命令生成的 YAML：
 
-```
-kubectl minio tenant create --name my-tenant --servers 2 --volumes 4 --capacity 1Gi -o > my-minio-tenant.yaml
-```
+[PRE19]
 
 如果你想直接创建 Minio 租户而不检查 YAML，可以使用以下命令：
 
-```
-kubectl minio tenant create --name my-tenant --servers 2 --volumes 4 --capacity 1Gi
-```
+[PRE20]
 
 这个命令只会创建租户，而不会先显示 YAML。然而，由于我们使用的是 Direct CSI 实现，我们需要更新 YAML。因此，仅使用命令是行不通的。现在让我们来看一下生成的 YAML 文件。
 
@@ -427,66 +264,13 @@ kubectl minio tenant create --name my-tenant --servers 2 --volumes 4 --capacity 
 
 my-minio-tenant.yaml
 
-```
-apiVersion: minio.min.io/v1
-kind: Tenant
-metadata:
-  creationTimestamp: null
-  name: my-tenant
-  namespace: default
-scheduler:
-  name: ""
-spec:
-  certConfig:
-    commonName: ""
-    organizationName: []
-    dnsNames: []
-  console:
-    consoleSecret:
-      name: my-tenant-console-secret
-    image: minio/console:v0.3.14
-    metadata:
-      creationTimestamp: null
-      name: my-tenant
-    replicas: 2
-    resources: {}
-  credsSecret:
-    name: my-tenant-creds-secret
-  image: minio/minio:RELEASE.2020-09-26T03-44-56Z
-  imagePullSecret: {}
-```
+[PRE21]
 
 正如您所看到的，此文件指定了`Tenant` CRD 的一个实例。我们的规范的第一部分指定了两个容器，一个用于 Minio 控制台，另一个用于 Minio `server`本身。此外，`replicas`值反映了我们在`kubectl minio tenant create`命令中指定的内容。最后，它指定了 Minio`console`的秘钥的名称。
 
 接下来，让我们看一下 Tenant CRD 的底部部分：
 
-```
- liveness:
-    initialDelaySeconds: 10
-    periodSeconds: 1
-    timeoutSeconds: 1
-  mountPath: /export
-  requestAutoCert: true
-  zones:
-  - resources: {}
-    servers: 2
-    volumeClaimTemplate:
-      apiVersion: v1
-      kind: persistentvolumeclaims
-      metadata:
-        creationTimestamp: null
-      spec:
-        accessModes:
-        - ReadWriteOnce
-        resources:
-          requests:
-            storage: 256Mi
-      status: {}
-    volumesPerServer: 2
-status:
-  availableReplicas: 0
-  currentState: ""
-```
+[PRE22]
 
 正如您所看到的，`Tenant`资源指定了一些服务器（也由`creation`命令指定），与副本的数量相匹配。它还指定了内部 Minio 服务的名称，以及要使用的`volumeClaimTemplate`实例。
 
@@ -494,35 +278,15 @@ status:
 
 my-updated-minio-tenant.yaml
 
-```
-zones:
-  - resources: {}
-    servers: 2
-    volumeClaimTemplate:
-      metadata:
-        name: data
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 256Mi
-        storageClassName: direct.csi.min.io
-```
+[PRE23]
 
 1.  现在让我们继续创建我们的 Minio 租户！我们可以使用以下命令来完成：
 
-```
-kubectl apply -f my-updated-minio-tenant.yaml
-```
+[PRE24]
 
 这应该导致以下输出：
 
-```
-tenant.minio.min.io/my-tenant created
-secret/my-tenant-creds-secret created
-secret/my-tenant-console-secret created
-```
+[PRE25]
 
 此时，Minio Operator 将开始为我们的新 Minio 租户创建必要的资源，几分钟后，除了运算符之外，您应该看到一些 Pods 启动，类似于以下内容：
 
@@ -538,23 +302,17 @@ secret/my-tenant-console-secret created
 
 为了获取控制台的`access`密钥和`secret`密钥（在我们的情况下将是自动生成的），让我们使用以下两个命令。在我们的情况下，我们使用我们的`my-tenant`租户来获取`access`密钥：
 
-```
-echo $(kubectl get secret my-tenant-console-secret -o=jsonpath='{.data.CONSOLE_ACCESS_KEY}' | base64 --decode)
-```
+[PRE26]
 
 为了获取`secret`密钥，我们使用以下命令：
 
-```
-echo $(kubectl get secret my-tenant-console-secret -o=jsonpath='{.data.CONSOLE_SECRET_KEY}' | base64 --decode)
-```
+[PRE27]
 
 现在，我们的 Minio 控制台将在一个名为`<TENANT NAME>-console`的服务上可用。
 
 让我们使用`port-forward`命令访问这个控制台。在我们的情况下，这将是如下所示：
 
-```
-kubectl port-forward service/my-tenant-console 8081:9443
-```
+[PRE28]
 
 然后，我们的 Minio 控制台将在浏览器上的`https://localhost:8081`上可用。您需要接受浏览器的安全警告，因为在这个示例中，我们还没有为本地主机的控制台设置 TLS 证书。输入从前面步骤中获得的`access`密钥和`secret`密钥来登录！
 
@@ -572,68 +330,41 @@ kubectl port-forward service/my-tenant-console 8081:9443
 
 首先，我们需要获取 Minio 的`access`密钥和`secret`，这与我们之前获取的控制台`access`密钥和`secret`不同。要获取这些密钥，运行以下控制台命令（在我们的情况下，我们的租户是`my-tenant`）。首先，获取`access`密钥：
 
-```
-echo $(kubectl get secret my-tenant-creds-secret -o=jsonpath='{.data.accesskey}' | base64 --decode)
-```
+[PRE29]
 
 然后，获取`secret`密钥：
 
-```
-echo $(kubectl get secret my-tenant-creds-secret -o=jsonpath='{.data.secretkey}' | base64 --decode)
-```
+[PRE30]
 
 现在，让我们启动带有 Minio CLI 的 Pod。为此，让我们使用以下 Pod 规范：
 
 minio-mc-pod.yaml
 
-```
-apiVersion: v1
-kind: Pod
-metadata:
-  name: minio-mc
-spec:
-  containers:
-  - name: mc
-    image: minio/mc
-    command: ["/bin/sh", "-c", "sleep 10000000s"]
-  restartPolicy: OnFailure
-```
+[PRE31]
 
 使用以下命令创建这个 Pod：
 
-```
-kubectl apply -f minio-mc-pod.yaml
-```
+[PRE32]
 
 然后，要`exec`进入这个`minio-mc` Pod，我们运行通常的`exec`命令：
 
-```
-Kubectl exec -it minio-mc -- sh
-```
+[PRE33]
 
 现在，让我们在 Minio CLI 中为我们新创建的 Minio 分布式集群配置访问。我们可以使用以下命令来完成这个操作（在这个配置中，`--insecure`标志是必需的）：
 
-```
-mc config host add my-minio https://<MINIO TENANT POD IP>:9000 --insecure
-```
+[PRE34]
 
 此命令的 Pod IP 可以是我们的任一租户 Minio Pods 的 IP - 在我们的情况下，这些是`my-tenant-zone-0-0`和`my-tenant-zone-0-1`。运行此命令后，系统将提示您输入访问密钥和秘密密钥。输入它们，如果成功，您将看到一个确认消息，看起来像这样：
 
-```
-Added `my-minio` successfully.
-```
+[PRE35]
 
 现在，为了测试 CLI 配置是否正常工作，我们可以使用以下命令创建另一个测试存储桶：
 
-```
-mc mb my-minio/my-bucket-2 --insecure
-```
+[PRE36]
 
 这应该会产生以下输出：
 
-```
-Bucket created successfully `my-minio/my-bucket-2`.
-```
+[PRE37]
 
 作为我们设置的最后一个测试，让我们将一个文件上传到我们的 Minio 存储桶！
 
@@ -641,9 +372,7 @@ Bucket created successfully `my-minio/my-bucket-2`.
 
 现在，让我们使用以下命令将其上传到我们最近创建的存储桶中：
 
-```
-mc mv test.txt my-minio/my-bucket-2 --insecure
-```
+[PRE38]
 
 您应该会看到一个带有上传进度的加载栏，最终显示整个文件大小已上传。
 
@@ -677,76 +406,41 @@ mc mv test.txt my-minio/my-bucket-2 --insecure
 
 1.  我们需要做的第一件事是添加 CockroachDB Helm 图表存储库，使用以下命令：
 
-```
-helm repo add cockroachdb https://charts.cockroachdb.com/
-```
+[PRE39]
 
 这应该会产生以下输出：
 
-```
-"cockroachdb" has been added to your repositories
-```
+[PRE40]
 
 1.  在安装图表之前，让我们创建一个自定义的`values.yaml`文件，以便调整一些 CockroachDB 的默认设置。我们的演示文件如下所示：
 
 Cockroach-db-values.yaml
 
-```
-storage:
-  persistentVolume:
-    size: 2Gi
-statefulset:
-  resources:
-    limits:
-      memory: "1Gi"
-    requests:
-      memory: "1Gi"
-conf:
-  cache: "256Mi"
-  max-sql-memory: "256Mi"
-```
+[PRE41]
 
 正如您所看到的，我们指定了`2`GB 的 PersistentVolume 大小，`1`GB 的 Pod 内存限制和请求，以及 CockroachDB 的配置文件内容。此配置文件包括`cache`和最大`memory`的设置，它们设置为内存限制大小的 25%，为`256`MB。这个比例是 CockroachDB 的最佳实践。请记住，这些并不是所有生产就绪的设置，但它们对我们的演示来说是有效的。
 
 1.  在这一点上，让我们继续使用以下 Helm 命令创建我们的 CockroachDB 集群：
 
-```
-helm install cdb --values cockroach-db-values.yaml cockroachdb/cockroachdb
-```
+[PRE42]
 
 如果成功，您将看到来自 Helm 的冗长部署消息，我们将不在此重现。让我们使用以下命令检查在我们的集群上到底部署了什么：
 
-```
-kubectl get po 
-```
+[PRE43]
 
 您将看到类似以下的输出：
 
-```
-NAMESPACE     NAME                                          READY   STATUS      RESTARTS   AGE
-default       cdb-cockroachdb-0                             0/1     Running     0          57s
-default       cdb-cockroachdb-1                             0/1     Running     0          56s
-default       cdb-cockroachdb-2                             1/1     Running     0          56s
-default       cdb-cockroachdb-init-8p2s2                    0/1     Completed   0          57s
-```
+[PRE44]
 
 正如您所看到的，我们在一个 StatefulSet 中有三个 Pods，另外还有一个用于一些初始化任务的设置 Pod。
 
 1.  为了检查我们的集群是否正常运行，我们可以使用 CockroachDB Helm 图表输出中方便给出的命令（它将根据您的 Helm 发布名称而变化）：
 
-```
-kubectl run -it --rm cockroach-client \
-        --image=cockroachdb/cockroach \
-        --restart=Never \
-        --command -- \
-        ./cockroach sql --insecure --host=cdb-cockroachdb-public.default
-```
+[PRE45]
 
 如果成功，将打开一个类似以下的提示符的控制台：
 
-```
-root@cdb-cockroachdb-public.default:26257/defaultdb>
-```
+[PRE46]
 
 接下来，我们将使用 SQL 测试 CockroachDB。
 
@@ -756,43 +450,23 @@ root@cdb-cockroachdb-public.default:26257/defaultdb>
 
 1.  首先，让我们使用以下命令创建一个数据库：
 
-```
-CREATE DATABASE mydb;
-```
+[PRE47]
 
 1.  接下来，让我们创建一个简单的表：
 
-```
-CREATE TABLE mydb.users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    first_name STRING,
-    last_name STRING,
-    email STRING
- );
-```
+[PRE48]
 
 1.  然后，让我们使用这个命令添加一些数据：
 
-```
-INSERT INTO mydb.users (first_name, last_name, email)
-  VALUES
-      ('John', 'Smith', 'jsmith@fake.com');
-```
+[PRE49]
 
 1.  最后，让我们使用以下命令确认数据：
 
-```
-SELECT * FROM mydb.users;
-```
+[PRE50]
 
 这将给您以下输出：
 
-```
-                  id                  | first_name | last_name |      email
----------------------------------------+------------+-----------+------------------
-  e6fa342f-8fe5-47ad-adde-e543833ffd28 | John       | Smith     | jsmith@fake.com
-(1 row)
-```
+[PRE51]
 
 成功！
 
@@ -812,37 +486,25 @@ RabbitMQ 是消息队列的众多选项之一。正如我们在本章的第一�
 
 1.  首先，让我们添加适当的`helm`存储库（由**Bitnami**提供）：
 
-```
-helm repo add bitnami https://charts.bitnami.com/bitnami
-```
+[PRE52]
 
 1.  接下来，让我们创建一个自定义值文件来调整一些参数：
 
 Values-rabbitmq.yaml
 
-```
-auth:
-  user: user
-  password: test123
-persistence:
-  enabled: false
-```
+[PRE53]
 
 正如您所看到的，在这种情况下，我们正在禁用持久性，这对于快速演示非常有用。
 
 1.  然后，RabbitMQ 可以通过以下命令轻松安装到集群中：
 
-```
-helm install rabbitmq bitnami/rabbitmq --values values-rabbitmq.yaml
-```
+[PRE54]
 
 成功后，您将看到来自 Helm 的确认消息。RabbitMQ Helm 图还包括管理 UI，让我们使用它来验证我们的安装是否成功。
 
 1.  首先，让我们开始将端口转发到`rabbitmq`服务：
 
-```
-kubectl port-forward --namespace default svc/rabbitmq 15672:15672
-```
+[PRE55]
 
 然后，我们应该能够在`http://localhost:15672`上访问 RabbitMQ 管理 UI。它将如下所示：
 

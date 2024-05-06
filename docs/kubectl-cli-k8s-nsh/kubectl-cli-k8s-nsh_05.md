@@ -38,9 +38,7 @@ Kubernetes 通过将容器放入 pod 中并将其调度到节点上来运行工�
 
 要开始使用节点，您首先需要获取它们的列表。要获取节点列表，请运行以下命令：
 
-```
-$ kubectl get nodes
-```
+[PRE0]
 
 使用上述命令，我们得到以下节点列表：
 
@@ -58,9 +56,7 @@ $ kubectl get nodes
 
 1.  要描述一个节点，请运行以下命令：
 
-```
-$ kubectl describe node gke-kubectl-lab-default-pool-b3c7050d-6s1l
-```
+[PRE1]
 
 由于命令的输出相当庞大，我们将只显示其中的一部分。您可以自行查看完整的输出。
 
@@ -88,9 +84,7 @@ $ kubectl describe node gke-kubectl-lab-default-pool-b3c7050d-6s1l
 
 了解节点消耗了哪些资源是很方便的。要显示节点使用的资源，请运行以下命令：
 
-```
-$ kubectl top nodes
-```
+[PRE2]
 
 我们使用上述命令得到了以下节点列表：
 
@@ -112,25 +106,11 @@ $ kubectl top nodes
 
 `kubectl`有一个名为`cordon`的命令，允许我们使节点不可调度。
 
-```
-$ kubectl cordon -h
-Mark node as unschedulable.
-Examples:
-  # Mark node "foo" as unschedulable.
-  kubectl cordon foo
-Options:
-      --dry-run='none': Must be "none", "server", or "client". If client strategy, only print the object that would be
-sent, without sending it. If server strategy, submit server-side request without persisting the resource.
-  -l, --selector='': Selector (label query) to filter on
-Usage:
-  kubectl cordon NODE [options]
-```
+[PRE3]
 
 让我们对`gke-kubectl-lab-default-pool-b3c7050d-8jhj`节点进行隔离，然后打印节点列表。要对节点进行隔离，请运行以下命令：
 
-```
-$ kubectl cordon gke-kubectl-lab-default-pool-b3c7050d-8jhj
-```
+[PRE4]
 
 在运行上述命令后，我们得到以下输出：
 
@@ -146,9 +126,7 @@ $ kubectl cordon gke-kubectl-lab-default-pool-b3c7050d-8jhj
 
 如果我们希望再次对节点进行调度，只需使用`uncordon`命令。要对节点进行取消隔离，请运行以下命令：
 
-```
-$ kubectl uncordon gke-kubectl-lab-default-pool-b3c7050d-8jhj
-```
+[PRE5]
 
 在运行上述命令后，我们得到以下输出：
 
@@ -162,9 +140,7 @@ $ kubectl uncordon gke-kubectl-lab-default-pool-b3c7050d-8jhj
 
 您可能希望从将要被删除、升级或重新启动的节点中删除/驱逐所有的 pod。有一个名为`drain`的命令可以做到这一点。它的输出非常长，所以只会显示部分输出：
 
-```
-$ kubectl drain –help
-```
+[PRE6]
 
 我们从上述命令中得到以下输出：
 
@@ -180,9 +156,7 @@ DaemonSet 确保所有指定的 Kubernetes 节点运行与 DaemonSet 中指定�
 
 让我们使用以下命令排干`gke-kubectl-lab-default-pool-b3c7050d-8jhj`节点：
 
-```
-$ kubectl drain gke-kubectl-lab-default-pool-b3c7050d-8jhj --ignore-daemonsets –force
-```
+[PRE7]
 
 我们使用上述命令排干节点。此命令的输出如下截图所示：
 
@@ -204,9 +178,7 @@ $ kubectl drain gke-kubectl-lab-default-pool-b3c7050d-8jhj --ignore-daemonsets �
 
 我们使用`delete node`命令来执行：
 
-```
-$ kubectl delete node gke-kubectl-lab-default-pool-b3c7050d-8jhj
-```
+[PRE8]
 
 我们使用上述命令删除节点。此命令的输出如下截图所示：
 

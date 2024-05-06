@@ -54,10 +54,7 @@
 
 要在启动 Docker 容器时取消 setuid 或 setgid 功能，您需要做类似以下操作：
 
-```
-**$ docker run -d --cap-drop SETGID --cap-drop SETUID nginx**
-
-```
+[PRE0]
 
 这将启动`nginx`容器，并且会为容器取消`SETGID`和`SETUID`的功能。
 
@@ -71,77 +68,35 @@ Docker 的最终目标是将根用户映射到 Docker 主机上存在的非根�
 
 1.  创建 CA。
 
-```
-**$ openssl genrsa -aes256 -out ca-key.pem 4096**
-**Generating RSA private key, 4096 bit long modulus**
-**......................................................................................................................................................................................................................++**
-**....................................................................++**
-**e is 65537 (0x10001)**
-**Enter pass phrase for ca-key.pem:**
-**Verifying - Enter pass phrase for ca-key.pem:**
-
-```
+[PRE1]
 
 您需要指定两个值，`密码短语`和`密码短语`。这需要在`4`和`1023`个字符之间。少于`4`或多于`1023`的字符将不被接受。
 
-```
-**$ openssl req -new -x509 -days <number_of_days> -key ca-key.pem -sha256 -out ca.pem**
-**Enter pass phrase for ca-key.pem:**
-**You are about to be asked to enter information that will be incorporated**
-**into your certificate request.**
-**What you are about to enter is what is called a Distinguished Name or a DN.**
-**There are quite a few fields but you can leave some blank**
-**For some fields there will be a default value,**
-**If you enter '.', the field will be left blank.**
-**-----**
-**Country Name (2 letter code) [AU]:US**
-**State or Province Name (full name) [Some-State]:Pennsylvania**
-**Locality Name (eg, city) []:**
-**Organization Name (eg, company) [Internet Widgits Pty Ltd]:**
-**Organizational Unit Name (eg, section) []:**
-**Common Name (e.g. server FQDN or YOUR name) []:**
-**Email Address []:**
-
-```
+[PRE2]
 
 您将需要一些项目。您需要之前输入的`密码短语`用于`ca-key.pem`。您还需要`国家`、`州`、`城市`、`组织名称`、`组织单位名称`、**完全限定域名**（**FQDN**）和`电子邮件地址`以完成证书。
 
 1.  创建客户端密钥和签名证书。
 
-```
-**$ openssl genrsa -out key.pem 4096**
-**$ openssl req -subj '/CN=<client_DNS_name>' -new -key key.pem -out client.csr**
-
-```
+[PRE3]
 
 1.  签署公钥。
 
-```
-**$ openssl x509 -req -days <number_of_days> -sha256 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out cert.em**
-
-```
+[PRE4]
 
 1.  更改权限。
 
-```
-**$ chmod -v 0400 ca-key.pem key.pem server-key.em**
-**$ chmod -v 0444 ca.pem server-cert.pem cert.em**
-```
+[PRE5]
 
 现在，您可以确保您的 Docker 守护程序只接受来自您提供签署证书的其他 Docker 主机的连接：
 
-```
-**$ docker daemon --tlsverify --tlscacert=ca.pem --tlscert=server-certificate.pem --tlskey=server-key.pem -H=0.0.0.0:2376**
-```
+[PRE6]
 
 确保证书文件位于您运行命令的目录中，否则您需要指定证书文件的完整路径。
 
 在每个客户端上，您需要运行以下命令：
 
-```
-**$ docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem -H=<$DOCKER_HOST>:2376 version**
-
-```
+[PRE7]
 
 再次强调，证书的位置很重要。确保它们位于您计划运行前述命令的目录中，或者指定证书和密钥文件位置的完整路径。
 
@@ -173,11 +128,7 @@ Docker 的最终目标是将根用户映射到 Docker 主机上存在的非根�
 
 Docker Machine 是一种工具，允许您将 Docker 守护程序安装到您的虚拟主机上。然后，您可以使用 Docker Machine 管理这些 Docker 主机。Docker Machine 可以通过 Windows 和 Mac 上的**Docker 工具箱**安装。如果您使用 Linux，则可以通过简单的 `curl` 命令安装 Docker Machine：
 
-```
-**$ curl -L https://github.com/docker/machine/releases/download/v0.6.0/docker-machine-`uname -s`-`uname -m` > /usr/local/bin/docker-machine && \**
-**$ chmod +x /usr/local/bin/docker-machine**
-
-```
+[PRE8]
 
 第一条命令将 Docker Machine 安装到 `/usr/local/bin` 目录中，第二条命令更改文件的权限并将其设置为可执行文件。
 
@@ -185,102 +136,39 @@ Docker Machine 是一种工具，允许您将 Docker 守护程序安装到您的
 
 Docker Machine 是您应该或将要使用来设置您的主机的工具。因此，我们将从它开始，以确保您的主机以安全的方式设置。我们将看看您如何在使用 Docker Machine 工具创建主机时，如何判断您的主机是否安全。让我们看看使用 Docker Machine 创建 Docker 主机时的情况，如下：
 
-```
-**$ docker-machine create --driver virtualbox host1**
-
-**Running pre-create checks...**
-**Creating machine...**
-**Waiting for machine to be running, this may take a few minutes...**
-**Machine is running, waiting for SSH to be available...**
-**Detecting operating system of created instance...**
-**Provisioning created instance...**
-**Copying certs to the local machine directory...**
-**Copying certs to the remote machine...**
-
-**Setting Docker configuration on the remote daemon...**
-
-```
+[PRE9]
 
 从前面的输出中，随着创建的运行，Docker Machine 正在执行诸如创建机器、等待 SSH 可用、执行操作、将证书复制到正确位置以及设置 Docker 配置等操作，我们将看到如何连接 Docker 到这台机器，如下所示：
 
-```
-**$ docker-machine env host1**
-
-**export DOCKER_TLS_VERIFY="1"**
-**export DOCKER_HOST="tcp://192.168.99.100:2376"**
-**export DOCKER_CERT_PATH="/Users/scottpgallagher/.docker/machine/machines/host1"**
-**export DOCKER_MACHINE_NAME="host1"**
-**# Run this command to configure your shell:**
-**# eval "$(docker-machine env host1)"**
-
-```
+[PRE10]
 
 前面的命令输出显示了设置此机器为 Docker 命令将要运行的机器所需运行的命令：
 
-```
- **eval "$(docker-machine env host1)"**
-
-```
+[PRE11]
 
 现在我们可以运行常规的 Docker 命令，比如`docker info`，它将从`host1`返回信息，现在我们已经将其设置为我们的环境。
 
 我们可以从前面突出显示的输出中看到，主机从两个导出行开始就被安全地设置了。以下是第一个突出显示的行：
 
-```
-**export DOCKER_TLS_VERIFY="1"**
-
-```
+[PRE12]
 
 从其他突出显示的输出中，`DOCKER_TLS_VERIFY`被设置为`1`或`true`。以下是第二个突出显示的行：
 
-```
-**export DOCKER_HOST="tcp://192.168.99.100:2376"**
-
-```
+[PRE13]
 
 我们将主机设置为在安全端口`2376`上运行，而不是在不安全端口`2375`上运行。
 
 我们还可以通过运行以下命令来获取这些信息：
 
-```
-**$ docker-machine ls**
-**NAME      ACTIVE   DRIVER       STATE     URL                         SWARM** 
-**host1              *        virtualbox     Running   tcp://192.168.99.100:2376** 
-
-```
+[PRE14]
 
 如果您已经使用先前的说明来设置 Docker 主机和 Docker 容器使用 TLS，请确保检查可以与 Docker Machine 一起使用的 TLS 开关选项。如果您有现有的证书要使用，这些开关将非常有用。通过运行以下命令，可以在突出显示的部分找到这些开关：
 
-```
-**$ docker-machine --help**
-
-**Options:**
- **--debug, -D      Enable debug mode**
- **-s, --storage-path "/Users/scottpgallagher/.docker/machine"
-Configures storage path [$MACHINE_STORAGE_PATH]**
- **--tls-ca-cert      CA to verify remotes against [$MACHINE_TLS_CA_CERT]**
- **--tls-ca-key      Private key to generate certificates [$MACHINE_TLS_CA_KEY]**
- **--tls-client-cert     Client cert to use for TLS [$MACHINE_TLS_CLIENT_CERT]**
- **--tls-client-key       Private key used in client TLS auth [$MACHINE_TLS_CLIENT_KEY]**
- **--github-api-token     Token to use for requests to the Github API [$MACHINE_GITHUB_API_TOKEN]**
- **--native-ssh      Use the native (Go-based) SSH implementation. [$MACHINE_NATIVE_SSH]**
- **--help, -h      show help**
- **--version, -v      print the version**
-
-```
+[PRE15]
 
 如果您想要安心，或者您的密钥确实被 compromise，您也可以使用`regenerate-certs`子命令重新生成机器的 TLS 证书。一个示例命令看起来类似于以下命令：
 
-```
-**$ docker-machine regenerate-certs host1** 
-
-**Regenerate TLS machine certs?  Warning: this is irreversible. (y/n): y**
-**Regenerating TLS certificates**
-**Copying certs to the local machine directory...**
-**Copying certs to the remote machine...**
-**Setting Docker configuration on the remote daemon...**
-
-```
+[PRE16]
 
 # SELinux 和 AppArmor
 

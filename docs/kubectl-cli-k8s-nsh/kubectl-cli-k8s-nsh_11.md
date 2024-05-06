@@ -24,9 +24,7 @@ Krew 是一个 Kubernetes 插件，让我们继续安装它。在这个例子中
 
 1.  接下来，我们需要下载插件列表：
 
-```
-$ kubectl krew update
-```
+[PRE0]
 
 1.  当我们有一个本地缓存的所有插件列表时，让我们通过运行`$ kubectl krew search`命令来检查可用的插件，如下面的屏幕截图所示：![图 7.2 - 可用插件列表](img/B16411_07_002.jpg)
 
@@ -78,31 +76,19 @@ $ kubectl krew update
 
 1.  我们将创建一个名为`kubectl-toppods`的简单基于`bash`的插件：
 
-```
-$ cat kubectl-toppods
-#!/bin/bash
-kubectl top pods
-```
+[PRE1]
 
 1.  让我们将`kubectl-toppods`文件复制到`~/bin`路径：
 
-```
-$ cp kubectl-toppods ~/bin
-```
+[PRE2]
 
 1.  确保它是可执行的：
 
-```
-$ chmod +x ~/bin/ kubectl-toppods
-```
+[PRE3]
 
 1.  现在让我们尝试运行它：
 
-```
-$ kubectl toppods
-NAME                        CPU(cores)   MEMORY(bytes)
-postgresql-57578b68d9-6rpt8 1m           22Mi
-```
+[PRE4]
 
 不错！您可以看到插件正在工作，而且创建`kubectl`插件并不是很困难。
 

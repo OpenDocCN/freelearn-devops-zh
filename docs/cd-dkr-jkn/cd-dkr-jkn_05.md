@@ -114,9 +114,7 @@ Docker 注册表安装过程快速简单，但是要使其在公共环境中安�
 
 Docker 注册表可用作 Docker 镜像。要启动它，我们可以运行以下命令：
 
-```
-$ docker run -d -p 5000:5000 --restart=always --name registry registry:2
-```
+[PRE0]
 
 默认情况下，注册表数据存储为默认主机文件系统目录中的 docker 卷。要更改它，您可以添加`-v <host_directory>:/var/lib/registry`。另一种选择是使用卷容器。
 
@@ -132,9 +130,7 @@ $ docker run -d -p 5000:5000 --restart=always --name registry registry:2
 
 无论证书是由 CA 签名还是自签名，我们都可以将`domain.crt`和`domain.key`移动到`certs`目录并启动注册表。
 
-```
-$ docker run -d -p 5000:5000 --restart=always --name registry -v `pwd`/certs:/certs -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key registry:2
-```
+[PRE1]
 
 在使用自签名证书的情况下，客户端必须明确信任该证书。为了做到这一点，他们可以将`domain.crt`文件复制到`/etc/docker/certs.d/<docker_host_domain>:5000/ca.crt`。
 
@@ -146,16 +142,11 @@ $ docker run -d -p 5000:5000 --restart=always --name registry -v `pwd`/certs:/ce
 
 这样做的最简单方法是使用`registry`镜像中的`htpasswd`工具创建具有密码的用户：
 
-```
-$ mkdir auth
-$ docker run --entrypoint htpasswd registry:2 -Bbn <username> <password> > auth/passwords
-```
+[PRE2]
 
 该命令运行`htpasswd`工具来创建`auth/passwords`文件（其中包含一个用户）。然后，我们可以使用一个授权访问它的用户来运行注册表：
 
-```
-$ docker run -d -p 5000:5000 --restart=always --name registry -v `pwd`/auth:/auth -e "REGISTRY_AUTH=htpasswd" -e "REGISTRY_AUTH_HTPASSWD_REALM=Registry Realm" -e REGISTRY_AUTH_HTPASSWD_PATH=/auth/passwords -v `pwd`/certs:/certs -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key registry:2
-```
+[PRE3]
 
 该命令除了设置证书外，还创建了仅限于`auth/passwords`文件中指定的用户的访问限制。
 
@@ -189,25 +180,17 @@ $ docker run -d -p 5000:5000 --restart=always --name registry -v `pwd`/auth:/aut
 
 让我们使用第二章中的示例，*介绍 Docker*，并构建一个安装了 Ubuntu 和 Python 解释器的图像。在一个新目录中，我们需要创建一个 Dockerfile：
 
-```
-FROM ubuntu:16.04
-RUN apt-get update && \
-    apt-get install -y python
-```
+[PRE4]
 
 现在，我们可以构建图像：
 
-```
-$ docker build -t ubuntu_with_python .
-```
+[PRE5]
 
 # 推送图像
 
 为了推送创建的图像，我们需要根据命名约定对其进行标记：
 
-```
-<registry_address>/<image_name>:<tag>
-```
+[PRE6]
 
 "`registry_address`"可以是：
 
@@ -219,9 +202,7 @@ $ docker build -t ubuntu_with_python .
 
 让我们标记图像以使用 Docker Hub：
 
-```
-$ docker tag ubuntu_with_python leszko/ubuntu_with_python:1
-```
+[PRE7]
 
 我们也可以在`build`命令中标记图像：`"docker`
 
@@ -229,17 +210,13 @@ $ docker tag ubuntu_with_python leszko/ubuntu_with_python:1
 
 如果存储库配置了访问限制，我们需要首先授权它：
 
-```
-$ docker login --username <username> --password <password>
-```
+[PRE8]
 
 可以使用`docker login`命令而不带参数，并且 Docker 会交互式地要求用户名和密码。
 
 现在，我们可以使用`push`命令将图像存储在注册表中：
 
-```
-$ docker push leszko/ubuntu_with_python:1
-```
+[PRE9]
 
 请注意，无需指定注册表地址，因为 Docker 使用命名约定来解析它。图像已存储，我们可以使用 Docker Hub Web 界面进行检查，该界面可在[`hub.docker.com`](https://hub.docker.com)上找到。
 
@@ -247,15 +224,11 @@ $ docker push leszko/ubuntu_with_python:1
 
 为了演示注册表的工作原理，我们可以在本地删除图像并从注册表中检索它：
 
-```
-$ docker rmi ubuntu_with_python leszko/ubuntu_with_python:1
-```
+[PRE10]
 
 我们可以使用`docker images`命令看到图像已被删除。然后，让我们从注册表中检索图像：
 
-```
-$ docker pull leszko/ubuntu_with_python:1
-```
+[PRE11]
 
 如果您使用免费的 Docker Hub 帐户，您可能需要在拉取之前将`ubuntu_with_python`存储库更改为公共。
 
@@ -309,49 +282,25 @@ $ docker pull leszko/ubuntu_with_python:1
 
 让我们在计算器项目的根目录中创建 Dockerfile：
 
-```
-FROM frolvlad/alpine-oraclejdk8:slim
-COPY build/libs/calculator-0.0.1-SNAPSHOT.jar app.jar
-ENTRYPOINT ["java", "-jar", "app.jar"]
-```
+[PRE12]
 
 Gradle 的默认构建目录是`build/libs/`，`calculator-0.0.1-SNAPSHOT.jar`是打包成一个 JAR 文件的完整应用程序。请注意，Gradle 自动使用 Maven 风格的版本`0.0.1-SNAPSHOT`对应用程序进行了版本化。
 
 Dockerfile 使用包含 JDK 8 的基础镜像（`frolvlad/alpine-oraclejdk8:slim`）。它还复制应用程序 JAR（由 Gradle 创建）并运行它。让我们检查应用程序是否构建并运行：
 
-```
-$ ./gradlew build
-$ docker build -t calculator .
-$ docker run -p 8080:8080 --name calculator calculator
-```
+[PRE13]
 
 使用上述命令，我们已经构建了应用程序，构建了 Docker 镜像，并运行了 Docker 容器。过一会儿，我们应该能够打开浏览器，访问`http://localhost:8080/sum?a=1&b=2`，并看到`3`作为结果。
 
 我们可以停止容器，并将 Dockerfile 推送到 GitHub 存储库：
 
-```
-$ git add Dockerfile
-$ git commit -m "Add Dockerfile"
-$ git push
-```
+[PRE14]
 
 # 将 Docker 构建添加到流水线
 
 我们需要的最后一步是在 Jenkinsfile 中添加“Docker 构建”阶段。通常，JAR 打包也被声明为一个单独的`Package`阶段：
 
-```
-stage("Package") {
-     steps {
-          sh "./gradlew build"
-     }
-}
-
-stage("Docker build") {
-     steps {
-          sh "docker build -t leszko/calculator ."
-     }
-}
-```
+[PRE15]
 
 我们没有明确为镜像版本，但每个镜像都有一个唯一的哈希 ID。我们将在下一章中介绍明确的版本控制。
 
@@ -365,13 +314,7 @@ stage("Docker build") {
 
 当镜像准备好后，我们可以将其存储在注册表中。`Docker push`阶段非常简单。只需在 Jenkinsfile 中添加以下代码即可：
 
-```
-stage("Docker push") {
-     steps {
-          sh "docker push leszko/calculator"
-     }
-}
-```
+[PRE16]
 
 如果 Docker 注册表受到访问限制，那么首先我们需要使用`docker login`命令登录。不用说，凭据必须得到很好的保护，例如，使用专用凭据存储，如官方 Docker 页面上所述：[`docs.docker.com/engine/reference/commandline/login/#credentials-store`](https://docs.docker.com/engine/reference/commandline/login/#credentials-store)。
 
@@ -385,13 +328,7 @@ stage("Docker push") {
 
 让我们添加一个阶段来运行`calculator`容器：
 
-```
-stage("Deploy to staging") {
-     steps {
-          sh "docker run -d --rm -p 8765:8080 --name calculator leszko/calculator"
-     }
-}
-```
+[PRE17]
 
 运行此阶段后，`calculator`容器将作为守护程序运行，将其端口发布为`8765`，并在停止时自动删除。
 
@@ -401,23 +338,13 @@ stage("Deploy to staging") {
 
 在项目的根目录中，让我们创建`acceptance_test.sh`文件：
 
-```
-#!/bin/bash
-test $(curl localhost:8765/sum?a=1\&b=2) -eq 3
-```
+[PRE18]
 
 我们使用参数`a=1`和`b=2`调用`sum`端点，并期望收到`3`的响应。
 
 然后，`Acceptance test`阶段可以如下所示：
 
-```
-stage("Acceptance test") {
-     steps {
-          sleep 60
-          sh "./acceptance_test.sh"
-     }
-}
-```
+[PRE19]
 
 由于`docker run -d`命令是异步的，我们需要使用`sleep`操作来确保服务已经在运行。
 
@@ -427,13 +354,7 @@ stage("Acceptance test") {
 
 作为验收测试的最后一步，我们可以添加分段环境清理。这样做的最佳位置是在`post`部分，以确保即使失败也会执行：
 
-```
-post {
-     always {
-          sh "docker stop calculator"
-     }
-}
-```
+[PRE20]
 
 这个声明确保`calculator`容器不再在 Docker 主机上运行。
 
@@ -477,15 +398,11 @@ Docker Compose 具有许多功能，最有趣的是：
 
 您可以在[`pip.pypa.io/en/stable/installing/`](https://pip.pypa.io/en/stable/installing/)找到 pip 工具的安装指南，或者在 Ubuntu 上使用`sudo apt-get install python-pip`。
 
-```
-$ pip install docker-compose
-```
+[PRE21]
 
 要检查 Docker Compose 是否已安装，我们可以运行：
 
-```
-$ docker-compose --version
-```
+[PRE22]
 
 所有操作系统的安装指南都可以在[`docs.docker.com/compose/install/`](https://docs.docker.com/compose/install/)找到。
 
@@ -501,16 +418,7 @@ $ docker-compose --version
 
 让我们从一个例子开始，假设我们的计算器项目使用 Redis 服务器进行缓存。在这种情况下，我们需要一个包含两个容器`calculator`和`redis`的环境。在一个新目录中，让我们创建`docker-compose.yml`文件。
 
-```
-version: "3"
-services:
-     calculator:
-          image: calculator:latest
-          ports:
-               - 8080
-     redis:
-          image: redis:latest
-```
+[PRE23]
 
 环境配置如下图所示：
 
@@ -528,34 +436,19 @@ services:
 
 `docker-compose`命令读取定义文件并创建环境：
 
-```
-$ docker-compose up -d
-```
+[PRE24]
 
 该命令在后台启动了两个容器，`calculator`和`redis`（使用`-d`选项）。我们可以检查容器是否在运行：
 
-```
-$ docker-compose ps
- Name                   Command            State          Ports 
----------------------------------------------------------------------------
-project_calculator_1   java -jar app.jar    Up     0.0.0.0:8080->8080/tcp
-project_redis_1        docker-entrypoint.sh redis ... Up 6379/tcp
-```
+[PRE25]
 
 容器名称以项目名称`project`为前缀，该名称取自放置`docker-compose.yml`文件的目录的名称。我们可以使用`-p <project_name>`选项手动指定项目名称。由于 Docker Compose 是在 Docker 之上运行的，我们也可以使用`docker`命令来确认容器是否在运行：
 
-```
-$ docker ps
-CONTAINER ID  IMAGE             COMMAND                 PORTS
-360518e46bd3  calculator:latest "java -jar app.jar"     0.0.0.0:8080->8080/tcp 
-2268b9f1e14b  redis:latest      "docker-entrypoint..."  6379/tcp
-```
+[PRE26]
 
 完成后，我们可以拆除环境：
 
-```
-$ docker-compose down
-```
+[PRE27]
 
 这个例子非常简单，但这个工具本身非常强大。通过简短的配置和一堆命令，我们可以控制所有服务的编排。在我们将 Docker Compose 用于验收测试之前，让我们看看另外两个 Docker Compose 的特性：构建镜像和扩展容器。
 
@@ -565,16 +458,7 @@ $ docker-compose down
 
 让我们把`docker-compose.yml`文件放在计算器项目的目录中。当 Dockerfile 和 Docker Compose 配置在同一个目录中时，前者可以如下所示：
 
-```
-version: "3"
-services:
-     calculator:
-          build: .
-          ports:
-               - 8080
-     redis:
-          image: redis:latest
-```
+[PRE28]
 
 `docker-compose build`命令构建镜像。我们还可以要求 Docker Compose 在运行容器之前构建镜像，使用`docker-compose --build up`命令。
 
@@ -584,32 +468,17 @@ Docker Compose 提供了自动创建多个相同容器实例的功能。我们�
 
 例如，让我们再次运行环境并复制`calculator`容器：
 
-```
-$ docker-compose up -d
-$ docker-compose scale calculator=5
-```
+[PRE29]
 
 我们可以检查正在运行的容器：
 
-```
-$ docker-compose ps
- Name                     Command             State Ports 
----------------------------------------------------------------------------
-calculator_calculator_1   java -jar app.jar   Up   0.0.0.0:32777->8080/tcp
-calculator_calculator_2   java -jar app.jar   Up   0.0.0.0:32778->8080/tcp
-calculator_calculator_3   java -jar app.jar   Up   0.0.0.0:32779->8080/tcp
-calculator_calculator_4   java -jar app.jar   Up   0.0.0.0:32781->8080/tcp
-calculator_calculator_5   java -jar app.jar   Up   0.0.0.0:32780->8080/tcp
-calculator_redis_1        docker-entrypoint.sh redis ... Up 6379/tcp
-```
+[PRE30]
 
 五个`calculator`容器完全相同，除了容器 ID、容器名称和发布端口号。
 
 它们都使用相同的 Redis 容器实例。现在我们可以停止并删除所有容器：
 
-```
-$ docker-compose down
-```
+[PRE31]
 
 扩展容器是 Docker Compose 最令人印象深刻的功能之一。通过一个命令，我们可以扩展克隆实例的数量。Docker Compose 负责清理不再使用的容器。
 
@@ -631,10 +500,7 @@ Docker Compose 提供了容器之间的依赖关系；换句话说，它将一�
 
 在`build.gradle`文件中，在`dependencies`部分添加以下配置：
 
-```
-compile "org.springframework.data:spring-data-redis:1.8.0.RELEASE"
-compile "redis.clients:jedis:2.9.0"
-```
+[PRE32]
 
 它添加了负责与 Redis 通信的 Java 库。
 
@@ -642,47 +508,7 @@ compile "redis.clients:jedis:2.9.0"
 
 添加一个新文件`src/main/java/com/leszko/calculator/CacheConfig.java`：
 
-```
-package com.leszko.calculator;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.CachingConfigurerSupport;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.cache.RedisCacheManager;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-
-/** Cache config. */
-@Configuration
-@EnableCaching
-public class CacheConfig extends CachingConfigurerSupport {
-    private static final String REDIS_ADDRESS = "redis";
-
-    @Bean
-    public JedisConnectionFactory redisConnectionFactory() {
-        JedisConnectionFactory redisConnectionFactory = new
-          JedisConnectionFactory();
-        redisConnectionFactory.setHostName(REDIS_ADDRESS);
-        redisConnectionFactory.setPort(6379);
-        return redisConnectionFactory;
-    }
-
-    @Bean
-    public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory cf) {
-        RedisTemplate<String, String> redisTemplate = new RedisTemplate<String, 
-          String>();
-        redisTemplate.setConnectionFactory(cf);
-        return redisTemplate;
-    }
-
-    @Bean
-    public CacheManager cacheManager(RedisTemplate redisTemplate) {
-        return new RedisCacheManager(redisTemplate);
-    }
-}
-```
+[PRE33]
 
 这是一个标准的 Spring 缓存配置。请注意，对于 Redis 服务器地址，我们使用`redis`主机名，这是由于 Docker Compose 链接机制自动可用。
 
@@ -690,20 +516,7 @@ public class CacheConfig extends CachingConfigurerSupport {
 
 当缓存配置好后，我们最终可以将缓存添加到我们的网络服务中。为了做到这一点，我们需要更改`src/main/java/com/leszko/calculator/Calculator.java`文件如下：
 
-```
-package com.leszko.calculator;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-
-/** Calculator logic */
-@Service
-public class Calculator {
-    @Cacheable("sum")
-    public int sum(int a, int b) {
-        return a + b;
-    }
-}
-```
+[PRE34]
 
 从现在开始，求和计算将被缓存在 Redis 中，当我们调用`calculator`网络服务的`/sum`端点时，它将首先尝试从缓存中检索结果。
 
@@ -711,27 +524,15 @@ public class Calculator {
 
 假设我们的 docker-compose.yml 在计算器项目的目录中，我们现在可以启动容器了：
 
-```
-$ ./gradlew clean build
-$ docker-compose up --build -d
-```
+[PRE35]
 
 我们可以检查计算器服务发布的端口：
 
-```
-$ docker-compose port calculator 8080
-0.0.0.0:32783
-```
+[PRE36]
 
 如果我们在`localhost:32783/sum?a=1&b=2`上打开浏览器，计算器服务应该回复`3`，同时访问`redis`服务并将缓存值存储在那里。为了查看缓存值是否真的存储在 Redis 中，我们可以访问`redis`容器并查看 Redis 数据库内部：
 
-```
-$ docker-compose exec redis redis-cli
-
-127.0.0.1:6379> keys *
-1) "\xac\xed\x00\x05sr\x00/org.springframework.cache.interceptor.SimpleKeyL\nW\x03km\x93\xd8\x02\x00\x02I\x00\bhashCode\x00\x06paramst\x00\x13[Ljava/lang/Object;xp\x00\x00\x03\xe2ur\x00\x13[Ljava.lang.Object;\x90\xceX\x9f\x10s)l\x02\x00\x00xp\x00\x00\x00\x02sr\x00\x11java.lang.Integer\x12\xe2\xa0\xa4\xf7\x81\x878\x02\x00\x01I\x00\x05valuexr\x00\x10java.lang.Number\x86\xac\x95\x1d\x0b\x94\xe0\x8b\x02\x00\x00xp\x00\x00\x00\x01sq\x00~\x00\x05\x00\x00\x00\x02"
-2) "sum~keys"
-```
+[PRE37]
 
 `docker-compose exec`命令在`redis`容器内执行了`redis-cli`（Redis 客户端以浏览其数据库内容）命令。然后，我们可以运行`keys *`来打印 Redis 中存储的所有内容。
 
@@ -745,7 +546,7 @@ $ docker-compose exec redis redis-cli
 
 第一种方法是以与单容器应用程序相同的方式执行验收测试。唯一的区别是现在我们有两个容器正在运行，如下图所示：
 
-![从用户角度来看，`redis`容器是不可见的，因此单容器和多容器验收测试之间唯一的区别是我们使用`docker-compose up`命令而不是`docker run`。其他 Docker 命令也可以用它们的 Docker Compose 等效命令替换：`docker-compose build` 替换 `docker build`，`docker-compose push` 替换 `docker push`。然而，如果我们只构建一个镜像，那么保留 Docker 命令也是可以的。# 改变暂存部署阶段让我们改变 `部署到暂存` 阶段来使用 Docker Compose：```stage("Deploy to staging") {    steps {        sh "docker-compose up -d"    }}```我们必须以完全相同的方式改变清理：```post {    always {        sh "docker-compose down"    }}```# 改变验收测试阶段为了使用 `docker-compose scale`，我们没有指定我们的 web 服务将发布在哪个端口号下。如果我们这样做了，那么扩展过程将失败，因为所有克隆将尝试在相同的端口号下发布。相反，我们让 Docker 选择端口。因此，我们需要改变 `acceptance_test.sh` 脚本，首先找出端口号是多少，然后使用正确的端口号运行 `curl`。```#!/bin/bashCALCULATOR_PORT=$(docker-compose port calculator 8080 | cut -d: -f2)test $(curl localhost:$CALCULATOR_PORT/sum?a=1\&b=2) -eq 3```让我们找出我们是如何找到端口号的：1.  `docker-compose port calculator 8080` 命令检查 web 服务发布在哪个 IP 和端口地址下（例如返回 `127.0.0.1:57648`）。1.  `cut -d: -f2` 选择只有端口（例如，对于 `127.0.0.1:57648`，它返回 `57648`）。我们可以将更改推送到 GitHub 并观察 Jenkins 的结果。这个想法和单容器应用程序的想法是一样的，设置环境，运行验收测试套件，然后拆除环境。尽管这种验收测试方法很好并且运行良好，让我们看看另一种解决方案。# 方法 2 – 先 Docker 验收测试在 Docker-first 方法中，我们创建了一个额外的 `test` 容器，它从 Docker 主机内部执行测试，如下图所示：![](img/78c8fd68-b33a-41f8-9d5a-a8ae5998f5aa.png)
+![从用户角度来看，`redis`容器是不可见的，因此单容器和多容器验收测试之间唯一的区别是我们使用`docker-compose up`命令而不是`docker run`。其他 Docker 命令也可以用它们的 Docker Compose 等效命令替换：`docker-compose build` 替换 `docker build`，`docker-compose push` 替换 `docker push`。然而，如果我们只构建一个镜像，那么保留 Docker 命令也是可以的。# 改变暂存部署阶段让我们改变 `部署到暂存` 阶段来使用 Docker Compose：[PRE38]我们必须以完全相同的方式改变清理：[PRE39]# 改变验收测试阶段为了使用 `docker-compose scale`，我们没有指定我们的 web 服务将发布在哪个端口号下。如果我们这样做了，那么扩展过程将失败，因为所有克隆将尝试在相同的端口号下发布。相反，我们让 Docker 选择端口。因此，我们需要改变 `acceptance_test.sh` 脚本，首先找出端口号是多少，然后使用正确的端口号运行 `curl`。[PRE40]让我们找出我们是如何找到端口号的：1.  `docker-compose port calculator 8080` 命令检查 web 服务发布在哪个 IP 和端口地址下（例如返回 `127.0.0.1:57648`）。1.  `cut -d: -f2` 选择只有端口（例如，对于 `127.0.0.1:57648`，它返回 `57648`）。我们可以将更改推送到 GitHub 并观察 Jenkins 的结果。这个想法和单容器应用程序的想法是一样的，设置环境，运行验收测试套件，然后拆除环境。尽管这种验收测试方法很好并且运行良好，让我们看看另一种解决方案。# 方法 2 – 先 Docker 验收测试在 Docker-first 方法中，我们创建了一个额外的 `test` 容器，它从 Docker 主机内部执行测试，如下图所示：![](img/78c8fd68-b33a-41f8-9d5a-a8ae5998f5aa.png)
 
 这种方法在检索端口号方面简化了验收测试脚本，并且可以在没有 Jenkins 的情况下轻松运行。它也更符合 Docker 的风格。
 
@@ -755,13 +556,7 @@ $ docker-compose exec redis redis-cli
 
 我们将首先为验收测试创建一个单独的 Dockerfile。让我们在计算器项目中创建一个新目录 `acceptance` 和一个 Dockerfile。
 
-```
-FROM ubuntu:trusty
-RUN apt-get update && \
-    apt-get install -yq curl
-COPY test.sh .
-CMD ["bash", "test.sh"]
-```
+[PRE41]
 
 它创建一个运行验收测试的镜像。
 
@@ -769,12 +564,7 @@ CMD ["bash", "test.sh"]
 
 在同一个目录下，让我们创建 `docker-compose-acceptance.yml` 来提供测试编排：
 
-```
-version: "3"
-services:
-    test:
-        build: ./acceptance
-```
+[PRE42]
 
 它创建一个新的容器，链接到被测试的容器：`calculator`。而且，内部始终是 8080，这就消除了端口查找的麻烦部分。
 
@@ -782,11 +572,7 @@ services:
 
 最后缺失的部分是测试脚本。在同一目录下，让我们创建代表验收测试的`test.sh`文件：
 
-```
-#!/bin/bash
-sleep 60
-test $(curl calculator:8080/sum?a=1\&b=2) -eq 3
-```
+[PRE43]
 
 它与之前的验收测试脚本非常相似，唯一的区别是我们可以通过`calculator`主机名来访问计算器服务，端口号始终是`8080`。此外，在这种情况下，我们在脚本内等待，而不是在 Jenkinsfile 中等待。
 
@@ -794,59 +580,29 @@ test $(curl calculator:8080/sum?a=1\&b=2) -eq 3
 
 我们可以使用根项目目录下的 Docker Compose 命令在本地运行测试：
 
-```
-$ docker-compose -f docker-compose.yml -f acceptance/docker-compose-acceptance.yml -p acceptance up -d --build
-```
+[PRE44]
 
 该命令使用两个 Docker Compose 配置来运行`acceptance`项目。其中一个启动的容器应该被称为`acceptance_test_1`，并对其结果感兴趣。我们可以使用以下命令检查其日志：
 
-```
-$ docker logs acceptance_test_1
- %   Total %   Received % Xferd Average Speed Time 
- 100 1     100 1        0 0     1       0     0:00:01
-```
+[PRE45]
 
 日志显示`curl`命令已成功调用。如果我们想要检查测试是成功还是失败，可以检查容器的退出代码：
 
-```
-$ docker wait acceptance_test_1
-0
-```
+[PRE46]
 
 `0`退出代码表示测试成功。除了`0`之外的任何代码都意味着测试失败。测试完成后，我们应该像往常一样清理环境：
 
-```
-$ docker-compose -f docker-compose.yml -f acceptance/docker-compose-acceptance.yml -p acceptance down
-```
+[PRE47]
 
 # 更改验收测试阶段
 
 最后一步，我们可以将验收测试执行添加到流水线中。让我们用一个新的**验收测试**阶段替换 Jenkinsfile 中的最后三个阶段：
 
-```
-stage("Acceptance test") {
-    steps {
-        sh "docker-compose -f docker-compose.yml 
-                   -f acceptance/docker-compose-acceptance.yml build test"
-        sh "docker-compose -f docker-compose.yml 
-                   -f acceptance/docker-compose-acceptance.yml 
-                   -p acceptance up -d"
-        sh 'test $(docker wait acceptance_test_1) -eq 0'
-    }
-}
-```
+[PRE48]
 
 这一次，我们首先构建`test`服务。不需要构建`calculator`镜像；它已经在之前的阶段完成了。最后，我们应该清理环境：
 
-```
-post {
-    always {
-        sh "docker-compose -f docker-compose.yml 
-                   -f acceptance/docker-compose-acceptance.yml 
-                   -p acceptance down"
-    }
-}
-```
+[PRE49]
 
 在 Jenkinsfile 中添加了这个之后，我们就完成了第二种方法。我们可以通过将所有更改推送到 GitHub 来测试这一点。
 
@@ -872,11 +628,7 @@ post {
 
 **验收标准**由用户（或其代表产品所有者）与开发人员的帮助下编写。它们通常以以下场景的形式编写：
 
-```
-Given I have two numbers: 1 and 2
-When the calculator sums them
-Then I receive 3 as a result
-```
+[PRE50]
 
 开发人员编写称为**fixtures**或**步骤定义**的测试实现，将人性化的 DSL 规范与编程语言集成在一起。因此，我们有了一个可以很好集成到持续交付管道中的自动化测试。
 
@@ -900,13 +652,7 @@ Then I receive 3 as a result
 
 让我们将业务规范放在`src/test/resources/feature/calculator.feature`中：
 
-```
-Feature: Calculator
-    Scenario: Sum two numbers
-        Given I have two numbers: 1 and 2
-        When the calculator sums them
-        Then I receive 3 as a result
-```
+[PRE51]
 
 这个文件应该由用户在开发人员的帮助下创建。请注意，它是以非技术人员可以理解的方式编写的。
 
@@ -914,44 +660,7 @@ Feature: Calculator
 
 下一步是创建 Java 绑定，以便特性规范可以被执行。为了做到这一点，我们创建一个新文件`src/test/java/acceptance/StepDefinitions.java`：
 
-```
-package acceptance;
-
-import cucumber.api.java.en.Given;
-import cucumber.api.java.en.Then;
-import cucumber.api.java.en.When;
-import org.springframework.web.client.RestTemplate;
-
-import static org.junit.Assert.assertEquals;
-
-/** Steps definitions for calculator.feature */
-public class StepDefinitions {
-    private String server = System.getProperty("calculator.url");
-
-    private RestTemplate restTemplate = new RestTemplate();
-
-    private String a;
-    private String b;
-    private String result;
-
-    @Given("^I have two numbers: (.*) and (.*)$")
-    public void i_have_two_numbers(String a, String b) throws Throwable {
-        this.a = a;
-        this.b = b;
-    }
-
-    @When("^the calculator sums them$")
-    public void the_calculator_sums_them() throws Throwable {
-        String url = String.format("%s/sum?a=%s&b=%s", server, a, b);
-        result = restTemplate.getForObject(url, String.class);
-    }
-
-    @Then("^I receive (.*) as a result$")
-    public void i_receive_as_a_result(String expectedResult) throws Throwable {
-        assertEquals(expectedResult, result);
-    }
-}
-```
+[PRE52]
 
 特性规范文件中的每一行（`Given`，`When`和`Then`）都与 Java 代码中相应的方法匹配。通配符`(.*)`作为参数传递。请注意，服务器地址作为 Java 属性`calculator.url`传递。该方法执行以下操作：
 
@@ -967,48 +676,23 @@ public class StepDefinitions {
 
 1.  **添加 Java 黄瓜库**：在`build.gradle`文件中，将以下代码添加到`dependencies`部分：
 
-```
-        testCompile("info.cukes:cucumber-java:1.2.4")
-        testCompile("info.cukes:cucumber-junit:1.2.4")
-```
+[PRE53]
 
 1.  **添加 Gradle 目标**：在同一文件中，添加以下代码：
 
-```
-       task acceptanceTest(type: Test) {
-            include '**/acceptance/**'
-            systemProperties System.getProperties()
-       }
-
-       test {
-            exclude '**/acceptance/**'
-       }
-```
+[PRE54]
 
 这将测试分为单元测试（使用`./gradlew test`运行）和验收测试（使用`./gradlew acceptanceTest`运行）。
 
 1.  **添加 JUnit 运行器**：添加一个新文件`src/test/java/acceptance/AcceptanceTest.java`：
 
-```
-        package acceptance;
-
-        import cucumber.api.CucumberOptions;
-        import cucumber.api.junit.Cucumber;
-        import org.junit.runner.RunWith;
-
-        /** Acceptance Test */
-        @RunWith(Cucumber.class)
-        @CucumberOptions(features = "classpath:feature")
-        public class AcceptanceTest { }
-```
+[PRE55]
 
 这是验收测试套件的入口点。
 
 在进行此配置之后，如果服务器正在本地主机上运行，我们可以通过执行以下代码来测试它：
 
-```
-$ ./gradlew acceptanceTest -Dcalculator.url=http://localhost:8080
-```
+[PRE56]
 
 显然，我们可以将此命令添加到我们的`acceptance_test.sh`中，而不是`curl`命令。这将使 Cucumber 验收测试在 Jenkins 流水线中运行。
 
@@ -1034,13 +718,7 @@ $ ./gradlew acceptanceTest -Dcalculator.url=http://localhost:8080
 
 验收标准以以下 Cucumber 功能的形式交付：
 
-```
-Scenario: Store book in the library
-Given: Book "The Lord of the Rings" by "J.R.R. Tolkien" with ISBN number  
-"0395974682"
-When: I store the book in library
-Then: I am able to retrieve the book by the ISBN number
-```
+[PRE57]
 
 +   +   为 Cucumber 测试编写步骤定义
 

@@ -44,53 +44,7 @@
 
 可以使用 CloudFormation 配置 RDS 实例。要开始，让我们在您的 todobackend CloudFormation 模板中定义一个名为`ApplicationDatabase`的新资源，其资源类型为`AWS::RDS::DBInstance`，如下例所示：
 
-```
-AWSTemplateFormatVersion: "2010-09-09"
-
-Description: Todobackend Application
-
-Parameters:
-  ApplicationDesiredCount:
-    Type: Number
-    Description: Desired EC2 instance count
-  ApplicationImageId:
-    Type: String
-    Description: ECS Amazon Machine Image (AMI) ID
-  ApplicationSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Target subnets for EC2 instances
-  DatabasePassword:
- Type: String
- Description: Database password
- NoEcho: "true"
-  VpcId:
-    Type: AWS::EC2::VPC::Id
-    Description: Target VPC
-
-Resources:
-  ApplicationDatabase:
- Type: AWS::RDS::DBInstance
- Properties:
- Engine: MySQL
- EngineVersion: 5.7
- DBInstanceClass: db.t2.micro
- AllocatedStorage: 10
- StorageType: gp2
- MasterUsername: todobackend
- MasterUserPassword: !Ref DatabasePassword
- DBName: todobackend
- VPCSecurityGroups:
- - !Ref ApplicationDatabaseSecurityGroup
- DBSubnetGroupName: !Ref ApplicationDatabaseSubnetGroup
- MultiAZ: "false"
- AvailabilityZone: !Sub ${AWS::Region}a
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-db  ApplicationAutoscalingSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-...
-...
-```
+[PRE0]
 
 创建 RDS 资源
 
@@ -124,70 +78,7 @@ Resources:
 
 除了这些资源，以下示例还演示了我们还需要添加一些资源：
 
-```
-...
-
-Resources:
-  ApplicationDatabase:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      Engine: MySQL
-      EngineVersion: 5.7
-      DBInstanceClass: db.t2.micro
-      AllocatedStorage: 10
-      StorageType: gp2
-      MasterUsername: todobackend
-      MasterUserPassword:
-        Ref: DatabasePassword
-      DBName: todobackend
-      VPCSecurityGroups:
-        - !Ref ApplicationDatabaseSecurityGroup
-      DBSubnetGroupName: !Ref ApplicationDatabaseSubnetGroup
-      MultiAZ: "false"
-      AvailabilityZone: !Sub ${AWS::Region}a
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-db
- ApplicationDatabaseSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Application Database Subnet Group
-      SubnetIds: !Ref ApplicationSubnets
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-db-subnet-group
-  ApplicationDatabaseSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: !Sub ${AWS::StackName} Application Database Security Group
-      VpcId: !Ref VpcId
-      SecurityGroupEgress:
-        - IpProtocol: icmp
-          FromPort: -1
-          ToPort: -1
-          CidrIp: 192.0.2.0/32
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-db-sg
-  ApplicationToApplicationDatabaseIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      IpProtocol: tcp
-      FromPort: 3306
-      ToPort: 3306
-      GroupId: !Ref ApplicationDatabaseSecurityGroup
-      SourceSecurityGroupId: !Ref ApplicationAutoscalingSecurityGroup
-  ApplicationToApplicationDatabaseEgress:
-    Type: AWS::EC2::SecurityGroupEgress
-    Properties:
-      IpProtocol: tcp
-      FromPort: 3306
-      ToPort: 3306
-      GroupId: !Ref ApplicationAutoscalingSecurityGroup
-      DestinationSecurityGroupId: !Ref ApplicationDatabaseSecurityGroup
-...
-...
-```
+[PRE1]
 
 创建支持的 RDS 资源
 
@@ -209,13 +100,7 @@ Resources:
 
 在上述示例的配置完成后，您现在可以实际更新 CloudFormation 堆栈，其中将添加 RDS 实例和其他支持资源。在执行此操作之前，您需要更新第七章中创建的`dev.cfg`文件，该文件为您的 CloudFormation 堆栈提供了环境特定的输入参数值。具体来说，您需要为`MasterPassword`参数指定一个值，如下例所示：
 
-```
-ApplicationDesiredCount=1
-ApplicationImageId=ami-ec957491
-ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
-DatabasePassword=my-super-secret-password
-VpcId=vpc-f8233a80
-```
+[PRE2]
 
 向 dev.cfg 文件添加数据库密码
 
@@ -223,50 +108,9 @@ VpcId=vpc-f8233a80
 
 在上述示例的配置完成后，您现在可以使用在第七章中使用过的`aws cloudformation deploy`命令来部署更新后的堆栈。
 
-```
-> export AWS_PROFILE=docker-in-aws
-> aws cloudformation deploy --template-file stack.yml \
- --stack-name todobackend --parameter-overrides $(cat dev.cfg) \
- --capabilities CAPABILITY_NAMED_IAM
-Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga:
-```
+[PRE3]
 
-```
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - todobackend
-> aws cloudformation describe-stack-resource --stack-name todobackend \
-    --logical-resource-id ApplicationDatabase
-{
-    "StackResourceDetail": {
-        "StackName": "todobackend",
-        "StackId": "arn:aws:cloudformation:us-east-1:385605022855:stack/todobackend/297933f0-37fe-11e8-82e0-503f23fb55fe",
-        "LogicalResourceId": "ApplicationDatabase",
- "PhysicalResourceId": "ta10udhxgd7s4gf",
-        "ResourceType": "AWS::RDS::DBInstance",
-        "LastUpdatedTimestamp": "2018-04-04T12:12:13.265Z",
-        "ResourceStatus": "CREATE_COMPLETE",
-        "Metadata": "{}"
-    }
-}
-> aws rds describe-db-instances --db-instance-identifier ta10udhxgd7s4gf
-{
-    "DBInstances": [
-        {
-            "DBInstanceIdentifier": "ta10udhxgd7s4gf",
-            "DBInstanceClass": "db.t2.micro",
-            "Engine": "mysql",
-            "DBInstanceStatus": "available",
-            "MasterUsername": "todobackend",
-            "DBName": "todobackend",
-            "Endpoint": {
-                "Address": "ta10udhxgd7s4gf.cz8cu8hmqtu1.us-east-1.rds.amazonaws.com",
-                "Port": 3306,
-                "HostedZoneId": "Z2R2ITUGPM61AM"
-            }
-...
-...
-```
+[PRE4]
 
 使用 RDS 资源更新 CloudFormation 堆栈
 
@@ -320,28 +164,7 @@ AWS ALB 与弹性容器服务集成，支持许多关键的集成功能：
 
 以下示例演示了如何添加一个名为`ApplicationLoadBalancer`的资源，正如其名称所示，它配置了基本的应用程序负载均衡器资源：
 
-```
-...
-...
-Resources:
- ApplicationLoadBalancer:
- Type: AWS::ElasticLoadBalancingV2::LoadBalancer
- Properties:
- Scheme: internet-facing
- Subnets: !Ref ApplicationSubnets
- SecurityGroups:
- - !Ref ApplicationLoadBalancerSecurityGroup
- LoadBalancerAttributes:
- - Key: idle_timeout.timeout_seconds
- Value : 30
- Tags:
- - Key: Name
- Value: !Sub ${AWS::StackName}-alb
-  ApplicationDatabase:
-    Type: AWS::RDS::DBInstance
-...
-...
-```
+[PRE5]
 
 创建应用程序负载均衡器
 
@@ -357,18 +180,7 @@ Resources:
 
 CloudFormation 的一个特性是能够定义自己的*输出*，这些输出可用于提供有关堆栈中资源的信息。您可以为堆栈配置一个有用的输出，即应用程序负载均衡器端点的公共 DNS 名称的值，因为这是负载均衡器提供的任何应用程序发布的地方：
 
-```
-...
-...
-Resources:
-  ...
-  ...
-Outputs:
- PublicURL:
- Description: Public DNS name of Application Load Balancer
- Value: !Sub ${ApplicationLoadBalancer.DNSName}
-
-```
+[PRE6]
 
 配置 CloudFormation 输出
 
@@ -380,57 +192,7 @@ Outputs:
 
 除了这个资源，您还需要以类似的方式创建`AWS::EC2::SecurityGroupIngress`和`AWS::EC2::SecurityGroupEgress`资源，这些资源确保应用程序负载均衡器可以与您的 ECS 服务应用程序实例通信：
 
-```
-...
-...
-Resources:
-  ApplicationLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Scheme: internet-facing
-      Subnets: !Ref ApplicationSubnets
-      SecurityGroups:
-        - !Ref ApplicationLoadBalancerSecurityGroup
-      LoadBalancerAttributes:
-        - Key: idle_timeout.timeout_seconds
-          Value : 30
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-alb
-  ApplicationLoadBalancerSecurityGroup:
- Type: AWS::EC2::SecurityGroup
- Properties:
- GroupDescription: Application Load Balancer Security Group
- VpcId: !Ref VpcId
- SecurityGroupIngress:
- - IpProtocol: tcp
- FromPort: 80
- ToPort: 80
- CidrIp: 0.0.0.0/0
- Tags:
- - Key: Name
- Value: 
- Fn::Sub: ${AWS::StackName}-alb-sg  ApplicationLoadBalancerToApplicationIngress:
- Type: AWS::EC2::SecurityGroupIngress
- Properties:
- IpProtocol: tcp
- FromPort: 32768
- ToPort: 60999
- GroupId: !Ref ApplicationAutoscalingSecurityGroup
- SourceSecurityGroupId: !Ref ApplicationLoadBalancerSecurityGroup
- ApplicationLoadBalancerToApplicationEgress:
- Type: AWS::EC2::SecurityGroupEgress
- Properties:
- IpProtocol: tcp
- FromPort: 32768
- ToPort: 60999
- GroupId: !Ref ApplicationLoadBalancerSecurityGroup
- DestinationSecurityGroupId: !Ref ApplicationAutoscalingSecurityGroup
-  ApplicationDatabase:
-    Type: AWS::RDS::DBInstance
-...
-...
-```
+[PRE7]
 
 配置应用程序负载均衡器安全组资源
 
@@ -442,35 +204,7 @@ Resources:
 
 以下示例演示了配置一个支持通过端口`80`（HTTP）访问应用程序负载均衡器的单个监听器：
 
-```
-...
-...
-Resources:
-  ApplicationLoadBalancerHttpListener:
- Type: AWS::ElasticLoadBalancingV2::Listener
- Properties:
- LoadBalancerArn: !Ref ApplicationLoadBalancer
- Protocol: HTTP
- Port: 80
- DefaultActions:
- - TargetGroupArn: !Ref ApplicationServiceTargetGroup
- Type: forward
-  ApplicationLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Scheme: internet-facing
-      Subnets: !Ref ApplicationSubnets
-      SecurityGroups:
-        - !Ref ApplicationLoadBalancerSecurityGroup
-      LoadBalancerAttributes:
-        - Key: idle_timeout.timeout_seconds
-          Value : 30
-      Tags:
-        - Key: Name
-          Value: !Sub ${AWS::StackName}-alb
-...
-...
-```
+[PRE8]
 
 创建应用程序负载均衡器监听器
 
@@ -482,33 +216,7 @@ Resources:
 
 以下示例演示了配置目标组资源：
 
-```
-...
-...
-Resources:
-  ApplicationServiceTargetGroup:
- Type: AWS::ElasticLoadBalancingV2::TargetGroup
- Properties:
- Protocol: HTTP
- Port: 8000
- VpcId: !Ref VpcId
- TargetGroupAttributes:
- - Key: deregistration_delay.timeout_seconds
- Value: 30
-  ApplicationLoadBalancerHttpListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref ApplicationLoadBalancer
-      Protocol: HTTP
-      Port: 80
-      DefaultActions:
-        - TargetGroupArn: !Ref ApplicationServiceTargetGroup
-          Type: forward
-  ApplicationLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-...
-...
-```
+[PRE9]
 
 创建目标组
 
@@ -536,23 +244,7 @@ Resources:
 
 您会注意到应用负载均衡器的 DNS 名称并不是您的最终用户能够识别或记住的友好名称。在实际应用中，您通常会创建一个 CNAME 或 ALIAS DNS 记录，配置一个友好的规范名称，比如 example.com，指向您的负载均衡器 DNS 名称。有关如何执行此操作的更多详细信息，请参阅[`docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-to-elb-load-balancer.html`](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-to-elb-load-balancer.html)，并注意您可以并且应该使用 CloudFormation 创建 CNAME 和 ALIAS 记录([`docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-route53.html#scenario-recordsetgroup-zoneapex`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-route53.html#scenario-recordsetgroup-zoneapex))。
 
-```
-> aws cloudformation describe-stacks --stack-name todobackend --query Stacks[].Outputs[]
-[
-    {
-        "OutputKey": "PublicURL",
-        "OutputValue": "todob-Appli-5SV5J3NC6AAI-2078461159.us-east-1.elb.amazonaws.com",
-        "Description": "Public DNS name of Application Load Balancer"
-    }
-]
-> curl todob-Appli-5SV5J3NC6AAI-2078461159.us-east-1.elb.amazonaws.com
-<html>
-<head><title>503 Service Temporarily Unavailable</title></head>
-<body bgcolor="white">
-<center><h1>503 Service Temporarily Unavailable</h1></center>
-</body>
-</html>
-```
+[PRE10]
 
 测试应用负载均衡器端点
 
@@ -566,95 +258,7 @@ Resources:
 
 我们将从在 CloudFormation 模板中定义 ECS 任务定义开始，如下例所示：
 
-```
-Parameters:
-  ...
-  ...
-  ApplicationImageId:
-    Type: String
-    Description: ECS Amazon Machine Image (AMI) ID
- ApplicationImageTag:
- Type: String
- Description: Application Docker Image Tag
- Default: latest  ApplicationSubnets:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Target subnets for EC2 instances
- ...
-  ... 
-Resources:
-  ApplicationTaskDefinition:
- Type: AWS::ECS::TaskDefinition
- Properties:
- Family: todobackend      Volumes:
- - Name: public          Host:
- SourcePath: /data/public
- ContainerDefinitions:        - Name: todobackend
- Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/docker-in-aws/todobackend:${ApplicationImageTag}
- MemoryReservation: 395
- Cpu: 245
- MountPoints:
- - SourceVolume: public
- ContainerPath: /public
- Environment:
-            - Name: DJANGO_SETTINGS_MODULE
- Value: todobackend.settings_release
- - Name: MYSQL_HOST
- Value: !Sub ${ApplicationDatabase.Endpoint.Address}
- - Name: MYSQL_USER
- Value: todobackend
- - Name: MYSQL_PASSWORD
- Value: !Ref DatabasePassword
- - Name: MYSQL_DATABASE
- Value: todobackend            - Name: SECRET_KEY
- Value: some-random-secret-should-be-here
- Command: 
- - uwsgi
- - --http=0.0.0.0:8000
- - --module=todobackend.wsgi
- - --master
- - --die-on-term
- - --processes=4
- - --threads=2
- - --check-static=/public
- PortMappings:
- - ContainerPort: 8000
-              HostPort: 0
- LogConfiguration:
- LogDriver: awslogs
- Options:
- awslogs-group: !Sub /${AWS::StackName}/ecs/todobackend
- awslogs-region: !Ref AWS::Region
- awslogs-stream-prefix: docker
- - Name: collectstatic
-          Essential: false
- Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/docker-in-aws/todobackend:${ApplicationImageTag}
- MemoryReservation: 5
- Cpu: 5          MountPoints:
- - SourceVolume: public
-              ContainerPath: /public
- Environment:
- - Name: DJANGO_SETTINGS_MODULE
-              Value: todobackend.settings_release
- Command:
- - python3
-            - manage.py
-            - collectstatic
-            - --no-input
- LogConfiguration:
- LogDriver: awslogs
- Options:
- awslogs-group: !Sub /${AWS::StackName}/ecs/todobackend
- awslogs-region: !Ref AWS::Region
- awslogs-stream-prefix: docker  ApplicationLogGroup:
- Type: AWS::Logs::LogGroup
- Properties:
- LogGroupName: !Sub /${AWS::StackName}/ecs/todobackend
- RetentionInDays: 7
-  ApplicationServiceTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-...
-...
-```
+[PRE11]
 
 使用 CloudFormation 定义 ECS 任务定义
 
@@ -662,63 +266,7 @@ Resources:
 
 在第一章中，当您创建了示例应用并在本地运行时，您必须使用 Docker Compose 执行类似的操作。以下示例显示了 todobackend 存储库中 Docker Compose 文件中的相关片段：
 
-```
-version: '2.3'
-
-volumes:
-  public:
-    driver: local
-
-services:
-  ...
-  ...
-  app:
-    image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:${APP_VERSION}
-    extends:
-      service: release
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - public:/public
-    healthcheck:
-      test: curl -fs localhost:8000
-    ports:
-      - 8000
-    command:
-      - uwsgi
-      - --http=0.0.0.0:8000
-      - --module=todobackend.wsgi
-      - --master
-      - --die-on-term
-      - --processes=4
-      - --threads=2
-      - --check-static=/public
-  acceptance:
-    extends:
-      service: release
-    depends_on:
-      app:
-        condition: service_healthy
-    environment:
-      APP_URL: http://app:8000
-    command:
-      - bats 
-      - acceptance.bats
-  migrate:
-    extends:
-      service: release
-    depends_on:
-      db:
-        condition: service_healthy
-    command:
-      - python3
-      - manage.py
-      - migrate
-      - --no-input
-  ...
-  ...
-```
+[PRE12]
 
 Todobackend 应用程序 Docker Compose 配置
 
@@ -742,17 +290,7 @@ Todobackend 应用程序 Docker Compose 配置
 
 该卷用于存储静态网页文件，这些文件是通过在本地 Makefile 工作流中运行`python3 manage.py collectstatic --no-input`命令生成的，并且必须对主应用程序容器可用，因此需要一个卷来确保通过运行此命令生成的文件对应用程序容器可用：
 
-```
-...
-...
-release:
-  docker-compose up --abort-on-container-exit migrate
- docker-compose run app python3 manage.py collectstatic --no-input
-  docker-compose up --abort-on-container-exit acceptance
-  @ echo App running at http://$$(docker-compose port app 8000 | sed s/0.0.0.0/localhost/g)
-...
-...
-```
+[PRE13]
 
 Todobackend Makefile
 
@@ -790,30 +328,7 @@ Todobackend Makefile
 
 现在您已经定义了 ECS 任务定义，您可以使用现在熟悉的`aws cloudformation deploy`命令部署它。一旦您的堆栈已经更新，一个名为 todobackend 的新任务定义应该被创建，您可以使用 AWS CLI 查看，如下例所示：
 
-```
-> aws ecs describe-task-definition --task-definition todobackend
-{
-    "taskDefinition": {
-        "taskDefinitionArn": "arn:aws:ecs:us-east-1:385605022855:task-definition/todobackend:1",
-        "family": "todobackend",
-        "revision": 1,
-        "volumes": [
-            {
-                "name": "public",
-                "host": {
-                    "sourcePath": "/data/public"
-                }
-            }
-        ],
-        "containerDefinitions": [
-            {
-                "name": "todobackend",
-                "image": "385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest",
-                "cpu": 245,
-                "memoryReservation": 395,
-...
-...
-```
+[PRE14]
 
 验证 todobackend 任务定义
 
@@ -823,36 +338,9 @@ Todobackend Makefile
 
 以下示例演示了向您的 CloudFormation 模板添加一个`AWS::ECS::Service`资源的 ECS 服务资源：
 
-```
-...
-...
-Resources:
-  ApplicationService:
- Type: AWS::ECS::Service
- DependsOn:
-      - ApplicationAutoscaling
-      - ApplicationLogGroup
-      - ApplicationLoadBalancerHttpListener
-    Properties:
-      TaskDefinition: !Ref ApplicationTaskDefinition
-      Cluster: !Ref ApplicationCluster
-      DesiredCount: !Ref ApplicationDesiredCount
-      LoadBalancers:
-        - ContainerName: todobackend
-          ContainerPort: 8000
-          TargetGroupArn: !Ref ApplicationServiceTargetGroup
-      Role: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS 
-```
+[PRE15]
 
-```
- DeploymentConfiguration:
- MaximumPercent: 200
- MinimumHealthyPercent: 100
-  ApplicationTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-...
-...
-```
+[PRE16]
 
 创建 ECS 服务
 
@@ -908,13 +396,7 @@ ECS 的一个关键特性是滚动部署，ECS 将自动以滚动方式部署应
 
 以下示例演示了在 todobackend-aws 存储库中的 dev.cfg 文件中添加 ApplicationImageTag 参数，引用当前发布的 ECR 镜像的提交哈希：
 
-```
-ApplicationDesiredCount=1
-ApplicationImageId=ami-ec957491
-ApplicationImageTag=97e4abf
-ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
-VpcId=vpc-f8233a80
-```
+[PRE17]
 
 将 ApplicationImageTag 添加到 dev.cfg 文件
 
@@ -960,105 +442,7 @@ VpcId=vpc-f8233a80
 
 这听起来相当复杂，但是有许多可用的工具可以使这在相对简单的用例中成为可能，如以下示例所示。
 
-```
-...
-...
-Resources:
- EcsTaskRunner:
- Type: AWS::Lambda::Function
-    DependsOn:
- - EcsTaskRunnerLogGroup
- Properties:
- FunctionName: !Sub ${AWS::StackName}-ecsTasks
- Description: !Sub ${AWS::StackName} ECS Task Runner
- Handler: index.handler
- MemorySize: 128
- Runtime: python3.6
- Timeout: 300
-      Role: !Sub ${EcsTaskRunnerRole.Arn}
- Code:
- ZipFile: |
- import cfnresponse
- import boto3
-
- client = boto3.client('ecs')
-
- def handler(event, context):
- try:
-              print("Received event %s" % event)
-              if event['RequestType'] == 'Delete':
-                cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, event['PhysicalResourceId'])
-                return
-              tasks = client.run_task(
-                cluster=event['ResourceProperties']['Cluster'],
-                taskDefinition=event['ResourceProperties']['TaskDefinition'],
-                overrides=event['ResourceProperties'].get('Overrides',{}),
-                count=1,
-                startedBy=event['RequestId']
-              )
-              task = tasks['tasks'][0]['taskArn']
-              print("Started ECS task %s" % task)
-              waiter = client.get_waiter('tasks_stopped')
-              waiter.wait(
-                cluster=event['ResourceProperties']['Cluster'],
-                tasks=[task],
-              )
-              result = client.describe_tasks(
-                cluster=event['ResourceProperties']['Cluster'],
-                tasks=[task]
-              )
-              exitCode = result['tasks'][0]['containers'][0]['exitCode']
-              if exitCode > 0:
-                print("ECS task %s failed with exit code %s" % (task, exitCode))
-                cfnresponse.send(event, context, cfnresponse.FAILED, {}, task)
-              else:
-                print("ECS task %s completed successfully" % task)
-                cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, task)
-            except Exception as e:
-              print("A failure occurred with exception %s" % e)
-              cfnresponse.send(event, context, cfnresponse.FAILED, {})
- EcsTaskRunnerRole:
- Type: AWS::IAM::Role
- Properties:
- AssumeRolePolicyDocument:
- Version: "2012-10-17"
- Statement:
- - Effect: Allow
- Principal:
- Service: lambda.amazonaws.com
- Action:
- - sts:AssumeRole
- Policies:
- - PolicyName: EcsTaskRunnerPermissions
- PolicyDocument:
- Version: "2012-10-17"
- Statement:
- - Sid: EcsTasks
- Effect: Allow
- Action:
- - ecs:DescribeTasks
- - ecs:ListTasks
- - ecs:RunTask
- Resource: "*"
- Condition:
- ArnEquals:
- ecs:cluster: !Sub ${ApplicationCluster.Arn}
- - Sid: ManageLambdaLogs
- Effect: Allow
- Action:
- - logs:CreateLogStream
- - logs:PutLogEvents
- Resource: !Sub ${EcsTaskRunnerLogGroup.Arn}
- EcsTaskRunnerLogGroup:
- Type: AWS::Logs::LogGroup
- Properties:
- LogGroupName: !Sub /aws/lambda/${AWS::StackName}-ecsTasks
- RetentionInDays: 7
-  ApplicationService:
-    Type: AWS::ECS::Service
-...
-...
-```
+[PRE18]
 
 使用 CloudFormation 创建内联 Lambda 函数
 
@@ -1068,71 +452,9 @@ Resources:
 
 让我们专注于讨论自定义资源函数代码，我已经在之前的示例中将其隔离，并添加了注释来描述各种语句的作用。
 
-```
-# Generates an appropriate CloudFormation response and posts to the pre-signed S3 URL
-import cfnresponse
-# Imports the AWS Python SDK (boto3) for interacting with the ECS service
-import boto3
+[PRE19]
 
-# Create a client for interacting with the ECS service
-client = boto3.client('ecs')
-
-# Lambda functions require a handler function that is passed an event and context object
-# The event object contains the CloudFormation custom resource event
-# The context object contains runtime information about the Lambda function
-def handler(event, context):
-  # Wrap the code in a try/catch block to ensure any exceptions generate a failure
-  try:
-    print("Received event %s" % event)
-    # If the request is to Delete the resource, simply return success
-    if event['RequestType'] == 'Delete':
-      cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, event.get('PhysicalResourceId'))
-      return
-    # Run the ECS task
-    # http://boto3.readthedocs.io/en/latest/reference/services/ecs.html#ECS.Client.run_task
-    # Requires 'Cluster', 'TaskDefinition' and optional 'Overrides' custom resource properties
-    tasks = client.run_task(
-      cluster=event['ResourceProperties']['Cluster'],
-      taskDefinition=event['ResourceProperties']['TaskDefinition'],
-      overrides=event['ResourceProperties'].get('Overrides',{}),
-      count=1,
-      startedBy=event['RequestId']
-    )
-    # Extract the ECS task ARN from the return value from the run_task call
-    task = tasks['tasks'][0]['taskArn']
-    print("Started ECS task %s" % task)
-
-    # Creates a waiter object that polls and waits for ECS tasks to reached a stopped state
-    # http://boto3.readthedocs.io/en/latest/reference/services/ecs.html#waiters
-    waiter = client.get_waiter('tasks_stopped')
-    # Wait for the task ARN that was run earlier to stop
-    waiter.wait(
-      cluster=event['ResourceProperties']['Cluster'],
-      tasks=[task],
-    )
-    # After the task has stopped, get the status of the task
-    # http://boto3.readthedocs.io/en/latest/reference/services/ecs.html#ECS.Client.describe_tasks
-    result = client.describe_tasks(
-      cluster=event['ResourceProperties']['Cluster'],
-      tasks=[task]
-    )
-    # Get the exit code of the container that ran
-    exitCode = result['tasks'][0]['containers'][0]['exitCode']
-    # Return failure for non-zero exit code, otherwise return success
-    # See https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html for more details on cfnresponse module
-    if exitCode > 0:
-      print("ECS task %s failed with exit code %s" % (task, exitCode))
-      cfnresponse.send(event, context, cfnresponse.FAILED, {}, task)
-```
-
-```
-else:
-      print("ECS task %s completed successfully" % task)
-      cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, task)
-  except Exception as e:
-    print("A failure occurred with exception %s" % e)
-    cfnresponse.send(event, context, cfnresponse.FAILED, {})
-```
+[PRE20]
 
 使用 CloudFormation 创建内联 Lambda 函数
 
@@ -1162,50 +484,9 @@ else:
 
 一种方法是利用之前创建的`ApplicationTaskDefinition`资源，并指定一个命令覆盖，但一个问题是`ApplicationTaskDefinition`包括`collectstatic`容器，我们并不真的想在运行迁移时运行它。为了克服这个问题，你需要创建一个名为`MigrateTaskDefinition`的单独任务定义，它只包括一个特定运行数据库迁移的容器定义：
 
-```
-...
-...
-Resources:
- MigrateTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
- Properties:
- Family: todobackend-migrate
- ContainerDefinitions:
- - Name: migrate
- Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/docker-in-aws/todobackend:${ApplicationImageTag}
- MemoryReservation: 5
- Cpu: 5
- Environment:
- - Name: DJANGO_SETTINGS_MODULE
- Value: todobackend.settings_release
- - Name: MYSQL_HOST
- Value: !Sub ${ApplicationDatabase.Endpoint.Address}
- - Name: MYSQL_USER
- Value: todobackend
- - Name: MYSQL_PASSWORD
- Value: !Ref DatabasePassword
- - Name: MYSQL_DATABASE
- Value: todobackend
-```
+[PRE21]
 
-```
-Command: 
- - python3
- - manage.py
- - migrate
- - --no-input
- LogConfiguration:
- LogDriver: awslogs
- Options:
- awslogs-group: !Sub /${AWS::StackName}/ecs/todobackend
- awslogs-region: !Ref AWS::Region
- awslogs-stream-prefix: docker
-  EcsTaskRunner:
-    Type: AWS::Lambda::Function
-...
-...
-
-```
+[PRE22]
 
 创建迁移任务定义
 
@@ -1213,36 +494,9 @@ Command:
 
 有了这个任务定义，你现在可以创建你的自定义资源，就像下面的例子所示：
 
-```
-...
-...
-Resources:
- MigrateTask:
- Type: AWS::CloudFormation::CustomResource
- DependsOn:
- - ApplicationAutoscaling
- - ApplicationDatabase
- Properties:
- ServiceToken: !Sub ${EcsTaskRunner.Arn}
- Cluster: !Ref ApplicationCluster
- TaskDefinition: !Ref MigrateTaskDefinition MigrateTaskDefinition:
-     Type: AWS::ECS::TaskDefinition
-   ...
-   ...
-   ApplicationService:
-    Type: AWS::ECS::Service
-    DependsOn:
-      - ApplicationAutoscaling
-      - ApplicationLogGroup
-      - ApplicationLoadBalancerHttpListener
- - MigrateTask
-```
+[PRE23]
 
-```
-Properties:
-...
-...
-```
+[PRE24]
 
 创建迁移任务自定义资源
 

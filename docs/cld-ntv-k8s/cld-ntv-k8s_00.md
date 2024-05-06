@@ -68,42 +68,15 @@
 
 代码块设置如下：
 
-```
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: full-restriction-policy
-  namespace: development
-spec:
-  policyTypes:
-  - Ingress
-  - Egress
-  podSelector: {}
-```
+[PRE0]
 
 当我们希望引起您对代码块的特定部分的注意时，相关行或项目将以粗体显示：
 
-```
-spec:
-  privileged: false
-  allowPrivilegeEscalation: false
-  volumes:
- - 'configMap'
- - 'emptyDir'
- - 'projected'
- - 'secret'
- - 'downwardAPI'
- - 'persistentVolumeClaim'
-  hostNetwork: false
-  hostIPC: false
-  hostPID: false
-```
+[PRE1]
 
 任何命令行输入或输出都以以下方式编写：
 
-```
-helm install falco falcosecurity/falco
-```
+[PRE2]
 
 **粗体**：表示一个新术语，一个重要的词，或者屏幕上看到的词。例如，菜单或对话框中的单词会以这种方式出现在文本中。这是一个例子：“Prometheus 还提供了一个用于配置 Prometheus 警报的**警报**选项卡。”
 

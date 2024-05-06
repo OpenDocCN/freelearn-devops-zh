@@ -54,31 +54,15 @@ Kubernetes 是一个用于自动化应用部署、扩展和管理的开源容器
 
 代码块设置如下：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgresql
-  labels:
-    app: postgresql
-```
+[PRE0]
 
 当我们希望引起您对代码块的特定部分的注意时，相关行或项目将以粗体显示：
 
-```
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgresql
-```
+[PRE1]
 
 任何命令行输入或输出都是这样写的：
 
-```
-$ kubectl version –client --short
-Client Version: v1.18.1
-```
+[PRE2]
 
 **粗体**：表示新术语、重要单词或屏幕上看到的单词。例如，菜单或对话框中的单词会在文本中以这种方式出现。这里有一个例子：“我们为节点分配了**标签**和**注释**，并且没有设置**角色**或**污点**。”
 

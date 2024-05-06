@@ -182,81 +182,23 @@ Murano 仪表板为用户提供 Web UI，以便轻松浏览访问 Murano 中可�
 
 1.  如有需要，为 DevStack 创建根目录：
 
-```
-        $ sudo mkdir -p /opt/stack
-        $ sudo chown $USER /opt/stack  
-```
+[PRE0]
 
 1.  克隆 DevStack 存储库：
 
-```
-        $ git clone https://git.openstack.org/openstack-dev/devstack 
-        /opt/stack/devstack
-
-```
+[PRE1]
 
 1.  现在创建一个用于运行 DevStack 设置的最小`local.conf`：
 
-```
-        $ cat > /opt/stack/devstack/local.conf << END
-        [[local|localrc]]
-        HOST_IP=$(ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print
-        $2}' | cut -f1  -d'/')
-        DATABASE_PASSWORD=password
-        RABBIT_PASSWORD=password
-        SERVICE_TOKEN=password
-        SERVICE_PASSWORD=password
-        ADMIN_PASSWORD=password
-        enable_plugin murano git://git.openstack.org/openstack/murano
-        END 
-```
+[PRE2]
 
 1.  现在运行 DevStack：
 
-```
-        $ cd /opt/stack/devstack
-        $ ./stack.sh  
-```
+[PRE3]
 
 现在应该已安装 Murano。要验证安装，请运行以下命令：
 
-```
-$ sudo systemctl status devstack@murano-*
- devstack@murano-engine.service - Devstack devstack@murano-
-engine.service
- Loaded: loaded (/etc/systemd/system/devstack@murano-
-engine.service; enabled; vendor preset: enabled)
- Active: active (running) since Thu 2017-11-02 04:32:28 EDT; 2 
-weeks 5 days ago
- Main PID: 30790 (murano-engine)
- CGroup: /system.slice/system-devstack.slice/devstack@murano-
-engine.service
- ├─30790 /usr/bin/python /usr/local/bin/murano-engine --
-config-file /etc/murano/murano.conf
- ├─31016 /usr/bin/python /usr/local/bin/murano-engine --
-config-file /etc/murano/murano.conf
- ├─31017 /usr/bin/python /usr/local/bin/murano-engine --
-config-file /etc/murano/murano.conf
- ├─31018 /usr/bin/python /usr/local/bin/murano-engine --
-config-file /etc/murano/murano.conf
- └─31019 /usr/bin/python /usr/local/bin/murano-engine --
-config-file /etc/murano/murano.conf
- devstack@murano-api.service - Devstack devstack@murano-api.service
- Loaded: loaded (/etc/systemd/system/devstack@murano-api.service; 
-enabled; vendor preset: enabled)
- Active: active (running) since Thu 2017-11-02 04:32:26 EDT; 2 
-weeks 5 days ago
- Main PID: 30031 (uwsgi)
- Status: "uWSGI is ready"
- CGroup: /system.slice/system-devstack.slice/devstack@murano-
-api.service
- ├─30031 /usr/local/bin/uwsgi --ini /etc/murano/murano-api-
-uwsgi.ini
- ├─30034 /usr/local/bin/uwsgi --ini /etc/murano/murano-api-
-uwsgi.ini
- └─30035 /usr/local/bin/uwsgi --ini /etc/murano/murano-api-
-uwsgi.ini
-```
+[PRE4]
 
 您可以看到`murano-api`和`murano-engine`服务都已启动并运行。
 

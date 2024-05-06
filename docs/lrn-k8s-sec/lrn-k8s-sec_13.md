@@ -48,36 +48,7 @@ Kubernetes 审计是在 1.11 版本中引入的。Kubernetes 审计记录事件�
 
 由于记录 Kubernetes 集群内发生的一切事情并不现实，审计策略允许用户定义关于应记录何种事件以及应记录事件的多少细节的规则。当`kube-apiserver`处理事件时，它将按顺序比较审计策略中的规则列表。第一个匹配的规则还决定了事件的审计级别。让我们看看审计策略是什么样子。以下是一个示例：
 
-```
-apiVersion: audit.k8s.io/v1 # This is required.
-kind: Policy
-# Skip generating audit events for all requests in RequestReceived stage. This can be either set at the policy level or rule level.
-omitStages:
-  - "RequestReceived"
-rules:
-  # Log pod changes at RequestResponse level
-  - level: RequestResponse
-    verbs: ["create", "update"]
-    namespace: ["ns1", "ns2", "ns3"]
-    resources:
-    - group: ""
-# Only check access to resource "pods", not the sub-resource of pods which is consistent with the RBAC policy.
-      resources: ["pods"]
-# Log "pods/log", "pods/status" at Metadata level
-  - level: Metadata
-    resources:
-    - group: ""
-      resources: ["pods/log", "pods/status"]
-# Don't log authenticated requests to certain non-resource URL paths.
-  - level: None
-    userGroups: ["system:authenticated"]
-    nonResourceURLs: ["/api*", "/version"]
-# Log configmap and secret changes in all other namespaces at the Metadata level.
-  - level: Metadata
-    resources:
-    - group: "" # core API group
-      resources: ["secrets", "configmaps"]
-```
+[PRE0]
 
 您可以在审计策略中配置多个审计规则。每个审计规则将由以下字段配置：
 
@@ -109,105 +80,15 @@ rules:
 
 请求级别的事件比元数据级别的事件更详细，而`RequestResponse`级别的事件比请求级别的事件更详细。高详细度需要更多的输入/输出（I/O）吞吐量和存储。了解审计级别之间的差异非常必要，这样您就可以正确定义审计规则，既可以节约资源又可以保障安全。成功配置审计策略后，让我们看看审计事件是什么样子的。以下是一个元数据级别的审计事件：
 
-```
-{
-  "kind": "Event",
-  "apiVersion": "audit.k8s.io/v1",
-  "level": "Metadata",
-  "auditID": "05698e93-6ad7-4f4e-8ae9-046694bee469",
-  "stage": "ResponseComplete",
-  "requestURI": "/api/v1/namespaces/ns1/pods",
-  "verb": "create",
-  "user": {
-    "username": "admin",
-    "uid": "admin",
-    "groups": [
-      "system:masters",
-      "system:authenticated"
-    ]
-  },
-  "sourceIPs": [
-    "98.207.36.92"
-  ],
-  "userAgent": "kubectl/v1.17.4 (darwin/amd64) kubernetes/8d8aa39",
-  "objectRef": {
-    "resource": "pods",
-    "namespace": "ns1",
-    "name": "pod-1",
-    "apiVersion": "v1"
-  },
-  "responseStatus": {
-    "metadata": {},
-    "code": 201
-  },
-  "requestReceivedTimestamp": "2020-04-09T07:10:52.471720Z",
-  "stageTimestamp": "2020-04-09T07:10:52.485551Z",
-  "annotations": {
-    "authorization.k8s.io/decision": "allow",
-    "authorization.k8s.io/reason": ""
-  }
-}
-```
+[PRE1]
 
 前面的审计事件显示了`user`、`timestamp`、被访问的对象、授权决定等。请求级别的审计事件在审计事件中的`requestObject`字段中提供了额外的信息。您将在`requestObject`字段中找到工作负载的规范，如下所示：
 
-```
-  "requestObject": {
-    "kind": "Pod",
-    "apiVersion": "v1",
-    "metadata": {
-      "name": "pod-2",
-      "namespace": "ns2",
-      "creationTimestamp": null,
-      ...
-    },
-    "spec": {
-      "containers": [
-        {
-          "name": "echo",
-          "image": "busybox",
-          "command": [
-            "sh",
-            "-c",
-            "echo 'this is echo' && sleep 1h"
-          ],
-          ...
-          "imagePullPolicy": "Always"
-        }
-      ],
-      ...
-      "securityContext": {},
-    },
-```
+[PRE2]
 
 `RequestResponse`级别的审计事件是最详细的。事件中的`responseObject`实例几乎与`requestObject`相同，但包含了额外的信息，如资源版本和创建时间戳，如下面的代码块所示：
 
-```
-{
-  "responseObject": {
-      ...
-      "selfLink": "/api/v1/namespaces/ns3/pods/pod-3",
-      "uid": "3fd18de1-7a31-11ea-9e8d-0a39f00d8287",
-      "resourceVersion": "217243",
-      "creationTimestamp": "2020-04-09T07:10:53Z",
-      "tolerations": [
-        {
-          "key": "node.kubernetes.io/not-ready",
-          "operator": "Exists",
-          "effect": "NoExecute",
-          "tolerationSeconds": 300
-        },
-        {
-          "key": "node.kubernetes.io/unreachable",
-          "operator": "Exists",
-          "effect": "NoExecute",
-          "tolerationSeconds": 300
-        }
-      ],
-      ...
-    },
- }
-```
+[PRE3]
 
 请务必正确选择审计级别。更详细的日志提供了对正在进行的活动更深入的洞察。然而，存储和处理审计事件的时间成本更高。值得一提的是，如果在 Kubernetes 秘密对象上设置了请求或`RequestResponse`审计级别，秘密内容将被记录在审计事件中。如果将审计级别设置为比包含敏感数据的 Kubernetes 对象的元数据更详细，您应该使用敏感数据遮蔽机制，以避免秘密被记录在审计事件中。
 
@@ -235,22 +116,7 @@ Kubernetes 审计功能通过对象类型、命名空间、操作、用户等提
 
 webhook 后端将审计事件写入注册到`kube-apiserver`的远程 webhook。要启用 webhook 后端，您需要使用 webhook 配置文件设置`--audit-webhook-config-file`标志。此标志也在启动`kube-apiserver`时指定。以下是一个用于为稍后将更详细介绍的 Falco 服务注册 webhook 后端的 webhook 配置的示例：
 
-```
-apiVersion: v1
-kind: Config
-clusters:
-- name: falco
-  cluster:
-    server: http://$FALCO_SERVICE_CLUSTERIP:8765/k8s_audit
-contexts:
-- context:
-    cluster: falco
-    user: ""
-  name: default-context
-current-context: default-context
-preferences: {}
-users: []
-```
+[PRE4]
 
 `server`字段中指定的 URL（`http://$FALCO_SERVICE_CLUSTERIP:8765/k8s_audit`）是审计事件将要发送到的远程端点。自 Kubernetes 1.13 版本以来，可以通过`AuditSink`对象动态配置 webhook 后端，该对象仍处于 alpha 阶段。
 
@@ -284,25 +150,7 @@ users: []
 
 如果`kube-apiserver`宕机，那么基本上您的集群也会宕机，因为用户或其他 Kubernetes 组件依赖于与`kube-apiserver`通信来执行其任务。如果`etcd`宕机，那么集群和对象的状态将无法被消费。`kube-scheduler`和`kube-controller-manager`也很重要，以确保工作负载在集群中正常运行。所有这些组件都在主节点上运行，以确保组件的高可用性。一个简单的方法是为您的 Kubernetes 集群启动多个主节点，可以通过`kops`或`kubeadm`来实现。您会发现类似以下的内容：
 
-```
-$ kubectl get pods -n kube-system
-...
-etcd-manager-events-ip-172-20-109-109.ec2.internal       1/1     Running   0          4h15m
-etcd-manager-events-ip-172-20-43-65.ec2.internal         1/1     Running   0          4h16m
-etcd-manager-events-ip-172-20-67-151.ec2.internal        1/1     Running   0          4h16m
-etcd-manager-main-ip-172-20-109-109.ec2.internal         1/1     Running   0          4h15m
-etcd-manager-main-ip-172-20-43-65.ec2.internal           1/1     Running   0          4h15m
-etcd-manager-main-ip-172-20-67-151.ec2.internal          1/1     Running   0          4h16m
-kube-apiserver-ip-172-20-109-109.ec2.internal            1/1     Running   3          4h15m
-kube-apiserver-ip-172-20-43-65.ec2.internal              1/1     Running   4          4h16m
-kube-apiserver-ip-172-20-67-151.ec2.internal             1/1     Running   4          4h15m
-kube-controller-manager-ip-172-20-109-109.ec2.internal   1/1     Running   0          4h15m
-kube-controller-manager-ip-172-20-43-65.ec2.internal     1/1     Running   0          4h16m
-kube-controller-manager-ip-172-20-67-151.ec2.internal    1/1     Running   0          4h15m
-kube-scheduler-ip-172-20-109-109.ec2.internal            1/1     Running   0          4h15m
-kube-scheduler-ip-172-20-43-65.ec2.internal              1/1     Running   0          4h15m
-kube-scheduler-ip-172-20-67-151.ec2.internal             1/1     Running   0          4h16m
-```
+[PRE5]
 
 现在您有多个`kube-apiserver` pod、`etcd` pod、`kube-controller-manager` pod 和`kube-scheduler` pod 在`kube-system`命名空间中运行，并且它们在不同的主节点上运行。还有一些其他组件，如`kubelet`和`kube-proxy`，它们在每个节点上运行，因此它们的可用性由节点的可用性保证，并且`kube-dns`默认情况下会启动多个 pod，因此它们的高可用性是得到保证的。无论您的 Kubernetes 集群是在公共云上运行还是在私有数据中心中运行——基础设施都是支持 Kubernetes 集群可用性的支柱。接下来，我们将讨论云基础设施的高可用性，并以云提供商为例。
 
@@ -310,35 +158,11 @@ kube-scheduler-ip-172-20-67-151.ec2.internal             1/1    
 
 云提供商通过位于不同地区的多个数据中心提供全球范围的云服务。云用户可以选择在哪个地区和区域（实际数据中心）托管他们的服务。区域和区域提供了对大多数类型的物理基础设施和基础设施软件服务故障的隔离。请注意，云基础设施的可用性也会影响托管在云中的 Kubernetes 集群上运行的服务。您应该利用云的高可用性，并最终确保在 Kubernetes 集群上运行的服务的高可用性。以下代码块提供了使用`kops`指定区域的示例，以利用云基础设施的高可用性：
 
-```
-export NODE_SIZE=${NODE_SIZE:-t2.large}
-export MASTER_SIZE=${MASTER_SIZE:-t2.medium}
-export ZONES=${ZONES:-"us-east-1a,us-east-1b,us-east-1c"}
-export KOPS_STATE_STORE="s3://my-k8s-state-store2/"
-kops create cluster k8s-clusters.k8s-demo-zone.com \
-  --cloud aws \
-  --node-count 3 \
-  --zones $ZONES \
-  --node-size $NODE_SIZE \
-  --master-size $MASTER_SIZE \
-  --master-zones $ZONES \
-  --networking calico \
-  --kubernetes-version 1.14.3 \
-  --yes \
-```
+[PRE6]
 
 Kubernetes 集群的节点如下所示：
 
-```
-$ kops validate cluster
-...
-INSTANCE GROUPS
-NAME			ROLE	MACHINETYPE	MIN	MAX	SUBNETS
-master-us-east-1a	Master	t2.medium	1	1	us-east-1a
-master-us-east-1b	Master	t2.medium	1	1	us-east-1b
-master-us-east-1c	Master	t2.medium	1	1	us-east-1c
-nodes			Node	t2.large	3	3	us-east-1a,us-east-1b,us-east-1c
-```
+[PRE7]
 
 前面的代码块显示了分别在`us-east-1a`、`us-east-1b`和`us-east-1c`可用区运行的三个主节点。因此，作为工作节点，即使其中一个数据中心宕机或正在维护，主节点和工作节点仍然可以在其他数据中心中运行。
 
@@ -360,91 +184,31 @@ nodes			Node	t2.large	3	3	us-east-1a,us-east-1b,us-east-1c
 
 您可以使用`helm`在 Kubernetes 集群中部署 Vault，如下所示：
 
-```
-helm install vault --set='server.dev.enabled=true' https://github.com/hashicorp/vault-helm/archive/v0.4.0.tar.gz
-```
+[PRE8]
 
 请注意，设置了`server.dev.enabled=true`。这对开发环境很好，但不建议在生产环境中设置。您应该看到有两个正在运行的 pod，如下所示：
 
-```
-$ kubectl get pods
-NAME                                    READY   STATUS    RESTARTS   AGE
-vault-0                                 1/1     Running   0          80s
-vault-agent-injector-7fd6b9588b-fgsnj   1/1     Running   0          80s
-```
+[PRE9]
 
 `vault-0` pod 是用于管理和存储秘密的 pod，而`vault-agent-injector-7fd6b9588b-fgsnj` pod 负责将秘密注入带有特殊 vault 注释的 pod 中，我们将在*提供和轮换秘密*部分中更详细地展示。接下来，让我们为`postgres`数据库连接创建一个示例秘密，如下所示：
 
-```
-vault kv put secret/postgres username=alice password=pass
-```
+[PRE10]
 
 请注意，前面的命令需要在`vault-0` pod 内执行。由于您希望限制 Kubernetes 集群中仅有相关应用程序可以访问秘钥，您可能希望定义一个策略来实现，如下所示：
 
-```
-cat <<EOF > /home/vault/app-policy.hcl
-path "secret*" {
-  capabilities = ["read"]
-}
-EOF
-vault policy write app /home/vault/app-policy.hcl
-```
+[PRE11]
 
 现在，您有一个定义了在`secret`路径下读取秘密权限的策略，比如`secret`/`postgres`。接下来，您希望将策略与允许的实体关联，比如 Kubernetes 中的服务账户。这可以通过执行以下命令来完成：
 
-```
-vault auth enable kubernetes
-vault write auth/kubernetes/config \
-   token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
-   kubernetes_host=https://${KUBERNETES_PORT_443_TCP_ADDR}:443 \
-   kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-vault write auth/kubernetes/role/myapp \
-   bound_service_account_names=app \
-   bound_service_account_namespaces=demo \
-   policies=app \
-   ttl=24h
-```
+[PRE12]
 
 Vault 可以利用 Kubernetes 的天真认证，然后将秘密访问策略绑定到服务账户。现在，命名空间 demo 中的服务账户 app 可以访问`postgres`秘密。现在，让我们在`vault-app.yaml`文件中部署一个演示应用程序，如下所示：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: app
-  labels:
-    app: vault-agent-demo
-spec:
-  selector:
-    matchLabels:
-      app: vault-agent-demo
-  replicas: 1
-  template:
-    metadata:
-      annotations:
-      labels:
-        app: vault-agent-demo
-    spec:
-      serviceAccountName: app
-      containers:
-      - name: app
-        image: jweissig/app:0.0.1
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: app
-  labels:
-    app: vault-agent-demo
-```
+[PRE13]
 
 请注意，在上述的`.yaml`文件中，尚未添加注释，因此在创建应用程序时，秘密不会被注入，也不会添加 sidecar 容器。代码可以在以下片段中看到：
 
-```
-$ kubectl get pods
-NAME                                    READY   STATUS    RESTARTS   AGE
-app-668b8bcdb9-js9mm                    1/1     Running   0          3m23s
-```
+[PRE14]
 
 接下来，我们将展示秘密注入的工作原理。
 
@@ -452,115 +216,29 @@ app-668b8bcdb9-js9mm                    1/1     Running�
 
 我们在部署应用程序时不展示秘密注入的原因是，我们想向您展示在注入到演示应用程序 pod 之前和之后的详细差异。现在，让我们使用以下 Vault 注释来补丁部署：
 
-```
-$ cat patch-template-annotation.yaml
-spec:
-  template:
-    metadata:
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/agent-inject-status: "update"
-        vault.hashicorp.com/agent-inject-secret-postgres: "secret/postgres"
-        vault.hashicorp.com/agent-inject-template-postgres: |
-          {{- with secret "secret/postgres" -}}
-          postgresql://{{ .Data.data.username }}:{{ .Data.data.password }}@postgres:5432/wizard
-          {{- end }}
-        vault.hashicorp.com/role: "myapp"
-```
+[PRE15]
 
 上述注释规定了将注入哪个秘密，以及以什么格式和使用哪个角色。一旦我们更新了演示应用程序的部署，我们将发现秘密已经被注入，如下所示：
 
-```
-$ kubectl get pods
-NAME                                    READY   STATUS    RESTARTS   AGE
-app-68d47bb844-2hlrb                    2/2     Running   0          13s
-$ kubectl -n demo exec -it app-68d47bb844-2hlrb -c app -- cat /vault/secrets/postgres
-postgresql://alice:pass@postgres:5432/wizard
-```
+[PRE16]
 
 让我们来看一下 pod 的规范（而不是补丁后的部署）-与补丁后的部署规范相比，您会发现以下内容（用粗体标记）已经添加：
 
-```
-  containers:
-  - image: jweissig/app:0.0.1
-    ...
-    volumeMounts:
-    - mountPath: /vault/secrets
-      name: vault-secrets
-  - args:
-    - echo ${VAULT_CONFIG?} | base64 -d > /tmp/config.json && vault agent -config=/tmp/config.json
-    command:
-    - /bin/sh
-    - -ec
-    image: vault:1.3.2
-    name: vault-agent
-    volumeMounts:
-    - mountPath: /vault/secrets
-      name: vault-secrets
- initContainers:
-  - args:
-    - echo ${VAULT_CONFIG?} | base64 -d > /tmp/config.json && vault agent -config=/tmp/config.json
-    command:
-    - /bin/sh
-    - -ec
-    image: vault:1.3.2
-    name: vault-agent-init
-    volumeMounts:
-    - mountPath: /vault/secrets
-      name: vault-secrets
-  volumes:
-   - emptyDir:
-      medium: Memory
-    name: vault-secrets
-```
+[PRE17]
 
 在上述列出的变化中值得一提的几件事情：注入了一个名为`vault-agent-init`的`init`容器和一个名为`vault-agent`的 sidecar 容器，以及一个名为`vault-secrets`的`emptyDir`类型卷。这就是为什么在补丁之后，你会看到演示应用程序 pod 中运行了两个容器。此外，`vault-secrets`卷被挂载在`init`容器、`sidecar`容器和`app`容器的`/vault/secrets/`目录中。秘密存储在`vault-secrets`卷中。通过预定义的变异 webhook 配置（通过`helm`安装）来完成 pod 规范的修改，如下所示：
 
-```
-apiVersion: admissionregistration.k8s.io/v1beta1
-kind: MutatingWebhookConfiguration
-metadata:
-  ...
-  name: vault-agent-injector-cfg
-webhooks:
-- admissionReviewVersions:
-  - v1beta1
-  clientConfig:
-    caBundle: <CA_BUNDLE>
-    service:
-      name: vault-agent-injector-svc
-      namespace: demo
-      path: /mutate
-  failurePolicy: Ignore
-  name: vault.hashicorp.com
-  namespaceSelector: {}
-  rules:
-  - apiGroups:
-    - ""
-    apiVersions:
-    - v1
-    operations:
-    - CREATE
-    - UPDATE
-    resources:
-    - pods
-    scope: '*'
-```
+[PRE18]
 
 注册到`kube-apiserver`的变异 webhook 配置基本上告诉`kube-apiserver`将任何 pod 的创建或更新请求重定向到`demo`命名空间中的`vault-agent-injector-svc`服务。服务的后面是`vault-agent-injector` pod。然后，`vault-agent-injector` pod 将查找相关的注释，并根据请求将`init`容器和`sidecar`容器以及存储秘密的卷注入到 pod 的规范中。为什么我们需要一个`init`容器和一个`sidecar`容器？`init`容器是为了预先填充我们的秘密，而`sidecar`容器是为了在整个应用程序生命周期中保持秘密数据同步。
 
 现在，让我们运行以下代码来更新秘密，并看看会发生什么：
 
-```
-vault kv put secret/postgres username=alice password=changeme
-```
+[PRE19]
 
 现在，密码已从`pass`更新为`changeme`在`vault` pod 中。并且，在`demo`应用程序方面，我们可以看到在等待几秒钟后，它也已经更新了：
 
-```
-$ kubectl -n demo exec -it app-68d47bb844-2hlrb -c app -- cat /vault/secrets/postgres
-postgresql://alice:changeme@postgres:5432/wizard
-```
+[PRE20]
 
 Vault 是一个强大的秘密管理解决方案，它的许多功能无法在单个部分中涵盖。我鼓励你阅读文档并尝试使用它来更好地了解 Vault。接下来，让我们谈谈在 Kubernetes 中使用 Falco 进行运行时威胁检测。
 
@@ -636,20 +314,11 @@ Falco 主要由几个组件组成，如下：
 
 在我们深入研究 Falco 规则之前，请确保已通过以下命令安装了 Falco：
 
-```
-helm install --name falco stable/falco
-```
+[PRE21]
 
 Falco DaemonSet 应该在您的 Kubernetes 集群中运行，如下面的代码块所示：
 
-```
-$ kubectl get pods
-NAME          READY   STATUS    RESTARTS   AGE
-falco-9h8tg   1/1     Running   10         62m
-falco-cnt47   1/1     Running   5          3m45s
-falco-mz6jg   1/1     Running   0          6s
-falco-t4cpw   1/1     Running   0          10s
-```
+[PRE22]
 
 要启用 Kubernetes 审计并将 Falco 注册为 webhook 后端，请按照 Falco 存储库中的说明进行操作（[`github.com/falcosecurity/evolution/tree/master/examples/k8s_audit_config`](https://github.com/falcosecurity/evolution/tree/master/examples/k8s_audit_config)）。
 
@@ -685,44 +354,15 @@ Falco 系统调用规则评估系统调用事件 - 更准确地说是增强的�
 
 让我们尝试构建一个简单的 Falco 规则。假设您有一个`nginx` pod，仅从`/usr/share/nginx/html/`目录提供静态文件。因此，您可以创建一个 Falco 规则来检测任何异常的文件读取活动，如下所示：
 
-```
-    - rule: Anomalous read in nginx pod
-      desc: Detect any anomalous file read activities in Nginx pod.
-      condition: (open_read and container and container.image.repository="kaizheh/insecure-nginx" and fd.directory != "/usr/share/nginx/html")
-      output: Anomalous file read activity in Nginx pod (user=%user.name process=%proc.name file=%fd.name container_id=%container.id image=%container.image.repository)
-      priority: WARNING
-```
+[PRE23]
 
 前面的规则使用了两个默认宏：`open_read`和`container`。`open_read`宏检查系统调用事件是否仅以读模式打开，而`container`宏检查系统调用事件是否发生在容器内。然后，该规则仅适用于运行`kaizheh/insecure-nginx`镜像的容器，并且`fd.directory`过滤器从系统调用事件中检索文件目录信息。在此规则中，它检查是否有任何文件读取超出`/usr/share/nginx/html/`目录。那么，如果`nginx`的配置错误导致文件路径遍历（在任意目录下读取文件）会怎么样？以下代码块显示了一个示例：
 
-```
-# curl insecure-nginx.insecure-nginx.svc.cluster.local/files../etc/passwd
-root:x:0:0:root:/root:/bin/bash
-daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
-bin:x:2:2:bin:/bin:/usr/sbin/nologin
-sys:x:3:3:sys:/dev:/usr/sbin/nologin
-sync:x:4:65534:sync:/bin:/bin/sync
-games:x:5:60:games:/usr/games:/usr/sbin/nologin
-man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
-lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
-mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
-news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
-uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
-proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
-www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
-backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
-list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
-irc:x:39:39:ircd:/var/run/ircd:/usr/sbin/nologin
-gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
-nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
-_apt:x:100:65534::/nonexistent:/bin/false
-```
+[PRE24]
 
 与此同时，Falco 检测到超出指定目录的文件访问，输出如下：
 
-```
-08:22:19.484698397: Warning Anomalous file read activity in Nginx pod (user=<NA> process=nginx file=/etc/passwd container_id=439e2e739868 image=kaizheh/insecure-nginx) k8s.ns=insecure-nginx k8s.pod=insecure-nginx-7c99fdf44b-gffp4 container=439e2e739868 k8s.ns=insecure-nginx k8s.pod=insecure-nginx-7c99fdf44b-gffp4 container=439e2e739868
-```
+[PRE25]
 
 接下来，让我们看看如何使用 K8s 审计规则。
 
@@ -740,28 +380,11 @@ K8s 审计规则评估 Kubernetes 审计事件。在本章的前面部分，我�
 
 让我们尝试构建一个简单的 K8s 审计规则。假设您不希望在`kube-system`命名空间中部署除了一些受信任的服务镜像（如`kube-apiserver`、`etcd-manager`等）之外的镜像。因此，您可以创建一个 Falco 规则，如下所示：
 
-```
-- list: trusted_images
-  items: [calico/node, kopeio/etcd-manager, k8s.gcr.io/kube-apiserver, k8s.gcr.io/kube-controller-manager, k8s.gcr.io/kube-proxy, k8s.gcr.io/kube-scheduler]
-- rule: Untrusted Image Deployed in kube-system Namespace
-  desc: >
-    Detect an untrusted image deployed in kube-system namespace
-  condition: >
-    kevt and pod
-    and kcreate
-    and ka.target.namespace=kube-system
-    and not ka.req.pod.containers.image.repository in (trusted_images)
-  output: Untrusted image deployed in kube-system namespace (user=%ka.user.name image=%ka.req.pod.containers.image.repository resource=%ka.target.name)
-  priority: WARNING
-  source: k8s_audit
-  tags: [k8s]
-```
+[PRE26]
 
 首先，我们定义了一个受信任的镜像列表，这些镜像将被允许部署到`kube-system`命名空间中。在规则中，我们使用了两个默认宏：`pod`和`kcreate`。 `pod`宏检查目标资源是否为 Pod，而`kcreate`检查动词是否为`create`。我们还检查目标命名空间是否为`kube-system`，并且部署的镜像不在`trusted_images`列表中。规则的`source`字段中的`k8s_audit`值表示此规则评估 Kubernetes 审计事件。然后，如果我们尝试在`kube-system`命名空间中部署`busybox`镜像的 Pod，我们将从 Falco 看到以下警报：
 
-```
-21:47:15.063915008: Warning Untrusted image deployed in kube-system namespace (user=admin image=busybox resource=pod-1)
-```
+[PRE27]
 
 请注意，为了使此规则起作用，需要将 Pod 创建的审计级别至少设置为“请求”级别，其中审计事件包括 Pod 的规范信息，例如镜像。
 
@@ -779,72 +402,33 @@ CRIU 作为 Docker 插件工作，仍处于实验阶段，已知问题是 CRIU �
 
 要启用 CRIU，您需要在 Docker 守护程序中启用`experimental`模式，如下所示：
 
-```
-echo "{\"experimental\":true}" >> /etc/docker/daemon.json
-```
+[PRE28]
 
 然后，在重新启动 Docker 守护程序后，您应该能够成功执行`docker checkpoint`命令，就像这样：
 
-```
-# docker checkpoint
-Usage:	docker checkpoint COMMAND
-Manage checkpoints
-Options:
-      --help   Print usage
-Commands:
-  create      Create a checkpoint from a running container
-  ls          List checkpoints for a container
-  rm          Remove a checkpoint
-```
+[PRE29]
 
 然后，按照说明安装 CRIU（[`criu.org/Installation`](https://criu.org/Installation)）。接下来，让我们看一个简单的示例，展示 CRIU 的强大之处。我有一个简单的`busybox`容器在运行，每秒增加`1`，如下面的代码片段所示：
 
-```
-# docker run -d --name looper --security-opt seccomp:unconfined busybox /bin/sh -c 'i=0; while true; do echo $i; i=$(expr $i + 1); sleep 1; done'
-91d68fafec8fcf11e7699539dec0b037220b1fcc856fb7050c58ab90ae8cbd13
-```
+[PRE30]
 
 睡了几秒钟后，我看到计数器的输出在增加，如下所示：
 
-```
-# sleep 5
-# docker logs looper
-0
-1
-2
-3
-4
-5
-```
+[PRE31]
 
 接下来，我想对容器进行检查点，并将状态存储到本地文件系统，就像这样：
 
-```
-# docker checkpoint create --checkpoint-dir=/tmp looper checkpoint
-checkpoint
-```
+[PRE32]
 
 现在，`checkpoint`状态已保存在`/tmp`目录下。请注意，除非在创建检查点时指定了`--leave-running`标志，否则容器 looper 将在检查点后被杀死。
 
 然后，创建一个镜像容器，但不运行它，就像这样：
 
-```
-# docker create --name looper-clone --security-opt seccomp:unconfined busybox /bin/sh -c 'i=0; while true; do echo $i; i=$(expr $i + 1); sleep 1; done'
-49b9ade200e7da6bbb07057da02570347ad6fefbfc1499652ed286b874b59f2b
-```
+[PRE33]
 
 现在，我们可以启动具有存储状态的新`looper-clone`容器。让我们再等几秒钟，看看会发生什么。结果可以在下面的代码片段中看到：
 
-```
-# docker start --checkpoint-dir=/tmp --checkpoint=checkpoint looper-clone
-# sleep 5
-# docker logs looper-clone
-6
-7
-8
-9
-10
-```
+[PRE34]
 
 新的`looper-clone`容器从`6`开始计数，这意味着状态（计数器为`5`）已成功恢复并使用。
 
@@ -856,44 +440,21 @@ Sysdig 是一个用于 Linux 系统探索和故障排除的开源工具，支持
 
 让我们继续以`insecure-nginx`为例，因为我们收到了 Falco 警报，如下面的代码片段所示：
 
-```
-08:22:19.484698397: Warning Anomalous file read activity in Nginx pod (user=<NA> process=nginx file=/etc/passwd container_id=439e2e739868 image=kaizheh/insecure-nginx) k8s.ns=insecure-nginx k8s.pod=insecure-nginx-7c99fdf44b-gffp4 container=439e2e739868 k8s.ns=insecure-nginx k8s.pod=insecure-nginx-7c99fdf44b-gffp4 container=439e2e739868
-```
+[PRE35]
 
 在触发警报时，`nginx` pod 仍然可能正在遭受攻击。您可以采取一些措施来应对。启动捕获，然后分析 Falco 警报的更多上下文是其中之一。
 
 要触发捕获，请从[`github.com/sysdiglabs/kubectl-capture`](https://github.com/sysdiglabs/kubectl-capture)下载`kubectl-capture`并将其放置在其他`kubectl`插件中，就像这样：
 
-```
-$ kubectl plugin list
-The following compatible plugins are available:
-/Users/kaizhehuang/.krew/bin/kubectl-advise_psp
-/Users/kaizhehuang/.krew/bin/kubectl-capture
-/Users/kaizhehuang/.krew/bin/kubectl-ctx
-/Users/kaizhehuang/.krew/bin/kubectl-krew
-/Users/kaizhehuang/.krew/bin/kubectl-ns
-/Users/kaizhehuang/.krew/bin/kubectl-sniff
-```
+[PRE36]
 
 然后，像这样在`nginx` pod 上启动捕获：
 
-```
-$ kubectl capture insecure-nginx-7c99fdf44b-4fl5s -ns insecure-nginx
-Sysdig is starting to capture system calls:
-Node: ip-172-20-42-49.ec2.internal
-Pod: insecure-nginx-7c99fdf44b-4fl5s
-Duration: 120 seconds
-Parameters for Sysdig: -S -M 120 -pk -z -w /capture-insecure-nginx-7c99fdf44b-4fl5s-1587337260.scap.gz
-The capture has been downloaded to your hard disk at:
-/Users/kaizhehuang/demo/chapter11/sysdig/capture-insecure-nginx-7c99fdf44b-4fl5s-1587337260.scap.gz
-```
+[PRE37]
 
 在幕后，`kubectl-capture`在运行疑似受害者 pod 的主机上启动一个新的 pod 进行捕获，持续时间为`120`秒，这样我们就可以看到主机上正在发生的一切以及接下来`120`秒内的情况。捕获完成后，压缩的捕获文件将在当前工作目录中创建。您可以将 Sysdig Inspect 作为 Docker 容器引入，以开始安全调查，就像这样：
 
-```
-$ docker run -d -v /Users/kaizhehuang/demo/chapter11/sysdig:/captures -p3000:3000 sysdig/sysdig-inspect:latest
-17533f98a947668814ac6189908ff003475b10f340d8f3239cd3627fa9747769
-```
+[PRE38]
 
 现在，登录到`http://localhost:3000`，您应该看到登录**用户界面**（**UI**）。记得解压`scap`文件，这样您就可以看到捕获文件的概述页面，如下所示：
 
@@ -925,14 +486,7 @@ Sysdig Inspect 从以下角度提供了对容器内发生活动的全面洞察�
 
 事实上，`anchore-cli` pod 碰巧运行在与`nginx` pod 相同的节点上，如下面的代码块所示：
 
-```
-$ kubectl get pods -o wide
-NAME          READY   STATUS    RESTARTS   AGE   IP               NODE                           NOMINATED NODE   READINESS GATES
-anchore-cli   1/1     Running   1          77m   100.123.226.66   ip-172-20-42-49.ec2.internal   <none>           <none>
-$ kubectl get pods -n insecure-nginx -o wide
-NAME                              READY   STATUS    RESTARTS   AGE   IP               NODE                           NOMINATED NODE   READINESS GATES
-insecure-nginx-7c99fdf44b-4fl5s   1/1     Running   0          78m   100.123.226.65   ip-172-20-42-49.ec2.internal   <none>           <none>
-```
+[PRE39]
 
 现在我们知道可能有一些文件路径遍历攻击是从`anchore-cli` pod 发起的，让我们看看这是什么（只需在前面的**Sysdig Inspect**页面中双击条目），如下所示：
 

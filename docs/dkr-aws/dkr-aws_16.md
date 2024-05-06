@@ -140,19 +140,7 @@ Docker Swarm 代表了 Docker 的本机容器管理平台，直接内置到 Dock
 
 您可以使用这些信息来获取您的 Swarm 管理器之一的公共 IP 地址或 DNS 名称。一旦您有了这个 IP 地址，您就可以建立到管理器的 SSH 连接。
 
-```
-> ssh -i ~/.ssh/admin.pem docker@54.145.175.148
-The authenticity of host '54.145.175.148 (54.145.175.148)' can't be established.
-ECDSA key fingerprint is SHA256:Br/8IMAuEzPOV29B8zdbT6H+DjK9sSEEPSbXdn+v0YM.
-Are you sure you want to continue connecting (yes/no)? yes
-Warning: Permanently added '54.145.175.148' (ECDSA) to the list of known hosts.
-Welcome to Docker!
-~ $ docker ps --format "{{ .ID }}: {{ .Names }}"
-a5a2dfe609e4: l4controller-aws
-0d7f5d2ae4a0: meta-aws
-d54308064314: guide-aws
-58cb47dad3e1: shell-aws
-```
+[PRE0]
 
 请注意，当访问管理器时，您必须指定一个用户名为`docker`，如果运行`docker ps`命令，您会看到默认情况下管理器上运行着四个系统容器：
 
@@ -166,13 +154,7 @@ d54308064314: guide-aws
 
 要查看和访问集群中的其他节点，您可以使用`docker node ls`命令：
 
-```
-> docker node ls
-ID                         HOSTNAME                      STATUS   MANAGER STATUS   ENGINE VERSION
-qna4v46afttl007jq0ec712dk  ip-172-31-27-91.ec2.internal  Ready                     18.03.0-ce
-ym3jdy1ol17pfw7emwfen0b4e* ip-172-31-40-246.ec2.internal Ready    Leader           18.03.0-ce
-> ssh docker@ip-172-31-27-91.ec2.internal Permission denied (publickey,keyboard-interactive).
-```
+[PRE1]
 
 请注意，工作节点不允许公共 SSH 访问，因此您只能通过管理器从 SSH 访问工作节点。然而，有一个问题：鉴于管理节点没有本地存储管理员 EC2 密钥对的私钥，您无法建立与工作节点的 SSH 会话。
 
@@ -184,23 +166,13 @@ ym3jdy1ol17pfw7emwfen0b4e* ip-172-31-40-246.ec2.internal Ready    Leader        
 
 设置 SSH 代理转发，首先使用`ssh-add`命令将您的管理员 SSH 密钥添加到本地 SSH 代理中：
 
-```
-> ssh-add -K ~/.ssh/admin.pem
-Identity added: /Users/jmenga/.ssh/admin.pem (/Users/jmenga/.ssh/admin.pem)
-> ssh-add -L
-ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCkF7aAzIRayGHiiR81wcz/k9b+ZdmAEkdIBU0pOvAaFYjrDPf4JL4I0rJjdpFBjFZIqKXM9dLWg0skENYSUl9pfLT+CzValQat/XpBw/HfwzbzMy8wqcKehN0pB4V1bpzfOYe7lTLmTYIQ/21wW63QVlZnNyV1VZiVgN5DcLqgiG5CHHAooMIbiExAYvRrgo8XEXoqFRODLwIn4HZ7OAtojWzxElBx+EC4lmDekykgxnfGd30QgATIEF8/+UzM17j91JJohfxU7tA3GhXkScMBXnxBhdOftVvtB8/bGc+DHjJlkYSxL20792eBEv/ZsooMhNFxGLGhidrznmSeC8qL /Users/jmenga/.ssh/admin.pem
-```
+[PRE2]
 
 `-K`标志是特定于 macOS 的，并将您的 SSH 密钥的密码添加到您的 OS X 钥匙串中，这意味着此配置将在重新启动后持续存在。如果您不使用 macOS，可以省略`-K`标志。
 
 现在您可以使用`-A`标志访问您的 Swarm 管理器，该标志配置 SSH 客户端使用您的 SSH 代理身份。使用 SSH 代理还可以启用 SSH 代理转发，这意味着用于与 Swarm 管理器建立 SSH 会话的 SSH 密钥可以自动用于或转发到您可能在 SSH 会话中建立的其他 SSH 连接：
 
-```
-> ssh -A docker@54.145.175.148
-Welcome to Docker!
-~ $ ssh docker@ip-172-31-27-91.ec2.internal
-Welcome to Docker!
-```
+[PRE3]
 
 如您所见，使用 SSH 代理转发解决了访问工作节点的问题。
 
@@ -210,18 +182,7 @@ Welcome to Docker!
 
 以下命令演示了如何使运行在 Swarm 管理器上的 Docker 套接字显示为运行在本地主机上的端口：
 
-```
-> ssh -i ~/.ssh/admin.pem -NL localhost:2374:/var/run/docker.sock docker@54.145.175.148 &
-[1] 7482
-> docker -H localhost:2374 ps --format "{{ .ID }}: {{ .Names }}"
-a5a2dfe609e4: l4controller-aws
-0d7f5d2ae4a0: meta-aws
-d54308064314: guide-aws
-58cb47dad3e1: shell-aws
-> export DOCKER_HOST=localhost:2374
-> docker node ls --format "{{ .ID }}: {{ .Hostname }}" qna4v46afttl007jq0ec712dk: ip-172-31-27-91.ec2.internal
-ym3jdy1ol17pfw7emwfen0b4e: ip-172-31-40-246.ec2.internal
-```
+[PRE4]
 
 传递给第一个 SSH 命令的`-N`标志指示客户端不发送远程命令，而`-L`或本地转发标志配置了将本地主机上的 TCP 端口`2374`映射到远程 Swarm 管理器上的`/var/run/docker.sock` Docker Engine 套接字。命令末尾的和符号（`&`）使命令在后台运行，并将进程 ID 作为此命令的输出发布。
 
@@ -239,19 +200,9 @@ ym3jdy1ol17pfw7emwfen0b4e: ip-172-31-40-246.ec2.internal
 
 要创建一个 Docker 服务，您可以使用`docker service create`命令，下面的示例演示了如何使用流行的 Nginx Web 服务器搭建一个非常简单的 Web 应用程序：
 
-```
-> docker service create --name nginx --publish published=80,target=80 --replicas 2 nginx ez24df69qb2yq1zhyxma38dzo
-overall progress: 2 out of 2 tasks
-1/2: running [==================================================>]
-2/2: running [==================================================>]
-verify: Service converged
-> docker service ps --format "{{ .ID }} ({{ .Name }}): {{ .Node }} {{ .CurrentState }}" nginx 
-```
+[PRE5]
 
-```
-wcq6jfazrums (nginx.1): ip-172-31-27-91.ec2.internal  Running 2 minutes ago
-i0vj5jftf6cb (nginx.2): ip-172-31-40-246.ec2.internal Running 2 minutes ago
-```
+[PRE6]
 
 `--name`标志为服务提供了友好的名称，而`--publish`标志允许您发布服务将从中访问的外部端口（在本例中为端口`80`）。`--replicas`标志定义了服务应部署多少个容器，最后您指定了要运行的服务的图像的名称（在本例中为 nginx）。请注意，您可以使用`docker service ps`命令来列出运行服务的各个容器和节点。
 
@@ -259,10 +210,7 @@ i0vj5jftf6cb (nginx.2): ip-172-31-40-246.ec2.internal Running 2 minutes ago
 
 ![](img/13d5f811-507a-4314-8724-213ed904269e.png)Nginx 欢迎页面要删除一个服务，您可以简单地使用`docker service rm`命令：
 
-```
-> docker service rm nginx
-nginx
-```
+[PRE7]
 
 # Docker 堆栈
 
@@ -270,68 +218,9 @@ nginx
 
 一个很好的 Docker 堆栈的例子，将立即为我们的 Swarm 集群增加一些价值，是一个名为**swarmpit**的开源 Swarm 管理工具，您可以在[`swarmpit.io/`](https://swarmpit.io/)上了解更多。要开始使用 swarmpit，请克隆[`github.com/swarmpit/swarmpit`](https://github.com/swarmpit/swarmpit)存储库到本地文件夹，然后打开存储库根目录中的`docker-compose.yml`文件。
 
-```
-version: '3.6'
+[PRE8]
 
-services:
-```
-
-```
-
-  app:
-    image: swarmpit/swarmpit:latest
-    environment:
-      - SWARMPIT_DB=http://db:5984
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
- - target: 8080
- published: 8888
- mode: ingress
-    networks:
-      - net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 1024M
-        reservations:
-          cpus: '0.25'
-          memory: 512M
-      placement:
-        constraints:
-          - node.role == manager
-
-  db:
-    image: klaemo/couchdb:2.0.0
-    volumes:
-      - db-data:/opt/couchdb/data
-    networks:
-      - net
-    deploy:
-      resources:
-        limits:
-          cpus: '0.30'
-          memory: 512M
-        reservations:
-          cpus: '0.15'
-          memory: 256M
- placement:
- constraints:
- - node.role == manager
-
-  agent:
-    ...
-    ...
-
-networks:
-  net:
-    driver: overlay
-
-volumes:
-  db-data:
-    driver: local
-```
+[PRE9]
 
 我已经突出显示了对文件的修改，即将 Docker Compose 文件规范版本更新为 3.6，修改 app 服务的端口属性，以便在端口 8888 上外部发布管理 UI，并确保数据库仅部署到集群中的 Swarm 管理器。固定数据库的原因是确保在任何情况下，如果数据库容器失败，Docker Swarm 将尝试将数据库容器重新部署到存储本地数据库卷的同一节点。
 
@@ -339,22 +228,9 @@ volumes:
 
 有了这些更改，现在可以运行`docker stack deploy`命令来部署 swarmpit 管理应用程序：
 
-```
-> docker stack deploy -c docker-compose.yml swarmpit
-Creating network swarmpit_net
-Creating service swarmpit_agent
-Creating service swarmpit_app
-Creating service swarmpit_db
-> docker stack services swarmpit
-ID            NAME            MODE        REPLICAS  IMAGE                     PORTS
-8g5smxmqfc6a  swarmpit_app    replicated  1/1       swarmpit/swarmpit:latest  *:8888->8080/tcp
-omc7ewvqjecj  swarmpit_db     replicated  1/1
-```
+[PRE10]
 
-```
-klaemo/couchdb:2.0.0
-u88gzgeg8rym  swarmpit_agent  global      2/2       swarmpit/agent:latest
-```
+[PRE11]
 
 您可以看到`docker stack deploy`命令比`docker service create`命令简单得多，因为 Docker Compose 文件包含了所有的服务配置细节。在端口 8888 上浏览您的外部 URL，并使用默认用户名和密码`admin`/`admin`登录，然后立即通过选择右上角的管理员下拉菜单并选择**更改密码**来更改管理员密码。更改管理员密码后，您可以查看 swarmpit 管理 UI，该界面提供了有关您的 Swarm 集群的大量信息。以下截图展示了**基础设施** | **节点**页面，其中列出了集群中的节点，并显示了每个节点的详细信息：
 
@@ -390,37 +266,13 @@ todobackend 应用已经发布在现有的弹性容器注册表（ECR）存储�
 
 要部署`docker-swarm-aws-ecr-auth`服务，您可以使用以下`docker service create`命令：
 
-```
-> docker service create \
-    --name aws_ecr_auth \
-    --mount type=bind,source=/var/run/docker.sock,destination=/var/run/docker.sock \
-    --constraint 'node.role == manager' \
-    --restart-condition 'none' \
-    --detach=false \
-    mroca/swarm-aws-ecr-auth
-lmf37a9pbzc3nzhe88s1nzqto
-overall progress: 1 out of 1 tasks
-1/1: running [==================================================>]
-verify: Service converged
-```
+[PRE12]
 
 请注意，一旦此服务启动运行，您必须为使用 ECR 镜像部署的任何服务包括`--with-registry-auth`标志。
 
 以下代码演示了使用`docker service create`命令部署 todobackend 应用程序，以及`--with-registry-auth`标志：
 
-```
-> export AWS_PROFILE=docker-in-aws
-> $(aws ecr get-login --no-include-email)
-WARNING! Using --password via the CLI is insecure. Use --password-stdin.
-Login Succeeded
-> docker service create --name todobackend --with-registry-auth \
- --publish published=80,target=8000 --env DJANGO_SETTINGS_MODULE=todobackend.settings_release\
- 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend \
- uwsgi --http=0.0.0.0:8000 --module=todobackend.wsgi p71rje93a6pqvipqf2a14v6cc
-overall progress: 1 out of 1 tasks
-1/1: running [==================================================>]
-verify: Service converged
-```
+[PRE13]
 
 您可以通过浏览到外部负载均衡器 URL 来验证 todobackend 服务确实已部署：
 
@@ -434,43 +286,9 @@ verify: Service converged
 
 现在，让我们开始为 todobackend 应用程序定义一个堆栈，我们可以通过在`todobackend`存储库的根目录创建一个名为`stack.yml`的文件来部署到 AWS 的 Docker Swarm 集群中：
 
-```
-version: '3.6'
+[PRE14]
 
-networks:
-  net:
-    driver: overlay
-
-services:
-  app:
-    image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
-    ports:
-      - target: 8000
-        published: 80
-    networks:
-      - net
-    environment:
-      DJANGO_SETTINGS_MODULE: todobackend.settings_release
-    command:
-      - uwsgi
-      - --http=0.0.0.0:8000
-      - --module=todobackend.wsgi
-      - --master
-      - --die-on-term
-      - --processes=4
-      - --threads=2
-      - --check-static=/public
-```
-
-```
-
-    deploy:
-      replicas: 2
-      update_config:
-        parallelism: 1
-        delay: 30s
-
-```
+[PRE15]
 
 我们指定的第一个属性是强制性的`version`属性，我们将其定义为 3.6 版本，这是在撰写本书时支持的最新版本。接下来，我们配置顶级网络属性，该属性指定了堆栈将使用的 Docker 网络。您将创建一个名为`net`的网络，该网络实现了`overlay`驱动程序，该驱动程序在 Swarm 集群中的所有节点之间创建了一个虚拟网络段，堆栈中定义的各种服务可以在其中相互通信。通常，您部署的每个堆栈都应该指定自己的覆盖网络，这样可以在每个堆栈之间提供分割，并且无需担心集群的 IP 寻址或物理网络拓扑。
 
@@ -482,27 +300,11 @@ services:
 
 有了这个配置，您现在可以使用`docker stack deploy`命令部署您的堆栈了：
 
-```
-> $(aws ecr get-login --no-include-email)
-WARNING! Using --password via the CLI is insecure. Use --password-stdin.
-Login Succeeded
-> docker stack deploy --with-registry-auth -c stack.yml todobackend Creating network todobackend_net
-Creating service todobackend_app
-> docker service ps todobackend_app --format "{{ .Name }} -> {{ .Node }} ({{ .CurrentState }})"
-todobackend_app.1 -> ip-172-31-27-91.ec2.internal (Running 6 seconds ago)
-todobackend_app.2 -> ip-172-31-40-246.ec2.internal (Running 6 seconds ago)
-```
+[PRE16]
 
 请注意，我首先登录到 ECR——这一步并非绝对必需，但如果未登录到 ECR，Docker 客户端将无法确定与最新标签关联的当前图像哈希，并且会出现以下警告：
 
-```
-> docker stack deploy --with-registry-auth -c stack.yml todobackend image 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest could not be accessed on a registry to record
-its digest. Each node will access 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest independently,
-possibly leading to different nodes running different
-versions of the image.
-...
-...
-```
+[PRE17]
 
 如果您现在浏览外部负载均衡器 URL，todobackend 应用程序应该加载，但您会注意到应用程序缺少静态内容，如果您尝试访问 `/todos`，将会出现数据库配置错误，这是可以预料的，因为我们尚未配置任何数据库设置或考虑如何在 Docker Swarm 中运行 **collectstatic** 过程。
 
@@ -518,88 +320,25 @@ Docker for AWS 解决方案包括 Cloudstor 卷插件，这是由 Docker 构建�
 
 正如您在之前的章节中所了解的，todobackend 应用程序对存储静态内容有特定要求，尽管我通常不建议将 EFS 用于这种用例，但静态内容的要求代表了一个很好的机会，可以演示如何在 Docker Swarm 环境中配置和使用 EFS 作为共享卷。
 
-```
-version: '3.6'
+[PRE18]
 
-networks:
-  net:
-    driver: overlay
-
-volumes:
- public:
- driver: cloudstor:aws
- driver_opts:
- backing: shared
-
-services:
-  app:
-    image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
-    ports:
-      - target: 8000
-        published: 80
-    networks:
-```
-
-```
-
-      - net
- volumes:
- - public:/public
-    ...
-    ...
-```
+[PRE19]
 
 首先，您必须创建一个名为`public`的卷，并指定驱动程序为`cloudstor:aws`，这可以确保 Cloudstor 驱动程序加载了 AWS 支持。要创建一个 EFS 卷，您只需配置一个名为`backing`的驱动选项，值为`shared`，然后在`app`服务中挂载到`/public`。
 
 如果您现在使用`docker stack deploy`命令部署您的更改，卷将被创建，并且`app`服务实例将被更新：
 
-```
-> docker stack deploy --with-registry-auth -c stack.yml todobackend
-Updating service todobackend_app (id: 59gpr2x9n7buikeorpf0llfmc)
-> docker volume ls
-DRIVER          VOLUME NAME
-local           bd3d2804c796064d6e7c4040040fd474d9adbe7aaf68b6e30b1d195b50cdefde
-local           sshkey
-cloudstor:aws   todobackend_public
->  docker service ps todobackend_app \
- --format "{{ .Name }} -> {{ .DesiredState }} ({{ .CurrentState }})"
-todobackend_app.1 -> Running (Running 44 seconds ago)
-todobackend_app.1 -> Shutdown (Shutdown 45 seconds ago)
-todobackend_app.2 -> Running (Running 9 seconds ago)
-todobackend_app.2 -> Shutdown (Shutdown 9 seconds ago)
-```
+[PRE20]
 
 您可以使用`docker volume ls`命令查看当前卷，您会看到一个新的卷，根据约定命名为`<stack name>_<volume name>`（例如，`todobackend_public`），并且驱动程序为`cloudstor:aws`。请注意，`docker service ps`命令输出显示`todobackend.app.1`首先被更新，然后 30 秒后`todobackend.app.2`被更新，这是基于您在`app`服务的`deploy`设置中应用的早期滚动更新配置。
 
 要验证卷是否成功挂载，您可以使用`docker ps`命令查询 Swarm 管理器上运行的任何 app 服务容器，然后使用`docker exec`来验证`/public`挂载是否存在，并且`app`用户可以读写 todobackend 容器运行的。
 
-```
-> docker ps -f name=todobackend -q
-60b33d8b0bb1
-> docker exec -it 60b33d8b0bb1 touch /public/test
-> docker exec -it 60b33d8b0bb1 ls -l /public
-total 4
--rw-r--r-- 1 app app 0 Jul 19 13:45 test
-```
+[PRE21]
 
 一个重要的要点是，在前面的示例中显示的`docker volume`和其他`docker`命令只在您连接的当前 Swarm 节点的上下文中执行，并且不会显示卷或允许您访问集群中其他节点上运行的容器。要验证卷确实是共享的，并且可以被我们集群中其他 Swarm 节点上运行的 app 服务容器访问，您需要首先 SSH 到 Swarm 管理器，然后 SSH 到集群中的单个工作节点：
 
-```
-> ssh -A docker@54.145.175.148
-Welcome to Docker!
-~ $ docker node ls
-ID                          HOSTNAME                        STATUS  MANAGER  STATUS
-qna4v46afttl007jq0ec712dk   ip-172-31-27-91.ec2.internal    Ready   Active 
-ym3jdy1ol17pfw7emwfen0b4e * ip-172-31-40-246.ec2.internal   Ready   Active   Leader
-> ssh docker@ip-172-31-27-91.ec2.internal
-Welcome to Docker!
-> docker ps -f name=todobackend -q
-71df5495080f
-~ $ docker exec -it 71df5495080f ls -l /public
-total 4
--rw-r--r-- 1 app app 0 Jul 19 13:58 test
-~ $ docker exec -it 71df5495080f rm /public/test
-```
+[PRE22]
 
 正如您所看到的，该卷在工作节点上是可用的，可以看到我们在另一个实例上创建的`/public/test`文件，证明该卷确实是共享的，并且可以被所有`app`服务实例访问，而不管底层节点如何。
 
@@ -609,79 +348,19 @@ total 4
 
 为了演示这是如何工作的，我们首先需要拆除 todobackend 堆栈，这样您就可以观察在 Docker 存储引擎创建和挂载 EFS 支持的卷时 collectstatic 过程中将发生的失败：
 
-```
-> docker stack rm todobackend
-Removing service todobackend_app
-Removing network todobackend_net
-> docker volume ls
-DRIVER         VOLUME NAME
-local          sshkey
-cloudstor:aws  todobackend_public
-> docker volume rm todobackend_public
-```
+[PRE23]
 
 需要注意的一点是，Docker Swarm 在销毁堆栈时不会删除卷，因此您需要手动删除卷以完全清理环境。
 
 现在我们可以向堆栈添加一个 collectstatic 服务：
 
-```
-version: '3.6'
-
-networks:
-  net:
-    driver: overlay
-
-volumes:
-  public:
-    driver: cloudstor:aws
-    driver_opts:
-      backing: shared
-
-services:
-  app:
-    image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
-    ports:
-      - target: 8000
-        published: 80
-    networks:
-      - net
-    volumes:
-      - public:/public
-    ...
-    ...
-  collectstatic:
- image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend volumes:
- - public:/public    networks:
- - net
- environment:
- DJANGO_SETTINGS_MODULE: todobackend.settings_release
- command:
- - python3
- - manage.py
- - collectstatic
- - --no-input
- deploy:
- replicas: 1
- restart_policy:
- condition: on-failure
- delay: 30s
- max_attempts: 6
-```
+[PRE24]
 
 `collectstatic` 服务挂载 `public` 共享卷，并运行适当的 `manage.py` 任务来生成静态内容。在 `deploy` 部分，我们配置了一个副本数量为 1，因为 `collectstatic` 服务只需要在部署时运行一次，然后配置了一个 `restart_policy`，指定 Docker Swarm 在失败时应尝试重新启动服务，每次重新启动尝试之间间隔 30 秒，最多尝试 6 次。这提供了最终一致的行为，因为它允许 collectstatic 在 EFS 卷挂载操作正在进行时最初失败，然后在卷挂载和准备就绪后最终成功。
 
 如果您现在部署堆栈并监视 collectstatic 服务，您可能会注意到一些最初的失败：
 
-```
-> docker stack deploy --with-registry-auth -c stack.yml todobackend
-Creating network todobackend_default
-Creating network todobackend_net
-Creating service todobackend_collectstatic
-Creating service todobackend_app
-> docker service ps todobackend_collectstatic NAME                        NODE                          DESIRED STATE CURRENT STATE
-todobackend_collectstatic.1 ip-172-31-40-246.ec2.internal Running       Running 2 seconds ago
-\_ todobackend_collectstatic.1 ip-172-31-40-246.ec2.internal Shutdown     Rejected 32 seconds ago
-```
+[PRE25]
 
 `docker service ps`命令不仅显示当前服务状态，还显示服务历史（例如任何先前尝试运行服务），您可以看到 32 秒前第一次尝试运行`collectstatic`失败，之后 Docker Swarm 尝试重新启动服务。这次尝试成功了，尽管`collectstatic`服务最终会完成并退出，但由于重启策略设置为失败，Docker Swarm 不会尝试重新启动服务，因为服务没有错误退出。这支持了在失败时具有重试功能的“一次性”服务的概念，Swarm 尝试再次运行服务的唯一时机是在为服务部署新配置到集群时。
 
@@ -701,62 +380,7 @@ todobackend_collectstatic.1 ip-172-31-40-246.ec2.internal Running       Running 
 
 现在，让我们定义一个名为`data`的卷来存储 todobackend 数据库，并创建一个`db`服务，该服务将运行 MySQL 并附加到`data`卷：
 
-```
-version: '3.6'
-
-networks:
-  net:
-    driver: overlay
-
-volumes:
-  public:
-    driver: cloudstor:aws
-    driver_opts:
-      backing: shared
- data:
- driver: cloudstor:aws
- driver_opts: 
- backing: relocatable
- size: 10
- ebstype: gp2
-
-services:
-  app:
-    image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
-    ports:
-      - target: 8000
-        published: 80
-    networks:
-      - net
-    volumes:
-      - public:/public
-    ...
-    ...
-  collectstatic:
-    image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
-    volumes:
-      - public:/public
-    ...
-    ...
-  db:
- image: mysql:5.7
- environment:
- MYSQL_DATABASE: todobackend
- MYSQL_USER: todo
- MYSQL_PASSWORD: password
- MYSQL_ROOT_PASSWORD: password
- networks:
- - net
- volumes:
- - data:/var/lib/mysql
- command:
- - --ignore-db-dir=lost+found
- deploy:
-      replicas: 1
- placement:
- constraints:
- - node.role == manager
-```
+[PRE26]
 
 首先，我们创建一个名为`data`的卷，并将驱动程序配置为`cloudstor:aws`。在驱动程序选项中，我们指定了一个可移动的后端来创建一个 EBS 卷，指定了 10GB 的大小和`gp2`（SSD）存储的 EBS 类型。然后，我们定义了一个名为`db`的新服务，该服务运行官方的 MySQL 5.7 镜像，将`db`服务附加到先前定义的 net 网络，并将数据卷挂载到`/var/lib/mysql`，这是 MySQL 存储其数据库的位置。请注意，由于 Cloudstor 插件将挂载的卷格式化为`ext4`，在格式化过程中会自动创建一个名为`lost+found`的文件夹，这会导致[MySQL 容器中止](https://github.com/docker-library/mysql/issues/69#issuecomment-365927214)，因为它认为存在一个名为`lost+found`的现有数据库。
 
@@ -766,49 +390,11 @@ services:
 
 如果您现在部署堆栈并监视`db`服务，您应该观察到服务需要一些时间才能启动，同时数据卷正在初始化：
 
-```
-> docker stack deploy --with-registry-auth -c stack.yml todobackend
-docker stack deploy --with-registry-auth -c stack.yml todobackend
-Updating service todobackend_app (id: 28vrdqcsekdvoqcmxtum1eaoj)
-Updating service todobackend_collectstatic (id: sowciy4i0zuikf93lmhi624iw)
-Creating service todobackend_db
-> docker service ps todobackend_db --format "{{ .Name }} ({{ .ID }}): {{ .CurrentState }}" todobackend_db.1 (u4upsnirpucs): Preparing 35 seconds ago
-> docker service ps todobackend_db --format "{{ .Name }} ({{ .ID }}): {{ .CurrentState }}"
-todobackend_db.1 (u4upsnirpucs): Running 2 seconds ago
-```
+[PRE27]
 
 要验证 EBS 卷是否已创建，可以使用 AWS CLI 如下：
 
-```
-> aws ec2 describe-volumes --filters Name=tag:CloudstorVolumeName,Values=* \
-    --query "Volumes[*].{ID:VolumeId,Zone:AvailabilityZone,Attachment:Attachments,Tag:Tags}"
-[
-    {
-        "ID": "vol-0db01995ba87433b3",
-        "Zone": "us-east-1b",
-        "Attachment": [
-            {
-                "AttachTime": "2018-07-20T09:58:16.000Z",
-                "Device": "/dev/xvdf",
-                "InstanceId": "i-0dc762f73f8ce4abf",
-                "State": "attached",
-                "VolumeId": "vol-0db01995ba87433b3",
-                "DeleteOnTermination": false
-            }
-        ],
-        "Tag": [
-            {
-                "Key": "CloudstorVolumeName",
-                "Value": "todobackend_data"
-            },
-            {
-                "Key": "StackID",
-                "Value": "0825319e9d91a2fc0bf06d2139708b1a"
-            }
-        ]
-    }
-]
-```
+[PRE28]
 
 请注意，由 Cloudstor 插件创建的 EBS 卷标记为`CloudstorVolumeName`的键和 Docker Swarm 卷名称的值。在上面的示例中，您还可以看到该卷已在 us-east-1b 可用区创建。
 
@@ -816,58 +402,11 @@ todobackend_db.1 (u4upsnirpucs): Running 2 seconds ago
 
 现在，您已成功创建并附加了一个 EBS 支持的数据卷，让我们通过更改其放置约束来测试将`db`服务从管理节点迁移到工作节点：
 
-```
-version: '3.6'
-...
-...
-services:
-  ...
-  ...
-  db:
-    image: mysql:5.7
-    environment:
-      MYSQL_DATABASE: todobackend
-      MYSQL_USER: todo
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: password
-    networks:
-      - net
-    volumes:
-      - data:/var/lib/mysql
-    command:
-      - --ignore-db-dir=lost+found
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
- - node.role == worker
-```
+[PRE29]
 
 如果你现在部署你的更改，你应该能够观察到 EBS 迁移过程：
 
-```
-> volumes='aws ec2 describe-volumes --filters Name=tag:CloudstorVolumeName,Values=*
- --query "Volumes[*].{ID:VolumeId,State:Attachments[0].State,Zone:AvailabilityZone}"
- --output text' > snapshots='aws ec2 describe-snapshots --filters Name=status,Values=pending
-    --query "Snapshots[].{Id:VolumeId,Progress:Progress}" --output text' > docker stack deploy --with-registry-auth -c stack.yml todobackend
-Updating service todobackend_app (id: 28vrdqcsekdvoqcmxtum1eaoj)
-Updating service todobackend_collectstatic (id: sowciy4i0zuikf93lmhi624iw)
-Updating service todobackend_db (id: 4e3sc0dlot9lxlmt5kwfw3sis)
-> eval $volumes vol-0db01995ba87433b3 detaching us-east-1b
-> eval $volumes vol-0db01995ba87433b3 None us-east-1b
-> eval $snapshots vol-0db01995ba87433b3 76%
-> eval $snapshots
-vol-0db01995ba87433b3 99%
-> eval $volumes vol-0db01995ba87433b3 None us-east-1b
-vol-07e328572e6223396 None us-east-1a
-> eval $volume
-vol-07e328572e6223396 None us-east-1a
-> eval $volume
-vol-07e328572e6223396 attached us-east-1a
-> docker service ps todobackend_db --format "{{ .Name }} ({{ .ID }}): {{ .CurrentState }}"
-todobackend_db.1 (a3i84kwz45w9): Running 1 minute ago
-todobackend_db.1 (u4upsnirpucs): Shutdown 2 minutes ago
-```
+[PRE30]
 
 我们首先定义一个`volumes`查询，显示当前 Cloudstor 卷的状态，以及一个`snapshots`查询，显示任何正在进行中的 EBS 快照。在部署放置约束更改后，我们运行卷查询多次，并观察当前位于`us-east-1b`的卷，过渡到`分离`状态，然后到`无`状态（分离）。
 
@@ -877,22 +416,7 @@ todobackend_db.1 (u4upsnirpucs): Shutdown 2 minutes ago
 
 在我们继续下一节之前，实际上我们需要拆除我们的堆栈，因为在我们的堆栈文件中使用明文密码的当前密码管理策略并不理想，而且我们的数据库已经使用这些密码进行了初始化。
 
-```
-> docker stack rm todobackend
-Removing service todobackend_app
-Removing service todobackend_collectstatic
-Removing service todobackend_db
-Removing network todobackend_net
-> docker volume ls
-DRIVER          VOLUME NAME
-local           sshkey
-cloudstor:aws   todobackend_data
-cloudstor:aws   todobackend_public
-> docker volume rm todobackend_public
-todobackend_public
-> docker volume rm todobackend_data
-todobackend_data
-```
+[PRE31]
 
 请记住，每当你拆除一个堆栈时，你必须手动删除在该堆栈中使用过的任何卷。
 
@@ -904,72 +428,13 @@ Docker Swarm 包括一个名为 Docker secrets 的功能，为在 Docker Swarm �
 
 要创建 Docker 密钥，您可以使用`docker secret create`命令：
 
-```
-> openssl rand -base64 32 | docker secret create todobackend_mysql_password -
-wk5fpokcz8wbwmuw587izl1in
-> openssl rand -base64 32 | docker secret create todobackend_mysql_root_password -
-584ojwg31c0oidjydxkglv4qz
-> openssl rand -base64 50 | docker secret create todobackend_secret_key -
-t5rb04xcqyrqiglmfwrfs122y
-> docker secret ls
-ID                          NAME                              CREATED          UPDATED
-wk5fpokcz8wbwmuw587izl1in   todobackend_mysql_password        57 seconds ago   57 seconds ago
-584ojwg31c0oidjydxkglv4qz   todobackend_mysql_root_password   50 seconds ago   50 seconds ago
-t5rb04xcqyrqiglmfwrfs122y   todobackend_secret_key            33 seconds ago   33 seconds ago
-```
+[PRE32]
 
 在前面的例子中，我们使用`openssl rand`命令以 Base64 格式生成随机密钥，然后将其作为标准输入传递给`docker secret create`命令。我们为 todobackend 用户的 MySQL 密码和 MySQL 根密码创建了 32 个字符的密钥，最后创建了一个 50 个字符的密钥，用于 todobackend 应用程序执行的加密操作所需的 Django `SECRET_KEY`设置。
 
 现在我们已经创建了几个密钥，我们可以配置我们的堆栈来使用这些密钥：
 
-```
-version: '3.6'
-
-networks:
-  ...
-
-volumes:
-  ...
-
-secrets:
- todobackend_mysql_password:
- external: true
- todobackend_mysql_root_password:
- external: true
- todobackend_secret_key:
- external: true
-
-services:
-  app:
-    ...
-    ...
-    environment:
-      DJANGO_SETTINGS_MODULE: todobackend.settings_release
- MYSQL_HOST: db
- MYSQL_USER: todo
-    secrets:
- - source: todobackend_mysql_password
- target: MYSQL_PASSWORD
- - source: todobackend_secret_key
- target: SECRET_KEY
-    command:
-    ...
-    ...
-  db:
-    image: mysql:5.7
-    environment:
-      MYSQL_DATABASE: todobackend
-      MYSQL_USER: todo
-      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
-      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
-    secrets:
- - source: todobackend_mysql_password
- target: mysql_password
- - source: todobackend_mysql_root_password
- target: mysql_root_password
-  ...
-  ...
-```
+[PRE33]
 
 我们首先声明顶级`secrets`参数，指定我们之前创建的每个密钥的名称，并将每个密钥配置为`external`，因为我们在堆栈之外创建了这些密钥。如果您不使用外部密钥，必须在文件中定义您的密钥，这并不能解决安全地存储密码在堆栈定义和配置之外的问题，因此将您的密钥作为独立于堆栈的单独实体创建会更安全。
 
@@ -991,21 +456,7 @@ services:
 
 在这一点上，如果您部署了新更新的堆栈（如果您之前没有删除堆栈，您需要在此之前执行此操作，以确保您可以使用新凭据重新创建数据库），一旦您的 todobackend 服务成功启动，您可以通过运行`docker ps`命令来确定在 Swarm 管理器上运行的`app`服务实例的容器 ID，之后您可以检查`/run/secrets`目录的内容：
 
-```
-> docker stack deploy --with-registry-auth -c stack.yml todobackend
-Creating network todobackend_net
-Creating service todobackend_db
-Creating service todobackend_app
-Creating service todobackend_collectstatic
-> docker ps -f name=todobackend -q
-7804a7496fa2
-> docker exec -it 7804a7496fa2 ls -l /run/secrets
-total 8
--r--r--r-- 1 root root 45 Jul 20 23:49 MYSQL_PASSWORD
--r--r--r-- 1 root root 70 Jul 20 23:49 SECRET_KEY
-> docker exec -it 7804a7496fa2 cat /run/secrets/MYSQL_PASSWORD
-qvImrAEBDz9OWJS779uvs/EWuf/YlepTlwPkx4cLSHE=
-```
+[PRE34]
 
 正如您所看到的，您之前创建的秘密现在可以在`/run/secrets`文件夹中使用，如果您现在浏览发布应用程序的外部负载均衡器 URL 上的`/todos`路径，不幸的是，您将收到`访问被拒绝`的错误：
 
@@ -1021,52 +472,7 @@ qvImrAEBDz9OWJS779uvs/EWuf/YlepTlwPkx4cLSHE=
 
 对于 Docker 秘密，这非常简单，因为秘密被挂载在容器的本地文件系统中的一个众所周知的位置（`/run/secrets`）。以下演示了修改`todobackend`存储库中的`src/todobackend/settings_release.py`文件以支持 Docker 秘密，正如您应该记得的那样，这些是我们传递给`app`服务的设置，由环境变量配置`DJANGO_SETTINGS_MODULE=todobackend.settings_release`指定。
 
-```
-from .settings import *
-import os
-
-# Disable debug
-DEBUG = True
-
-# Looks up secret in following order:
-# 1\. /run/secret/<key>
-# 2\. Environment variable named <key>
-# 3\. Value of default or None if no default supplied
-def secret(key, default=None):
- root = os.environ.get('SECRETS_ROOT','/run/secrets')
- path = os.path.join(root,key)
- if os.path.isfile(path):
- with open(path) as f:
- return f.read().rstrip()
- else:
- return os.environ.get(key,default)
-
-# Set secret key
-SECRET_KEY = secret('SECRET_KEY', SECRET_KEY)
-
-# Must be explicitly specified when Debug is disabled
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
-
-# Database settings
-DATABASES = {
-    'default': {
-        'ENGINE': 'mysql.connector.django',
-        'NAME': os.environ.get('MYSQL_DATABASE','todobackend'),
-        'USER': os.environ.get('MYSQL_USER','todo'),
- 'PASSWORD': secret('MYSQL_PASSWORD','password'),
-        'HOST': os.environ.get('MYSQL_HOST','localhost'),
-        'PORT': os.environ.get('MYSQL_PORT','3306'),
-    },
-    'OPTIONS': {
-      'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-    }
-}
-
-STATIC_ROOT = os.environ.get('STATIC_ROOT', '/public/static')
-MEDIA_ROOT = os.environ.get('MEDIA_ROOT', '/public/media')
-
-MIDDLEWARE.insert(0,'aws_xray_sdk.ext.django.middleware.XRayMiddleware')
-```
+[PRE35]
 
 我们首先创建一个名为`secret()`的简单函数，该函数以设置或`key`的名称作为输入，并在无法找到秘密时提供一个可选的默认值。然后，该函数尝试查找路径`/run/secrets`（可以通过设置环境变量`SECRETS_ROOT`来覆盖此路径），并查找与请求的键相同名称的文件。如果找到该文件，则使用`f.read().rstrip()`调用读取文件的内容，`rstrip()`函数会去除`read()`函数返回的换行符。否则，该函数将查找与键相同名称的环境变量，如果所有这些查找都失败，则返回传递给`secret()`函数的`default`值（该值本身具有默认值`None`）。
 
@@ -1080,91 +486,25 @@ MIDDLEWARE.insert(0,'aws_xray_sdk.ext.django.middleware.XRayMiddleware')
 
 现在我们已经更新了 todobackend 应用程序以支持 Docker secrets，您需要提交您的更改，然后测试、构建和发布您的更改。请注意，您需要在连接到本地 Docker 引擎的单独 shell 中执行此操作（而不是连接到 Docker Swarm 集群）：
 
-```
-> git commit -a -m "Add support for Docker secrets"
-[master 3db46c4] Add support for Docker secrets
-> make login
-...
-...
-> make test
-...
-...
-> make release
-...
-...
-> make publish
-...
-...
-```
+[PRE36]
 
 一旦您的镜像成功发布，切换回连接到 Swarm 集群的终端会话，并使用`docker stack deploy`命令重新部署您的堆栈：
 
-```
-> docker stack deploy --with-registry-auth -c stack.yml todobackend
-Updating service todobackend_app (id: xz0tl79iv75qvq3tw6yqzracm)
-Updating service todobackend_collectstatic (id: tkal4xxuejmf1jipsg24eq1bm)
-Updating service todobackend_db (id: 9vj845j54nsz360q70lk1nrkr)
-> docker service ps todobackend_app --format "{{ .Name }}: {{ .CurrentState }}"
-todobackend_app.1: Running 20 minutes ago
-todobackend_app.2: Running 20 minutes ago
-```
+[PRE37]
 
 如果您运行`docker service ps`命令，如前面的示例所示，您可能会注意到您的 todobackend 服务没有重新部署（在某些情况下，服务可能会重新部署）。原因是我们在堆栈文件中默认使用最新的镜像。为了确保我们能够持续交付和部署我们的应用程序，我们需要引用特定版本或构建标签，这是您应该始终采取的最佳实践方法，因为它将强制在每次服务更新时部署显式版本的镜像。
 
 通过我们的本地工作流程，我们可以利用 todobackend 应用程序存储库中已经存在的`Makefile`，并包含一个`APP_VERSION`环境变量，返回当前的 Git 提交哈希，随后我们可以在我们的堆栈文件中引用它：
 
-```
-version: '3.6'
-
-services:
-  app:
- image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:${APP_VERSION}
-    ...
-    ...
-  collectstatic:
- image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:${APP_VERSION}
-    ...
-    ...
-```
+[PRE38]
 
 有了这个配置，我们现在需要在`todobackend`存储库的根目录中添加一个`Makefile`的部署配方，当 Docker 客户端解析堆栈文件时，它将自动使`APP_VERSION`环境变量可用：
 
-```
-.PHONY: test release clean version login logout publish deploy
-
-export APP_VERSION ?= $(shell git rev-parse --short HEAD)
-
-version:
-  @ echo '{"Version": "$(APP_VERSION)"}'
-
-deploy: login
-  @ echo "Deploying version ${APP_VERSION}..."
- docker stack deploy --with-registry-auth -c stack.yml todobackend 
-login:
-  $$(aws ecr get-login --no-include-email)
-...
-...
-```
+[PRE39]
 
 `deploy`配方引用`login`配方，确保我们始终首先运行等效的`make login`，然后再运行`deploy`配方中的任务。这个配方只是运行`docker stack deploy`命令，这样我们现在可以通过运行`make deploy`来部署对我们堆栈的更新：
 
-```
-> make deploy
-Deploying version 3db46c4,,,
-docker stack deploy --with-registry-auth -c stack.yml todobackend
-Updating service todobackend_app (id: xz0tl79iv75qvq3tw6yqzracm)
-Updating service todobackend_collectstatic (id: tkal4xxuejmf1jipsg24eq1bm)
-Updating service todobackend_db (id: 9vj845j54nsz360q70lk1nrkr)
-> docker service ps todobackend_app --format "{{ .Name }}: {{ .CurrentState }}"
-todobackend_app.1: Running 5 seconds ago
-todobackend_app.1: Shutdown 6 seconds ago
-todobackend_app.2: Running 25 minutes ago
-> docker service ps todobackend_app --format "{{ .Name }}: {{ .CurrentState }}"
-todobackend_app.1: Running 45 seconds ago
-todobackend_app.1: Shutdown 46 seconds ago
-todobackend_app.2: Running 14 seconds ago
-todobackend_app.2: Shutdown 15 seconds ago
-```
+[PRE40]
 
 因为我们的堆栈现在配置了一个特定的图像标记，由`APP_VERSION`变量（在前面的示例中为`3db46c4`）定义，所以一旦检测到更改，`app`服务就会被更新。您可以使用`docker service ps`命令来确认这一点，就像之前演示的那样，并且我们已经配置这个服务以每次更新一个实例，并且每次更新之间有 30 秒的延迟。
 
@@ -1178,67 +518,15 @@ todobackend_app.2: Shutdown 15 seconds ago
 
 现在我们已经建立了一个安全访问堆栈中的 db 服务的机制，我们需要执行的最后一个配置任务是添加一个将运行数据库迁移的服务。这类似于我们之前创建的 collectstatic 服务，它需要是一个“一次性”任务，只有在我们创建堆栈或部署新版本的应用程序时才执行：
 
-```
-version: '3.6'
+[PRE41]
 
-networks:
-  ...
-
-volumes:
-  ...
-
-secrets:
-  ...
-
-services:
-  app:
-    ...
-  migrate:
- image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:${APP_VERSION}
- networks:
- - net
- environment:
- DJANGO_SETTINGS_MODULE: todobackend.settings_release
- MYSQL_HOST: db
- MYSQL_USER: todo
- secrets:
- - source: todobackend_mysql_password
- target: MYSQL_PASSWORD
-```
-
-```
-command:
- - python3
- - manage.py
- - migrate
- - --no-input
- deploy:
- replicas: 1
- restart_policy:
- condition: on-failure
- delay: 30s
- max_attempts: 6
-  collectstatic:
-    ...
-  db:
-    ...
-```
+[PRE42]
 
 新的`migrate`服务的所有设置应该是不言自明的，因为我们之前已经为其他服务配置过它们。`deploy`配置尤其重要，并且与其他一次性 collectstatic 服务配置相同，Docker Swarm 将尝试确保`migrate`服务的单个副本能够成功启动最多六次，每次尝试之间延迟 30 秒。
 
 如果您现在运行`make deploy`来部署您的更改，`migrate`服务应该能够成功完成：
 
-```
-> make deploy
-Deploying version 3db46c4...
-docker stack deploy --with-registry-auth -c stack.yml todobackend
-Updating service todobackend_collectstatic (id: tkal4xxuejmf1jipsg24eq1bm)
-Updating service todobackend_db (id: 9vj845j54nsz360q70lk1nrkr)
-Updating service todobackend_app (id: xz0tl79iv75qvq3tw6yqzracm)
-Creating service todobackend_migrate
-> docker service ps todobackend_migrate --format "{{ .Name }}: {{ .CurrentState }}"
-todobackend_migrate.1: Complete 18 seconds ago
-```
+[PRE43]
 
 为了验证迁移实际上已经运行，因为我们在创建 Docker Swarm 集群时启用了 CloudWatch 日志，您可以在 CloudWatch 日志控制台中查看`migrate`服务的日志。当使用 Docker for AWS 解决方案模板部署集群时，会创建一个名为`<cloudformation-stack-name>-lg`的日志组，我们的情况下是`docker-swarm-lg`。如果您在 CloudWatch 日志控制台中打开此日志组，您将看到为在 Swarm 集群中运行或已运行的每个容器存在日志流：
 
@@ -1254,24 +542,11 @@ migrate 服务日志流
 
 此时，您的应用程序应该已成功运行，并且您应该能够与应用程序交互以创建、更新、查看和删除待办事项。验证这一点的一个好方法是运行您在早期章节中创建的验收测试，这些测试包含在 todobackend 发布图像中，并确保通过`APP_URL`环境变量传递外部负载均衡器 URL，这可以作为自动部署后测试的策略。
 
-```
-> docker run -it --rm \ 
- -e APP_URL=http://docker-sw-external-1a5qzeykya672-1599369435.us-east-1.elb.amazonaws.com \ 
- 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:3db46c4 \
- bats /app/src/acceptance.bats
-```
+[PRE44]
 
-```
-Processing secrets []...
-1..4
-ok 1 todobackend root
-```
+[PRE45]
 
-```
-ok 2 todo items returns empty list
-ok 3 create todo item
-ok 4 delete todo item
-```
+[PRE46]
 
 您现在已成功将 todobackend 应用程序部署到在 AWS 上运行的 Docker Swarm 集群中，我鼓励您进一步测试您的应用程序是否已经准备好投入生产，方法是拆除/重新创建堆栈，并通过进行测试提交和创建新的应用程序版本来运行一些示例部署。
 

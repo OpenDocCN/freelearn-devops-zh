@@ -154,19 +154,11 @@ VirtualBox 是一个非常全面的开源虚拟化平台，最初由 Sun 开发�
 
 要在本地计算机的终端上克隆存储库，请运行以下命令（根据需要替换文件路径）：
 
-```
-**mkdir ~/Documents/Projects**
-**cd ~/Documents/Projects/**
-**git clone https://github.com/russmckendrick/monitoring-docker.git**
-
-```
+[PRE0]
 
 克隆后，您应该看到一个名为`monitoring-docker`的目录，然后进入该目录，如下所示：
 
-```
-**cd ~/Documents/Projects/monitoring-docker**
-
-```
+[PRE1]
 
 # 运行虚拟服务器
 
@@ -174,19 +166,13 @@ VirtualBox 是一个非常全面的开源虚拟化平台，最初由 Sun 开发�
 
 如果您想使用 CentOS 7 的 vagrant box，请将目录更改为`vagrant-centos`：
 
-```
-**cd vagrant-centos**
-
-```
+[PRE2]
 
 一旦您进入 vagrant-centos 目录，您将看到有一个`Vagrant`文件；这个文件就是启动 CentOS 7 虚拟服务器所需的全部内容。虚拟服务器启动后，将安装最新版本的`docker`和`docker-compose`，并且`monitoring-docker`目录也将被挂载到虚拟机内，挂载点为`/monitoring-docker`。
 
 要启动虚拟服务器，只需输入以下命令：
 
-```
-**vagrant up**
-
-```
+[PRE3]
 
 这将从[`atlas.hashicorp.com/russmckendrick/boxes/centos71`](https://atlas.hashicorp.com/russmckendrick/boxes/centos71)下载 vagrant box 的最新版本，然后启动虚拟服务器；这是一个 450MB 的下载，所以可能需要几分钟的时间；它只需要做一次。
 
@@ -196,10 +182,7 @@ VirtualBox 是一个非常全面的开源虚拟化平台，最初由 Sun 开发�
 
 现在您已经启动了虚拟服务器，可以使用以下命令连接到它：
 
-```
-**vagrant ssh**
-
-```
+[PRE4]
 
 登录后，您应该验证`docker`和`docker-compose`是否都可用：
 
@@ -207,10 +190,7 @@ VirtualBox 是一个非常全面的开源虚拟化平台，最初由 Sun 开发�
 
 最后，您可以尝试使用以下命令运行`hello-world`容器：
 
-```
-**docker run hello-world**
-
-```
+[PRE5]
 
 如果一切顺利，您应该会看到以下输出：
 
@@ -218,10 +198,7 @@ VirtualBox 是一个非常全面的开源虚拟化平台，最初由 Sun 开发�
 
 要尝试更有雄心的事情，您可以使用以下命令运行一个 Ubuntu 容器：
 
-```
-**docker run -it ubuntu bash**
-
-```
+[PRE6]
 
 在启动并进入 Ubuntu 容器之前，让我们确认我们正在运行的是 CentOS 主机机器，通过检查可以在`/etc`中找到的发行文件：
 
@@ -243,10 +220,7 @@ URL [`docker.media-glass.es/`](http://docker.media-glass.es/) 只有在 vagrant 
 
 您可以通过运行以下命令来查看这一操作：
 
-```
-**docker run -d -p 80:80russmckendrick/nginx-php**
-
-```
+[PRE7]
 
 ### 提示
 
@@ -266,24 +240,15 @@ URL [`docker.media-glass.es/`](http://docker.media-glass.es/) 只有在 vagrant 
 
 现在您应该看到本地机器的终端提示；但是，您启动的虚拟服务器仍将在后台运行，快乐地使用资源，直到您使用以下命令关闭它：
 
-```
-**vagrant halt**
-
-```
+[PRE8]
 
 使用`vagrant destroy`完全终止虚拟服务器：
 
-```
-**vagrant destroy**
-
-```
+[PRE9]
 
 要检查虚拟服务器的当前状态，可以运行以下命令：
 
-```
-**vagrant status**
-
-```
+[PRE10]
 
 上述命令的结果如下输出所示：
 
@@ -293,11 +258,7 @@ URL [`docker.media-glass.es/`](http://docker.media-glass.es/) 只有在 vagrant 
 
 上述详细信息显示了如何使用 CentOS 7 虚拟机箱。如果您希望启动 Ubuntu 14.04 虚拟服务器，可以通过以下命令进入`vagrant-ubuntu`目录下载并安装 vagrant box：
 
-```
-**cd ~/Documents/Projects/monitoring-docker/vagrant-ubuntu**
-**vagrant up**
-
-```
+[PRE11]
 
 从这里，您将能够运行 vagrant up 并按照启动和与 CentOS 7 虚拟服务器交互所使用的相同说明进行操作。
 

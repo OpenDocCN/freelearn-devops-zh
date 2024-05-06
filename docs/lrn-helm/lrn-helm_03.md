@@ -44,15 +44,11 @@ Linux 用户将发现，通过从 Minikube 的 GitHub 发布页面下载最新�
 
 +   对于 Windows，请使用以下命令：
 
-```
-> choco install minikube
-```
+[PRE0]
 
 +   对于 macOS，请使用以下命令：
 
-```
-$ brew install minikube
-```
+[PRE1]
 
 以下步骤向您展示了如何通过下载链接（在 Windows、macOS 和 Linux 上）安装它。
 
@@ -64,41 +60,27 @@ $ brew install minikube
 
 1.  在**Assets**部分下，应下载与目标平台对应的二进制文件。下载后，您应将二进制文件重命名为`minikube`。例如，如果您正在下载 Linux 二进制文件，您将运行以下命令：
 
-```
-$ mv minikube-linux-amd64 minikube
-```
+[PRE2]
 
 1.  为了执行`minikube`，Linux 和 macOS 用户可能需要通过运行`chmod`命令添加可执行位：
 
-```
-$ chmod u+x
-```
+[PRE3]
 
 1.  然后，`minikube`应移动到由`PATH`变量管理的位置，以便可以从命令行的任何位置执行它。`PATH`变量包含的位置因操作系统而异。对于 macOS 和 Linux 用户，可以通过在终端中运行以下命令来确定这些位置：
 
-```
-$ echo $PATH
-```
+[PRE4]
 
 1.  Windows 用户可以通过在命令提示符或 PowerShell 中运行以下命令来确定`PATH`变量的位置：
 
-```
-> $env:PATH
-```
+[PRE5]
 
 1.  然后，您可以使用 `mv` 命令将 `minikube` 二进制文件移动到新位置。以下示例将 `minikube` 移动到 Linux 上的常见 `PATH` 位置：
 
-```
-$ mv minikube /usr/local/bin/
-```
+[PRE6]
 
 1.  您可以通过运行 `minikube version` 并确保显示的版本与下载的版本相对应来验证 Minikube 的安装：
 
-```
-$ minikube version
-minikube version: v1.5.2
-commit: 792dbf92a1de583fcee76f8791cff12e0c9440ad-dirty
-```
+[PRE7]
 
 尽管您已经下载了 Minikube，但您还需要一个 hypervisor 来运行本地 Kubernetes 集群。这可以通过安装 VirtualBox 来实现，我们将在下一节中描述。
 
@@ -110,27 +92,19 @@ Minikube 依赖于存在的 hypervisors，以便在虚拟机上安装单节点 K
 
 +   在 Windows 上安装 VirtualBox 的代码如下：
 
-```
-> choco install virtualbox
-```
+[PRE8]
 
 +   在 macOS 上安装 VirtualBox 的代码如下：
 
-```
-$ brew cask install virtualbox
-```
+[PRE9]
 
 +   在基于 Debian 的 Linux 上安装 VirtualBox 的代码如下：
 
-```
-$ apt-get install virtualbox
-```
+[PRE10]
 
 +   在 RHEL-based Linux 上安装 VirtualBox 的代码如下：
 
-```
-$ dnf install VirtualBox
-```
+[PRE11]
 
 可以在其官方下载页面 [`www.virtualbox.org/wiki/Downloads`](https://www.virtualbox.org/wiki/Downloads) 找到安装 VirtualBox 的其他方法。
 
@@ -140,29 +114,21 @@ $ dnf install VirtualBox
 
 可以通过将 `minikube` 的 `vm-driver` 选项设置为 `virtualbox` 来将 VirtualBox 设置为默认 hypervisor：
 
-```
-$ minikube config set vm-driver virtualbox
-```
+[PRE12]
 
 请注意，此命令可能会产生以下警告：
 
-```
-These changes will take effect upon a minikube delete and then a minikube start
-```
+[PRE13]
 
 如果工作站上没有活动的 Minikube 集群，则可以安全地忽略此消息。此命令表示任何现有的 Kubernetes 集群在删除并重新创建集群之前都不会使用 VirtualBox 作为 hypervisor。
 
 可以通过评估 `vm-driver` 配置选项的值来确认切换到 VirtualBox：
 
-```
-$ minikube config get vm-driver
-```
+[PRE14]
 
 如果一切顺利，输出将如下所示：
 
-```
-Virtualbox
-```
+[PRE15]
 
 除了配置默认的 hypervisor 之外，您还可以配置分配给 Minikube 集群的资源，这将在下一节中讨论。
 
@@ -172,9 +138,7 @@ Virtualbox
 
 运行以下命令将增加新 Minikube 虚拟机的默认内存分配为 4 GB（4000 MB）。
 
-```
-$ minikube config set memory 4000
-```
+[PRE16]
 
 可以通过运行`minikube config get memory`命令来验证此更改，类似于之前验证`vm-driver`更改的方式。
 
@@ -194,33 +158,15 @@ Minikube 有三个关键子命令：
 
 `start`子命令用于创建单节点 Kubernetes 集群。它将创建一个虚拟机并在其中引导集群。一旦集群准备就绪，命令将终止：
 
-```
-$ minikube start
- minikube v1.5.2 on Fedora 30
-  Creating virtualbox VM (CPUs=2, Memory=4000MB, Disk=20000MB) ...
-  Preparing Kubernetes v1.16.2 on Docker '18.09.9' ...
-  Pulling images ...
-  Launching Kubernetes ...
-  Waiting for: apiserver
-  Done! kubectl is now configured to use 'minikube'
-```
+[PRE17]
 
 `stop`子命令用于关闭集群和虚拟机。集群和虚拟机的状态将保存到磁盘上，允许用户再次运行`start`子命令快速开始工作，而不必从头开始构建新的虚拟机。当您完成对集群的工作并希望以后返回时，应该尝试养成运行`minikube stop`的习惯：
 
-```
-$ minikube stop
-  Stopping 'minikube' in virtualbox ...
-  'minikube' stopped.
-```
+[PRE18]
 
 `delete`子命令用于删除集群和虚拟机。此命令将擦除集群和虚拟机的状态，释放先前分配的磁盘空间。下次执行`minikube start`时，将创建一个全新的集群和虚拟机。当您希望删除所有分配的资源并在下次调用`minikube start`时在一个全新的 Kubernetes 集群上工作时，应该运行`delete`子命令：
 
-```
-$ minikube delete
-  Deleting 'minikube' in virtualbox ...
-  The 'minikube' cluster has been deleted.
-  Successfully deleted profile 'minikube'
-```
+[PRE19]
 
 还有更多 Minikube 子命令可用，但这些是您应该知道的主要命令。
 
@@ -242,36 +188,23 @@ $ minikube delete
 
 使用 Minikube 安装`kubectl`非常简单。Minikube 提供了一个名为`kubectl`的子命令，它将下载 Kubectl 二进制文件。首先运行`minikube kubectl`：
 
-```
-$ minikube kubectl version
-  Downloading kubectl v1.16.2
-```
+[PRE20]
 
 此命令将`kubectl`安装到`$HOME/.kube/cache/v1.16.2`目录中。请注意，路径中包含的`kubectl`版本将取决于您使用的 Minikube 版本。要访问`kubectl`，可以使用以下语法：
 
-```
-          minikube kubectl -- <subcommand> <flags>
-```
+[PRE21]
 
 以下是一个示例命令：
 
-```
-$ minikube kubectl -- version –client
-Client Version: version.Info{Major:'1', Minor:'16', GitVersion:'v1.16.2', GitCommit:'c97fe5036ef3df2967d086711e6c0c405941e14b', GitTreeState:'clean', BuildDate:'2019-10-15T19:18:23Z', GoVersion:'go1.12.10', Compiler:'gc', Platform:'linux/amd64'}
-```
+[PRE22]
 
 使用`minikube kubectl`调用`kubectl`就足够了，但是语法比直接调用`kubectl`更加笨拙。可以通过将`kubectl`可执行文件从本地 Minikube 缓存复制到由`PATH`变量管理的位置来克服这个问题。在每个操作系统上执行此操作类似，但以下是如何在 Linux 机器上实现的示例：
 
-```
-$ sudo cp ~/.kube/cache/v1.16.2/kubectl /usr/local/bin/
-```
+[PRE23]
 
 完成后，`kubectl`可以作为独立的二进制文件调用，如下所示：
 
-```
-$ kubectl version –client
-Client Version: version.Info{Major:'1', Minor:'16', GitVersion:'v1.16.2', GitCommit:'c97fe5036ef3df2967d086711e6c0c405941e14b', GitTreeState:'clean', BuildDate:'2019-10-15T19:18:23Z', GoVersion:'go1.12.10', Compiler:'gc', Platform:'linux/amd64'}
-```
+[PRE24]
 
 ### 在没有 Minikube 的情况下安装 Kubectl
 
@@ -283,40 +216,19 @@ Kubectl 也可以在没有 Minikube 的情况下安装。Kubernetes 官方文档
 
 +   使用以下命令在 Windows 上安装`kubectl`：
 
-```
-> choco install kubernetes-cli
-```
+[PRE25]
 
 +   使用以下命令在 macOS 上安装`kubectl`：
 
-```
-$ brew install kubernetes-cli
-```
+[PRE26]
 
 +   使用以下命令在基于 Debian 的 Linux 上安装`kubectl`：
 
-```
-$ sudo apt-get update && sudo apt-get install -y apt-transport-https gnupg2
-$ curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-$ echo 'deb https://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
-$ sudo apt-get update
-$ sudo apt-get install -y kubectl
-```
+[PRE27]
 
 +   使用以下命令在基于 RPM 的 Linux 上安装`kubectl`：
 
-```
-$ cat <<EOF > /etc/yum.repos.d/kubernetes.repo
-[kubernetes]
-name=Kubernetes
-baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
-enabled=1
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
-EOF
-$ yum install -y kubectl
-```
+[PRE28]
 
 我们将在下一节讨论最终的 Kubectl 安装方法。
 
@@ -334,16 +246,11 @@ Kubectl 也可以直接从下载链接下载。下载链接将包含要下载的
 
 Kubectl 二进制文件可以移动到由`PATH`变量管理的位置。在 macOS 和 Linux 操作系统上，确保授予可执行权限：
 
-```
-$ chmod u+x kubectl
-```
+[PRE29]
 
 可以通过运行以下命令来验证 Kubectl 的安装。
 
-```
-$ kubectl version –client
-Client Version: version.Info{Major:'1', Minor:'16', GitVersion:'v1.16.2', GitCommit:'c97fe5036ef3df2967d086711e6c0c405941e14b', GitTreeState:'clean', BuildDate:'2019-10-15T19:18:23Z', GoVersion:'go1.12.10', Compiler:'gc', Platform:'linux/amd64'}
-```
+[PRE30]
 
 现在我们已经介绍了如何设置`kubectl`，我们准备进入本书的关键技术——Helm。
 
@@ -357,15 +264,11 @@ Chocolatey 和 Homebrew 都有 Helm 软件包，可以方便地在 Windows 或 m
 
 +   使用以下命令在 Windows 上安装 Helm：
 
-```
-> choco install kubernetes-helm     
-```
+[PRE31]
 
 +   使用以下命令在 macOS 上安装 Helm：
 
-```
-$ brew install helm
-```
+[PRE32]
 
 Linux 用户或者宁愿从直接可下载链接安装 Helm 的用户可以按照以下步骤从 Helm 的 GitHub 发布页面下载存档文件：
 
@@ -379,30 +282,21 @@ Linux 用户或者宁愿从直接可下载链接安装 Helm 的用户可以按�
 
 +   对于 Windows/PowerShell，请使用以下示例：
 
-```
-> Expand-Archive -Path helm-v3.0.0-windows-amd64.zip -DestinationPath $DEST
-```
+[PRE33]
 
 +   对于 Linux 和 Mac，请使用以下示例：
 
-```
-$ tar -zxvf helm-v3.0.0-linux.amd64.tgz
-```
+[PRE34]
 
 确保指定与下载版本对应的版本。`helm`二进制文件可以在未解压的文件夹中找到。它应该被移动到由`PATH`变量管理的位置。
 
 以下示例向您展示了如何将`helm`二进制文件移动到 Linux 系统上的`/usr/local/bin`文件夹中：
 
-```
-$ mv ~/Downloads/linux-amd64/helm /usr/local/bin
-```
+[PRE35]
 
 无论 Helm 是以何种方式安装的，都可以通过运行`helm version`命令来进行验证。如果结果输出类似于以下输出，则 Helm 已成功安装：
 
-```
-$ helm version
-version.BuildInfo{Version:'v3.0.0', GitCommit:'e29ce2a54e96cd02ccfce88bee4f58bb6e2a28b6', GitTreeState:'clean', GoVersion:'go1.13.4'}
-```
+[PRE36]
 
 安装了 Helm 后，继续下一部分，了解基本的 Helm 配置主题。
 
@@ -430,37 +324,23 @@ Helm 提供了 `repo` 子命令，允许用户管理配置的图表存储库。�
 
 使用上述列表作为指南，可以使用 `repo add` 子命令来添加图表存储库，如下所示：
 
-```
-$ helm repo add $REPO_NAME $REPO_URL
-```
+[PRE37]
 
 为了安装其中管理的图表，需要添加图表存储库。本书将详细讨论图表安装。
 
 您可以通过利用 `repo list` 子命令来确认存储库是否已成功添加：
 
-```
-$ helm repo list
-NAME 	      URL                 	 
-bitnami         https://charts.bitnami.com
-```
+[PRE38]
 
 已添加到 Helm 客户端的存储库将显示在此输出中。前面的示例显示，`bitnami` 存储库已添加，因此它出现在 Helm 客户端已知的存储库列表中。如果添加了其他存储库，它们也将出现在此输出中。
 
 随着时间的推移，更新的图表将被发布并发布到这些存储库中。存储库元数据被本地缓存。因此，Helm 不会自动意识到图表已更新。您可以通过运行 `repo update` 子命令来指示 Helm 从每个添加的存储库检查更新。一旦执行了这个命令，您就可以从每个存储库安装最新的图表：
 
-```
-$ helm repo update
-Hang tight while we grab the latest from your chart repositories...
-...Successfully got an update from the 'bitnami' chart repository
-Update Complete. Happy Helming!
-```
+[PRE39]
 
 您可能还需要删除先前添加的存储库。这可以通过使用 `repo remove` 子命令来完成：
 
-```
-$ helm repo remove bitnami
-'bitnami' has been removed from your repositories
-```
+[PRE40]
 
 最后剩下的 `repo` 子命令形式是 `index`。这个子命令被存储库和图表维护者用来发布新的或更新的图表。这个任务将在[*第五章*]中更详细地介绍，*构建您的第一个 Helm 图表*。
 
@@ -530,9 +410,7 @@ Bash 和 Z shell 用户可以启用选项卡完成以简化 Helm 的使用。选
 
 可以通过运行以下命令启用 Tab 补全：
 
-```
-$ source <(helm completion $SHELL)
-```
+[PRE41]
 
 `$SHELL`变量必须是`bash`或`zsh`。请注意，自动补全只存在于运行前述命令的终端窗口中，因此其他窗口也需要运行此命令才能体验到自动补全功能。
 
@@ -546,52 +424,25 @@ Helm 需要能够通过`kubeconfig`文件对 Kubernetes 集群进行身份验证
 
 +   第一个命令是`set-cluster`：
 
-```
-kubectl config set-cluster
-```
+[PRE42]
 
 `set-cluster`命令将在`kubeconfig`文件中定义一个`cluster`条目。它确定 Kubernetes 集群的主机名或 IP 地址，以及其证书颁发机构。
 
 +   下一个命令是`set-credentials`：
 
-```
-kubectl config set-credentials
-```
+[PRE43]
 
 `set-credentials`命令将定义用户的名称以及其身份验证方法和详细信息。此命令可以配置用户名和密码对、客户端证书、持有者令牌或身份验证提供程序，以允许用户和管理员指定不同的身份验证方法。
 
 +   然后，我们有`set-context`命令：
 
-```
-kubectl config set-context
-```
+[PRE44]
 
 `set-context`命令用于将凭据与集群关联起来。一旦建立了凭据和集群之间的关联，用户将能够使用凭据的身份验证方法对指定的集群进行身份验证。
 
 `kubectl config view`命令可用于查看`kubeconfig`文件。注意`kubeconfig`的`clusters`、`contexts`和`user`部分与先前描述的命令相对应，如下所示：
 
-```
-$ kubectl config view
-apiVersion: v1
-clusters:
-- cluster:
-    certificate-authority: /home/helm-user/.minikube/ca.crt
-    server: https://192.168.99.102:8443
-  name: minikube
-contexts:
-- context:
-    cluster: minikube
-    user: minikube
-  name: minikube
-current-context: minikube
-kind: Config
-preferences: {}
-users:
-- name: minikube
-  user:
-    client-certificate: /home/helm-user/.minikube/client.crt
-    client-key: /home/helm-user/.minikube/client.key
-```
+[PRE45]
 
 一旦存在有效的 kubeconfig 文件，Kubectl 和 Helm 将能够与 Kubernetes 集群进行交互。
 
@@ -613,9 +464,7 @@ Kubernetes 在平台上提供了许多不同的角色。这里列出了三种常
 
 运行 Minikube 的用户在集群创建后默认被赋予`cluster-admin`权限。虽然这在生产环境中不是最佳做法，但对于学习和实验是可以接受的。运行 Minikube 的用户不必担心配置授权以便跟随本书提供的概念和示例。那些使用其他不是 Minikube 的 Kubernetes 集群的用户需要确保他们至少被赋予编辑角色才能够使用 Helm 部署大多数应用程序。可以通过要求管理员运行以下命令来实现这一点：
 
-```
-$ kubectl create clusterrolebinding $USER-edit --clusterrole=edit --user=$USER
-```
+[PRE46]
 
 在*第九章*中将讨论 RBAC 的最佳实践，*Helm 安全考虑*，我们将更详细地讨论与安全相关的概念，包括如何适当地应用角色以防止集群中的错误或恶意意图。
 

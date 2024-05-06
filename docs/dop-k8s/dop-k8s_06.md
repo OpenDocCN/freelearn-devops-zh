@@ -18,27 +18,13 @@
 
 此外，如果我们想要了解应用程序的输出发生了什么，我们还有`kubectl logs`，它将容器的`stdout`重定向到我们的终端。对于 CPU 和内存使用统计，我们还可以使用类似 top 的命令`kubectl top`。`kubectl top node`提供了节点资源使用情况的概览，`kubectl top pod <POD_NAME>`显示了每个 pod 的使用情况：
 
-```
-# kubectl top node
-NAME        CPU(cores)   CPU%      MEMORY(bytes)  MEMORY% 
-node-1      42m          4%        273Mi           12% 
-node-2      152m         15%       1283Mi          75% 
-
-# kubectl top pod mypod-name-2587489005-xq72v
-NAME                         CPU(cores)   MEMORY(bytes) 
-mypod-name-2587489005-xq72v   0m           0Mi            
-```
+[PRE0]
 
 要使用`kubectl top`，您需要在集群中部署 Heapster。我们将在本章后面讨论这个问题。
 
 如果我们遗留了一些日志在容器内而没有发送到任何地方怎么办？我们知道有一个`docker exec`在运行的容器内执行命令，但我们不太可能每次都能访问节点。幸运的是，`kubectl`允许我们使用`kubectl exec`命令做同样的事情。它的用法类似于 Docker。例如，我们可以像这样在 pod 中的容器内运行一个 shell：
 
-```
-$ kubectl exec -it mypod-name-2587489005-xq72v /bin/sh
-/ # 
-/ # hostname
-mypod-name-2587489005-xq72v  
-```
+[PRE1]
 
 这与通过 SSH 登录主机几乎相同，并且它使我们能够使用我们熟悉的工具进行故障排除，就像我们在非容器世界中所做的那样。
 
@@ -50,9 +36,7 @@ mypod-name-2587489005-xq72v
 
 实际上，它是 Kubernetes 集群的通用图形用户界面，因为它还允许我们创建、编辑和删除资源。部署它非常容易；我们所需要做的就是应用一个模板：
 
-```
-$ kubectl create -f \ https://raw.githubusercontent.com/kubernetes/dashboard/v1.6.3/src/deploy/kubernetes-dashboard.yaml  
-```
+[PRE2]
 
 此模板适用于启用了**RBAC**（基于角色的访问控制）的 Kubernetes 集群。如果您需要其他部署选项，请查看仪表板的项目存储库（[`github.com/kubernetes/dashboard`](https://github.com/kubernetes/dashboard)）。关于 RBAC，我们将在第八章中讨论，*集群管理*。许多托管的 Kubernetes 服务（例如 Google 容器引擎）在集群中预先部署了仪表板，因此我们不需要自行安装。要确定仪表板是否存在于我们的集群中，请使用`kubectl cluster-info`。
 
@@ -120,24 +104,17 @@ cAdvisor 可以通过每个节点的端口`4194`访问。在 Kubernetes 1.7 之�
 
 如果没有，我们可以使用独立的设置，并通过应用此模板使仪表板和 `kubectl top` 工作：
 
-```
-$ kubectl create -f \
-    https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/standalone/heapster-controller.yaml  
-```
+[PRE3]
 
 如果启用了 RBAC，请记得应用此模板：
 
-```
-$ kubectl create -f \ https://raw.githubusercontent.com/kubernetes/heapster/master/deploy/kube-config/rbac/heapster-rbac.yaml
-```
+[PRE4]
 
 安装完 Heapster 后，`kubectl top` 命令和 Kubernetes 仪表板应该正确显示资源使用情况。
 
 虽然 cAdvisor 和 Heapster 关注物理指标，但我们也希望在监控仪表板上显示对象的逻辑状态。kube-state-metrics ([`github.com/kubernetes/kube-state-metrics`](https://github.com/kubernetes/kube-state-metrics)) 是完成我们监控堆栈的重要组成部分。它监视 Kubernetes 主节点，并将我们从 `kubectl get` 或 `kubectl describe` 中看到的对象状态转换为 Prometheus 格式的指标 ([`prometheus.io/docs/instrumenting/exposition_formats/`](https://prometheus.io/docs/instrumenting/exposition_formats/))。只要监控系统支持这种格式，我们就可以将状态抓取到指标存储中，并在诸如无法解释的重启计数等事件上收到警报。要安装 kube-state-metrics，首先在项目存储库的 `kubernetes` 文件夹中下载模板([`github.com/kubernetes/kube-state-metrics/tree/master/kubernetes`](https://github.com/kubernetes/kube-state-metrics/tree/master/kubernetes))，然后应用它们：
 
-```
-$ kubectl apply -f kubernetes
-```
+[PRE5]
 
 之后，我们可以在其服务端点的指标中查看集群内的状态：
 
@@ -163,11 +140,7 @@ Prometheus 框架包括几个组件，如下图所示：
 
 在 6-1_prometheus 下是本节的清单，包括 Prometheus 部署、导出器和相关资源。它们将在专用命名空间`monitoring`中安装，除了需要在`kube-system`命名空间中工作的组件。请仔细查看它们，现在让我们按以下顺序创建资源。
 
-```
-$ kubectl apply -f monitoring-ns.yml
-$ kubectl apply -f prometheus/config/prom-config-default.yml
-$ kubectl apply -f prometheus  
-```
+[PRE6]
 
 资源的使用限制在提供的设置中相对较低。如果您希望以更正式的方式使用它们，建议根据实际要求调整参数。在 Prometheus 服务器启动后，我们可以通过`kubectl port-forward`连接到端口`9090`的 Web-UI。如果相应地修改其服务（`prometheus/prom-svc.yml`），我们可以使用 NodePort 或 Ingress 连接到 UI。当进入 UI 时，我们将看到 Prometheus 的表达式浏览器，在那里我们可以构建查询和可视化指标。在默认设置下，Prometheus 将从自身收集指标。所有有效的抓取目标都可以在路径`/targets`下找到。要与 Prometheus 交流，我们必须对其语言**PromQL**有一些了解。
 
@@ -177,9 +150,7 @@ PromQL 有三种数据类型：即时向量、范围向量和标量。即时向�
 
 除了刚才提到的基本查询之外，PromQL 还有很多其他内容，比如使用正则表达式和逻辑运算符查询标签，使用函数连接和聚合指标，甚至在不同指标之间执行操作。例如，以下表达式给出了`kube-system`命名空间中`kube-dns`部署消耗的总内存：
 
-```
-sum(container_memory_usage_bytes{namespace="kube-system", pod_name=~"kube-dns-(\\d+)-.*"} ) / 1048576
-```
+[PRE7]
 
 更详细的文档可以在 Prometheus 的官方网站找到（[`prometheus.io/docs/querying/basics/`](https://prometheus.io/docs/querying/basics/)），它肯定会帮助您释放 Prometheus 的力量。
 
@@ -187,17 +158,7 @@ sum(container_memory_usage_bytes{namespace="kube-system", pod_name=~"kube-dns-(\
 
 由于 Prometheus 只从它知道的端点中提取指标，我们必须明确告诉它我们想要从哪里收集数据。在路径`/config`下是列出当前配置的目标以进行提取的页面。默认情况下，会有一个任务来收集有关 Prometheus 本身的当前指标，它位于传统的抓取路径`/metrics`中。如果连接到端点，我们会看到一个非常长的文本页面：
 
-```
-$ kubectl exec -n monitoring prometheus-1496092314-jctr6 -- \
-wget -qO - localhost:9090/metrics
-
-# HELP go_gc_duration_seconds A summary of the GC invocation durations.
-# TYPE go_gc_duration_seconds summary
-go_gc_duration_seconds{quantile="0"} 2.4032e-05
-go_gc_duration_seconds{quantile="0.25"} 3.7359e-05
-go_gc_duration_seconds{quantile="0.5"} 4.1723e-05
-...
-```
+[PRE8]
 
 这只是我们已经多次提到的 Prometheus 指标格式。下次当我们看到这样的页面时，我们会知道这是一个指标端点。
 
@@ -231,30 +192,15 @@ go_gc_duration_seconds{quantile="0.5"} 4.1723e-05
 
 以下模板片段指示了 Prometheus 的端点发现角色，但选择在`9100/prom`上创建目标的服务发现角色。
 
-```
-apiVersion: v1 
-kind: Service 
-metadata: 
-  annotations: 
-    prometheus.io/scrape: 'true' 
-    prometheus.io/path: '/prom' 
-... 
-spec: 
-  ports: 
- - port: 9100 
-```
+[PRE9]
 
 我们的示例存储库中的模板`prom-config-k8s.yml`包含了为 Prometheus 发现 Kubernetes 资源的配置。使用以下命令应用它：
 
-```
-$ kubectl apply -f prometheus/config/prom-config-k8s.yml  
-```
+[PRE10]
 
 因为它是一个 ConfigMap，需要几秒钟才能变得一致。之后，通过向进程发送`SIGHUP`来重新加载 Prometheus：
 
-```
-$ kubectl exec -n monitoring ${PROM_POD_NAME} -- kill -1 1
-```
+[PRE11]
 
 提供的模板基于 Prometheus 官方存储库中的示例；您可以在这里找到更多用法：
 
@@ -270,9 +216,7 @@ $ kubectl exec -n monitoring ${PROM_POD_NAME} -- kill -1 1
 
 Prometheus 中的主机层监控是由节点导出器（[`github.com/prometheus/node_exporter`](https://github.com/prometheus/node_exporter)）完成的。它的 Kubernetes 清单可以在本章的示例中找到，其中包含一个带有抓取注释的 DaemonSet。使用以下命令安装它：
 
-```
-$ kubectl apply -f exporters/prom-node-exporter.yml
-```
+[PRE12]
 
 其相应的配置将由 pod 发现角色创建。
 
@@ -360,49 +304,11 @@ Kubernetes 监控是由 kube-state-metrics 完成的，之前也有介绍。更�
 
 虽然我们不再需要担心管理`log`文件，但是配置每个 pod 的日志代理并将 Kubernetes 的元数据附加到日志条目中仍然需要额外的工作。另一个选择是利用旁路容器将日志输出到标准流，而不是运行一个专用的日志代理，就像下面的 pod 一样；应用容器不断地将消息写入`/var/log/myapp.log`，而旁路容器则在共享卷中跟踪`myapp.log`。
 
-```
----6-2_logging-sidecar.yml--- 
-apiVersion: v1 
-kind: Pod 
-metadata: 
-  name: myapp 
-spec: 
-  containers: 
-  - image: busybox 
-    name: application 
-    args: 
-     - /bin/sh 
-     - -c 
-     - > 
-      while true; do 
-        echo "$(date) INFO hello" >> /var/log/myapp.log ; 
-        sleep 1; 
-      done 
-    volumeMounts: 
-    - name: log 
-      mountPath: /var/log 
-  - name: sidecar 
-    image: busybox 
-    args: 
-     - /bin/sh 
-     - -c 
-     - tail -fn+1 /var/log/myapp.log 
-    volumeMounts: 
-    - name: log 
-      mountPath: /var/log 
-  volumes: 
-  - name: log 
-emptyDir: {}  
-```
+[PRE13]
 
 现在我们可以使用`kubectl logs`查看已写入的日志：
 
-```
-$ kubectl logs -f myapp -c sidecar
-Tue Jul 25 14:51:33 UTC 2017 INFO hello
-Tue Jul 25 14:51:34 UTC 2017 INFO hello
-...
-```
+[PRE14]
 
 # 摄取 Kubernetes 事件
 
@@ -422,10 +328,7 @@ Eventer 是 Heapster 的一部分，目前支持 Elasticsearch、InfluxDB、Riem
 
 Elasticsearch 是一个强大的文本搜索和分析引擎，这使它成为持久化、处理和分析我们集群中运行的所有日志的理想选择。本章的 Elasticsearch 模板使用了一个非常简单的设置来演示这个概念。如果您想要为生产使用部署 Elasticsearch 集群，建议使用 StatefulSet 控制器，并根据我们在第四章中讨论的适当配置来调整 Elasticsearch。让我们使用以下模板部署 Elasticsearch ([`github.com/DevOps-with-Kubernetes/examples/tree/master/chapter6/6-3_efk/`](https://github.com/DevOps-with-Kubernetes/examples/tree/master/chapter6/6-3_efk/))：
 
-```
-$ kubectl apply -f elasticsearch/es-config.yml
-$ kubectl apply -f elasticsearch/es-logging.yml
-```
+[PRE15]
 
 如果从`es-logging-svc:9200`收到响应，则 Elasticsearch 已准备就绪。
 
@@ -433,24 +336,15 @@ $ kubectl apply -f elasticsearch/es-logging.yml
 
 该图像已配置为转发容器日志到`/var/log/containers`下，以及某些系统组件的日志到`/var/log`下。如果需要，我们绝对可以进一步定制其日志配置。这里提供了两个模板：`fluentd-sa.yml`是 Fluentd DaemonSet 的 RBAC 配置，`fluentd-ds.yml`是：
 
-```
-$ kubectl apply -f fluentd/fluentd-sa.yml
-$ kubectl apply -f fluentd/fluentd-ds.yml  
-```
+[PRE16]
 
 另一个必不可少的日志记录组件是 eventer。这里我们为不同条件准备了两个模板。如果您使用的是已部署 Heapster 的托管 Kubernetes 服务，则在这种情况下使用独立 eventer 的模板`eventer-only.yml`。否则，考虑在同一个 pod 中运行 Heapster 和 eventer 的模板：
 
-```
-$ kubectl apply -f heapster-eventer/heapster-eventer.yml
-or
-$ kubectl apply -f heapster-eventer/eventer-only.yml
-```
+[PRE17]
 
 要查看发送到 Elasticsearch 的日志，我们可以调用 Elasticsearch 的搜索 API，但有一个更好的选择，即 Kibana，这是一个允许我们与 Elasticsearch 交互的 Web 界面。Kibana 的模板是`elasticsearch/kibana-logging.yml`，位于[`github.com/DevOps-with-Kubernetes/examples/tree/master/chapter6/6-3_efk/`](https://github.com/DevOps-with-Kubernetes/examples/tree/master/chapter6/6-3_efk/)下。
 
-```
-$ kubectl apply -f elasticsearch/kibana-logging.yml  
-```
+[PRE18]
 
 在我们的示例中，Kibana 正在监听端口`5601`。在将服务暴露到集群外并使用任何浏览器连接后，您可以开始从 Kubernetes 搜索日志。由 eventer 发送的日志的索引名称是`heapster-*`，而由 Fluentd 转发的日志的索引名称是`logstash-*`。以下截图显示了 Elasticsearch 中日志条目的外观。
 

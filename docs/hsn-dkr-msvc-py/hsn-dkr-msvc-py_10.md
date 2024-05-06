@@ -64,24 +64,11 @@ AWS 使用不同的用户来授予它们多个角色。它们具有不同的权�
 
 1.  要通过命令行访问，您需要使用 AWS CLI。使用 AWS CLI 和访问信息，配置您的命令行以使用`aws`：
 
-```py
-$ aws configure
-AWS Access Key ID [None]: <your Access Key>
-AWS Secret Access Key [None]: <your Secret Key>
-Default region name [us-west-2]: <EKS region>
-Default output format [None]:
-```
+[PRE0]
 
 您应该能够通过以下命令获取身份以检查配置是否成功：
 
-```py
-$ aws sts get-caller-identity
-{
- "UserId": "<Access Key>",
- "Account": "<account ID>",
- "Arn": "arn:aws:iam::XXXXXXXXXXXX:user/jaime"
-}
-```
+[PRE1]
 
 现在您可以访问命令行 AWS 操作。
 
@@ -107,22 +94,11 @@ $ aws sts get-caller-identity
 
 1.  我们需要使本地`docker`登录注册表。请注意，`aws ecr get-login`将返回一个`docker`命令，该命令将使您登录，因此请复制并粘贴：
 
-```py
-$ aws ecr get-login --no-include-email
-<command>
-$ docker login -u AWS -p <token>
-Login Succeeded
-```
+[PRE2]
 
 1.  现在我们可以使用完整的注册表名称标记要推送的图像，并将其推送：
 
-```py
-$ docker tag thoughts_frontend 033870383707.dkr.ecr.us-west-2.amazonaws.com/frontend
-$ docker push 033870383707.dkr.ecr.us-west-2.amazonaws.com/frontend
-The push refers to repository [033870383707.dkr.ecr.us-west-2.amazonaws.com/frontend]
-...
-latest: digest: sha256:21d5f25d59c235fe09633ba764a0a40c87bb2d8d47c7c095d254e20f7b437026 size: 2404
-```
+[PRE3]
 
 1.  镜像已推送！您可以通过在浏览器中打开 AWS 控制台来检查：
 
@@ -168,21 +144,11 @@ latest: digest: sha256:21d5f25d59c235fe09633ba764a0a40c87bb2d8d47c7c095d254e20f7
 
 1.  首先，检查`eksctl`是否正确安装：
 
-```py
-$ eksctl get clusters
-No clusters found
-```
+[PRE4]
 
 1.  创建一个新的集群。这将需要大约 10 分钟：
 
-```py
-$ eksctl create cluster -n Example
-[i] using region us-west-2
-[i] setting availability zones to [us-west-2d us-west-2b us-west-2c]
-...
-[✔]  EKS cluster "Example" in "us-west-2" region is ready
-
-```
+[PRE5]
 
 1.  这将创建集群。检查 AWS web 界面将显示新配置的元素。
 
@@ -194,31 +160,15 @@ $ eksctl create cluster -n Example
 
 1.  这个命令设置了`kubectl`以正确的上下文来运行命令。默认情况下，它生成一个具有两个节点的集群：
 
-```py
-$ kubectl get nodes
-NAME                    STATUS ROLES AGE VERSION
-ip-X.us-west-2.internal Ready <none> 11m v1.13.7-eks-c57ff8
-ip-Y.us-west-2.internal Ready <none> 11m v1.13.7-eks-c57ff8
-```
+[PRE6]
 
 1.  我们可以扩展节点的数量。为了减少资源使用和节省金钱。我们需要检索节点组的名称，它控制节点的数量，然后缩减它：
 
-```py
-$ eksctl get nodegroups --cluster Example
-CLUSTER NODEGROUP CREATED MIN SIZE MAX SIZE DESIRED CAPACITY INSTANCE TYPE IMAGE ID
-Example ng-fa5e0fc5 2019-07-16T13:39:07Z 2 2 0 m5.large ami-03a55127c613349a7
-$ eksctl scale nodegroup --cluster Example --name ng-fa5e0fc5 -N 1
-[i] scaling nodegroup stack "eksctl-Example-nodegroup-ng-fa5e0fc5" in cluster eksctl-Example-cluster
-[i] scaling nodegroup, desired capacity from to 1, min size from 2 to 1
-```
+[PRE7]
 
 1.  您可以通过`kubectl`联系集群并正常进行操作：
 
-```py
-$ kubectl get svc
-NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE
-kubernetes ClusterIP 10.100.0.1 <none> 443/TCP 7m31s
-```
+[PRE8]
 
 集群已经设置好了，我们可以从命令行上对其进行操作。
 
@@ -242,31 +192,17 @@ kubernetes ClusterIP 10.100.0.1 <none> 443/TCP 7m31s
 
 例如，在`frontend/deployment.yaml`文件中，我们需要以这种方式定义它们：
 
-```py
-containers:
-- name: frontend-service
-  image: XXX.dkr.ecr.us-west-2.amazonaws.com/frontend:latest
-  imagePullPolicy: Always
-```
+[PRE9]
 
 镜像应该从 AWS 注册表中拉取。拉取策略应更改为强制从集群中拉取。
 
 在创建`example`命名空间后，您可以通过应用文件在远程服务器上部署：
 
-```py
-$ kubectl create namespace example
-namespace/example created
-$ kubectl apply -f frontend/deployment.yaml
-deployment.apps/frontend created
-```
+[PRE10]
 
 过一会儿，部署会创建 pod：
 
-```py
-$ kubectl get pods -n example
-NAME                      READY STATUS  RESTARTS AGE
-frontend-58898587d9-4hj8q 1/1   Running 0        13s
-```
+[PRE11]
 
 现在我们需要更改其余的元素。所有部署都需要适应包括正确注册表。
 
@@ -278,23 +214,7 @@ frontend-58898587d9-4hj8q 1/1   Running 0        13s
 
 这很容易通过将服务从`NodePort`更改为`LoadBalancer`来完成。检查`frontend/service.yaml`文件：
 
-```py
-apiVersion: v1
-kind: Service
-metadata:
-    namespace: example
-    labels:
-        app: frontend-service
-    name: frontend-service
-spec:
-    ports:
-        - name: frontend
-          port: 80
-          targetPort: 8000
-    selector:
-        app: frontend
-    type: LoadBalancer
-```
+[PRE12]
 
 这将创建一个可以外部访问的新**弹性负载均衡器**（**ELB**）。现在，让我们开始部署。
 
@@ -302,40 +222,17 @@ spec:
 
 整个系统可以从`Chapter07`子目录中部署，使用以下代码：
 
-```py
-$ kubectl apply --recursive -f .
-deployment.apps/frontend unchanged
-ingress.extensions/frontend created
-service/frontend-service created
-deployment.apps/thoughts-backend created
-ingress.extensions/thoughts-backend-ingress created
-service/thoughts-service created
-deployment.apps/users-backend created
-ingress.extensions/users-backend-ingress created
-service/users-service created
-```
+[PRE13]
 
 这些命令会迭代地通过子目录并应用任何`.yaml`文件。
 
 几分钟后，您应该看到一切都正常运行：
 
-```py
-$ kubectl get pods -n example
-NAME                              READY STATUS  RESTARTS AGE
-frontend-58898587d9-dqc97         1/1   Running 0        3m
-thoughts-backend-79f5594448-6vpf4 2/2   Running 0        3m
-users-backend-794ff46b8-s424k     2/2   Running 0        3m
-```
+[PRE14]
 
 要获取公共访问点，您需要检查服务：
 
-```py
-$ kubectl get svc -n example
-NAME             TYPE         CLUSTER-IP EXTERNAL-IP AGE
-frontend-service LoadBalancer 10.100.152.177 a28320efca9e011e9969b0ae3722320e-357987887.us-west-2.elb.amazonaws.com 3m
-thoughts-service NodePort 10.100.52.188 <none> 3m
-users-service    NodePort 10.100.174.60 <none> 3m
-```
+[PRE15]
 
 请注意，前端服务有一个外部 ELB DNS 可用。
 
@@ -421,25 +318,7 @@ HAProxy 具有更丰富的功能集和更好的仪表板与之交互。它也可
 
 让我们来看看配置文件`haproxy.cfg`中的主要元素：
 
-```py
-frontend haproxynode
-    bind *:80
-    mode http
-    default_backend backendnodes
-
-backend backendnodes
-    balance roundrobin
-    option forwardfor
-    server aws a28320efca9e011e9969b0ae3722320e-357987887
-               .us-west-2.elb.amazonaws.com:80 check
-    server example www.example.com:80 check
-
-listen stats
-    bind *:8001
-    stats enable
-    stats uri /
-    stats admin if TRUE
-```
+[PRE16]
 
 我们定义了一个前端，接受任何端口`80`的请求，并将请求发送到后端。后端将请求平衡到两个服务器，`example`和`aws`。基本上，`example`指向`www.example.com`（您的旧服务的占位符），`aws`指向先前创建的负载均衡器。
 
@@ -447,10 +326,7 @@ listen stats
 
 `docker-compose`配置启动服务器，并将本地端口转发到容器端口`8000`（负载均衡器）和`8001`（统计）。使用以下命令启动它：
 
-```py
-$ docker-compose up --build proxy
-...
-```
+[PRE17]
 
 现在我们可以访问`localhost:8000`，它将在`thoughts`服务和 404 错误之间交替。
 
@@ -472,9 +348,7 @@ $ docker-compose up --build proxy
 
 HAProxy 也可以配置使用检查来确保后端可用。在示例中，我们添加了一个被注释的检查，它发送一个 HTTP 命令来检查返回。
 
-```py
-option httpchk HEAD / HTTP/1.1\r\nHost:\ example.com
-```
+[PRE18]
 
 检查将对两个后端相同，因此需要成功返回。默认情况下，它将每隔几秒运行一次。
 
@@ -500,18 +374,7 @@ Kubernetes 和 HAProxy 能够检测服务是否正常运行，并在出现问题
 
 活动探针将在容器内执行，因此需要有效。对于 Web 服务，添加`curl`命令是一个好主意：
 
-```py
-spec:
-  containers:
-  - name: frontend-service
-    livenessProbe:
-      exec:
-        command:
-        - curl
-        - http://localhost:8000/
-        initialDelaySeconds: 5
-        periodSeconds: 30
-```
+[PRE19]
 
 虽然有一些选项，比如检查 TCP 端口是否打开或发送 HTTP 请求，但运行命令是最通用的选项。它也可以用于调试目的。请参阅文档以获取更多选项。
 
@@ -529,18 +392,7 @@ spec:
 
 就绪探针在部署配置中定义，方式与活跃探针相同。让我们来看一下：
 
-```py
-spec:
-  containers:
-  - name: frontend-service
-    readinessProbe:
-      exec:
-        command:
-        - curl
-        - http://localhost:8000/
-        initialDelaySeconds: 5
-        periodSeconds: 10
-```
+[PRE20]
 
 就绪探针应该比活跃探针更积极，因为结果更安全。这就是为什么`periodSeconds`更短。根据您的特定用例，您可能需要两者或者不需要，但就绪探针是启用滚动更新所必需的，接下来我们将看到。
 
@@ -562,15 +414,7 @@ spec:
 
 如何执行这个过程可以通过调整部署中的`strategy`部分来配置：
 
-```py
-spec:
-    replicas: 4
-    strategy:
-      type: RollingUpdate
-      rollingUpdate:
-        maxUnavailable: 25%
-        maxSurge: 1
-```
+[PRE21]
 
 让我们了解这段代码：
 
@@ -634,47 +478,15 @@ Kubernetes 度量服务器不是向 HPA 提供指标的唯一可用服务器，�
 
 下载`tar.gz`文件，写作时为`metrics-server-0.3.3.tar.gz`。解压缩并将版本应用到集群：
 
-```py
-$ tar -xzf metrics-server-0.3.3.tar.gz
-$ cd metrics-server-0.3.3/deploy/1.8+/
-$ kubectl apply -f .
-clusterrole.rbac.authorization.k8s.io/system:aggregated-metrics-reader created
-clusterrolebinding.rbac.authorization.k8s.io/metrics-server:system:auth-delegator created
-rolebinding.rbac.authorization.k8s.io/metrics-server-auth-reader created
-apiservice.apiregistration.k8s.io/v1beta1.metrics.k8s.io created
-serviceaccount/metrics-server created
-deployment.extensions/metrics-server created
-service/metrics-server created
-clusterrole.rbac.authorization.k8s.io/system:metrics-server created
-clusterrolebinding.rbac.authorization.k8s.io/system:metrics-server created
-```
+[PRE22]
 
 您将在`kube-system`命名空间中看到新的 pod：
 
-```py
-$ kubectl get pods -n kube-system
-NAME                            READY STATUS  RESTARTS AGE
-...
-metrics-server-56ff868bbf-cchzp 1/1   Running 0        42s
-```
+[PRE23]
 
 您可以使用`kubectl top`命令获取有关节点和 pod 的基本信息：
 
-```py
-$ kubectl top node
-NAME                    CPU(cores) CPU% MEM(bytes) MEMORY%
-ip-X.us-west-2.internal 57m        2%   547Mi      7%
-ip-Y.us-west-2.internal 44m        2%   534Mi      7%
-$ kubectl top pods -n example
-$ kubectl top pods -n example
-NAME                              CPU(cores) MEMORY(bytes)
-frontend-5474c7c4ff-d4v77         2m         51Mi
-frontend-5474c7c4ff-dlq6t         1m         50Mi
-frontend-5474c7c4ff-km2sj         1m         51Mi
-frontend-5474c7c4ff-rlvcc         2m         51Mi
-thoughts-backend-79f5594448-cvdvm 1m         54Mi
-users-backend-794ff46b8-m2c6w     1m         54Mi
-```
+[PRE24]
 
 为了正确控制使用量的限制，我们需要在部署中配置分配和限制资源。
 
@@ -686,22 +498,7 @@ users-backend-794ff46b8-m2c6w     1m         54Mi
 
 在`frontend/deployment.yaml`文件中，我们包括以下`resources`实例：
 
-```py
-spec:
-    containers:
-    - name: frontend-service
-      image: 033870383707.dkr.ecr.us-west-2
-                 .amazonaws.com/frontend:latest
-      imagePullPolicy: Always
-      ...
-      resources:
-          requests:
-              memory: "64M"
-              cpu: "60m"
-          limits:
-              memory: "128M"
-              cpu: "70m"
-```
+[PRE25]
 
 最初请求的内存为 64 MB，0.06 个 CPU 核心。
 
@@ -721,10 +518,7 @@ CPU 资源是以分数形式衡量的，其中 1 表示节点运行的任何系�
 
 要创建一个新的 HPA，我们可以使用`kubectl autoscale`命令：
 
-```py
-$ kubectl autoscale deployment frontend --cpu-percent=10 --min=2 --max=8 -n example
-horizontalpodautoscaler.autoscaling/frontend autoscaled
-```
+[PRE26]
 
 这将创建一个新的 HPA，它以`example`命名空间中的`frontend`部署为目标，并设置要在`2`和`8`之间的 Pod 数量。要缩放的参数是 CPU，我们将其设置为可用 CPU 的 10%，并在所有 Pod 中平均。如果超过了，它将创建新的 Pod，如果低于，它将减少它们。
 
@@ -732,11 +526,7 @@ horizontalpodautoscaler.autoscaling/frontend autoscaled
 
 自动缩放器作为一种特殊类型的 Kubernetes 对象工作，可以查询它：
 
-```py
-$ kubectl get hpa -n example
-NAME     REFERENCE           TARGETS  MIN MAX REPLICAS AGE
-frontend Deployment/frontend 2%/10%   2   8   4        80s
-```
+[PRE27]
 
 请注意，目标显示当前约为 2%，接近限制。这是为了小型可用 CPU 而设计的，将具有相对较高的基线。
 
@@ -746,10 +536,7 @@ frontend Deployment/frontend 2%/10%   2   8   4        80s
 
 为了创建一些负载，让我们使用应用程序 Apache Bench（`ab`），并与前端中专门创建的端点结合使用大量 CPU：
 
-```py
-$ ab -n 100 http://<LOADBALANCER>.elb.amazonaws.com/load
-Benchmarking <LOADBALANCER>.elb.amazonaws.com (be patient)....
-```
+[PRE28]
 
 请注意，`ab`是一个方便的测试应用程序，可以同时生成 HTTP 请求。如果愿意，您也可以在浏览器中多次快速点击 URL。
 
@@ -757,10 +544,7 @@ Benchmarking <LOADBALANCER>.elb.amazonaws.com (be patient)....
 
 这将在集群中生成额外的 CPU 负载，并使部署扩展：
 
-```py
-NAME     REFERENCE           TARGETS MIN MAX REPLICAS AGE
-frontend Deployment/frontend 47%/10% 2   8   8        15m
-```
+[PRE29]
 
 请求完成后，几分钟后，Pod 的数量将缓慢缩减，直到再次达到两个 Pod。
 
@@ -774,19 +558,11 @@ EKS 集群中作为节点工作的 AWS 实例的数量也可以增加。这为�
 
 在任何 EKS 集群的核心，都有一个控制集群节点的自动扩展组。请注意，`eksctl`将自动扩展组创建并公开为节点组：
 
-```py
-$ eksctl get nodegroup --cluster Example
-CLUSTER NODEGROUP   MIN  MAX  DESIRED INSTANCE IMAGE ID
-Example ng-74a0ead4 2    2    2       m5.large ami-X
-```
+[PRE30]
 
 使用`eksctl`，我们可以手动扩展或缩小集群，就像我们创建集群时描述的那样。
 
-```py
-$ eksctl scale nodegroup --cluster Example --name ng-74a0ead4 --nodes 4
-[i] scaling nodegroup stack "eksctl-Example-nodegroup-ng-74a0ead4" in cluster eksctl-Example-cluster
-[i] scaling nodegroup, desired capacity from to 4, max size from 2 to 4
-```
+[PRE31]
 
 这个节点组也可以在 AWS 控制台中看到，在 EC2 | 自动缩放组下：
 

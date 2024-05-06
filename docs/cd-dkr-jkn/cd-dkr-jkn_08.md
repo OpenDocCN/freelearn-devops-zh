@@ -84,18 +84,7 @@ Docker Engine 默认包含了 Swarm 模式，因此不需要额外的安装过�
 
 为了设置一个 Swarm，我们需要初始化管理节点。我们可以在一个即将成为管理节点的机器上使用以下命令来做到这一点：
 
-```
-$ docker swarm init
-
-Swarm initialized: current node (qfqzhk2bumhd2h0ckntrysm8l) is now a manager.
-
-To add a worker to this swarm, run the following command:
-docker swarm join \
---token SWMTKN-1-253vezc1pqqgb93c5huc9g3n0hj4p7xik1ziz5c4rsdo3f7iw2-df098e2jpe8uvwe2ohhhcxd6w \
-192.168.0.143:2377
-
-To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
-```
+[PRE0]
 
 一个非常常见的做法是使用`--advertise-addr <manager_ip>`参数，因为如果管理机器有多个潜在的网络接口，那么`docker swarm init`可能会失败。
 
@@ -103,11 +92,7 @@ To add a manager to this swarm, run 'docker swarm join-token manager' and follow
 
 我们可以使用`docker node`命令来检查 Swarm 是否已创建：
 
-```
-$ docker node ls
-ID                          HOSTNAME       STATUS  AVAILABILITY  MANAGER STATUS
-qfqzhk2bumhd2h0ckntrysm8l * ubuntu-manager Ready   Active        Leader
-```
+[PRE1]
 
 当管理器正常运行时，我们准备将工作节点添加到 Swarm 中。
 
@@ -115,23 +100,11 @@ qfqzhk2bumhd2h0ckntrysm8l * ubuntu-manager Ready   Active        Leader
 
 为了将一台机器添加到 Swarm 中，我们必须登录到给定的机器并执行以下命令：
 
-```
-$ docker swarm join \
---token SWMTKN-1-253vezc1pqqgb93c5huc9g3n0hj4p7xik1ziz5c4rsdo3f7iw2-df098e2jpe8uvwe2ohhhcxd6w \
-192.168.0.143:2377
-
-This node joined a swarm as a worker.
-```
+[PRE2]
 
 我们可以使用`docker node ls`命令来检查节点是否已添加到 Swarm 中。假设我们已经添加了两个节点机器，输出应该如下所示：
 
-```
-$ docker node ls
-ID                          HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
-cr7vin5xzu0331fvxkdxla22n   ubuntu-worker2  Ready   Active 
-md4wx15t87nn0c3pyv24kewtz   ubuntu-worker1  Ready   Active 
-qfqzhk2bumhd2h0ckntrysm8l * ubuntu-manager  Ready   Active        Leader
-```
+[PRE3]
 
 在这一点上，我们有一个由三个 Docker 主机组成的集群，`ubuntu-manager`，`ubuntu-worker1`和`ubuntu-worker2`。让我们看看如何在这个集群上运行一个服务。
 
@@ -139,37 +112,21 @@ qfqzhk2bumhd2h0ckntrysm8l * ubuntu-manager  Ready   Active        Leader
 
 为了在集群上运行一个镜像，我们不使用`docker run`，而是使用专门为 Swarm 设计的`docker service`命令（在管理节点上执行）。让我们启动一个单独的`tomcat`应用并给它命名为`tomcat`：
 
-```
-$ docker service create --replicas 1 --name tomcat tomcat
-```
+[PRE4]
 
 该命令创建了服务，因此发送了一个任务来在一个节点上启动一个容器。让我们列出正在运行的服务：
 
-```
-$ docker service ls
-ID            NAME    MODE        REPLICAS  IMAGE
-x65aeojumj05  tomcat  replicated  1/1       tomcat:latest
-```
+[PRE5]
 
 日志确认了`tomcat`服务正在运行，并且有一个副本（一个 Docker 容器正在运行）。我们甚至可以更仔细地检查服务：
 
-```
-$ docker service ps tomcat
-ID           NAME      IMAGE          NODE            DESIRED STATE CURRENT STATE 
-kjy1udwcnwmi tomcat.1  tomcat:latest  ubuntu-manager  Running     Running about a minute ago
-```
+[PRE6]
 
 如果您对服务的详细信息感兴趣，可以使用`docker service inspect <service_name>`命令。
 
 从控制台输出中，我们可以看到容器正在管理节点（`ubuntu-manager`）上运行。它也可以在任何其他节点上启动；管理器会自动使用调度策略算法选择工作节点。我们可以使用众所周知的`docker ps`命令来确认容器正在运行：
 
-```
-$ docker ps
-CONTAINER ID     IMAGE
-COMMAND           CREATED            STATUS              PORTS            NAMES
-6718d0bcba98     tomcat@sha256:88483873b279aaea5ced002c98dde04555584b66de29797a4476d5e94874e6de 
-"catalina.sh run" About a minute ago Up About a minute   8080/tcp         tomcat.1.kjy1udwcnwmiosiw2qn71nt1r
-```
+[PRE7]
 
 如果我们不希望任务在管理节点上执行，可以使用`--constraint node.role==worker`选项来限制服务。另一种可能性是完全禁用管理节点执行任务，使用`docker node update --availability drain <manager_name>`。
 
@@ -177,27 +134,17 @@ COMMAND           CREATED            STATUS              PORTS            NAMES
 
 当服务运行时，我们可以扩展或缩小它，以便它在许多副本中运行：
 
-```
-$ docker service scale tomcat=5
-tomcat scaled to 5
-```
+[PRE8]
 
 我们可以检查服务是否已扩展：
 
-```
-$ docker service ps tomcat
-ID            NAME     IMAGE          NODE            DESIRED STATE  CURRENT STATE 
-kjy1udwcnwmi  tomcat.1  tomcat:latest  ubuntu-manager  Running    Running 2 minutes ago 
-536p5zc3kaxz  tomcat.2  tomcat:latest  ubuntu-worker2  Running    Preparing 18 seconds ago npt6ui1g9bdp  tomcat.3  tomcat:latest  ubuntu-manager  Running    Running 18 seconds ago zo2kger1rmqc  tomcat.4  tomcat:latest  ubuntu-worker1  Running    Preparing 18 seconds ago 1fb24nf94488  tomcat.5  tomcat:latest  ubuntu-worker2  Running    Preparing 18 seconds ago  
-```
+[PRE9]
 
 请注意，这次有两个容器在`manager`节点上运行，一个在`ubuntu-worker1`节点上，另一个在`ubuntu-worker2`节点上。我们可以通过在每台机器上执行`docker ps`来检查它们是否真的在运行。
 
 如果我们想要删除服务，只需执行以下命令即可：
 
-```
-$ docker service rm tomcat
-```
+[PRE10]
 
 您可以使用`docker service ls`命令检查服务是否已被删除，因此所有相关的`tomcat`容器都已停止并从所有节点中删除。
 
@@ -205,9 +152,7 @@ $ docker service rm tomcat
 
 Docker 服务，类似于容器，具有端口转发机制。我们可以通过添加`-p <host_port>:<container:port>`参数来使用它。启动服务可能如下所示：
 
-```
-$ docker service create --replicas 1 --publish 8080:8080 --name tomcat tomcat
-```
+[PRE11]
 
 现在，我们可以打开浏览器，在地址`http://192.168.0.143:8080/`下查看 Tomcat 的主页。
 
@@ -247,51 +192,21 @@ Docker Swarm 滚动更新过程如下：
 
 让我们来看一个例子，将 Tomcat 应用程序从版本 8 更改为版本 9。假设我们有`tomcat:8`服务，有五个副本：
 
-```
-$ docker service create --replicas 5 --name tomcat --update-delay 10s tomcat:8
-```
+[PRE12]
 
 我们可以使用`docker service ps tomcat`命令检查所有副本是否正在运行。另一个有用的命令是`docker service inspect`命令，可以帮助检查服务：
 
-```
-$ docker service inspect --pretty tomcat
-
-ID:    au1nu396jzdewyq2y8enm0b6i
-Name:    tomcat
-Service Mode:    Replicated
- Replicas:    5
-Placement:
-UpdateConfig:
- Parallelism:    1
- Delay:    10s
- On failure:    pause
- Max failure ratio: 0
-ContainerSpec:
- Image:    tomcat:8@sha256:835b6501c150de39d2b12569fd8124eaebc53a899e2540549b6b6f8676538484
-Resources:
-Endpoint Mode:    vip
-```
+[PRE13]
 
 我们可以看到服务已经创建了五个副本，来自于`tomcat:8`镜像。命令输出还包括有关并行性和更新之间的延迟时间的信息（由`docker service create`命令中的选项设置）。
 
 现在，我们可以将服务更新为`tomcat:9`镜像：
 
-```
-$ docker service update --image tomcat:9 tomcat
-```
+[PRE14]
 
 让我们看看发生了什么：
 
-```
-$ docker service ps tomcat
-ID            NAME      IMAGE     NODE            DESIRED STATE  CURRENT STATE 
-4dvh6ytn4lsq  tomcat.1  tomcat:8  ubuntu-manager  Running    Running 4 minutes ago 
-2mop96j5q4aj  tomcat.2  tomcat:8  ubuntu-manager  Running    Running 4 minutes ago 
-owurmusr1c48  tomcat.3  tomcat:9  ubuntu-manager  Running    Preparing 13 seconds ago 
-r9drfjpizuxf   \_ tomcat.3  tomcat:8  ubuntu-manager  Shutdown   Shutdown 12 seconds ago 
-0725ha5d8p4v  tomcat.4  tomcat:8  ubuntu-manager  Running    Running 4 minutes ago 
-wl25m2vrqgc4  tomcat.5  tomcat:8  ubuntu-manager  Running    Running 4 minutes ago       
-```
+[PRE15]
 
 请注意，`tomcat:8`的第一个副本已关闭，第一个`tomcat:9`已经在运行。如果我们继续检查`docker service ps tomcat`命令的输出，我们会注意到每隔 10 秒，另一个副本处于关闭状态，新的副本启动。如果我们还监视`docker inspect`命令，我们会看到值**UpdateStatus: State**将更改为**updating**，然后在更新完成后更改为**completed**。
 
@@ -303,61 +218,27 @@ wl25m2vrqgc4  tomcat.5  tomcat:8  ubuntu-manager  Running    Running 4 minutes a
 
 让我们看看这在实践中是如何工作的。假设我们有三个集群节点和一个具有五个副本的 Tomcat 服务：
 
-```
-$ docker node ls
-ID                          HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
-4mrrmibdrpa3yethhmy13mwzq   ubuntu-worker2  Ready   Active 
-kzgm7erw73tu2rjjninxdb4wp * ubuntu-manager  Ready   Active        Leader
-yllusy42jp08w8fmze43rmqqs   ubuntu-worker1  Ready   Active 
-
-$ docker service create --replicas 5 --name tomcat tomcat
-```
+[PRE16]
 
 让我们检查一下副本正在哪些节点上运行：
 
-```
-$ docker service ps tomcat
-ID            NAME      IMAGE          NODE            DESIRED STATE  CURRENT STATE 
-zrnawwpupuql  tomcat.1  tomcat:latest  ubuntu-manager  Running    Running 17 minutes ago 
-x6rqhyn7mrot  tomcat.2  tomcat:latest  ubuntu-worker1  Running    Running 16 minutes ago 
-rspgxcfv3is2  tomcat.3  tomcat:latest  ubuntu-worker2  Running    Running 5 weeks ago 
-cf00k61vo7xh  tomcat.4  tomcat:latest  ubuntu-manager  Running    Running 17 minutes ago 
-otjo08e06qbx  tomcat.5  tomcat:latest  ubuntu-worker2  Running    Running 5 weeks ago      
-```
+[PRE17]
 
 有两个副本正在`ubuntu-worker2`节点上运行。让我们排水该节点：
 
-```
-$ docker node update --availability drain ubuntu-worker2
-```
+[PRE18]
 
 节点被设置为**drain**可用性，因此所有副本应该移出该节点：
 
-```
-$ docker service ps tomcat
-ID            NAME      IMAGE          NODE            DESIRED STATE  CURRENT STATE
-zrnawwpupuql  tomcat.1  tomcat:latest  ubuntu-manager  Running    Running 18 minutes ago 
-x6rqhyn7mrot  tomcat.2  tomcat:latest  ubuntu-worker1  Running    Running 17 minutes ago qrptjztd777i  tomcat.3  tomcat:latest  ubuntu-worker1  Running    Running less than a second ago 
-rspgxcfv3is2   \_ tomcat.3  tomcat:latest  ubuntu-worker2  Shutdown   Shutdown less than a second ago 
-cf00k61vo7xh  tomcat.4  tomcat:latest  ubuntu-manager  Running    Running 18 minutes ago k4c14tyo7leq  tomcat.5  tomcat:latest  ubuntu-worker1  Running    Running less than a second ago 
-otjo08e06qbx   \_ tomcat.5  tomcat:latest  ubuntu-worker2  Shutdown   Shutdown less than a second ago   
-```
+[PRE19]
 
 我们可以看到新任务在`ubuntu-worker1`节点上启动，并且旧副本已关闭。我们可以检查节点的状态：
 
-```
-$ docker node ls
-ID                          HOSTNAME        STATUS  AVAILABILITY  MANAGER STATUS
-4mrrmibdrpa3yethhmy13mwzq   ubuntu-worker2  Ready   Drain 
-kzgm7erw73tu2rjjninxdb4wp * ubuntu-manager  Ready   Active        Leader
-yllusy42jp08w8fmze43rmqqs   ubuntu-worker1  Ready   Active   
-```
+[PRE20]
 
 如预期的那样，`ubuntu-worker2`节点可用（状态为`Ready`），但其可用性设置为排水，这意味着它不托管任何任务。如果我们想要将节点恢复，可以将其可用性检查为`active`：
 
-```
-$ docker node update --availability active ubuntu-worker2
-```
+[PRE21]
 
 一个非常常见的做法是排水管理节点，结果是它不会接收任何任务，只做管理工作。
 
@@ -375,15 +256,7 @@ $ docker node update --availability active ubuntu-worker2
 
 为了将新的管理节点添加到系统中，我们需要首先在（当前单一的）管理节点上执行以下命令：
 
-```
-$ docker swarm join-token manager
-
-To add a manager to this swarm, run the following command:
-
-docker swarm join \
---token SWMTKN-1-5blnptt38eh9d3s8lk8po3069vbjmz7k7r3falkm20y9v9hefx-a4v5olovq9mnvy7v8ppp63r23 \
-192.168.0.143:2377
-```
+[PRE22]
 
 输出显示了令牌和需要在即将成为管理节点的机器上执行的整个命令。执行完毕后，我们应该看到添加了一个新的管理节点。
 
@@ -391,13 +264,7 @@ docker swarm join \
 
 假设我们已经添加了两个额外的管理节点；我们应该看到以下输出：
 
-```
-$ docker node ls
-ID                          HOSTNAME         STATUS  AVAILABILITY  MANAGER STATUS
-4mrrmibdrpa3yethhmy13mwzq   ubuntu-manager2  Ready   Active 
-kzgm7erw73tu2rjjninxdb4wp * ubuntu-manager   Ready   Active        Leader
-pkt4sjjsbxx4ly1lwetieuj2n   ubuntu-manager1  Ready   Active        Reachable
-```
+[PRE23]
 
 请注意，新的管理节点的管理状态设置为可达（或留空），而旧的管理节点是领导者。其原因是始终有一个主节点负责所有 Swarm 管理和编排决策。领导者是使用 Raft 共识算法从管理节点中选举出来的，当它宕机时，会选举出一个新的领导者。
 
@@ -405,13 +272,7 @@ Raft 是一种共识算法，用于在分布式系统中做出决策。您可以
 
 假设我们关闭了`ubuntu-manager`机器；让我们看看新领导者是如何选举的：
 
-```
-$ docker node ls
-ID                          HOSTNAME         STATUS  AVAILABILITY  MANAGER STATUS
-4mrrmibdrpa3yethhmy13mwzq   ubuntu-manager2  Ready   Active        Reachable
-kzgm7erw73tu2rjjninxdb4wp   ubuntu-manager   Ready   Active        Unreachable 
-pkt4sjjsbxx4ly1lwetieuj2n * ubuntu-manager1  Ready   Active        Leader
-```
+[PRE24]
 
 请注意，即使其中一个管理节点宕机，Swarm 也可以正常工作。
 
@@ -441,21 +302,15 @@ Docker Swarm 使用两个标准来选择合适的工作节点：
 
 例如，如果我们想在具体节点`ubuntu-worker1`上运行 Tomcat 服务，那么我们需要使用以下命令：
 
-```
-$ docker service create --constraint 'node.hostname == ubuntu-worker1' tomcat
-```
+[PRE25]
 
 我们还可以向节点添加自定义标签：
 
-```
-$ docker node update --label-add segment=AA ubuntu-worker1
-```
+[PRE26]
 
 上述命令添加了一个标签`node.labels.segment`，其值为`AA`。然后，在运行服务时我们可以使用它：
 
-```
-$ docker service create --constraint 'node.labels.segment == AA' tomcat
-```
+[PRE27]
 
 这个命令只在标记有给定段`AA`的节点上运行`tomcat`副本。
 
@@ -489,20 +344,7 @@ Docker Swarm 编排哪个容器在哪台物理机上运行。然而，容器之�
 
 我们已经在前面的章节中定义了`docker-compose.yml`文件，它看起来类似于以下内容：
 
-```
-version: "3"
-services:
-    calculator:
-        deploy:
-            replicas: 3
-        image: leszko/calculator:latest
-        ports:
-        - "8881:8080"
-    redis:
-        deploy:
-            replicas: 1
-        image: redis:latest
-```
+[PRE28]
 
 请注意，所有镜像在运行`docker stack`命令之前必须推送到注册表，以便它们可以从所有节点访问。因此，不可能在`docker-compose.yml`中构建镜像。
 
@@ -512,12 +354,7 @@ services:
 
 让我们使用`docker stack`命令来运行服务，这将在集群上启动容器：
 
-```
-$ docker stack deploy --compose-file docker-compose.yml app
-Creating network app_default
-Creating service app_redis
-Creating service app_calculator
-```
+[PRE29]
 
 Docker 计划简化语法，以便不需要`stack`这个词，例如，`docker deploy --compose-file docker-compose.yml app`。在撰写本文时，这仅在实验版本中可用。
 
@@ -525,26 +362,11 @@ Docker 计划简化语法，以便不需要`stack`这个词，例如，`docker d
 
 服务已经启动。我们可以使用`docker service ls`命令来检查它们是否正在运行：
 
-```
-$ docker service ls
-ID            NAME            MODE        REPLICAS  IMAGE
-5jbdzt9wolor  app_calculator  replicated  3/3       leszko/calculator:latest
-zrr4pkh3n13f  app_redis       replicated  1/1       redis:latest
-```
+[PRE30]
 
 我们甚至可以更仔细地查看服务，并检查它们部署在哪些 Docker 主机上：
 
-```
-$ docker service ps app_calculator
-ID            NAME              IMAGE                     NODE  DESIRED STATE  CURRENT STATE 
-jx0ipdxwdilm  app_calculator.1  leszko/calculator:latest  ubuntu-manager  Running    Running 57 seconds ago 
-psweuemtb2wf  app_calculator.2  leszko/calculator:latest  ubuntu-worker1  Running    Running about a minute ago 
-iuas0dmi7abn  app_calculator.3  leszko/calculator:latest  ubuntu-worker2  Running    Running 57 seconds ago 
-
-$ docker service ps app_redis
-ID            NAME         IMAGE         NODE            DESIRED STATE  CURRENT STATE 
-8sg1ybbggx3l  app_redis.1  redis:latest  ubuntu-manager  Running  Running about a minute ago    
-```
+[PRE31]
 
 我们可以看到，`ubuntu-manager`机器上启动了一个`calculator`容器和一个`redis`容器。另外两个`calculator`容器分别在`ubuntu-worker1`和`ubuntu-worker2`机器上运行。
 
@@ -554,12 +376,7 @@ ID            NAME         IMAGE         NODE            DESIRED STATE  CURRENT 
 
 当我们完成了 stack，我们可以使用方便的`docker stack rm`命令来删除所有内容：
 
-```
-$ docker stack rm app
-Removing service app_calculator
-Removing service app_redis
-Removing network app_default
-```
+[PRE32]
 
 使用 Docker Stack 允许在 Docker Swarm 集群上运行 Docker Compose 规范。请注意，我们使用了确切的`docker-compose.yml`格式，这是一个很大的好处，因为对于 Swarm，不需要指定任何额外的内容。
 
@@ -631,17 +448,13 @@ Kubernetes、Docker Swarm 和 Mesos 都是集群管理系统的不错选择。�
 
 首先，让我们看看如何使用从 swarm-client.jar 工具构建的 Docker 镜像来运行 Jenkins Swarm 从属。Docker Hub 上有一些可用的镜像；我们可以使用 csanchez/jenkins-swarm-slave 镜像：
 
-```
-$ docker run csanchez/jenkins-swarm-slave:1.16 -master -username -password -name jenkins-swarm-slave-2
-```
+[PRE33]
 
 该命令执行应该与第三章中介绍的具有完全相同的效果，*配置 Jenkins*；它动态地向 Jenkins 主节点添加一个从节点。
 
 然后，为了充分利用 Jenkins Swarm，我们可以在 Docker Swarm 集群上运行从节点容器：
 
-```
-$ docker service create --replicas 5 --name jenkins-swarm-slave csanchez/jenkins-swarm-slave -master -disableSslVerification -username -password -name jenkins-swarm-slave
-```
+[PRE34]
 
 上述命令在集群上启动了五个从节点，并将它们附加到了 Jenkins 主节点。请注意，通过执行 docker service scale 命令，可以非常简单地通过水平扩展 Jenkins。
 

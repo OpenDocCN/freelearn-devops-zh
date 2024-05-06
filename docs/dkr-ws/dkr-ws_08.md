@@ -52,9 +52,7 @@ CI/CD 是一种帮助应用程序开发团队更频繁和可靠地向用户提�
 
 1.  运行以下命令拉取 Jenkins 镜像：
 
-```
-$docker run -d -p 8080:8080 -v /var/run/docker.sock:/var/run/docker.sock jenkinsci/blueocean
-```
+[PRE0]
 
 这将导致类似以下的输出：
 
@@ -70,10 +68,7 @@ Docker Hub 上有许多 Jenkins 镜像。随意拉取其中任何一个，并玩
 
 如果它给出一个错误消息，说明它无法连接到 Docker 守护程序，请使用以下命令将 Jenkins 添加到`docker`组：
 
-```
-$ sudo groupadd docker
-$ sudo usermod –aG docker jenkins
-```
+[PRE1]
 
 注意
 
@@ -91,24 +86,15 @@ Jenkins 会为您生成一个密码，用于解锁应用程序。在下一步中
 
 1.  运行`docker container ls`命令以获取当前正在运行的容器列表：
 
-```
-$ docker container ls
-```
+[PRE2]
 
 您将获得从`jekinsci/blueocean`镜像创建的容器的详细信息：
 
-```
-CONTAINER ID IMAGE              COMMAND               CREATED
-  STATUS              PORTS
-9ed51541b036 jekinsci/blueocean "/sbin/tini../usr/.." 5 minutes ago
-  Up 5 minutes        0.0.0.0:8080->8080/tcp, 5000/tcp
-```
+[PRE3]
 
 1.  复制容器 ID 并运行`docker logs`命令：
 
-```
-$ docker logs 9ed51541b036
-```
+[PRE4]
 
 在日志文件的末尾，您将找到六行星号。密码将在它们之间。复制并粘贴到浏览器中：
 
@@ -178,94 +164,55 @@ $ docker logs 9ed51541b036
 
 1.  在 GitHub 网站上，创建一个名为`hit_counter`的新空存储库。打开终端并输入以下命令来克隆代码：
 
-```
-$ git clone https://github.com/efoda/hit_counter
-```
+[PRE5]
 
 这将产生类似以下的输出：
 
-```
-Cloning into 'hit counter'...
-remote: Enumerating objects: 38, done.
-remote: Counting objects: 100% (38/38), done
-remote: Compressing objects: 100% (35/35), done
-remote: Total 38 (delta 16), reused 0 (delta 0), pack-reused 0
-Receiving object: 100% (38/38), 8.98 KiB | 2.25 MiB/s, done.
-Resolving deltas: 100% (16/16), done
-```
+[PRE6]
 
 1.  通过列出目录来验证代码是否已下载到本地计算机。然后，打开应用程序目录：
 
-```
-$ cd hit_counter
-~/hit_counter$ ls
-```
+[PRE7]
 
 您会发现应用程序文件已下载到您的本地计算机：
 
-```
-app.py docker-compose.yml Dockerfile README.md requirements.txt
-```
+[PRE8]
 
 1.  初始化并配置 Git：
 
-```
-$ git init
-```
+[PRE9]
 
 您应该会得到类似以下的输出：
 
-```
-Reinitialized existing Git repository in 
-/home/docker/hit_counter/.git/
-```
+[PRE10]
 
 1.  输入您的用户名和电子邮件：
 
-```
-$ git config user.email "<you@example.com>"
-$ git config user.name "<Your Name>"
-```
+[PRE11]
 
 1.  指定 Git 帐户的名称，`origin`和`destination`：
 
-```
-$ git remote add origin https://github.com/efoda/hit_counter.git
-fatal: remote origin already exists.
-$ git remote add destination https://github.com/<your Github Username>/hit_counter.git
-```
+[PRE12]
 
 1.  添加当前路径中的所有内容：
 
-```
-$ git add .
-```
+[PRE13]
 
 您还可以通过输入以下命令添加特定文件而不是所有文件：
 
-```
-$ git add <filename>.<extension>
-```
+[PRE14]
 
 1.  指定一个`commit`消息：
 
-```
-$ git commit -m "first commit"
-```
+[PRE15]
 
 这将产生类似以下的输出：
 
-```
-On branch master
-Your branch is up to date with 'origin/master'.
-nothing to commit, working tree clean
-```
+[PRE16]
 
 1.  将代码推送到您的 GitHub 帐户：
 
-```
-$ git push -u destination master
-```
+[PRE17]
 
 它会要求您输入用户名和密码。一旦您登录，文件将被上传到您的 GitHub 存储库：
 
@@ -313,9 +260,7 @@ $ git push -u destination master
 
 1.  将显示一个文本框。写入以下命令：
 
-```
-docker build -t hit_counter .
-```
+[PRE18]
 
 然后点击“保存”，如*图 8.17*所示：
 
@@ -331,18 +276,11 @@ docker build -t hit_counter .
 
 1.  在 Jenkins 中进一步操作之前，请检查您主机上当前拥有的镜像。在终端中运行`docker images`命令列出镜像：
 
-```
-$docker images
-```
+[PRE19]
 
 如果在本章之前清理了实验室，您将只有`jenkinsci/blueocean`镜像：
 
-```
-REPOSITORY           TAG     IMAGE ID      CREATED
-       SIZE
-jenkinsci/blueocean  latest  e287a467e019  Less than a second ago
-       562MB
-```
+[PRE20]
 
 1.  返回到 Jenkins。从左侧菜单中点击“立即构建”。
 
@@ -420,22 +358,11 @@ jenkinsci/blueocean  latest  e287a467e019  Less than a second ago
 
 1.  从终端验证镜像 ID 和标签。重新运行`docker images`命令。
 
-```
-$docker images
-```
+[PRE21]
 
 您会发现已为您创建了`hit_counter`镜像。您还会发现`python:3.7-alpine`镜像，因为这是`Dockerfile`中的基础镜像，Jenkins 已自动拉取它：
 
-```
-REPOSITORY           TAG           IMAGE ID
-  CREATED                      SIZE
-jenkinsci/blueocean  latest        e287a467e019
-  Less than a second ago       562MB
-hit_counter          latest        bdaf6486f2ce
-  3 minutes ago                227MB
-python               3.7-alpine    6a5ca85ed89b
-  2 weeks ago                  72.5MB
-```
+[PRE22]
 
 通过这一步，您可以确认 Jenkins 能够成功地从 GitHub 拉取文件。
 
@@ -453,19 +380,13 @@ Jenkins 将显示所有构建中都没有更改，如下图所示：
 
 您也可以像以前一样从终端通过任何文本编辑器编辑文件来执行相同操作。然后运行`git add`和`git push`命令：
 
-```
-$ git add Dockerfile
-$ git commit -m "editing the Dockerfile"
-$ git push -u destination master
-```
+[PRE23]
 
 1.  向下滚动并将更改提交到 GitHub。
 
 1.  返回 Jenkins。删除`hit_counter`和`python:3.7-alpine`镜像，以确保 Jenkins 不使用先前的本地镜像：
 
-```
-$ docker rmi hit_counter python:3.7-alpine
-```
+[PRE24]
 
 1.  再次点击`立即构建`以立即开始构建作业。刷新`最近更改`页面。它将显示一个消息，说明发生了变化。
 
@@ -477,30 +398,15 @@ $ docker rmi hit_counter python:3.7-alpine
 
 1.  转到终端并再次检查镜像：
 
-```
-$ docker images
-```
+[PRE25]
 
 您会发现`hit_counter`和`python:alpine`在列表上：
 
-```
-REPOSITORY             TAG           IMAGE ID
-  CREATED                      SIZE
-jenkinsci/blueocean    latest        e287a467e019
-  Less than a second ago       562MB
-hit_counter            latest        6288f76c1f15
-  3 minutes ago                234MB
-<none>                 <none>        786bdbef6ea2
-  10 minutes ago               934MB
-python                 alpine        8ecf5a48c789
-  2 weeks ago                  78.9MB
-```
+[PRE26]
 
 1.  清理您的实验室，以便进行下一个练习，删除除`jenkinsci/blueocean`之外的所有列出的镜像：
 
-```
-$ docker image rm hit_counter python:alpine 786
-```
+[PRE27]
 
 在这个练习中，您学会了如何将 Jenkins 与 GitHub 集成。Jenkins 能够自动从 GitHub 拉取代码并构建镜像。
 
@@ -556,18 +462,11 @@ $ docker image rm hit_counter python:alpine 786
 
 1.  作为进一步检查，当图像正在构建并在完成之前，转到终端并使用`docker images`命令列出您拥有的图像：
 
-```
-$ docker images
-```
+[PRE28]
 
 因为您在上一练习结束时清理了实验室，所以您应该只会找到`jenkinsci/blueocean`图像：
 
-```
-REPOSITORY              TAG        IMAGE ID
-  CREATED                       SIZE
-jenkinsci/blueocean     latest     e287a467e019
-  Less than a second ago        562MB
-```
+[PRE29]
 
 此外，检查您的 Docker Hub 帐户，以验证是否构建了`hit_counter`图像。您将找不到`hit_counter`图像：
 
@@ -587,24 +486,11 @@ jenkinsci/blueocean     latest     e287a467e019
 
 1.  返回终端并重新运行`docker images`命令以列出镜像：
 
-```
-$ docker images
-```
+[PRE30]
 
 您将在`<your Docker Hub Username>/hit_count`中找到一张图片：
 
-```
-REPOSITORY             TAG             IMAGE ID
-  CREATED                      SIZE
-jenkinsci/blueocean    latest          e287a467e019
-  Less than a second ago       562MB
-engyfouda/hit_count    latest          65e2179392ca
-  5 minutes ago                227MB
-<none>                 <none>          cf4adcf1ac88
-  10 minutes ago               1.22MB
-python                 3.7alpine       6a5ca85ed89b
-  2 weeks ago                  72.5MB
-```
+[PRE31]
 
 1.  在浏览器中刷新 Docker Hub 页面。您会在顶部找到您的镜像；Jenkins 会自动为您推送它：![图 8.35：验证 Jenkins 是否已自动将镜像推送到您的 Docker Hub](img/B15021_08_35.jpg)
 

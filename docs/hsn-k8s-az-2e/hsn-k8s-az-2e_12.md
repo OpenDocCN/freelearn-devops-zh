@@ -40,23 +40,15 @@ Azure 有一个类似于 Apache Kafka 的服务，称为 Azure 事件中心。�
 
 1.  这个示例有很多资源需求。为了满足这些需求，将您的集群扩展到四个节点：
 
-```
-az aks nodepool scale --node-count 4 -g rg-handsonaks \
-  --cluster-name handsonaks --name agentpool
-```
+[PRE0]
 
 1.  这个示例的代码已经包含在本书的 GitHub 存储库中。您可以在`Chapter09`文件夹下的`social-network`文件夹中找到代码。导航到这个文件夹：
 
-```
-cd Chapter09/social-network
-```
+[PRE1]
 
 1.  要运行 Kafka，我们还需要运行**ZooKeeper**。ZooKeeper 是 Apache 基金会的另一个开源软件项目。它提供命名、配置管理、同步和分组服务的能力。我们将使用`bitnami`的 Kafka 和 ZooKeeper Helm 图表，因此让我们添加所需的 Helm 存储库：
 
-```
-helm repo add bitnami https://charts.bitnami.com
-helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.com
-```
+[PRE2]
 
 这将生成如*图 9.1*所示的输出：
 
@@ -66,12 +58,7 @@ helm repo add incubator https://kubernetes-charts-incubator.storage.googleapis.c
 
 1.  让我们更新依赖项以使依赖图表可用：
 
-```
-helm dep update deployment/helm/social-network
-helm dep update deployment/helm/friend-service
-helm dep update deployment/helm/user-service
-helm dep update deployment/helm/recommendation-service
-```
+[PRE3]
 
 这将显示类似于*图 9.2*的内容四次：
 
@@ -85,9 +72,7 @@ helm dep update deployment/helm/recommendation-service
 
 1.  接下来，为此应用程序创建一个新的`namespace`：
 
-```
-kubectl create namespace social-network
-```
+[PRE4]
 
 这将生成如下输出：
 
@@ -97,18 +82,11 @@ kubectl create namespace social-network
 
 1.  现在，继续部署应用程序：
 
-```
-helm install social-network --namespace social-network \
-  --set fullNameOverride=social-network \
-  --set edge-service.service.type=LoadBalancer \
-  deployment/helm/social-network
-```
+[PRE5]
 
 1.  使用以下命令检查部署中 Pod 的状态：
 
-```
-kubectl get pods -w -n social-network
-```
+[PRE6]
 
 正如您在*图 9.4*中所看到的，大约需要 5 分钟才能使所有的 Pod 都正常运行起来：
 
@@ -118,9 +96,7 @@ kubectl get pods -w -n social-network
 
 1.  应用程序成功部署后，您可以连接到边缘服务。要获取其 IP，请使用以下命令：
 
-```
-kubectl get service -n social-network
-```
+[PRE7]
 
 此命令将生成如下输出：
 
@@ -134,9 +110,7 @@ kubectl get service -n social-network
 
 1.  验证应用程序是否运行的第二个测试是实际生成一个小型社交网络。这将验证所有服务是否正常工作。您可以使用以下命令创建这个网络：
 
-```
-bash ./deployment/sbin/generate-serial.sh <external-ip>:9000
-```
+[PRE8]
 
 这个命令将生成大量输出。输出将以*图 9.7*中显示的元素开头：
 
@@ -150,15 +124,11 @@ bash ./deployment/sbin/generate-serial.sh <external-ip>:9000
 
 1.  最后，您可以连接到 Neo4j 数据库并可视化您创建的社交网络。要能够连接到 Neo4j，您需要首先将其公开为一个服务。使用社交网络文件夹中的`neo4j-service.yaml`文件来公开它：
 
-```
-kubectl create -f neo4j-service.yaml -n social-network
-```
+[PRE9]
 
 然后，获取服务的公共 IP 地址。这可能需要大约一分钟才能使用：
 
-```
-kubectl get service neo4j-service -n social-network 
-```
+[PRE10]
 
 上述命令将生成以下输出：
 
@@ -190,11 +160,7 @@ kubectl get service neo4j-service -n social-network
 
 在当前示例中，我们已经设置了端到端的应用程序，使用在我们的 Kubernetes 集群上运行的 Kafka 作为消息队列。在我们进入下一节之前，让我们删除该示例。要删除本地部署，请使用以下命令：
 
-```
-helm delete social-network -n social-network
-kubectl delete pvc -n social-network --all
-kubectl delete pv --all
-```
+[PRE11]
 
 在下一节中，我们将摆脱在集群中存储事件，并将它们存储在 Azure 事件中心。通过利用 Azure 事件中心上的本机 Kafka 支持，并切换到使用更适合生产的事件存储，我们将看到这个过程是简单的。
 
@@ -266,9 +232,7 @@ kubectl delete pv --all
 
 1.  修改`values.yaml`文件，以禁用集群中的 Kafka，并包括连接细节到您的事件中心：
 
-```
-code deployment/helm/social-network/values.yaml
-```
+[PRE12]
 
 确保更改以下值：
 
@@ -278,45 +242,7 @@ code deployment/helm/social-network/values.yaml
 
 **第 21、29 和 37 行**：将其更改为您的事件中心连接字符串：
 
-```
-1   nameOverride: social-network
-2   fullNameOverride: social-network
-3
-4   kafka:
-5     enabled: true
-6     nameOverride: kafka
-7     fullnameOverride: kafka
-8     persistence:
-9       enabled: false
-10    resources:
-11      requests:
-12        memory: 325Mi
-13   
-14   
-15  friend-service:
-16    fullnameOverride: friend-service
-17    kafka:
-18      enabled: true
-19    eventhub:
-20      name: <event hub name>
-21      connection: "<event hub connection string>"
-22   
-23  recommendation-service:
-24    fullnameOverride: recommendation-service
-25    kafka:
-26      enabled: true
-27    eventhub:
-28      name: <event hub name>
-29      connection: "<event hub connection string>"
-30
-31  user-service:
-32    fullnameOverride: user-service
-33    kafka:
-34      enabled: true
-35    eventhub:
-36      name: <event hub name>
-37      connection: "<event hub connection string>"
-```
+[PRE13]
 
 #### 注意
 
@@ -324,15 +250,11 @@ code deployment/helm/social-network/values.yaml
 
 1.  按照以下方式运行部署：
 
-```
-helm install social-network deployment/helm/social-network/ -n social-network --set edge-service.service.type=LoadBalancer
-```
+[PRE14]
 
 1.  等待所有的 Pod 启动。您可以使用以下命令验证所有的 Pod 是否已经启动并正在运行：
 
-```
-kubectl get pods -n social-network
-```
+[PRE15]
 
 这将生成以下输出：
 
@@ -346,15 +268,11 @@ kubectl get pods -n social-network
 
 1.  继续观察 Pod。当所有的 Pod 都已启动并正在运行时，获取边缘服务的外部 IP。您可以使用以下命令获取该 IP：
 
-```
-kubectl get svc -n social-network
-```
+[PRE16]
 
 1.  然后，运行以下命令验证实际社交网络的创建：
 
-```
-bash ./deployment/sbin/generate-serial.sh <external-ip>:9000
-```
+[PRE17]
 
 这将再次创建一个包含 15 个用户的社交网络，但现在将使用事件中心来发送所有与用户、好友和推荐相关的事件。
 
@@ -376,14 +294,7 @@ bash ./deployment/sbin/generate-serial.sh <external-ip>:9000
 
 让我们确保清理我们刚刚创建的部署，并将我们的集群缩减回去：
 
-```
-helm delete social-network -n social-network
-kubectl delete pvc -n social-network --all
-kubectl delete pv --all
-kubectl delete service neo4j-service -n social-network
-az aks nodepool scale --node-count 2 -g rg-handsonaks \
-  --cluster-name handsonaks --name agentpool
-```
+[PRE18]
 
 您还可以在 Azure 门户中删除事件中心。要删除事件中心，请转到事件中心的**概述**页面，并选择**删除**按钮，如*图 9.22*所示。系统会要求您重复事件中心的名称，以确保您不会意外删除它：
 

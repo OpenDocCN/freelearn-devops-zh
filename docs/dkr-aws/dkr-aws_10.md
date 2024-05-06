@@ -90,28 +90,7 @@ ECS 代理没有无法分配公共 IP 地址的限制，因为它使用在创建
 
 为了保持本示例简单，我们正在创建 todobackend 应用程序堆栈中的网络资源，但通常您会在单独的网络重点 CloudFormation 堆栈中创建网络子网和相关资源，如 NAT 网关。
 
-```
-...
-...
-Resources:
-  PrivateSubnet:
- Type: AWS::EC2::Subnet
- Properties:
- AvailabilityZone: !Sub ${AWS::Region}a
- CidrBlock: 172.31.96.0/20
- VpcId: !Ref VpcId
- PrivateRouteTable:
- Type: AWS::EC2::RouteTable
- Properties:
- VpcId: !Ref VpcId
- PrivateSubnetRouteTableAssociation:
- Type: AWS::EC2::SubnetRouteTableAssociation
- Properties:
- RouteTableId: !Ref PrivateRouteTable
- SubnetId: !Ref PrivateSubnet
-...
-...
-```
+[PRE0]
 
 创建私有子网和路由表
 
@@ -119,22 +98,7 @@ Resources:
 
 以下示例演示了使用 AWS CLI 来确定 VPC IP 范围并查看现有子网 CIDR 块：
 
-```
-> export AWS_PROFILE=docker-in-aws
-> aws ec2 describe-vpcs --query Vpcs[].CidrBlock
-[
-    "172.31.0.0/16"
-]
-> aws ec2 describe-subnets --query Subnets[].CidrBlock
-[
-    "172.31.16.0/20",
-    "172.31.80.0/20",
-    "172.31.48.0/20",
-    "172.31.64.0/20",
-    "172.31.32.0/20",
-    "172.31.0.0/20"
-]
-```
+[PRE1]
 
 查询 VPC 和子网 CIDR 块
 
@@ -148,25 +112,7 @@ NAT 网关需要一个弹性 IP 地址，这是出站流量经过 NAT 网关时�
 
 以下示例演示了配置 NAT 网关以及关联的弹性 IP 地址：
 
-```
-...
-...
-Resources:
- NatGateway:
- Type: AWS::EC2::NatGateway
- Properties:
- AllocationId: !Sub ${ElasticIP.AllocationId}
- SubnetId:
- Fn::Select:
- - 0
- - !Ref ApplicationSubnets
- ElasticIP:
- Type: AWS::EC2::EIP
- Properties:
- Domain: vpc
-...
-...
-```
+[PRE2]
 
 配置 NAT 网关
 
@@ -176,24 +122,7 @@ Resources:
 
 注意在指定`SubnetId`时使用了`Fn::Select`内在函数，重要的是要理解子网必须与将链接到 NAT 网关的子网和路由表资源位于相同的可用区。在我们的用例中，这是可用区 A，`ApplicationSubnets`输入包括两个子网 ID，分别位于可用区 A 和 B，因此您选择第一个从零开始的子网 ID。请注意，您可以使用以下示例中演示的`aws ec2 describe-subnets`命令来验证子网的可用区：
 
-```
-> cat dev.cfg
-ApplicationDesiredCount=1
-ApplicationImageId=ami-ec957491
-ApplicationImageTag=5fdbe62
-ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f VpcId=vpc-f8233a80
-> aws ec2 describe-subnets --query Subnets[].[AvailabilityZone,SubnetId] --output table
------------------------------------
-|         DescribeSubnets         |
-+-------------+-------------------+
-|  us-east-1a |  subnet-a5d3ecee  |
-|  us-east-1d |  subnet-c2abdded  |
-|  us-east-1f |  subnet-aae11aa5  |
-|  us-east-1e |  subnet-fd3a43c2  |
-|  us-east-1b |  subnet-324e246f  |
-|  us-east-1c |  subnet-d281a2b6  |
-+-------------+-------------------+
-```
+[PRE3]
 
 按可用区查询子网 ID
 
@@ -205,19 +134,7 @@ ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f VpcId=vpc-f8233a80
 
 以下示例演示了为您之前创建的私有路由表添加默认路由：
 
-```
-...
-...
-Resources:
- PrivateRouteTableDefaultRoute:
- Type: AWS::EC2::Route
- Properties:
- DestinationCidrBlock: 0.0.0.0/0
- RouteTableId: !Ref PrivateRouteTable
-      NatGatewayId: !Ref NatGateway
-...
-...
-```
+[PRE4]
 
 配置默认路由
 
@@ -225,76 +142,19 @@ Resources:
 
 现在您已经准备好部署您的更改，但在这之前，让我们在 todobackend-aws 存储库中创建一个名为**ecs-task-networking**的单独分支，这样您就可以在本章末尾轻松恢复您的更改：
 
-```
-> git checkout -b ecs-task-networking
-M stack.yml
-Switched to a new branch 'ecs-task-networking'
-> git commit -a -m "Add NAT gateway resources"
-[ecs-task-networking af06d37] Add NAT gateway resources
- 1 file changed, 33 insertions(+)
-```
+[PRE5]
 
 创建 ECS 任务网络分支
 
 现在，您可以使用您一直在本书中用于堆栈部署的熟悉的`aws cloudformation deploy`命令部署您的更改：
 
-```
-> export AWS_PROFILE=docker-in-aws > aws cloudformation deploy --template-file stack.yml \
- --stack-name todobackend --parameter-overrides $(cat dev.cfg) \ --capabilities CAPABILITY_NAMED_IAM Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga:
-
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - todobackend
-> aws ec2 describe-subnets --query "Subnets[?CidrBlock=='172.31.96.0/20'].SubnetId" ["subnet-3acd6370"]
-> aws ec2 describe-nat-gateways
-{
-    "NatGateways": [
-        {
-            "CreateTime": "2018-04-22T10:30:07.000Z",
-            "NatGatewayAddresses": [
-                {
-                    "AllocationId": "eipalloc-838abd8a",
-                    "NetworkInterfaceId": "eni-90d8f10c",
-                    "PrivateIp": "172.31.21.144",
- "PublicIp": "18.204.39.34"
-                }
-            ],
-            "NatGatewayId": "nat-084089330e75d23b3",
-            "State": "available",
-            "SubnetId": "subnet-a5d3ecee",
-            "VpcId": "vpc-f8233a80",
-...
-...
-```
+[PRE6]
 
 部署更改到 todobackend 应用程序
 
 在前面的示例中，成功部署 CloudFormation 更改后，您使用`aws ec2 describe-subnets`命令查询您创建的新子网的子网 ID，因为您稍后在本章中将需要这个值。您还运行`aws ec2 describe-nat-gateways`命令来验证 NAT 网关是否成功创建，并查看网关的弹性 IP 地址，该地址由突出显示的`PublicIP`属性表示。请注意，您还应检查默认路由是否正确创建，如以下示例所示：
 
-```
-> aws ec2 describe-route-tables \
- --query "RouteTables[].Routes[?DestinationCidrBlock=='0.0.0.0/0']"
-[
-    [
-        {
-            "DestinationCidrBlock": "0.0.0.0/0",
-            "NatGatewayId": "nat-084089330e75d23b3",
-            "Origin": "CreateRoute",
-            "State": "active"
-        }
-    ],
-    [
-        {
-            "DestinationCidrBlock": "0.0.0.0/0",
-            "GatewayId": "igw-1668666f",
-            "Origin": "CreateRoute",
-            "State": "active"
-        }
-    ]
-]
-...
-...
-```
+[PRE7]
 
 检查默认路由
 
@@ -322,34 +182,7 @@ Successfully created/updated stack - todobackend
 
 配置 ECS 任务定义以使用任务网络的第一步是配置您的 ECS 任务定义。以下示例演示了修改`ApplicationTaskDefinition`资源以支持 ECS 任务网络：
 
-```
-...
-...
-  ApplicationTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      Family: todobackend
- NetworkMode: awsvpc
-      TaskRoleArn: !Sub ${ApplicationTaskRole.Arn}
-      Volumes:
-        - Name: public
-      ContainerDefinitions:
-        - Name: todobackend
-          ...
-          ...
- PortMappings:
- - ContainerPort: 8000 
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Sub /${AWS::StackName}/ecs/todobackend
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: docker
-        - Name: collectstatic
-          Essential: false
-...
-...
-```
+[PRE8]
 
 配置 ECS 任务定义以使用任务网络
 
@@ -359,40 +192,7 @@ Successfully created/updated stack - todobackend
 
 将 ECS 任务定义配置为使用正确的任务网络模式后，接下来需要配置 ECS 服务。您的 ECS 服务配置定义了 ECS 应该创建 ENI 的目标子网，并且还定义了应该应用于 ENI 的安全组。以下示例演示了在 todobackend 堆栈中更新`ApplicationService`资源：
 
-```
-...
-...
-Resources:
-  ...
-  ...
-  ApplicationService:
-    Type: AWS::ECS::Service
-    DependsOn:
-      - ApplicationAutoscaling
-      - ApplicationLogGroup
-      - ApplicationLoadBalancerHttpListener
-      - MigrateTask
-    Properties:
-      TaskDefinition: !Ref ApplicationTaskDefinition
-      Cluster: !Ref ApplicationCluster
-      DesiredCount: !Ref ApplicationDesiredCount
-      NetworkConfiguration:
- AwsvpcConfiguration:
- SecurityGroups:
- - !Ref ApplicationSecurityGroup
- Subnets:
-            - !Ref PrivateSubnet
-      LoadBalancers:
-        - ContainerName: todobackend
-          ContainerPort: 8000
-          TargetGroupArn: !Ref ApplicationServiceTargetGroup
- # The Role property has been removed
-      DeploymentConfiguration:
-        MaximumPercent: 200
-        MinimumHealthyPercent: 100
-...
-...
-```
+[PRE9]
 
 配置 ECS 服务以使用任务网络
 
@@ -402,65 +202,9 @@ Resources:
 
 如果您回顾一下前面的例子，您会注意到您引用了一个名为`ApplicationSecurityGroup`的新安全组，需要将其添加到您的模板中，如下例所示：
 
-```
-...
-...
- ApplicationSecurityGroup:
-Type: AWS::EC2::SecurityGroup
- Properties:
- GroupDescription: !Sub ${AWS::StackName} Application Security Group
- VpcId: !Ref VpcId
- SecurityGroupEgress:
- - IpProtocol: udp
- FromPort: 53
- ToPort: 53
- CidrIp: 0.0.0.0/0
- - IpProtocol: tcp
- FromPort: 443
- ToPort: 443
- CidrIp: 0.0.0.0/0
-  ...
-  ...
-  ApplicationLoadBalancerToApplicationIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      IpProtocol: tcp
- FromPort: 8000
- ToPort: 8000
- GroupId: !Ref ApplicationSecurityGroup
-      SourceSecurityGroupId: !Ref ApplicationLoadBalancerSecurityGroup
-  ApplicationLoadBalancerToApplicationEgress:
-    Type: AWS::EC2::SecurityGroupEgress
-    Properties:
-      IpProtocol: tcp
- FromPort: 8000
- ToPort: 8000
-      GroupId: !Ref ApplicationLoadBalancerSecurityGroup
- DestinationSecurityGroupId: !Ref ApplicationSecurityGroup
-  ...
-  ...
-  ApplicationToApplicationDatabaseIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      IpProtocol: tcp
-      FromPort: 3306
-      ToPort: 3306
-      GroupId: !Ref ApplicationDatabaseSecurityGroup
- SourceSecurityGroupId: !Ref ApplicationSecurityGroup
-  ApplicationToApplicationDatabaseEgress:
-    Type: AWS::EC2::SecurityGroupEgress
-    Properties:
-      IpProtocol: tcp
-      FromPort: 3306
-      ToPort: 3306
-```
+[PRE10]
 
-```
-GroupId: !Ref ApplicationSecurityGroup
-      DestinationSecurityGroupId: !Ref ApplicationDatabaseSecurityGroup
-...
-...
-```
+[PRE11]
 
 为任务网络配置安全组
 
@@ -470,23 +214,7 @@ GroupId: !Ref ApplicationSecurityGroup
 
 最后，您需要对模板进行最后一次更改，即修改与 ECS 服务关联的应用程序负载均衡器目标组。当您的 ECS 服务运行在`awsvpc`网络模式下的任务时，您必须将目标组类型从默认值`instance`更改为`ip`的值，如下例所示，因为您的 ECS 任务现在具有自己独特的 IP 地址：
 
-```
-Resources:
- ...
- ...
- ApplicationServiceTargetGroup:
-     Type: AWS::ElasticLoadBalancingV2::TargetGroup
-     Properties:
-       Protocol: HTTP
-       Port: 8000
-       VpcId: !Ref VpcId
-       TargetType: ip
-       TargetGroupAttributes:
-         - Key: deregistration_delay.timeout_seconds
-           Value: 30
- ...
- ...
-```
+[PRE12]
 
 更新应用程序负载均衡器目标组目标类型
 
@@ -508,19 +236,7 @@ Resources:
 
 在这一点上，您应该将在本章中进行的最终一组更改提交到 ECS 任务网络分支，检出主分支，并重新部署您的 CloudFormation 堆栈。这将撤消本章中所做的所有更改，将您的堆栈恢复到上一章末尾时的相同状态。这是必需的，因为我们不希望不得不升级到更大的实例类型来适应`MigrateTaskDefinition`资源和我们将在后续章节中测试的未来自动扩展方案：
 
-```
-> git commit -a -m "Add ECS task networking resources"
- [ecs-task-networking 7e995cb] Add ECS task networking resources
- 2 files changed, 37 insertions(+), 10 deletions(-)
-> git checkout master
-Switched to branch 'master'
-> aws cloudformation deploy --template-file stack.yml --stack-name todobackend \
- --parameter-overrides $(cat dev.cfg) --capabilities CAPABILITY_NAMED_IAM
-
-Waiting for changeset to be created..
-Waiting for stack create/update to complete
-Successfully created/updated stack - todobackend
-```
+[PRE13]
 
 还原 todobackend-aws 存储库
 

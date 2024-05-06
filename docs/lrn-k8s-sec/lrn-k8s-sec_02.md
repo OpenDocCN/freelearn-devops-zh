@@ -210,25 +210,7 @@ Kubedex（[`kubedex.com/google-gke-vs-microsoft-aks-vs-amazon-eks/`](https://kub
 
 **Kubernetes 操作**（**kops**）有助于通过命令行创建、销毁、升级和维护高可用的生产级 Kubernetes 集群。它正式支持 AWS，并在 beta 版本中支持 GCE 和 OpenStack。与在云 Kubernetes 服务上提供 Kubernetes 集群的主要区别在于，提供是从 VM 层开始的。这意味着使用`kops`可以控制您想要使用的操作系统映像，并设置自己的管理员 SSH 密钥以访问主节点和工作节点。在 AWS 中创建 Kubernetes 集群的示例如下：
 
-```
-  # Create a cluster in AWS that has HA masters. This cluster
-  # will be setup with an internal networking in a private VPC.
-  # A bastion instance will be setup to provide instance access.
-  export NODE_SIZE=${NODE_SIZE:-m4.large}
-  export MASTER_SIZE=${MASTER_SIZE:-m4.large}
-  export ZONES=${ZONES:-'us-east-1d,us-east-1b,us-east-1c'}
-  export KOPS_STATE_STORE='s3://my-state-store'
-  kops create cluster k8s-clusters.example.com \
-  --node-count 3 \
-  --zones $ZONES \
-  --node-size $NODE_SIZE \
-  --master-size $MASTER_SIZE \
-  --master-zones $ZONES \
-  --networking weave \
-  --topology private \
-  --bastion='true' \
-  --yes
-```
+[PRE0]
 
 通过前面的`kops`命令，创建了一个包含三个工作节点的 Kubernetes 集群。用户可以选择主节点和 CNI 插件的大小。
 

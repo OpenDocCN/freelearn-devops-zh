@@ -44,48 +44,23 @@
 
 +   由于我们将使用 Flask 的 GitHub 存储库中的示例代码，让我们克隆它：
 
-```
-**$ git clone https://github.com/mitsuhiko/flask**
-
-```
+[PRE0]
 
 +   创建一个名为`Dockerfile_2.7`的文件，然后从中构建一个图像：
 
-```
-**$ cat /tmp/ Dockerfile_2.7**
-**FROM python:2.7** 
-**RUN pip install flask** 
-**RUN pip install pytest** 
-**WORKDIR /test** 
-**CMD ["/usr/local/bin/py.test"]** 
-
-```
+[PRE1]
 
 +   要构建`python2.7test`图像，请运行以下命令：
 
-```
-**$ docker build -t python2.7test - < /tmp/Dockerfile_2.7**
-
-```
+[PRE2]
 
 +   类似地，创建一个以`python:3.3`为基础图像的 Dockerfile，并构建`python3.3test`图像：
 
-```
-**$ cat /tmp/Dockerfile_3.3**
-**FROM python:3.3** 
-**RUN pip install flask** 
-**RUN pip install pytest** 
-**WORKDIR /test** 
-**CMD ["/usr/local/bin/py.test"]** 
-
-```
+[PRE3]
 
 +   要构建图像，请运行以下命令：
 
-```
-**$ docker build -t python3.3test  - < /tmp/Dockerfile_3.3**
-
-```
+[PRE4]
 
 确保两个图像都已创建。
 
@@ -97,33 +72,21 @@
 
 1.  转到包含 Flask 示例的目录：
 
-```
-**$ cd /tmp/flask/examples/**
-
-```
+[PRE5]
 
 1.  启动一个带有`python2.7`测试镜像并在`/test`下挂载`blueprintexample`的容器：
 
-```
-**$ docker run -d -v `pwd`/blueprintexample:/test python2.7test**
-
-```
+[PRE6]
 
 ![操作方法...](img/image00348.jpeg)
 
 1.  类似地，要使用 Python 3.3 进行测试，请运行以下命令：
 
-```
- **$ docker run -d -v `pwd`/blueprintexample:/test python3.3test** 
-
-```
+[PRE7]
 
 1.  在启用 SELinux 的 Fedora/RHEL/CentOS 上运行上述测试时，您将收到“权限被拒绝”的错误。要解决此问题，请在容器内挂载主机目录时重新标记主机目录，如下所示：
 
-```
-**$ docker run -d -v `pwd`/blueprintexample:/test:z python2.7test** 
-
-```
+[PRE8]
 
 ### 注意
 
@@ -181,62 +144,29 @@ Red Hat 的 OpenShift 是一个用于托管应用程序的 PaaS 平台。目前�
 
 1.  在本地系统上克隆分叉存储库：
 
-```
-**$ git clone git@github.com:nkhare/flask-example.git**
-
-```
+[PRE9]
 
 1.  让我们使用之前使用过的相同蓝图示例。要这样做，请按照以下说明进行操作：
 
 1.  克隆 flask 存储库：
 
-```
-**$ git clone https://github.com/mitsuhiko/flask.git**
-
-```
+[PRE10]
 
 1.  复制蓝图示例：
 
-```
-**$ cp -Rv flask/examples/blueprintexample/* flask-example/wsgi/**
-
-```
+[PRE11]
 
 1.  更新`flask-example/wsgi/application`文件，从`blueprintexample`模块导入`app`模块。因此，`flask-example/wsgi/application`文件中的最后一行看起来像下面这样：
 
-```
-from blueprintexample import app as application
-```
+[PRE12]
 
 1.  在 flask-example 存储库的顶层添加带有以下内容的`requirements.txt`文件：
 
-```
-flask 
-pytest
-```
+[PRE13]
 
 1.  添加带有以下内容的`shippable.yml`文件：
 
-```
-language: python 
-
-python: 
-  - 2.6 
-  - 2.7 
-
-install: 
-  - pip install -r requirements.txt 
-
-# Make folders for the reports 
-before_script: 
-  - mkdir -p shippable/testresults 
-  - mkdir -p shippable/codecoverage 
-
-script: 
-  - py.test 
-
-archive: true 
-```
+[PRE14]
 
 1.  提交代码并将其推送到您的分叉存储库中。
 
@@ -260,35 +190,7 @@ archive: true
 
 1.  安装部署密钥后，更新`shippable.yml`文件如下：
 
-```
-env: 
-  global: 
-    - **OPENSHIFT_REPO**=ssh://545ea4964382ec337f000009@blueprint-neependra.rhcloud.com/~/git/blueprint.git 
-
-language: python 
-
-python: 
-  - 2.6 
-  - 2.7 
-
-install: 
-  - pip install -r requirements.txt 
-
-# Make folders for the reports 
-before_script: 
-  - mkdir -p shippable/testresults 
-  - mkdir -p shippable/codecoverage 
-  - git remote -v | grep ^openshift || git remote add openshift $OPENSHIFT_REPO 
-  - cd wsgi 
-
-script: 
-  - py.test 
-
-after_success: 
-  - git push -f openshift $BRANCH:master 
-
-archive: true 
-```
+[PRE15]
 
 `OPENSHIFT_REPO`应该反映您使用 OpenShift 部署的应用程序。它将与此示例中显示的内容不同。
 
@@ -324,12 +226,7 @@ archive: true
 
 1.  然后它会提示您设置构建脚本。对于这个教程，我们将输入以下内容并保存：
 
-```
-**pip install -r requirements.txt --use-mirrors**
-**cd wsgi**
-**py.test**
-
-```
+[PRE16]
 
 ## 操作步骤如下…
 
@@ -373,82 +270,47 @@ Kubernetes 提供了容器集群管理的功能，如调度 pod 和服务发现�
 
 1.  克隆 OpenShift Origin 存储库：
 
-```
-**$ git clone https://github.com/openshift/origin.git**
-
-```
+[PRE17]
 
 1.  检出`v0.4.3`标签：
 
-```
-**$ cd origin**
-**$ git checkout tags/v0.4.3**
-
-```
+[PRE18]
 
 1.  启动虚拟机：
 
-```
-**$ vagrant up --provider=virtualbox**
-
-```
+[PRE19]
 
 1.  登录到容器：
 
-```
-**$ vagrant ssh**
-
-```
+[PRE20]
 
 ## 如何做...
 
 1.  构建 OpenShift 二进制文件：
 
-```
-**$ cd /data/src/github.com/openshift/origin** 
-**$ make clean build**
-
-```
+[PRE21]
 
 1.  转到`hello-openshift`示例：
 
-```
-**$  cd /data/src/github.com/openshift/origin/examples/hello-openshift**
-
-```
+[PRE22]
 
 1.  在一个守护进程中启动所有 OpenShift 服务：
 
-```
-**$ mkdir logs**
-**$ sudo /data/src/github.com/openshift/origin/_output/local/go/bin/openshift start --public-master=localhost &> logs/openshift.log &** 
-
-```
+[PRE23]
 
 1.  OpenShift 服务由 TLS 保护。我们的客户端需要接受服务器证书并呈现自己的客户端证书。这些证书是作为 Openshift 启动的一部分在当前工作目录中生成的。
 
-```
-**$ export OPENSHIFTCONFIG=`pwd`/openshift.local.certificates/admin/.kubeconfig** 
-**$ export CURL_CA_BUNDLE=`pwd`/openshift.local.certificates/ca/cert.crt** 
-**$ sudo chmod a+rwX "$OPENSHIFTCONFIG"**
-
-```
+[PRE24]
 
 1.  根据`hello-pod.json`定义创建 pod：
 
-```
-**$ osc create -f hello-pod.json** 
-
-```
+[PRE25]
 
 ![如何做...](img/image00359.jpeg)
 
 1.  连接到 pod：
 
-```
-**$ curl localhost:6061**
-
-```
+[PRE26]
 
 ## 它是如何工作的...
 
@@ -500,62 +362,37 @@ OpenShift v3 提供了从源代码构建镜像的构建过程。以下是可以�
 
 1.  部署一个私有的 Docker 注册表来托管 STI 构建过程中创建的镜像：
 
-```
-**$ sudo openshift ex registry --create --credentials=./openshift.local.certificates/openshift-registry/.kubeconfig** 
-
-```
+[PRE27]
 
 1.  确认注册表已启动（这可能需要几分钟）：
 
-```
-**$ osc describe service docker-registry** 
-
-```
+[PRE28]
 
 ![如何操作...](img/image00360.jpeg)
 
 1.  在 OpenShift 中创建一个新项目。这将创建一个命名空间`test`来包含构建和稍后我们将生成的应用程序：
 
-```
-**$ openshift ex new-project test --display-name="OpenShift 3 Sample" --description="This is an example project to demonstrate OpenShift v3" --admin=test-admin** 
-
-```
+[PRE29]
 
 1.  使用`test-admin`用户登录并切换到`test`项目，从现在开始每个命令都将使用该项目：
 
-```
-**$ osc login -u test-admin -p pass** 
-**$ osc project test** 
-
-```
+[PRE30]
 
 1.  提交应用程序模板进行处理（生成模板中请求的共享参数），然后请求创建处理后的模板：
 
-```
-**$ osc process -f application-template-stibuild.json | osc create -f -** 
-
-```
+[PRE31]
 
 1.  这不会触发构建。要启动应用程序的构建，请运行以下命令：
 
-```
-**$ osc start-build ruby-sample-build** 
-
-```
+[PRE32]
 
 1.  监视构建并等待状态变为`complete`（这可能需要几分钟）：
 
-```
-**$ osc get builds** 
-
-```
+[PRE33]
 
 1.  获取服务列表：
 
-```
-**$ osc get services** 
-
-```
+[PRE34]
 
 ![如何做...](img/image00361.jpeg)
 
@@ -573,10 +410,7 @@ OpenShift v3 提供了一个 HAProxy 路由器，可以将 FQDN 映射到相应�
 
 +   OpenShift v3 Origin 也是一个管理 GUI。要在 GUI 上查看我们部署的应用程序，请将用户名`test-admin`绑定到默认命名空间中的查看角色，以便您可以在 Web 控制台中观察进展：
 
-```
-**$ openshift ex policy add-role-to-user view test-admin**
-
-```
+[PRE35]
 
 然后，通过浏览器，连接到`https://<host>:8443/console`，并通过`test-admin`用户登录，输入任何密码。由于 Vagrant 将主机机器上端口`8443`的流量转发到 VM，您应该能够通过运行 VM 的主机连接。然后选择**OpenShift 3 Sample**作为项目并进行探索。
 
@@ -612,86 +446,49 @@ DevStack（[`docs.openstack.org/developer/devstack/overview.html`](http://docs.o
 
 1.  克隆`nova-docker`和`devstack`：
 
-```
-**$ git clone https://git.openstack.org/stackforge/nova-docker /opt/stack/nova-docker** 
-**$ git clone https://git.openstack.org/openstack-dev/devstack /opt/stack/devstack** 
-
-```
+[PRE36]
 
 1.  在我们可以使用`configure_nova_hypervisor_rootwrap`之前需要以下步骤：
 
-```
-**$ git clone https://git.openstack.org/openstack/nova /opt/stack/nova**
-
-```
+[PRE37]
 
 1.  准备安装 Devstack：
 
-```
-**$ cd /opt/stack/nova-docker** 
-**$ ./contrib/devstack/prepare_devstack.sh**
-
-```
+[PRE38]
 
 1.  创建 stack 用户并将其添加到`sudo`：
 
-```
-**$ /opt/stack/devstack/tools/create-stack-user.sh**
-
-```
+[PRE39]
 
 1.  使用 Python 安装`docker-py`以与 docker 进行通信：
 
-```
-**$ yum install python-pip**
-**$ pip install docker-py**
-
-```
+[PRE40]
 
 ## 如何做…
 
 1.  完成先决条件步骤后，运行以下命令安装 Devstack：
 
-```
-**$ cd /opt/stack/devstack** 
-**$ ./stack.sh**
-
-```
+[PRE41]
 
 ## 它是如何工作的...
 
 +   `prepare_devstack.sh`驱动程序在`localrc`文件中进行以下条目的设置，以设置 Nova 驱动程序的正确环境：
 
-```
-export VIRT_DRIVER=docker 
-export DEFAULT_IMAGE_NAME=cirros 
-export NON_STANDARD_REQS=1 
-export IMAGE_URLS=" " 
-```
+[PRE42]
 
 +   运行`stackrc`文件后，我们可以看到关于 Nova 和 Glance 的以下更改：
 
 +   `/etc/nova/nova.conf`文件更改了计算驱动程序：
 
-```
- [DEFAULT] 
- compute_driver = novadocker.virt.docker.DockerDriver 
-```
+[PRE43]
 
 +   `/etc/nova/rootwrap.d/docker.filters`文件更新为以下内容：
 
-```
-[Filters] 
-# nova/virt/docker/driver.py: 'ln', '-sf', '/var/run/netns/.*' 
-ln: CommandFilter, /bin/ln, root 
-```
+[PRE44]
 
 +   在`/etc/glance/glance-api.conf`中，在容器/镜像格式中添加`docker`：
 
-```
-[DEFAULT] 
-container_formats = ami,ari,aki,bare,ovf,docker 
-```
+[PRE45]
 
 ## 还有更多...
 
@@ -709,19 +506,11 @@ container_formats = ami,ari,aki,bare,ovf,docker
 
 +   从 Docker Hub 拉取所需的镜像：
 
-```
-**$ docker pull fedora** 
-
-```
+[PRE46]
 
 +   导入镜像（目前只有管理员可以导入镜像）：
 
-```
-**$ source openrc** 
-**$ export OS_USERNAME=admin** 
-**$ sudo docker save fedora | glance image-create --is-public=True --container-format=docker --disk-format=raw --name fedora** 
-
-```
+[PRE47]
 
 ![更多内容...](img/image00366.jpeg)
 
@@ -729,11 +518,7 @@ container_formats = ami,ari,aki,bare,ovf,docker
 
 +   在安装过程中，如果出现`AttributeError: 'module' object has no attribute 'PY2'`错误，则运行以下命令进行修复：
 
-```
-**$ pip uninstall  six** 
-**$ pip install --upgrade   six** 
-
-```
+[PRE48]
 
 ## 另请参阅
 

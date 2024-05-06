@@ -50,89 +50,41 @@
 
 1.  创建一个名为`node`的新文件夹并导航到它：
 
-```
-$ mkdir node && cd node
-```
+[PRE0]
 
 1.  在这个文件夹中运行`npm init`，并接受除了**入口点**之外的所有默认值，将其从默认的`index.js`更改为`server.js`。
 
 1.  我们需要使用以下命令将`express`添加到我们的项目中：
 
-```
-$ npm install --save express
-```
+[PRE1]
 
 1.  现在我们需要使用以下命令为 Node Express 安装 Prometheus 适配器：
 
-```
-$ npm install --save prom-client 
-```
+[PRE2]
 
 1.  在文件夹中添加一个名为`server.js`的文件，并包含以下内容：
 
-```
-const app = require("express")();
-
-app.get('/hello', (req, res) => {
-  const { name = 'World' } = req.query;
-  res.json({ message: `Hello, ${name}!` });
-});
-
-app.listen(port=3000, () => {
-  console.log(`Example api is listening on http://localhost:3000`);
-}); 
-```
+[PRE3]
 
 这是一个非常简单的 Node Express 应用程序，只有一个端点：`/hello`。
 
 1.  在上述代码中，添加以下片段以初始化 Prometheus 客户端：
 
-```
-const client = require("prom-client");
-const register = client.register;
-const collectDefaultMetrics = client.collectDefaultMetrics;
-collectDefaultMetrics({ register });
-```
+[PRE4]
 
 1.  接下来，添加一个端点来暴露指标：
 
-```
-app.get('/metrics', (req, res) => {
-  res.set('Content-Type', register.contentType);
-  res.end(register.metrics());
-});
-```
+[PRE5]
 
 1.  现在让我们运行这个示例微服务：
 
-```
-$ npm start
-
-> node@1.0.0 start C:\Users\Gabriel\fod\ch17\node
-> node server.js
-
-Example api is listening on http://localhost:3000
-```
+[PRE6]
 
 我们可以在前面的输出中看到，服务正在端口`3000`上监听。
 
 1.  现在让我们尝试访问在代码中定义的`/metrics`端点上的指标：
 
-```
-$ curl localhost:3000/metrics
-...
-process_cpu_user_seconds_total 0.016 1577633206532
-
-# HELP process_cpu_system_seconds_total Total system CPU time spent in seconds.
-# TYPE process_cpu_system_seconds_total counter
-process_cpu_system_seconds_total 0.015 1577633206532
-
-# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
-# TYPE process_cpu_seconds_total counter
-process_cpu_seconds_total 0.031 1577633206532
-...
-nodejs_version_info{version="v10.15.3",major="10",minor="15",patch="3"} 1
-```
+[PRE7]
 
 我们得到的输出是一个相当长的指标列表，可以被 Prometheus 服务器消费。
 
@@ -142,41 +94,21 @@ nodejs_version_info{version="v10.15.3",major="10",minor="15",patch="3"} 1
 
 1.  将以下代码片段添加到`server.js`中，以定义名为`my_hello_counter`的自定义计数器：
 
-```
-const helloCounter = new client.Counter({ 
-  name: 'my_hello_counter', 
-  help: 'Counts the number of hello requests',
-});
-```
+[PRE8]
 
 1.  在现有的`/hello`端点中，添加代码以增加计数器：
 
-```
-app.get('/hello', (req, res) => {
-  helloCounter.inc();
-  const { name = 'World' } = req.query;
-  res.json({ message: `Hello, ${name}!` });
-});
-```
+[PRE9]
 
 1.  使用`npm start`重新运行应用程序。
 
 1.  为了测试新的计数器，让我们两次访问我们的`/hello`端点：
 
-```
-$ curl localhost:3000/hello?name=Sue
-```
+[PRE10]
 
 1.  当访问`/metrics`端点时，我们将获得以下输出：
 
-```
-$ curl localhost:3000/metrics
-
-...
-# HELP my_hello_counter Counts the number of hello requests 
-# TYPE my_hello_counter counter
-my_hello_counter 2
-```
+[PRE11]
 
 我们在代码中定义的计数器显然有效，并且输出了我们添加的`HELP`文本。
 
@@ -188,83 +120,39 @@ my_hello_counter 2
 
 1.  创建一个新的`dotnet`文件夹，并导航到其中：
 
-```
-$ mkdir dotnet && cd dotnet
-```
+[PRE12]
 
 1.  使用`dotnet`工具来创建一个名为`sample-api`的新微服务：
 
-```
-$ dotnet new webapi --output sample-api
-```
+[PRE13]
 
 1.  我们将使用.NET 的 Prometheus 适配器，该适配器作为名为`prometheus-net.AspNetCore`的 NuGet 软件包提供给我们。使用以下命令将此软件包添加到`sample-api`项目中：
 
-```
-$ dotnet add sample-api package prometheus-net.AspNetCore
-```
+[PRE14]
 
 1.  在您喜欢的代码编辑器中打开项目；例如，当使用 VS Code 时，执行以下操作：
 
-```
-$ code .
-```
+[PRE15]
 
 1.  找到`Startup.cs`文件，并打开它。在文件开头添加一个`using`语句：
 
-```
-using Prometheus; 
-```
+[PRE16]
 
 1.  然后在`Configure`方法中，将`endpoints.MapMetrics()`语句添加到端点的映射中。您的代码应如下所示：
 
-```
-public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-{
-    ...
-    app.UseEndpoints(endpoints =>
-    {
-        endpoints.MapControllers();
-        endpoints.MapMetrics();
-    });
-}
-```
+[PRE17]
 
 请注意，以上内容适用于.NET Core 3.x 版本。如果您使用的是早期版本，则配置略有不同。请查阅以下存储库以获取更多详细信息，网址为[`github.com/prometheus-net/prometheus-net.`](https://github.com/prometheus-net/prometheus-net)
 
 1.  有了这个，Prometheus 组件将开始发布 ASP.NET Core 的请求指标。让我们试试。首先，使用以下命令启动应用程序：
 
-```
-$ dotnet run --project sample-api
-
-info: Microsoft.Hosting.Lifetime[0]
- Now listening on: https://localhost:5001 
-info: Microsoft.Hosting.Lifetime[0]
- Now listening on: http://localhost:5000 
-...
-```
+[PRE18]
 
 上述输出告诉我们微服务正在`https://localhost:5001`上监听。
 
 1.  现在我们可以使用`curl`调用服务的指标端点：
 
-```
-$ curl --insecure https://localhost:5001/metrics 
-
-# HELP process_private_memory_bytes Process private memory size
-# TYPE process_private_memory_bytes gauge
-process_private_memory_bytes 55619584
-# HELP process_virtual_memory_bytes Virtual memory size in bytes. 
-# TYPE process_virtual_memory_bytes gauge
-process_virtual_memory_bytes 2221930053632
-# HELP process_working_set_bytes Process working set
-# TYPE process_working_set_bytes gauge
-process_working_set_bytes 105537536
-...
-dotnet_collection_count_total{generation="1"} 0
-dotnet_collection_count_total{generation="0"} 0
-dotnet_collection_count_total{generation="2"} 0
-```
+[PRE19]
 
 我们得到的是我们微服务的系统指标列表。这很容易：我们只需要添加一个 NuGet 软件包和一行代码就可以让我们的服务被仪表化！
 
@@ -276,43 +164,21 @@ dotnet_collection_count_total{generation="2"} 0
 
 1.  在`WeatherForecastController`类中定义一个`Gauge`类型的私有实例变量：
 
-```
-private static readonly Gauge weatherForecastsInProgress = Metrics
-    .CreateGauge("myapp_weather_forecasts_in_progress", 
-                 "Number of weather forecast operations ongoing.");
-```
+[PRE20]
 
 1.  使用`using`语句包装`Get`方法的逻辑：
 
-```
-[HttpGet]
-public IEnumerable<WeatherForecast> Get()
-{
-    using(weatherForecastsInProgress.TrackInProgress())
- {
-...
- }
-}
-```
+[PRE21]
 
 1.  重新启动微服务。
 
 1.  使用`curl`调用`/weatherforecast`端点几次：
 
-```
-$ curl --insecure https://localhost:5001/weatherforecast
-```
+[PRE22]
 
 1.  使用`curl`获取指标，就像本节前面所述的那样：
 
-```
-$ curl --insecure https://localhost:5001/metrics 
-
-# HELP myapp_weather_forecasts_in_progress Number of weather forecast operations ongoing.
-# TYPE myapp_weather_forecasts_in_progress gauge
-myapp_weather_forecasts_in_progress 0
-...
-```
+[PRE23]
 
 您会注意到现在列表中有一个名为`myapp_weather_forecasts_in_progress`的新指标。它的值将为零，因为目前您没有针对被跟踪端点运行任何请求，而`gauge`类型指标只测量正在进行的请求的数量。
 
@@ -346,48 +212,13 @@ myapp_weather_forecasts_in_progress 0
 
 1.  创建一个`ch17/kube`文件夹，并导航到其中：
 
-```
-$ mkdir -p ~/fod/ch17/kube && cd ~/fod/ch17/kube
-```
+[PRE24]
 
 1.  在此文件夹中添加一个名为`prometheus.yaml`的文件。
 
 1.  将以下代码片段添加到此文件中；它为 Prometheus 定义了`Deployment`：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: prometheus-deployment
-  labels:
-    app: prometheus
-    purpose: monitoring-demo
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: prometheus
-      purpose: monitoring-demo
-  template:
-    metadata:
-      labels:
-        app: prometheus
-        purpose: monitoring-demo
-    spec:
-      containers:
-      - name: prometheus
-        image: prom/prometheus
-        volumeMounts:
-          - name: config-volume
-            mountPath: /etc/prometheus/prometheus.yml
-            subPath: prometheus.yml
-        ports:
-        - containerPort: 9090
-      volumes:
-        - name: config-volume
-          configMap:
-           name: prometheus-cm
-```
+[PRE25]
 
 我们正在定义一个包含两个 Prometheus 实例的副本集。每个实例被分配两个标签：`app: prometheus`和`purpose: monitoring-demo`，用于识别目的。有趣的部分在于容器规范的`volumeMounts`。在那里，我们将一个名为`prometheus-cm`的 Kubernetes `ConfigMap`对象，其中包含 Prometheus 配置，挂载到容器中，以便 Prometheus 可以在其中找到其配置文件。`ConfigMap`类型的卷在上述代码片段的最后四行中定义。
 
@@ -395,23 +226,7 @@ spec:
 
 1.  现在让我们为 Prometheus 定义 Kubernetes 服务。将此代码片段附加到文件中：
 
-```
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: prometheus-svc
-spec:
-  type: NodePort
-  selector:
-    app: prometheus
-    purpose: monitoring-demo
-  ports:
-  - name: promui
-    protocol: TCP
-    port: 9090
-    targetPort: 9090
-```
+[PRE26]
 
 请注意，代码片段开头的三个破折号(`---`)是必需的，用于在我们的 YAML 文件中分隔单个对象定义。
 
@@ -419,31 +234,11 @@ spec:
 
 1.  现在我们可以为 Prometheus 定义一个简单的配置文件。这个文件基本上指示 Prometheus 服务器从哪些服务中抓取指标以及多久抓取一次。首先，创建一个`ch17/kube/config`文件夹：
 
-```
-$ mkdir -p ~/fod/ch17/kube/config
-```
+[PRE27]
 
 1.  请在最后一个文件夹中添加一个名为`prometheus.yml`的文件，并将以下内容添加到其中：
 
-```
-scrape_configs:
-    - job_name: 'prometheus'
-      scrape_interval: 5s
-      static_configs:
-        - targets: ['localhost:9090']
-
-    - job_name: dotnet
-      scrape_interval: 5s
-      static_configs:
-        - targets: ['dotnet-api-svc:5000']
-
-    - job_name: node
-      scrape_interval: 5s
-      static_configs:
-        - targets: ['node-api-svc:3000']
-          labels:
-            group: 'production'
-```
+[PRE28]
 
 在前面的文件中，我们为 Prometheus 定义了三个作业：
 
@@ -455,37 +250,15 @@ scrape_configs:
 
 1.  现在我们可以在我们的 Kubernetes 集群中定义`ConfigMap`对象，使用下一个命令。在`ch17/kube`文件夹中执行以下命令：
 
-```
-$ kubectl create configmap prometheus-cm \
- --from-file config/prometheus.yml
-```
+[PRE29]
 
 1.  现在我们可以使用以下命令将 Prometheus 部署到我们的 Kubernetes 服务器：
 
-```
-$ kubectl apply -f prometheus.yaml deployment.apps/prometheus-deployment created
-service/prometheus-svc created
-```
+[PRE30]
 
 1.  让我们再次确认部署成功：
 
-```
-$ kubectl get all
-
-NAME                                        READY  STATUS   RESTARTS  AGE
-pod/prometheus-deployment-779677977f-727hb  1/1    Running  0         24s
-pod/prometheus-deployment-779677977f-f5l7k  1/1    Running  0         24s
-
-NAME                    TYPE       CLUSTER-IP      EXTERNAL-IP  PORT(S)         AGE
-service/kubernetes      ClusterIP  10.96.0.1       <none>       443/TCP         28d
-service/prometheus-svc  NodePort   10.110.239.245  <none>       9090:31962/TCP  24s
-
-NAME                                   READY  UP-TO-DATE  AVAILABLE  AGE
-deployment.apps/prometheus-deployment  2/2    2           2          24s
-
-NAME                                              DESIRED  CURRENT  READY  AGE
-replicaset.apps/prometheus-deployment-779677977f  2        2        2      24s
-```
+[PRE31]
 
 密切关注 pod 的列表，并确保它们都正常运行。还请注意`prometheus-svc`对象的端口映射。在我的情况下，`9090`端口映射到`31962`主机端口。在你的情况下，后者可能不同，但也会在`3xxxx`范围内。
 
@@ -517,78 +290,37 @@ Prometheus web UI 显示可用的指标
 
 1.  修改`CreateHostBuilder`方法，使其看起来像这样：
 
-```
-Host.CreateDefaultBuilder(args)
-    .ConfigureWebHostDefaults(webBuilder =>
-    {
-        webBuilder.UseStartup<Startup>();
-        webBuilder.UseUrls("http://*:5000");
-    });
-```
+[PRE32]
 
 1.  在`ch17/dotnet/sample-api`项目文件夹中添加以下内容的`Dockerfile`：
 
-```
-FROM mcr.microsoft.com/dotnet/core/aspnet:3.1 AS base
-WORKDIR /app
-EXPOSE 5000
-
-FROM mcr.microsoft.com/dotnet/core/sdk:3.1 AS builder
-WORKDIR /src
-COPY sample-api.csproj ./
-RUN dotnet restore
-COPY . .
-RUN dotnet build -c Release -o /src/build
-
-FROM builder AS publisher
-RUN dotnet publish -c Release -o /src/publish
-
-FROM base AS final
-COPY --from=publisher /src/publish .
-ENTRYPOINT ["dotnet", "sample-api.dll"]
-```
+[PRE33]
 
 1.  在`dotnet/sample-api`项目文件夹中使用以下命令创建一个 Docker 镜像：
 
-```
-$ docker image build -t fundamentalsofdocker/ch17-dotnet-api:2.0 .
-```
+[PRE34]
 
 注意，您可能需要在前后命令中用您自己的 Docker Hub 用户名替换`fundamentalsofdocker`。
 
 1.  将镜像推送到 Docker Hub：
 
-```
-$ docker image push fundamentalsofdocker/ch17-dotnet-api:2.0
-```
+[PRE35]
 
 现在我们对 Node 示例 API 做同样的操作：
 
 1.  在`ch17/node`项目文件夹中添加以下内容的`Dockerfile`：
 
-```
-FROM node:13.5-alpine
-WORKDIR /app
-COPY package.json ./
-RUN npm install
-COPY . .
-EXPOSE 3000
-CMD ["npm", "start"]
-```
+[PRE36]
 
 1.  在`ch17/node`项目文件夹中使用以下命令创建一个 Docker 镜像：
 
-```
-$ docker image build -t fundamentalsofdocker/ch17-node-api:2.0 .
-```
+[PRE37]
 
 再次注意，您可能需要在前后命令中用您自己的 Docker Hub 用户名替换`fundamentalsofdocker`。
 
 1.  将镜像推送到 Docker Hub：
 
-```
-$ docker image push fundamentalsofdocker/ch17-node-api:2.0
-```
+[PRE38]
 
 有了这个，我们准备为部署这两个服务定义必要的 Kubernetes 对象。定义有些冗长，可以在存储库的`~/fod/ch17/kube/app-services.yaml`文件中找到。请打开该文件并分析其内容。
 
@@ -596,52 +328,19 @@ $ docker image push fundamentalsofdocker/ch17-node-api:2.0
 
 1.  使用以下命令：
 
-```
-$ kubectl apply -f app-services.yaml
-
-deployment.apps/dotnet-api-deployment created
-service/dotnet-api-svc created
-deployment.apps/node-api-deployment created
-service/node-api-svc created
-```
+[PRE39]
 
 1.  使用`kubectl get all`命令双重检查服务是否正常运行。确保 Node 和.NET 示例 API 服务的所有 pod 都正常运行。
 
 1.  列出所有 Kubernetes 服务，找出每个应用服务的主机端口：
 
-```
-$ kubectl get services
-
-NAME             TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-dotnet-api-svc   NodePort    10.98.137.249    <none>        5000:30822/TCP   5m29s
-grafana-svc      NodePort    10.107.232.211   <none>        8080:31461/TCP   33m
-kubernetes       ClusterIP   10.96.0.1        <none>        443/TCP          28d
-node-api-svc     NodePort    10.110.15.131    <none>        5000:31713/TCP   5m29s
-prometheus-svc   NodePort    10.110.239.245   <none>        9090:31962/TCP   77m
-```
+[PRE40]
 
 在我的情况下，.NET API 映射到端口`30822`，Node API 映射到端口`31713`。您的端口可能不同。
 
 1.  使用`curl`访问两个服务的`/metrics`端点：
 
-```
-$ curl localhost:30822/metrics # HELP process_working_set_bytes Process working set
-# TYPE process_working_set_bytes gauge
-process_working_set_bytes 95236096
-# HELP process_private_memory_bytes Process private memory size
-# TYPE process_private_memory_bytes gauge
-process_private_memory_bytes 186617856
-...
-
-$ curl localhost:31713/metrics
-# HELP process_cpu_user_seconds_total Total user CPU time spent in seconds.
-# TYPE process_cpu_user_seconds_total counter
-process_cpu_user_seconds_total 1.0394399999999997 1578294999302
-# HELP process_cpu_system_seconds_total Total system CPU time spent in seconds.
-# TYPE process_cpu_system_seconds_total counter
-process_cpu_system_seconds_total 0.3370890000000001 1578294999302
-...
-```
+[PRE41]
 
 1.  在 Prometheus 中双重检查`/targets`端点，确保这两个微服务现在是可达的：
 
@@ -651,13 +350,7 @@ Prometheus 显示所有目标都正常运行
 
 1.  为了确保我们为 Node.js 和.NET 服务定义和公开的自定义指标被定义和公开，我们需要至少访问每个服务一次。因此，使用`curl`多次访问各自的端点：
 
-```
-# access the /weatherforecast endpoint in the .NET service
-$ curl localhost:31713/weatherforecast
-
-# and access the /hello endpoint in the Node service 
-$ curl localhost:30822/hello
-```
+[PRE42]
 
 最后一步是将 Grafana 部署到 Kubernetes，这样我们就能够创建复杂和外观吸引人的仪表板，显示我们应用服务和/或基础设施组件的关键指标。
 
@@ -671,74 +364,23 @@ $ curl localhost:30822/hello
 
 1.  在这个文件中，为 Kubernetes 的 Grafana`Deployment`添加定义：
 
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: grafana-deployment
-  labels:
-    app: grafana
-    purpose: monitoring-demo
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: grafana
-      purpose: monitoring-demo
-  template:
-    metadata:
-      labels:
-        app: grafana
-        purpose: monitoring-demo
-    spec:
-      containers:
-      - name: grafana
-        image: grafana/grafana
-```
+[PRE43]
 
 在这个定义中没有什么意外。在这个例子中，我们运行了一个单独的 Grafana 实例，并且它使用`app`和`purpose`标签进行识别，类似于我们用于 Prometheus 的方式。这次不需要特殊的卷映射，因为我们只使用默认设置。
 
 1.  我们还需要暴露 Grafana，因此需要将以下片段添加到前面的文件中，以定义 Grafana 的服务：
 
-```
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: grafana-svc
-spec:
-  type: NodePort
-  selector:
-    app: grafana
-    purpose: monitoring-demo
-  ports:
-  - name: grafanaui
-    protocol: TCP
-    port: 3000
-    targetPort: 3000
-```
+[PRE44]
 
 再次，我们使用`NodePort`类型的服务，以便能够从我们的主机访问 Grafana UI。
 
 1.  现在我们可以使用这个命令部署 Grafana：
 
-```
-$ kubectl apply -f grafana.yaml deployment.apps/grafana-deployment created
-service/grafana-svc created
-```
+[PRE45]
 
 1.  让我们找出我们可以访问 Grafana 的端口号是多少：
 
-```
-$ kubectl get services
-
-NAME             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
-dotnet-api-svc   NodePort    10.100.250.40   <none>        5000:30781/TCP   16m
-grafana-svc      NodePort    10.102.239.176  <none>        3000:32379/TCP   11m
-kubernetes       ClusterIP   10.96.0.1       <none>        443/TCP          28d
-node-api-svc     NodePort    10.100.76.13    <none>        3000:30731/TCP   16m
-prometheus-svc   NodePort    10.104.205.217  <none>        9090:31246/TCP   16m
-```
+[PRE46]
 
 1.  打开一个新的浏览器标签，并导航到`http://localhost:<port>`，其中`<port>`是您在上一步中确定的端口，在我的情况下是`32379`。您应该会看到类似于这样的东西：
 
@@ -796,45 +438,21 @@ Grafana 的登录界面
 
 1.  使用以下命令在 Kubernetes 上启动一个一次性的堡垒容器进行调试：
 
-```
-$ kubectl run tmp-shell --generator=run-pod/v1 --rm -i --tty \
- --image fundamentalsofdocker/netshoot \
- --command -- bash
-
- bash-5.0#
-```
+[PRE47]
 
 1.  您现在可以在此容器中使用`ip`等工具：
 
-```
-bash-5.0# ip a
-```
+[PRE48]
 
 在我的机器上，如果我在 Windows 上的 Docker 上运行 pod，结果会类似于以下内容：
 
-```
-1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
- link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
- inet 127.0.0.1/8 scope host lo
- valid_lft forever preferred_lft forever
- 2: sit0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1000
- link/sit 0.0.0.0 brd 0.0.0.0
- 4: eth0@if263: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
- link/ether 52:52:9d:1d:fd:cc brd ff:ff:ff:ff:ff:ff link-netnsid 0
- inet 10.1.0.71/16 scope global eth0
- valid_lft forever preferred_lft forever
-```
+[PRE49]
 
 1.  要离开这个故障排除容器，只需按下*Ctrl* + *D*或输入`exit`然后按*Enter*。
 
 1.  如果我们需要深入一点，并在与 Kubernetes 主机相同的网络命名空间中运行容器，那么我们可以使用这个命令：
 
-```
-$ kubectl run tmp-shell --generator=run-pod/v1 --rm -i --tty \
- --overrides='{"spec": {"hostNetwork": true}}' \
- --image fundamentalsofdocker/netshoot \
- --command -- bash
-```
+[PRE50]
 
 1.  如果我们在这个容器中再次运行`ip`，我们将看到容器主机也能看到的所有`veth`端点。
 
