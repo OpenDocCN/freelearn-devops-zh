@@ -413,24 +413,24 @@ CONTAINER ID    IMAGE      COMMAND    CREATED  STATUS     PORTS      NAMES
 ```
 $ docker container run --name neversaydie -it --restart always alpine sh
 
-//Wait a few seconds before typing the ````exit```` `command`
+//Wait a few seconds before typing the exit command
 
-/# `exit`
+/# exit
 
 $ docker container ls
 CONTAINER ID    IMAGE     COMMAND    CREATED           STATUS
-0901afb84439    alpine    `"sh"`       `35` seconds ago    Up `1` second 
+0901afb84439    alpine    "sh"       35 seconds ago    Up 1 second 
 ```
 
- `Notice that the container was created 35 seconds ago, but has only been up for 1 second. This is because we killed it when we issued the `exit` command from within the container, and Docker has had to restart it.
+注意，容器是 35 秒前创建的，但只运行了 1 秒钟。这是因为我们从容器内部发出`exit`命令时将其杀死了，Docker 不得不重新启动它。
 
-An interesting feature of the `--restart always` policy is that a stopped container will be restarted when the Docker daemon starts. For example, you start a new container with the `--restart always` policy and then stop it with the `docker container stop` command. At this point the container is in the `Stopped (Exited)` state. However, if you restart the Docker daemon, the container will be automatically restarted when the daemon comes back up.
+`--restart always`策略的一个有趣的特性是当 Docker 守护进程启动时会重新启动已停止的容器。例如，您使用`--restart always`策略启动一个新容器，然后用`docker container stop`命令停止它。此时，容器处于`Stopped(Exited)`状态。但是，如果您重新启动 Docker 守护程序，则在守护程序重新启动时，容器将自动重新启动。
 
-The main difference between the **always** and **unless-stopped** policies is that containers with the `--restart unless-stopped` policy will not be restarted when the daemon restarts if they were in the `Stopped (Exited)` state. That might be a confusing sentence, so let’s walk through an example.
+**always**和**unless-stopped**策略之间的主要区别在于，具有`--restart unless-stopped`策略的容器在`Stopped(Exited)`状态下不会在守护进程重新启动时重新启动。这可能是一个令人困惑的句子，因此让我们通过一个例子来演示。
 
-We’ll create two new containers. One called “always” with the `--restart always` policy, and one called “unless-stopped” with the `--restart unless-stopped` policy. We’ll stop them both with the `docker container stop` command and then restart Docker. The “always” container will restart, but the “unless-stopped” container will not.
+我们将创建两个新容器。一个名为“always”，使用`--restart always`策略；一个名为“unless-stopped”，使用`--restart unless-stopped`策略。我们使用`docker container stop`命令停止它们，然后重新启动 Docker。 “always”容器将重新启动，但是“unless-stopped”容器将不会重新启动。
 
-1.  Create the two new containers
+1.  创建两个新容器。
 
     ```
      $ docker container run -d --name always \
@@ -447,9 +447,9 @@ We’ll create two new containers. One called “always” with the `--restart a
      4f1b431ac729   alpine    "sleep 1d"    Up 17 secs   always 
     ```
 
- `We now have two containers running. One called “always” and one called “unless-stopped”.
+我们现在有两个正在运行的容器。一个名为“always”，一个名为“unless-stopped”。
 
-1.  Stop both containers
+1.  停止两个容器
 
     ```
      $ docker container stop always unless-stopped
@@ -460,15 +460,15 @@ We’ll create two new containers. One called “always” with the `--restart a
      4f1b431ac729   alpine    Exited (137) 3 seconds ago    always 
     ```
 
-`*   Restart Docker.`
++   重启 Docker。
 
- `The process for restarting Docker is different on different Operating Systems. This example shows how to stop Docker on Linux hosts running `systemd`. To restart Docker on Windows Server 2016 use `restart-service Docker`.
+在不同的操作系统上，重启 Docker 的过程也不同。这个例子展示了如何停止在运行`systemd`的 Linux 主机上的 Docker。要在 Windows Server 2016 上重新启动 Docker，请使用`restart-service Docker`。
 
 ```
  $ systemlctl restart docker 
 ```
 
- `1.  Once Docker has restarted, you can check the status of the containers.
+1.  Docker 重启后，您可以检查容器的状态。
 
     ```
      $ docker container ls -a
@@ -477,11 +477,11 @@ We’ll create two new containers. One called “always” with the `--restart a
      4f1..729    2 minutes ago      Up 9 seconds                  always 
     ```
 
- `Notice that the “always” container (started with the `--restart always` policy) has been restarted, but the “unless-stopped” container (started with the `--restart unless-stopped` policy) has not.
+注意，使用`--restart always`策略启动的“always”容器已经重新启动，但是使用`--restart unless-stopped`策略启动的“unless-stopped”容器没有重新启动。
 
-The **on-failure** policy will restart a container if it exits with a non-zero exit code. It will also restart containers when the Docker daemon restarts, even containers that were in the stopped state.
+**on-failure**策略会在容器以非零的退出代码退出时重新启动。即使 Docker 守护程序重新启动，它也会重新启动处于停止状态的容器。
 
-If you are working with Docker Compose or Docker Stacks, you can apply the restart policy to a `service` object as follows:
+如果您正在使用 Docker Compose 或 Docker Stacks，则可以将重启策略应用于`service`对象，如下所示：
 
 ```
 version: "3"
@@ -492,128 +492,135 @@ services:
       condition: always | unless-stopped | on-failure 
 ```
 
- `#### Web server example
+#### Web 服务器示例
 
-So far, we’ve seen how to start a simple container and interact with it. We’ve also seen how to stop, restart and delete containers. Now let’s take a look at a Linux web server example.
+到目前为止，我们已经看到了如何启动一个简单的容器并与之交互。我们还看到了如何停止，重启和删除容器。现在让我们看一下 Linux Web 服务器的一个例子。
 
-In this example, we’ll start a new container from an image I use in a few of my [Pluralsight video courses](https://www.pluralsight.com/search?q=nigel%20poulton%20docker&categories=all). The image runs an insanely simple web server on port 8080.
+在此示例中，我们将从我用于一些[Pluralsight 视频课程](https://www.pluralsight.com/search?q=nigel%20poulton%20docker&categories=all)中使用的镜像启动一个新的容器。该镜像在端口 8080 上运行一个极其简单的 Web 服务器。
 
-Use the `docker container stop` and `docker container rm` commands to clean up any existing containers on your system. Then run the following `docker container run` command.
+使用`docker container stop`和`docker container rm`命令来清理您系统上的任何现有容器。然后运行以下`docker container run`命令。
 
 ```
-$ docker container run -d --name webserver -p `80`:8080 `\`
+$ docker container run -d --name webserver -p 80:8080 \
   nigelpoulton/pluralsight-docker-ci
 
-Unable to find image `'nigelpoulton/pluralsight-docker-ci:latest'` locally
+Unable to find image 'nigelpoulton/pluralsight-docker-ci:latest' locally
 latest: Pulling from nigelpoulton/pluralsight-docker-ci
-a3ed95caeb02: Pull `complete`
-3b231ed5aa2f: Pull `complete`
-7e4f9cd54d46: Pull `complete`
-929432235e51: Pull `complete`
-6899ef41c594: Pull `complete`
-0b38fccd0dab: Pull `complete`
+a3ed95caeb02: Pull complete
+3b231ed5aa2f: Pull complete
+7e4f9cd54d46: Pull complete
+929432235e51: Pull complete
+6899ef41c594: Pull complete
+0b38fccd0dab: Pull complete
 Digest: sha256:7a6b0125fe7893e70dc63b2...9b12a28e2c38bd8d3d
-Status: Downloaded newer image `for` nigelpoulton/plur...docker-ci:latest
+Status: Downloaded newer image for nigelpoulton/plur...docker-ci:latest
 6efa1838cd51b92a4817e0e7483d103bf72a7ba7ffb5855080128d85043fef21 
 ```
 
- `Notice that your shell prompt hasn’t changed. This is because we started this container in the background with the `-d` flag. Starting a container in the background does not attach it to your terminal.
+注意到你的 shell 提示符并没有改变。这是因为我们使用了 `-d` 标志在后台启动了这个容器。在后台启动容器时，不会将其附加到你的终端。
 
-This example threw a few more arguments at the `docker container run` command, so let’s take a quick look at them.
+这个例子向 `docker container run` 命令传递了更多的参数，所以让我们快速看一下它们。
 
-We know `docker container run` starts a new container. But this time we give it the `-d` flag instead of `-it`. `-d` stands for **d**aemon mode, and tells the container to run in the background.
+我们知道 `docker container run` 会启动一个新容器。但这次我们用 `-d` 标志而不是 `-it`。`-d` 代表**守护进程**模式，告诉容器在后台运行。
 
-After that, we name the container and then give it `-p 80:8080`. The `-p` flag maps ports on the Docker host to ports inside the container. This time we’re mapping port 80 on the Docker host to port 8080 inside the container. This means that traffic hitting the Docker host on port 80 will be directed to port 8080 inside of the container. It just so happens that the image we’re using for this container defines a web service that listens on port 8080\. This means our container will come up running a web server listening on port 8080.
+然后，我们为容器命名，然后给它 `-p 80:8080`。`-p` 标志将 Docker 主机上的端口映射到容器内部的端口。这次我们将 Docker 主机上的端口 80 映射到容器内部的端口 8080。这意味着命中 Docker 主机上的端口 80 的流量将被定向到容器内部的端口 8080。碰巧，我们用于此容器的镜像定义了一个监听 8080 端口的 web 服务。这意味着我们的容器将启动一个监听 8080 端口的 web 服务器。
 
-Finally, we tell it which image to use: `nigelpoulton/pluralsight-docker-ci`. This image is not kept up-to-date and **will** contain vulnerabilities!
+最后，我们告诉它使用哪个镜像：`nigelpoulton/pluralsight-docker-ci`。这个镜像没有保持更新，**会**包含漏洞！
 
-Running a `docker container ls` command will show the container as running and show the ports that are mapped. It’s important to know that port mappings are expressed as `host-port:container-port`.
+运行 `docker container ls` 命令将显示容器正在运行，并显示映射的端口。重要的是要知道端口映射表示为 `主机端口:容器端口`。
 
 ```
 $ docker container ls
 CONTAINER ID  COMMAND        STATUS       PORTS               NAMES
-6efa1838cd51  /bin/sh -c...  Up `2` mins  `0`.0.0.0:80->8080/tcp  webserver 
+6efa1838cd51  /bin/sh -c...  Up 2 mins  0.0.0.0:80->8080/tcp  webserver 
 ```
 
- `> **Note:** We’ve removed some of the columns from the output above to help with readability.
+> **注意：** 我们已经从上面的输出中删除了一些列以提高可读性。
 
-Now that the container is running and ports are mapped, we can connect to the container by pointing a web browser at the IP address or DNS name of the **Docker host** on port 80\. Figure 7.4 shows the web page that is being served up by the container.
+现在容器正在运行并且端口已经映射，我们可以通过将 web 浏览器指向 **Docker 主机**的 IP 地址或 DNS 名称的 80 端口来连接到容器。图 7.4 展示了容器提供的网页。
 
-![Figure 7.4](img/figure7-4.png)
+![图 7.4](img/figure7-4.png)
 
-Figure 7.4
+图 7.4
 
-The same `docker container stop`, `docker container pause`, `docker container start`, and `docker container rm` commands can be used on the container. Also, the same rules of persistence apply — stopping or pausing the container does not destroy the container or any data stored in it.
+同样的 `docker container stop`、`docker container pause`、`docker container start` 和 `docker container rm` 命令可以用于容器。同样，持久性规则也适用 —— 停止或暂停容器不会销毁容器或其中存储的任何数据。
 
-#### Inspecting containers
+#### 检查容器
 
-In the previous example, you might have noticed that we didn’t specify an app for the container when we issued the `docker container run` command. Yet the container ran a simple web service. How did this happen?
+在上一个例子中，你可能已经注意到我们在发出 `docker container run` 命令时没有为容器指定应用程序。但容器运行了一个简单的 web 服务。这是怎么发生的？
 
-When building a Docker image, it’s possible to embed an instruction that lists the default app you want containers using the image to run. If we run a `docker image inspect` against the image we used to run our container, we’ll be able to see the app that the container will run when it starts.
+在构建 Docker 镜像时，可以嵌入一条指令，列出你希望使用该镜像运行的默认应用程序。如果我们对我们用来运行容器的镜像运行 `docker image inspect`，我们将能够看到容器启动时将运行的应用程序。
 
 ```
 $ docker image inspect nigelpoulton/pluralsight-docker-ci
 
-`[`
-    `{`
-        `"Id"`: `"sha256:07e574331ce3768f30305519...49214bf3020ee69bba1"`,
-        `"RepoTags"`: `[`
-            `"nigelpoulton/pluralsight-docker-ci:latest"`
+[
+    {
+        "Id": "sha256:07e574331ce3768f30305519...49214bf3020ee69bba1",
+        "RepoTags": [
+            "nigelpoulton/pluralsight-docker-ci:latest"
 
             <Snip>
 
-            `]`,
-            `"Cmd"`: `[`
-                `"/bin/sh"`,
-                `"-c"`,
-                `"#(nop) CMD [\"/bin/sh\" \"-c\" \"cd /src \u0026\u0026 node \`
-`./app.js\"]"`
-            `]`,
+            ],
+            "Cmd": [
+                "/bin/sh",
+                "-c",
+                "#(nop) CMD [\"/bin/sh\" \"-c\" \"cd /src \u0026\u0026 node \
+./app.js\"]"
+            ],
 <Snip> 
 ```
 
- `We’ve snipped the output to make it easier to find the information we’re interested in.
+`我们已经剪切了输出以便更容易找到我们感兴趣的信息。
 
-The entries after `Cmd` show the command/app that the container will run unless you override with a different one when you launch the container with `docker container run`. If you remove all of the shell escapes in the example, you get the following command `/bin/sh -c "cd /src && node ./app.js"`. That’s the default app a container based on this image will run.
+在 `Cmd` 后面的条目显示容器将运行的命令/应用，除非你在使用 `docker container run` 启动容器时用不同的命令覆盖它。如果你移除示例中的所有 shell 转义，你将得到以下命令 `/bin/sh -c "cd /src && node ./app.js"`。这是基于该镜像的容器将运行的默认应用。
 
-It’s common to build images with default commands like this, as it makes starting containers easier. It also forces a default behavior and is a form of self documentation for the image — i.e. we can *inspect* the image and know what app it’s supposed to run.
+通常会使用默认命令构建镜像，因为这样可以更容易地启动容器。它还强制了默认行为，并且是镜像的一种自我文档形式 — 即我们可以*检查*镜像并知道它应该运行哪个应用程序。
 
-That’s us done for the examples in this chapter. Let’s see a quick way to tidy our system up.
+这就是本章中示例的全部内容。让我们看看整理系统的快速方法。
 
-#### Tidying up
+#### 整理
 
-Let’s look at the simplest and quickest way to get rid of **every running container** on your Docker host. Be warned though, the procedure will forcible destroy **all** containers without giving them a chance to clean up. **This should never be performed on production systems or systems running important containers.
+让我们来看看在 Docker 主机上最简单、最快速地**清除所有正在运行的容器**的方法。不过请注意，该过程将**强制**销毁**所有**容器，而不给它们清理的机会。**绝对不能在生产系统或运行重要容器的系统上执行此操作。
 
-Run the following command from the shell of your Docker host to delete all containers.
+从你的 Docker 主机的 shell 中运行以下命令以删除所有容器。
 
 ```
-$ docker container rm `$(`docker container ls -aq`)` -f
+$ docker container rm $(docker container ls -aq) -f
 6efa1838cd51 
 ```
 
- `In this example, we only had a single container running, so only one was deleted (6efa1838cd51). However, the command works the same way as the `docker image rm $(docker image ls -q)` command we used in the previous chapter to delete all images on a single Docker host. We already know the `docker container rm` command deletes containers. Passing it `$(docker container ls -aq)` as an argument, effectively passes it the ID of every container on the system. The `-f` flag forces the operation so that running containers will also be destroyed. Net result… all containers, running or stopped, will be destroyed and removed from the system.
+在这个例子中，我们只运行了一个容器，因此只删除了一个 (6efa1838cd51)。然而，这个命令的工作方式与我们在上一章中使用的 `docker image rm $(docker image ls -q)` 命令相同，用于删除单个 Docker 主机上的所有镜像。我们已经知道 `docker container rm` 命令用于删除容器。将 `$(docker container ls -aq)` 传递给它作为参数，实际上传递给它系统上每个容器的 ID。`-f` 标志强制执行操作，使得正在运行的容器也将被销毁。最终结果是……所有容器，无论正在运行还是已停止，都将被销毁并从系统中移除。
 
-The above command will work in a PowerShell terminal on a Windows Docker host.
+上述命令将在 Windows Docker 主机上的 PowerShell 终端中工作。
 
-### Containers - The commands
+### 容器 - 命令
 
-*   `docker container run` is the command used to start new containers. In its simplest form, it accepts an *image* and a *command* as arguments. The image is used to create the container and the command is the application you want the container to run. This example will start an Ubuntu container in the foreground, and tell it to run the Bash shell: `docker container run -it ubuntu /bin/bash`.
-*   `Ctrl-PQ` will detach your shell from the terminal of a container and leave the container running `(UP)` in the background.
-*   `docker container ls` lists all containers in the running `(UP)` state. If you add the `-a` flag you will also see containers in the stopped `(Exited)` state.
-*   `docker container exec` lets you run a new process inside of a running container. It’s useful for attaching the shell of your Docker host to a terminal inside of a running container. This command will start a new Bash shell inside of a running container and connect to it: `docker container exec -it <container-name or container-id> bash`. For this to work, the image used to create your container must contain the Bash shell.
-*   `docker container stop` will stop a running container and put it in the `Exited (0)` state. It does this by issuing a `SIGTERM` to the process with PID 1 inside of the container. If the process has not cleaned up and stopped within 10 seconds, a SIGKILL will be issued to forcibly stop the container. `docker container stop` accepts container IDs and container names as arguments.
-*   `docker container start` will restart a stopped `(Exited)` container. You can give `docker container start` the name or ID of a container.
-*   `docker container rm` will delete a stopped container. You can specify containers by name or ID. It is recommended that you stop a container with the `docker container stop` command before deleting it with `docker container rm`.
-*   `docker container inspect` will show you detailed configuration and runtime information about a container. It accepts container names and container IDs as its main argument.
++   `docker container run` 是用于启动新容器的命令。在最简单的形式中，它接受一个*镜像*和一个*命令*作为参数。镜像用于创建容器，而命令是你希望容器运行的应用程序。这个例子将在前台启动一个 Ubuntu 容器，并告诉它运行 Bash shell：`docker container run -it ubuntu /bin/bash`。
 
-### Chapter summary
++   `Ctrl-PQ` 将会将你的 shell 从容器的终端中分离出来，并将容器保持在后台处于运行状态 `(UP)`。
 
-In this chapter, we compared and contrasted the container and VM models. We looked at the *OS tax* problem inherent in the VM model, and saw how the container model can bring huge advantages in much the same way as the VM model brought huge advantages over the physical model.
++   `docker container ls` 列出所有处于运行状态 `(UP)` 的容器。如果加上 `-a` 标志，你还会看到处于停止状态 `(Exited)` 的容器。
 
-We saw how to use the `docker container run` command to start a couple of simple containers, and we saw the difference between interactive containers in the foreground versus containers running in the background.
++   `docker container exec` 允许你在正在运行的容器内运行新进程。它对于将你的 Docker 主机的 shell 附加到正在运行的容器内的终端非常有用。此命令将在正在运行的容器内启动一个新的 Bash shell 并连接到它：`docker container exec -it <container-name or container-id> bash`。为了让这个命令工作，用于创建你的容器的镜像必须包含 Bash shell。
 
-We know that killing the PID 1 process inside of a container will kill the container. And we’ve seen how to start, stop, and delete containers.
++   `docker container stop`命令将停止运行中的容器并将其置于`Exited (0)`状态。它通过向容器内的 PID 1 进程发送`SIGTERM`来实现。如果该进程在 10 秒内没有清理和停止，将会发出`SIGKILL`强制停止容器。`docker container stop`接受容器 ID 和容器名称作为参数。
 
-We finished the chapter using the `docker container inspect` command to view detailed container metadata.
++   `docker container start`命令将重新启动已停止的`(Exited)`容器。您可以指定容器的名称或 ID 给`docker container start`。
 
-So far so good!````````````````````````````
++   `docker container rm`命令将删除已停止的容器。您可以使用名称或 ID 指定容器。在使用`docker container rm`命令删除容器之前，建议先使用`docker container stop`命令停止容器。
+
++   `docker container inspect`命令将显示有关容器的详细配置和运行时信息。它接受容器名称和容器 ID 作为其主要参数。
+
+### 章节总结
+
+在这一章节中，我们比较和对比了容器和虚拟机模型。我们探讨了虚拟机模型中固有的“操作系统税”问题，并看到容器模型可以像虚拟机模型对物理模型带来巨大的优势一样带来巨大的优势。
+
+我们看到如何使用`docker container run`命令来启动一些简单的容器，并且我们了解了交互式容器在前台运行与后台运行容器之间的区别。
+
+我们知道，杀死容器内的 PID 1 进程将会杀死容器。而且我们已经看到如何启动、停止和删除容器。
+
+我们使用`docker container inspect`命令来查看详细的容器元数据，完成了这一章节的学习。
+
+到目前为止一切顺利！
