@@ -745,7 +745,55 @@ $ docker-compose exec redis redis-cli
 
 第一种方法是以与单容器应用程序相同的方式执行验收测试。唯一的区别是现在我们有两个容器正在运行，如下图所示：
 
-![从用户角度来看，`redis`容器是不可见的，因此单容器和多容器验收测试之间唯一的区别是我们使用`docker-compose up`命令而不是`docker run`。其他 Docker 命令也可以用它们的 Docker Compose 等效命令替换：`docker-compose build` 替换 `docker build`，`docker-compose push` 替换 `docker push`。然而，如果我们只构建一个镜像，那么保留 Docker 命令也是可以的。# 改变暂存部署阶段让我们改变 `部署到暂存` 阶段来使用 Docker Compose：```stage("Deploy to staging") {    steps {        sh "docker-compose up -d"    }}```我们必须以完全相同的方式改变清理：```post {    always {        sh "docker-compose down"    }}```# 改变验收测试阶段为了使用 `docker-compose scale`，我们没有指定我们的 web 服务将发布在哪个端口号下。如果我们这样做了，那么扩展过程将失败，因为所有克隆将尝试在相同的端口号下发布。相反，我们让 Docker 选择端口。因此，我们需要改变 `acceptance_test.sh` 脚本，首先找出端口号是多少，然后使用正确的端口号运行 `curl`。```#!/bin/bashCALCULATOR_PORT=$(docker-compose port calculator 8080 | cut -d: -f2)test $(curl localhost:$CALCULATOR_PORT/sum?a=1\&b=2) -eq 3```让我们找出我们是如何找到端口号的：1.  `docker-compose port calculator 8080` 命令检查 web 服务发布在哪个 IP 和端口地址下（例如返回 `127.0.0.1:57648`）。1.  `cut -d: -f2` 选择只有端口（例如，对于 `127.0.0.1:57648`，它返回 `57648`）。我们可以将更改推送到 GitHub 并观察 Jenkins 的结果。这个想法和单容器应用程序的想法是一样的，设置环境，运行验收测试套件，然后拆除环境。尽管这种验收测试方法很好并且运行良好，让我们看看另一种解决方案。# 方法 2 – 先 Docker 验收测试在 Docker-first 方法中，我们创建了一个额外的 `test` 容器，它从 Docker 主机内部执行测试，如下图所示：![](img/78c8fd68-b33a-41f8-9d5a-a8ae5998f5aa.png)
+![](img/4d652e64-a061-46a8-ac71-e7dbaa9b6960.png)
+
+从用户角度来看，`redis`容器是不可见的，因此单容器和多容器验收测试之间唯一的区别是我们使用`docker-compose up`命令而不是`docker run`。
+
+其他 Docker 命令也可以用它们的 Docker Compose 等效命令替换：`docker-compose build` 替换 `docker build`，`docker-compose push` 替换 `docker push`。然而，如果我们只构建一个镜像，那么保留 Docker 命令也是可以的。
+
+# 改变暂存部署阶段
+
+让我们改变 `部署到暂存` 阶段来使用 Docker Compose：
+
+```
+stage("Deploy to staging") {    
+     steps {        
+          sh "docker-compose up -d"    
+}}
+```
+
+我们必须以完全相同的方式改变清理：
+
+```
+post {    
+     always {        
+          sh "docker-compose down"    
+}}
+```
+
+# 改变验收测试阶段
+
+为了使用 `docker-compose scale`，我们没有指定我们的 web 服务将发布在哪个端口号下。如果我们这样做了，那么扩展过程将失败，因为所有克隆将尝试在相同的端口号下发布。相反，我们让 Docker 选择端口。因此，我们需要改变 `acceptance_test.sh` 脚本，首先找出端口号是多少，然后使用正确的端口号运行 `curl`。
+
+```
+#!/bin/bash
+CALCULATOR_PORT=$(docker-compose port calculator 8080 | cut -d: -f2)
+test $(curl localhost:$CALCULATOR_PORT/sum?a=1\&b=2) -eq 3
+```
+
+让我们找出我们是如何找到端口号的：
+
+1.  `docker-compose port calculator 8080` 命令检查 web 服务发布在哪个 IP 和端口地址下（例如返回 `127.0.0.1:57648`）。
+
+1.  `cut -d: -f2` 选择只有端口（例如，对于 `127.0.0.1:57648`，它返回 `57648`）。
+
+我们可以将更改推送到 GitHub 并观察 Jenkins 的结果。这个想法和单容器应用程序的想法是一样的，设置环境，运行验收测试套件，然后拆除环境。尽管这种验收测试方法很好并且运行良好，让我们看看另一种解决方案。
+
+# 方法 2 – 先 Docker 验收测试
+
+在 Docker-first 方法中，我们创建了一个额外的 `test` 容器，它从 Docker 主机内部执行测试，如下图所示：
+
+![](img/78c8fd68-b33a-41f8-9d5a-a8ae5998f5aa.png)
 
 这种方法在检索端口号方面简化了验收测试脚本，并且可以在没有 Jenkins 的情况下轻松运行。它也更符合 Docker 的风格。
 
