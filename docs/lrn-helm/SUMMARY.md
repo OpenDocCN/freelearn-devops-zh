@@ -1,3 +1,4 @@
++   [Helm 学习手册](README.md)
 +   [前言](lrn-helm_00.md)
 +   [第一部分：介绍和设置](lrn-helm_01.md)
 +   [第一章：理解 Kubernetes 和 Helm](lrn-helm_02.md)

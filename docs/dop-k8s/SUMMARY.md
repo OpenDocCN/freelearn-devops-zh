@@ -1,3 +1,4 @@
++   [Kubernetes DevOps 手册](README.md)
 +   [前言](dop-k8s_00.md)
 +   [第一章：DevOps 简介](dop-k8s_01.md)
 +   [第二章：使用容器的 DevOps](dop-k8s_02.md)
