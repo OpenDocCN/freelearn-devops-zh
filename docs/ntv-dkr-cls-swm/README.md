@@ -1,6 +1,6 @@
-# GPT3 探索指南
+# Docker Swarm 原生集群
 
-> 原文：[`zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20`](https://zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20)
+> 原文：[`zh.annas-archive.org/md5/9B6C0DB62EFC5AC8A8FAA5F289DFA59D`](https://zh.annas-archive.org/md5/9B6C0DB62EFC5AC8A8FAA5F289DFA59D)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

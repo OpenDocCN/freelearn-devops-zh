@@ -1,6 +1,6 @@
-# GPT3 探索指南
+# Kubernetes 云原生指南
 
-> 原文：[`zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20`](https://zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20)
+> 原文：[`zh.annas-archive.org/md5/58DD843CC49B42503E619A37722EEB6C`](https://zh.annas-archive.org/md5/58DD843CC49B42503E619A37722EEB6C)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

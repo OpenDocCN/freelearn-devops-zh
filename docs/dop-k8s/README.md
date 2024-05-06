@@ -1,6 +1,6 @@
-# GPT3 探索指南
+# Kubernetes DevOps 手册
 
-> 原文：[`zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20`](https://zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20)
+> 原文：[`zh.annas-archive.org/md5/55C804BD2C19D0AE8370F4D1F28719E7`](https://zh.annas-archive.org/md5/55C804BD2C19D0AE8370F4D1F28719E7)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

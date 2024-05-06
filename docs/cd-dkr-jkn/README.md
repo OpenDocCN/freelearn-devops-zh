@@ -1,6 +1,6 @@
-# GPT3 探索指南
+# Docker 和 Jenkins 持续交付
 
-> 原文：[`zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20`](https://zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20)
+> 原文：[`zh.annas-archive.org/md5/7C44824F34694A0D5BA0600DC67F15A8`](https://zh.annas-archive.org/md5/7C44824F34694A0D5BA0600DC67F15A8)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

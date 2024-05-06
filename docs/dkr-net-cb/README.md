@@ -1,6 +1,6 @@
-# GPT3 探索指南
+# Docker 网络秘籍
 
-> 原文：[`zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20`](https://zh.annas-archive.org/md5/e19ec4b9c1d08c12abd2983dace7ff20)
+> 原文：[`zh.annas-archive.org/md5/15C8E8C8C0D58C74AF1054F5CB887C66`](https://zh.annas-archive.org/md5/15C8E8C8C0D58C74AF1054F5CB887C66)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 
