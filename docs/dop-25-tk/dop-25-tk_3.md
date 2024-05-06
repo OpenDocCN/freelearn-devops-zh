@@ -24,7 +24,11 @@
 
 本章中的所有命令都在`03-monitor.sh`（[`gist.github.com/vfarcic/718886797a247f2f9ad4002f17e9ebd9`](https://gist.github.com/vfarcic/718886797a247f2f9ad4002f17e9ebd9)）Gist 中可用。
 
-[PRE0]
+```
+ 1  cd k8s-specs
+ 2
+ 3  git pull
+```
 
 给 minikube 和 Docker for Desktop 用户的提示：我们需要将内存增加到 3GB。请记住这一点，以防您只是计划浏览与您的 Kubernetes 版本匹配的 Gist。在本章中，我们将需要一些以前不是要求的东西，尽管您可能已经使用过它们。
 
@@ -74,23 +78,101 @@ Prometheus 的查询语言使我们能够轻松找到可用于图表和更重要
 
 让我们来看看我们将作为起点使用的变量。
 
-[PRE1]
+```
+ 1  cat mon/prom-values-bare.yml
+```
 
 输出如下。
 
-[PRE2]
+```
+server:
+  ingress:
+    enabled: true
+    annotations:
+      ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  resources:
+    limits:
+      cpu: 100m
+      memory: 1000Mi
+    requests:
+      cpu: 10m
+      memory: 500Mi
+alertmanager:
+  ingress:
+    enabled: true
+    annotations:
+      ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  resources:
+    limits:
+      cpu: 10m
+      memory: 20Mi
+    requests:
+      cpu: 5m
+      memory: 10Mi
+kubeStateMetrics:
+  resources:
+    limits:
+      cpu: 10m
+      memory: 50Mi
+    requests:
+      cpu: 5m
+      memory: 25Mi
+nodeExporter:
+  resources:
+    limits:
+      cpu: 10m
+      memory: 20Mi
+    requests:
+      cpu: 5m
+      memory: 10Mi
+pushgateway:
+  resources:
+    limits:
+      cpu: 10m
+      memory: 20Mi
+        requests:
+      cpu: 5m
+      memory: 10Mi
+```
 
 目前我们所做的一切都是为我们将安装的所有五个应用程序定义`资源`，以及使用一些注释启用 Ingress，这些注释将确保我们不会被重定向到 HTTPS 版本，因为我们没有我们的临时域的证书。我们将在稍后深入研究将要安装的应用程序。目前，我们将定义 Prometheus 和 Alertmanager UI 的地址。
 
-[PRE3]
+```
+ 1  PROM_ADDR=mon.$LB_IP.nip.io
+ 2
+ 3  AM_ADDR=alertmanager.$LB_IP.nip.io
+```
 
 让我们安装图表。
 
-[PRE4]
+```
+ 1  helm install stable/prometheus \
+ 2      --name prometheus \
+ 3      --namespace metrics \
+ 4      --version 7.1.3 \
+ 5      --set server.ingress.hosts={$PROM_ADDR} \
+ 6      --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7      -f mon/prom-values-bare.yml
+```
 
 我们刚刚执行的命令应该是不言自明的，所以我们将跳转到输出的相关部分。
 
-[PRE5]
+```
+...
+RESOURCES:
+==> v1beta1/DaemonSet
+NAME                     DESIRED CURRENT READY UP-TO-DATE AVAILABLE NODE SELECTOR AGE
+prometheus-node-exporter 3       3       0     3          0         <none>        3s 
+==> v1beta1/Deployment
+NAME                          DESIRED CURRENT UP-TO-DATE AVAILABLE AGE
+prometheus-alertmanager       1       1       1          0         3s
+prometheus-kube-state-metrics 1       1       1          0         3s
+prometheus-pushgateway        1       1       1          0         3s
+prometheus-server             1       1       1          0         3s
+...
+```
 
 我们可以看到，图表安装了一个 DeamonSet 和四个部署。
 
@@ -110,25 +192,81 @@ Prometheus 服务器从出口商那里获取数据。在我们的情况下，这
 
 到目前为止，Prometheus 服务器可能已经推出。我们会确认一下以防万一。
 
-[PRE6]
+```
+ 1  kubectl -n metrics \
+ 2      rollout status \
+ 3      deploy prometheus-server
+```
 
 让我们来看看通过`prometheus-server`部署创建的 Pod 内部有什么。
 
-[PRE7]
+```
+ 1  kubectl -n metrics \
+ 2      describe deployment \
+ 3      prometheus-server
+```
 
 输出，仅限于相关部分，如下所示。
 
-[PRE8]
+```
+  Containers:
+   prometheus-server-configmap-reload:
+    Image: jimmidyson/configmap-reload:v0.2.2
+    ...
+   prometheus-server:
+    Image: prom/prometheus:v2.4.2
+    ...
+```
 
 除了基于`prom/prometheus`镜像的容器外，我们还从`jimmidyson/configmap-reload`创建了另一个容器。后者的工作是在我们更改存储在 ConfigMap 中的配置时重新加载 Prometheus。
 
 接下来，我们可能想看一下`prometheus-server` ConfigMap，因为它存储了 Prometheus 所需的所有配置。
 
-[PRE9]
+```
+ 1  kubectl -n metrics \
+ 2      describe cm prometheus-server
+```
 
 输出，仅限于相关部分，如下所示。
 
-[PRE10]
+```
+...
+Data
+====
+alerts:
+----
+{} 
+prometheus.yml:
+----
+global:
+  evaluation_interval: 1m
+  scrape_interval: 1m
+  scrape_timeout: 10s 
+rule_files:
+- /etc/config/rules
+- /etc/config/alerts
+scrape_configs:
+- job_name: prometheus
+  static_configs:
+  - targets:
+    - localhost:9090
+- bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+  job_name: kubernetes-apiservers
+  kubernetes_sd_configs:
+  - role: endpoints
+  relabel_configs:
+  - action: keep
+    regex: default;kubernetes;https
+    source_labels:
+    - __meta_kubernetes_namespace
+    - __meta_kubernetes_service_name
+    - __meta_kubernetes_endpoint_port_name
+  scheme: https
+  tls_config:
+    ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    insecure_skip_verify: true
+...
+```
 
 我们可以看到`alerts`仍然是空的。我们很快会改变这一点。
 
@@ -138,13 +276,17 @@ Prometheus 服务器从出口商那里获取数据。在我们的情况下，这
 
 对于 Windows 用户，Git Bash 可能无法使用`open`命令。如果是这种情况，请用`echo`替换`open`。结果，您将获得应直接在您选择的浏览器中打开的完整地址。
 
-[PRE11]
+```
+ 1  open "http://$PROM_ADDR/config"
+```
 
 配置屏幕反映了我们已经在`prometheus-server` ConfigMap 中看到的相同信息，所以我们将继续。
 
 接下来，让我们来看看这些目标。
 
-[PRE12]
+```
+ 1  open "http://$PROM_ADDR/targets"
+```
 
 该屏幕包含七个目标，每个目标提供不同的指标。Prometheus 定期从这些目标中拉取数据。
 
@@ -154,31 +296,60 @@ Prometheus 服务器从出口商那里获取数据。在我们的情况下，这
 
 为了做到这一点，我们需要找出可以访问导出器的服务。
 
-[PRE13]
+```
+ 1  kubectl -n metrics get svc
+```
 
 来自 AKS 的输出如下。
 
-[PRE14]
+```
+NAME                          TYPE      CLUSTER-IP    EXTERNAL-IP PORT(S)  AGE
+prometheus-alertmanager       ClusterIP 10.23.245.165 <none>      80/TCP   41d
+prometheus-kube-state-metrics ClusterIP None          <none>      80/TCP   41d
+prometheus-node-exporter      ClusterIP None          <none>      9100/TCP 41d
+prometheus-pushgateway        ClusterIP 10.23.244.47  <none>      9091/TCP 41d
+prometheus-server             ClusterIP 10.23.241.182 <none>      80/TCP   41d
+```
 
 我们对`prometheus-kube-state-metrics`和`prometheus-node-exporter`感兴趣，因为它们提供了访问本章中将使用的导出器的数据。
 
 接下来，我们将创建一个临时 Pod，通过它我们将访问那些服务后面的导出器提供的数据。
 
-[PRE15]
+```
+ 1  kubectl -n metrics run -it test \
+ 2      --image=appropriate/curl \
+ 3      --restart=Never \
+ 4      --rm \
+ 5      -- prometheus-node-exporter:9100/metrics
+```
 
 我们基于`appropriate/curl`创建了一个新的 Pod。该镜像只提供`curl`的单一目的。我们指定`prometheus-node-exporter:9100/metrics`作为命令，这相当于使用该地址运行`curl`。结果，输出了大量指标。它们都以相同的“键/值”格式呈现，可选标签用大括号（`{`和`}`）括起来。在每个指标的顶部，都有一个`HELP`条目，解释了其功能以及`TYPE`（例如，`gauge`）。其中一个指标如下。
 
-[PRE16]
+```
+ 1  # HELP node_memory_MemTotal_bytes Memory information field
+    MemTotal_bytes.
+ 2  # TYPE node_memory_MemTotal_bytes gauge
+ 3  node_memory_MemTotal_bytes 3.878477824e+09
+```
 
 我们可以看到它提供了“内存信息字段 MemTotal_bytes”，类型为`gauge`。在`TYPE`下面是实际的指标，带有键（`node_memory_MemTotal_bytes`）和值`3.878477824e+09`。
 
 大多数 Node Exporter 指标都没有标签。因此，我们将不得不在`prometheus-kube-state-metrics`导出器中寻找一个示例。
 
-[PRE17]
+```
+ 1  kubectl -n metrics run -it test \
+ 2      --image=appropriate/curl \
+ 3      --restart=Never \
+ 4      --rm \
+ 5      -- prometheus-kube-state-metrics:8080/metrics
+```
 
 正如您所看到的，Kube 状态指标遵循与节点导出器相同的模式。主要区别在于大多数指标都有标签。一个例子如下。
 
-[PRE18]
+```
+ 1  kube_deployment_created{deployment="prometheus-
+    server",namespace="metrics"} 1.535566512e+09
+```
 
 该指标表示在`metrics`命名空间内创建`prometheus-server`部署的时间。
 
@@ -188,23 +359,38 @@ Prometheus 服务器从出口商那里获取数据。在我们的情况下，这
 
 接下来，我们将查看警报屏幕。
 
-[PRE19]
+```
+ 1  open "http://$PROM_ADDR/alerts"
+```
 
 屏幕是空的。不要绝望。我们将会多次返回到那个屏幕。随着我们的进展，警报将会增加。现在，只需记住那里是您可以找到警报的地方。
 
 最后，我们将打开图形屏幕。
 
-[PRE20]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 那里是您将花费时间调试通过警报发现的问题的地方。
 
 作为我们的第一个任务，我们将尝试检索有关我们节点的信息。我们将使用`kube_node_info`，所以让我们看一下它的描述（帮助）和类型。
 
-[PRE21]
+```
+ 1  kubectl -n metrics run -it test \
+ 2      --image=appropriate/curl \
+ 3      --restart=Never \
+ 4      --rm \
+ 5      -- prometheus-kube-state-metrics:8080/metrics \
+ 6      | grep "kube_node_info"
+```
 
 输出，仅限于`HELP`和`TYPE`条目，如下所示。
 
-[PRE22]
+```
+ 1  # HELP kube_node_info Information about a cluster node.
+ 2  # TYPE kube_node_info gauge
+ 3  ...
+```
 
 您可能会看到您的结果与我的结果之间的差异。这是正常的，因为我们的集群可能具有不同数量的资源，我的带宽可能不同，等等。在某些情况下，我的警报会触发，而您的不会，或者反之。我会尽力解释我的经验并提供伴随它们的截图。您将不得不将其与您在屏幕上看到的内容进行比较。
 
@@ -212,7 +398,9 @@ Prometheus 服务器从出口商那里获取数据。在我们的情况下，这
 
 请在表达式字段中输入以下查询。
 
-[PRE23]
+```
+ 1  kube_node_info
+```
 
 点击“执行”按钮以检索`kube_node_info`指标的值。
 
@@ -232,7 +420,9 @@ Prometheus 的仪表是表示单个数值的度量，可以任意上升或下降
 
 请执行接下来的表达式。
 
-[PRE24]
+```
+ 1  count(kube_node_info)
+```
 
 输出应该显示集群中工作节点的总数。在我的情况下（AKS），有`3`个。乍一看，这可能并不是非常有用。您可能认为，即使没有 Prometheus，您也应该知道集群中有多少个节点。但这可能并不正确。其中一个节点可能已经失败，并且没有恢复。如果您在本地运行集群而没有扩展组，这一点尤其正确。或者 Cluster Autoscaler 增加或减少了节点的数量。一切都会随时间而改变，无论是由于故障，人为行为，还是通过自适应的系统。无论波动的原因是什么，当某些情况达到阈值时，我们可能希望得到通知。我们将以节点作为第一个例子。
 
@@ -240,11 +430,36 @@ Prometheus 的仪表是表示单个数值的度量，可以任意上升或下降
 
 我们将看一下 Prometheus Chart 值的新定义。由于定义很大，并且会随着时间增长，所以从现在开始，我们只会关注其中的差异。
 
-[PRE25]
+```
+ 1  diff mon/prom-values-bare.yml \
+ 2      mon/prom-values-nodes.yml
+```
 
 输出如下。
 
-[PRE26]
+```
+> serverFiles:
+>   alerts:
+>     groups:
+>     - name: nodes
+>       rules:
+>       - alert: TooManyNodes
+>         expr: count(kube_node_info) > 3
+>         for: 15m
+>         labels:
+>           severity: notify
+>         annotations:
+>           summary: Cluster increased
+>           description: The number of the nodes in the cluster increased
+>       - alert: TooFewNodes
+>         expr: count(kube_node_info) < 1
+>         for: 15m
+>         labels:
+>           severity: notify
+>         annotations:
+>           summary: Cluster decreased
+>           description: The number of the nodes in the cluster decreased
+```
 
 我们添加了一个新条目`serverFiles.alerts`。如果您查看 Prometheus 的 Helm 文档，您会发现它允许我们定义警报（因此得名）。在其中，我们使用了“标准”Prometheus 语法来定义警报。
 
@@ -254,13 +469,23 @@ Prometheus 的仪表是表示单个数值的度量，可以任意上升或下降
 
 让我们升级我们的 Prometheus Chart 并查看新警报的效果。
 
-[PRE27]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-nodes.yml
+```
 
 新配置被“发现”并重新加载 Prometheus 需要一些时间。过一会儿，我们可以打开 Prometheus 警报屏幕，检查是否有我们的第一个条目。
 
 从现在开始，我不会（太多）评论需要等待一段时间直到下一个配置传播的需要。如果您在屏幕上看到的与您期望的不一致，请稍等片刻并刷新一下。
 
-[PRE28]
+```
+ 1  open "http://$PROM_ADDR/alerts"
+```
 
 您应该会看到两个警报。
 
@@ -270,21 +495,45 @@ Prometheus 的仪表是表示单个数值的度量，可以任意上升或下降
 
 看到无效的警报很无聊，所以我想向您展示一个触发的警报（变为红色）。为了做到这一点，我们可以向集群添加更多节点（除非您正在使用像 Docker for Desktop 和 minikube 这样的单节点集群）。但是，修改一个警报的表达式会更容易，所以下面我们将这样做。
 
-[PRE29]
+```
+ 1  diff mon/prom-values-nodes.yml \
+ 2      mon/prom-values-nodes-0.yml
+```
 
 输出如下。
 
-[PRE30]
+```
+57,58c57,58
+< expr: count(kube_node_info) > 3
+< for: 15m
+---
+> expr: count(kube_node_info) > 0
+> for: 1m
+66c66
+< for: 15m
+---
+> for: 1m
+```
 
 新的定义将`TooManyNodes`警报的条件更改为如果节点数大于零则触发。我们还修改了`for`语句，这样在警报触发之前我们不需要等待`15`分钟。
 
 让我们再次升级 Chart。
 
-[PRE31]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-nodes-0.yml
+```
 
 ...然后我们将返回到警报屏幕。
 
-[PRE32]
+```
+ 1  open "http://$PROM_ADDR/alerts"
+```
 
 几分钟后（不要忘记刷新屏幕），警报将转为挂起状态，颜色将变为黄色。这意味着警报的条件已经满足（我们确实有超过零个节点），但`for`时间段尚未到期。
 
@@ -294,7 +543,9 @@ Prometheus 的仪表是表示单个数值的度量，可以任意上升或下降
 
 警报发送到了哪里？Prometheus Helm Chart 部署了 Alertmanager，并预先配置了 Prometheus 将其警报发送到那里。让我们来看看它的 UI。
 
-[PRE33]
+```
+ 1  open "http://$AM_ADDR"
+```
 
 我们可以看到一个警报已经到达了 Alertmanager。如果我们点击`TooManyNodes`警报旁边的+信息按钮，我们将看到注释（摘要和描述）以及标签（严重程度）。
 
@@ -306,11 +557,38 @@ Prometheus 的仪表是表示单个数值的度量，可以任意上升或下降
 
 我们将看一下 Prometheus Chart 值的另一个更新。
 
-[PRE34]
+```
+ 1  diff mon/prom-values-nodes-0.yml \
+ 2      mon/prom-values-nodes-am.yml
+```
 
 输出如下。
 
-[PRE35]
+```
+71a72,93
+> alertmanagerFiles:
+>   alertmanager.yml:
+>     global: {}
+>     route:
+>       group_wait: 10s
+>       group_interval: 5m
+>       receiver: slack
+>       repeat_interval: 3h
+>       routes:
+>       - receiver: slack
+>         repeat_interval: 5d
+>         match:
+>           severity: notify
+>           frequency: low
+>     receivers:
+>     - name: slack
+>       slack_configs:
+>       - api_url: "https://hooks.slack.com/services/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"
+>         send_resolved: true
+>         title: "{{ .CommonAnnotations.summary }}"
+>         text: "{{ .CommonAnnotations.description }}"
+>         title_link: http://my-prometheus.com/alerts
+```
 
 当我们应用该定义时，我们将向 Alertmanager 添加`alertmanager.yml`文件。如果包含了它应该用来分发警报的规则。`route`部分包含了将应用于所有不匹配任何一个`routes`的警报的一般规则。`group_wait`值使 Alertmanager 在同一组的其他警报到达时等待`10`秒。这样，我们将避免接收到相同类型的多个警报。
 
@@ -342,11 +620,21 @@ Prometheus 的仪表是表示单个数值的度量，可以任意上升或下降
 
 现在我们已经探索了 Alertmanager 配置，我们可以继续并升级图表。
 
-[PRE36]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-nodes-am.yml
+```
 
 几分钟后，Alertmanager 将被重新配置，下次它从 Prometheus 接收到警报时，它将将其发送到 Slack。我们可以通过访问`devops20.slack.com`工作区来确认。如果您尚未注册，请访问[slack.devops20toolkit.com](http://slack.devops20toolkit.com)。一旦您成为会员，我们可以访问`devops25-tests`频道。
 
-[PRE37]
+```
+ 1  open "https://devops20.slack.com/messages/CD8QJA8DS/"
+```
 
 你应该看到`集群增加`通知。如果你看到其他消息，不要感到困惑。你可能不是唯一一个在运行本书练习的人。
 
@@ -380,27 +668,46 @@ Prometheus 的仪表是表示单个数值的度量，可以任意上升或下降
 
 我们将使用`go-demo-5`应用程序来测量延迟，所以我们的第一步是安装它。
 
-[PRE38]
+```
+ 1  GD5_ADDR=go-demo-5.$LB_IP.nip.io
+ 2
+ 3  helm install \
+ 4      https://github.com/vfarcic/go-demo-5/releases/download/
+    0.0.1/go-demo-5-0.0.1.tgz \
+ 5      --name go-demo-5 \
+ 6      --namespace go-demo-5 \
+ 7      --set ingress.host=$GD5_ADDR
+```
 
 我们生成了一个地址，我们将用作 Ingress 入口点，并使用 Helm 部署了应用程序。现在我们应该等待直到它完全部署。
 
-[PRE39]
+```
+ 1  kubectl -n go-demo-5 \
+ 2      rollout status \
+ 3      deployment go-demo-5
+```
 
 在继续之前，我们将检查应用程序是否确实通过发送 HTTP 请求正确工作。
 
-[PRE40]
+```
+ 1  curl "http://$GD5_ADDR/demo/hello"
+```
 
 输出应该是熟悉的`hello, world!`消息。
 
 现在，让我们看看是否可以，例如，通过 Ingress 进入系统的请求的持续时间。
 
-[PRE41]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 如果您点击“在光标处插入指标”下拉列表，您将能够浏览所有可用的指标。我们正在寻找的是`nginx_ingress_controller_request_duration_seconds_bucket`。正如其名称所示，该指标来自 NGINX Ingress Controller，并提供以秒为单位分组的请求持续时间。
 
 请键入以下表达式，然后单击“执行”按钮。
 
-[PRE42]
+```
+ 1  nginx_ingress_controller_request_duration_seconds_bucket
+```
 
 在这种情况下，查看原始值可能并不是非常有用，所以请点击“图表”选项卡。
 
@@ -414,7 +721,12 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请输入以下表达式，然后点击“执行”按钮。
 
-[PRE43]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_request_duration_seconds_count[5m]
+ 3  )) 
+ 4  by (ingress)
+```
 
 结果图表向我们显示了通过 Ingress 进入系统的所有请求的每秒速率。速率是基于五分钟的间隔计算的。如果您将鼠标悬停在其中一条线上，您将看到额外的信息，如值和 Ingress。`by`语句允许我们按`ingress`对结果进行分组。
 
@@ -422,13 +734,31 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请输入以下表达式，然后点击“执行”按钮。
 
-[PRE44]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_request_duration_seconds_bucket{
+ 3      le="0.25"
+ 4    }[5m]
+ 5  )) 
+ 6  by (ingress)
+```
 
 我们真正想要的是找出落入 0.25 秒区间的请求的百分比。为了实现这一点，我们将获取快于或等于 0.25 秒的请求的速率，并将结果除以所有请求的速率。
 
 请输入以下表达式，然后点击“执行”按钮。
 
-[PRE45]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_request_duration_seconds_bucket{
+ 3      le="0.25"
+ 4    }[5m]
+ 5  )) 
+ 6  by (ingress) / 
+ 7  sum(rate(
+ 8    nginx_ingress_controller_request_duration_seconds_count[5m]
+ 9  )) 
+10  by (ingress)
+```
 
 由于我们尚未生成太多流量，您可能在图表中看不到太多内容，除了偶尔与 Prometheus 和 Alertmanager 的交互以及我们发送到`go-demo-5`的单个请求。尽管如此，您可以看到的几行显示了响应时间在 0.25 秒内的请求的百分比。
 
@@ -436,17 +766,50 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请输入以下表达式，然后点击“执行”按钮。
 
-[PRE46]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_request_duration_seconds_bucket{
+ 3      le="0.25", 
+ 4      ingress="go-demo-5"
+ 5    }[5m]
+ 6  )) 
+ 7  by (ingress) / 
+ 8  sum(rate(
+ 9    nginx_ingress_controller_request_duration_seconds_count{
+10      ingress="go-demo-5"
+11    }[5m]
+12  )) 
+13  by (ingress)
+```
 
 由于我们只发送了一个请求，图表应该几乎是空的。或者，您可能收到了“未找到数据点”的消息。现在是时候生成一些流量了。
 
-[PRE47]
+```
+ 1  for i in {1..30}; do
+ 2    DELAY=$[ $RANDOM % 1000 ]
+ 3    curl "http://$GD5_ADDR/demo/hello?delay=$DELAY"
+ 4  done
+```
 
 我们向`go-demo-5`发送了 30 个请求。该应用程序具有延迟响应请求的“隐藏”功能。鉴于我们希望生成具有随机响应时间的流量，我们使用了`DELAY`变量，其随机值最多为 1000 毫秒。现在我们可以重新运行相同的查询，看看是否可以获得一些更有意义的数据。
 
 请等一会儿，直到收集到新请求的数据，然后在 Prometheus 中输入以下表达式，然后点击“执行”按钮。
 
-[PRE48]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_request_duration_seconds_bucket{
+ 3      le="0.25", 
+ 4      ingress="go-demo-5"
+ 5    }[5m]
+ 6  )) 
+ 7  by (ingress) / 
+ 8  sum(rate(
+ 9    nginx_ingress_controller_request_duration_seconds_count{
+10      ingress="go-demo-5"
+11    }[5m]
+12  )) 
+13  by (ingress)
+```
 
 这次，我们可以看到新行的出现。在我的情况下（随后的屏幕截图），大约百分之二十五的请求持续时间在 0.25 秒内。换句话说，大约四分之一的请求比预期慢。
 
@@ -456,7 +819,18 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE49]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_request_duration_seconds_bucket{
+ 3      le="0.25"
+ 4    }[5m]
+ 5  ))
+ 6  by (ingress) /
+ 7  sum(rate(
+ 8    nginx_ingress_controller_request_duration_seconds_count[5m]
+ 9  ))
+10  by (ingress) < 0.95
+```
 
 我们可以偶尔看到少于百分之九十五的请求在 0.25 秒内。在我的情况下（随后的屏幕截图），我们可以看到 Prometheus、Alertmanager 和`go-demo-5`偶尔变慢。
 
@@ -466,11 +840,29 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 我准备了一组更新后的 Prometheus 图表数值，让我们看看与我们当前使用的图表的差异。
 
-[PRE50]
+```
+ 1  diff mon/prom-values-nodes-am.yml \
+ 2      mon/prom-values-latency.yml
+```
 
 输出如下。
 
-[PRE51]
+```
+53a54,62
+> - name: latency
+>   rules:
+>   - alert: AppTooSlow
+>     expr: sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{le= "0.25"}[5m])) by (ingress) / sum(rate(nginx_ingress_controller_request_duration_seconds_count[5m])) by (ingress) < 0.95
+>     labels:
+>       severity: notify
+>     annotations:
+>       summary: Application is too slow
+>       description: More then 5% of requests are slower than 0.25s
+57c66
+<     expr: count(kube_node_info) > 0
+---
+>     expr: count(kube_node_info) > 3
+```
 
 我们添加了一个新的警报`AppTooSlow`。如果持续时间为 0.25 秒或更短的请求的百分比小于百分之九十五（`0.95`），它将触发。
 
@@ -478,7 +870,17 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 接下来，我们将使用新值更新`prometheus`图表，并打开警报屏幕以确认是否确实添加了新警报。
 
-[PRE52]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-latency.yml
+ 8
+ 9  open "http://$PROM_ADDR/alerts"
+```
 
 如果`AppTooSlow`警报仍然不可用，请稍等片刻并刷新屏幕。
 
@@ -488,11 +890,18 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请执行以下命令，发送 30 个具有随机响应时间的请求，最长为 10000 毫秒（10 秒）。
 
-[PRE53]
+```
+ 1  for i in {1..30}; do
+ 2    DELAY=$[ $RANDOM % 10000 ]
+ 3    curl "http://$GD5_ADDR/demo/hello?delay=$DELAY"
+ 4  done
+```
 
 直到 Prometheus 抓取新的指标并且警报检测到阈值已达到，需要一些时间。过一会儿，我们可以再次打开警报屏幕，检查警报是否确实触发。
 
-[PRE54]
+```
+ 1  open "http://$PROM_ADDR/alerts"
+```
 
 我们可以看到警报的状态是触发。如果这不是您的情况，请再等一会儿并刷新屏幕。在我的情况下（随后的截图），该值为 0.125，意味着只有 12.5％的请求持续时间为 0.25 秒或更短。
 
@@ -500,7 +909,9 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 警报是红色的，意味着 Prometheus 将其发送到 Alertmanager，后者又将其转发到 Slack。让我们确认一下。
 
-[PRE55]
+```
+ 1  open "https://devops20.slack.com/messages/CD8QJA8DS/"
+```
 
 正如您所看到的（随后的截图），我们收到了两个通知。由于我们将`TooManyNodes`警报的阈值恢复为大于三个节点，并且我们的集群节点较少，因此 Prometheus 向 Alertmanager 发送了问题已解决的通知。结果，我们在 Slack 中收到了新的通知。这次，消息的颜色是绿色的。
 
@@ -512,11 +923,27 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 让我们再次打开图表屏幕。
 
-[PRE56]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 请键入以下表达式，点击“执行”按钮，然后切换到*图表*选项卡。
 
-[PRE57]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_request_duration_seconds_bucket{
+ 3      le="0.25", 
+ 4      ingress!~"prometheus-server|jenkins"
+ 5    }[5m]
+ 6  )) 
+ 7  by (ingress) / 
+ 8  sum(rate(
+ 9    nginx_ingress_controller_request_duration_seconds_count{
+10      ingress!~"prometheus-server|jenkins"
+11    }[5m]
+12  )) 
+13  by (ingress)
+```
 
 与之前的查询相比，新增的是`ingress!~"prometheus-server|jenkins"`过滤器。`!~`用于选择具有不与`prometheus-server|jenkins`字符串匹配的标签的指标。由于`|`等同于`or`语句，我们可以将该过滤器翻译为“所有不是`prometheus-server`或不是`jenkins`的内容”。我们的集群中没有 Jenkins。我只是想向您展示一种排除多个值的方法。
 
@@ -530,7 +957,21 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后点击“执行”按钮。
 
-[PRE58]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_request_duration_seconds_bucket{
+ 3      le="0.5",
+ 4      ingress=~"prometheus-server|jenkins"
+ 5    }[5m]
+ 6  )) 
+ 7  by (ingress) /
+ 8  sum(rate(
+ 9    nginx_ingress_controller_request_duration_seconds_count{
+10      ingress=~"prometheus-server|jenkins"
+11    }[5m]
+12  ))
+13  by (ingress)
+```
 
 与之前的表达式相比，唯一的区别是这次我们使用了`=~`运算符。它选择与提供的字符串匹配的标签。此外，桶（`le`）现在设置为`0.5`秒，因为这两个应用程序可能需要更多时间来响应，我们可以接受这一点。
 
@@ -546,7 +987,13 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 我们将开始创建一些流量，以便我们可以用来可视化请求。
 
-[PRE59]
+```
+ 1  for i in {1..100}; do
+ 2      curl "http://$GD5_ADDR/demo/hello"
+ 3  done
+ 4
+ 5  open "http://$PROM_ADDR/graph"
+```
 
 我们向`go-demo-5`应用程序发送了一百个请求，并打开了 Prometheus 的图表屏幕。
 
@@ -554,7 +1001,12 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入下面的表达式，按“执行”按钮，然后切换到*图表*选项卡。
 
-[PRE60]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_requests[5m]
+ 3  ))
+ 4  by (ingress)
+```
 
 图表的右侧显示了一个峰值。它显示了通过具有相同名称的 Ingress 发送到`go-demo-5`应用程序的请求。
 
@@ -566,7 +1018,9 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE61]
+```
+ 1  kube_deployment_status_replicas
+```
 
 我们可以看到系统中每个部署的副本数量。在我的情况下，`go-demo-5` 应用程序以红色（后续截图）显示，有三个副本。
 
@@ -580,7 +1034,14 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE62]
+```
+ 1  label_join(
+ 2    kube_deployment_status_replicas,
+ 3    "ingress", 
+ 4    ",", 
+ 5    "deployment"
+ 6  )
+```
 
 由于这次我们主要关注标签的值，请通过点击选项卡切换到控制台视图。
 
@@ -592,7 +1053,19 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE63]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_requests[5m]
+ 3  ))
+ 4  by (ingress) /
+ 5  sum(label_join(
+ 6    kube_deployment_status_replicas,
+ 7    "ingress",
+ 8    ",",
+ 9    "deployment"
+10  ))
+11  by (ingress)
+```
 
 切换回*图表*视图。
 
@@ -608,17 +1081,39 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 因此，让我们来看看普罗米修斯图表值的旧定义和新定义之间的区别。
 
-[PRE64]
+```
+ 1  diff mon/prom-values-latency.yml \
+ 2      mon/prom-values-latency2.yml
+```
 
 输出如下。
 
-[PRE65]
+```
+62a63,69
+> - alert: TooManyRequests
+>   expr: sum(rate(nginx_ingress_controller_requests[5m])) by (ingress) / sum(label_join(kube_deployment_status_replicas, "ingress", ",", "deployment")) by (ingress) > 0.1
+>   labels:
+>     severity: notify
+>   annotations:
+>     summary: Too many requests
+>     description: There is more than average of 1 requests per second per replica for at least one application
+```
 
 我们可以看到表达式几乎与我们在普罗米修斯图表屏幕中使用的表达式相同。唯一的区别是我们将阈值设置为`0.1`。因此，该警报应在副本每秒收到的请求数超过五分钟内计算的速率`0.1`时通知我们。你可能已经猜到，每秒`0.1`个请求是一个太低的数字，不能在生产中使用。然而，它将使我们能够轻松触发警报并看到它的作用。
 
 现在，让我们升级我们的图表，并打开普罗米修斯的警报屏幕。
 
-[PRE66]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-latency2.yml
+ 8
+ 9  open "http://$PROM_ADDR/alerts"
+```
 
 请刷新屏幕，直到`TooManyRequests`警报出现。
 
@@ -626,13 +1121,21 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 接下来，我们将生成一些流量，以便我们可以看到警报是如何生成并通过 Alertmanager 发送到 Slack 的。
 
-[PRE67]
+```
+ 1  for i in {1..200}; do
+ 2      curl "http://$GD5_ADDR/demo/hello"
+ 3  done
+ 4
+ 5  open "http://$PROM_ADDR/alerts"
+```
 
 我们发送了两百个请求，并重新打开了普罗米修斯的警报屏幕。现在我们应该刷新屏幕，直到`TooManyRequests`警报变为红色。
 
 普罗米修斯一旦触发了警报，就会被发送到 Alertmanager，然后转发到 Slack。让我们确认一下。
 
-[PRE68]
+```
+ 1  open "https://devops20.slack.com/messages/CD8QJA8DS/"
+```
 
 我们可以看到“请求过多”的通知，从而证明了这个警报的流程是有效的。
 
@@ -650,7 +1153,13 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 我们将从生成一些流量开始。
 
-[PRE69]
+```
+ 1  for i in {1..100}; do
+ 2      curl "http://$GD5_ADDR/demo/hello"
+ 3  done
+ 4
+ 5  open "http://$PROM_ADDR/graph"
+```
 
 我们发送了一百个请求并打开了 Prometheus 的图形屏幕。
 
@@ -658,7 +1167,9 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后点击执行按钮。
 
-[PRE70]
+```
+ 1  nginx_ingress_controller_requests
+```
 
 我们可以看到 Prometheus 最近抓取的所有数据。如果我们更加关注标签，我们会发现，其中包括`status`。我们可以使用它来根据请求的总数计算出错误的百分比（例如，500 范围内的错误）。
 
@@ -668,17 +1179,34 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 `go-demo-5`应用程序有一个特殊的端点`/demo/random-error`，它将生成随机的错误响应。大约每十个对该地址的请求中就会产生一个错误。我们可以用这个来测试我们的表达式。
 
-[PRE71]
+```
+ 1  for i in {1..100}; do
+ 2    curl "http://$GD5_ADDR/demo/random-error"
+ 3  done
+```
 
 我们向`/demo/random-error`端点发送了一百个请求，大约有 10%的请求产生了错误（HTTP 状态码`500`）。
 
 接下来，我们将不得不等待一段时间，让 Prometheus 抓取新的一批指标。之后，我们可以打开图表屏幕，尝试编写一个表达式，以检索我们应用程序的错误率。
 
-[PRE72]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 请键入以下表达式，然后按执行按钮。
 
-[PRE73]
+```
+ 1  sum(rate(
+ 2    nginx_ingress_controller_requests{
+ 3      status=~"5.."
+ 4    }[5m]
+ 5  ))
+ 6  by (ingress) /
+ 7  sum(rate(
+ 8    nginx_ingress_controller_requests[5m]
+ 9  ))
+10  by (ingress)
+```
 
 我们使用了`5..`正则表达式来计算按`ingress`分组的带有错误的请求的比率，并将结果除以所有请求的比率。结果按`ingress`分组。在我的情况下（随后的截图），结果大约为 4%（`0.04`）。Prometheus 尚未抓取所有指标，我预计在下一次抓取迭代中这个数字会接近 10%。
 
@@ -686,17 +1214,39 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 让我们比较图表值文件的更新版本与我们之前使用的版本。
 
-[PRE74]
+```
+ 1  diff mon/prom-values-cpu-memory.yml \
+ 2      mon/prom-values-errors.yml
+```
 
 输出如下。
 
-[PRE75]
+```
+127a128,136
+> - name: errors
+>   rules:
+>   - alert: TooManyErrors
+>     expr: sum(rate(nginx_ingress_controller_requests{status=~"5.."}[5m])) by (ingress) / sum(rate(nginx_ingress_controller_requests[5m])) by (ingress) > 0.025
+>     labels:
+>       severity: error
+>     annotations:
+>       summary: Too many errors
+>       description: At least one application produced more then 5% of error responses
+```
 
 如果错误率超过总请求率的 2.5%，警报将触发。
 
 现在我们可以升级我们的 Prometheus 图表。
 
-[PRE76]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-errors.yml
+```
 
 我们可能不需要确认警报是否有效。我们已经看到 Prometheus 将所有警报发送到 Alertmanager，然后从那里转发到 Slack。
 
@@ -708,13 +1258,24 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 现在，我们将专注于 CPU 使用率。我们将首先打开 Prometheus 的图表屏幕。
 
-[PRE77]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 让我们看看是否可以获得节点（`instance`）的 CPU 使用率。我们可以使用`node_cpu_seconds_total`指标来实现。但是，它被分成不同的模式，我们将不得不排除其中的一些模式，以获得“真实”的 CPU 使用率。这些将是`idle`，`iowait`，和任何类型的`guest`周期。
 
 请键入以下表达式，然后按执行按钮。
 
-[PRE78]
+```
+ 1  sum(rate(
+ 2    node_cpu_seconds_total{
+ 3      mode!="idle", 
+ 4      mode!="iowait", 
+ 5      mode!~"^(?:guest.*)$"
+ 6   }[5m]
+ 7  ))
+ 8  by (instance)
+```
 
 切换到*图表*视图。
 
@@ -728,7 +1289,13 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请输入以下表达式，然后点击执行按钮。
 
-[PRE79]
+```
+ 1  count(
+ 2    node_cpu_seconds_total{
+ 3      mode="system"
+ 4    }
+ 5  )
+```
 
 在我的情况下（以下是屏幕截图），总共有六个核心。如果您使用的是 GKE、EKS 或来自 Gists 的 AKS，您的情况可能也是六个。另一方面，如果您在 Docker for Desktop 或 minikube 中运行集群，结果应该是一个节点。
 
@@ -736,7 +1303,20 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请输入以下表达式，然后点击执行按钮。
 
-[PRE80]
+```
+ 1  sum(rate(
+ 2    node_cpu_seconds_total{
+ 3      mode!="idle", 
+ 4      mode!="iowait",
+ 5      mode!~"^(?:guest.*)$"
+ 6    }[5m]
+ 7  )) /
+ 8  count(
+ 9    node_cpu_seconds_total{
+10      mode="system"
+11    }
+12  )
+```
 
 我们总结了使用的 CPU 速率，并将其除以 CPU 的总数。在我的情况下（以下是屏幕截图），当前仅使用了三到四个百分比的 CPU。
 
@@ -750,7 +1330,9 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请输入以下表达式，然后点击执行按钮。
 
-[PRE81]
+```
+ 1  kube_node_status_allocatable_cpu_cores
+```
 
 输出应该低于我们的虚拟机使用的核心数。可分配的核心显示了可以分配给容器的 CPU 数量。更准确地说，可分配的核心是分配给节点的 CPU 数量减去系统级进程保留的数量。在我的情况下（以下是屏幕截图），几乎有两个完整的可分配 CPU。
 
@@ -760,7 +1342,11 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE82]
+```
+ 1  sum(
+ 2    kube_node_status_allocatable_cpu_cores
+ 3  )
+```
 
 在我的情况下，可分配的 CPU 总数大约为 5.8 个核心。要获取确切的数字，请将鼠标悬停在图表线上。
 
@@ -770,7 +1356,9 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE83]
+```
+ 1  kube_pod_container_resource_requests_cpu_cores
+```
 
 我们可以看到请求的 CPU 相对较低。在我的情况下，所有请求 CPU 的容器值都低于 0.15（一百五十毫秒）。您的结果可能有所不同。
 
@@ -778,7 +1366,11 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE84]
+```
+ 1  sum(
+ 2    kube_pod_container_resource_requests_cpu_cores
+ 3  )
+```
 
 我们对所有 CPU 资源请求求和。结果是，在我的情况下（随后的屏幕截图），所有请求的 CPU 略低于 1.5。
 
@@ -788,7 +1380,14 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE85]
+```
+ 1  sum(
+ 2    kube_pod_container_resource_requests_cpu_cores
+ 3  ) /
+ 4  sum(
+ 5    kube_node_status_allocatable_cpu_cores
+ 6  )
+```
 
 在我的情况下，输出显示大约四分之一（0.25）的可分配 CPU 被保留。这意味着在我们达到扩展集群的需要之前，我们可以有四倍的 CPU 请求。当然，您已经知道，如果存在的话，集群自动扩展器会在此之前添加节点。但是，知道我们接近达到 CPU 限制是很重要的。集群自动扩展器可能无法正常工作，或者甚至可能根本没有激活。如果有的话，后一种情况对于大多数本地集群来说是真实的。
 
@@ -796,13 +1395,39 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 我们将探讨一组新的图表值与之前使用的值之间的另一个差异。
 
-[PRE86]
+```
+ 1  diff mon/prom-values-latency2.yml \
+ 2      mon/prom-values-cpu.yml
+```
 
 输出如下。
 
-[PRE87]
+```
+64c64
+<   expr: sum(rate(nginx_ingress_controller_requests[5m])) by (ingress) / sum(label_join(kube_deployment_status_replicas, "ingress", ",", "deployment")) by (ingress) > 0.1
+---
+>   expr: sum(rate(nginx_ingress_controller_requests[5m])) by (ingress) / sum(label_join(kube_deployment_status_replicas, "ingress", ",", "deployment")) by (ingress) > 1
+87a88,103
+> - alert: NotEnoughCPU
+>   expr: sum(rate(node_cpu_seconds_total{mode!="idle", mode!="iowait", mode!~"^(?:guest.*)$"}[5m])) / count(node_cpu_seconds_total{mode="system"}) > 0.9
+```
 
-[PRE88]
+```
+>   for: 30m
+>   labels:
+>     severity: notify
+>   annotations:
+>     summary: There's not enough CPU
+>     description: CPU usage of the cluster is above 90%
+> - alert: TooMuchCPURequested
+>   expr: sum(kube_pod_container_resource_requests_cpu_cores) / sum(kube_node_status_allocatable_cpu_cores) > 0.9
+>   for: 30m
+>   labels:
+>     severity: notify
+>   annotations:
+>     summary: There's not enough allocatable CPU
+>     description: More than 90% of allocatable CPU is requested
+```
 
 从差异中我们可以看到，我们将`TooManyRequests`的原始阈值恢复为`1`，并添加了两个名为`NotEnoughCPU`和`TooMuchCPURequested`的新警报。
 
@@ -814,7 +1439,17 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 让我们使用新的值升级 Prometheus 的图表并打开警报屏幕。
 
-[PRE89]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-cpu.yml
+ 8
+ 9  open "http://$PROM_ADDR/alerts"
+```
 
 现在剩下的就是等待两个新的警报出现。如果它们还没有出现，请刷新您的屏幕。
 
@@ -838,13 +1473,17 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 测量内存消耗与 CPU 类似，但也有一些我们应该考虑的不同之处。但在我们到达那里之前，让我们回到 Prometheus 的图表界面，探索我们的第一个与内存相关的指标。
 
-[PRE90]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 就像 CPU 一样，首先我们需要找出每个节点有多少内存。
 
 请键入以下表达式，点击“执行”按钮，然后切换到*图表*选项卡。
 
-[PRE91]
+```
+ 1  node_memory_MemTotal_bytes
+```
 
 你的结果可能与我的不同。在我的情况下，每个节点大约有 4GB 的 RAM。
 
@@ -852,7 +1491,9 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请在下面输入表达式，然后按“执行”按钮。
 
-[PRE92]
+```
+ 1  node_memory_MemAvailable_bytes
+```
 
 我们可以看到集群中每个节点的可用内存。在我的情况下（如下截图所示），每个节点大约有 3GB 的可用 RAM。
 
@@ -862,7 +1503,15 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请在下面输入表达式，然后按“执行”按钮。
 
-[PRE93]
+```
+ 1  1 -
+ 2  sum(
+ 3    node_memory_MemAvailable_bytes
+ 4  ) /
+ 5  sum(
+ 6    node_memory_MemTotal_bytes
+ 7  )
+```
 
 由于我们正在寻找已使用内存的百分比，并且我们有可用内存的指标，我们从`1 -`开始表达式，这将颠倒结果。表达式的其余部分是可用和总内存的简单除法。在我的情况下（如下截图所示），每个节点上使用的内存不到 30%。
 
@@ -872,7 +1521,9 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请在下面输入表达式，然后按“执行”按钮。
 
-[PRE94]
+```
+ 1  kube_node_status_allocatable_memory_bytes
+```
 
 根据 Kubernetes 的版本和您使用的托管提供商，总内存和可分配内存之间可能存在很小或很大的差异。我在 AKS 中运行集群，可分配内存比总内存少了整整 1GB。前者大约为 3GB RAM，而后者大约为 4GB RAM。这是一个很大的差异。我的 Pod 并没有完整的 4GB 内存，而是少了大约四分之一。其余的大约 1GB RAM 花费在系统级服务上。更糟糕的是，这 1GB RAM 花费在每个节点上，而在我的情况下，这导致总共少了 3GB，因为我的集群有三个节点。鉴于总内存和可分配内存之间的巨大差异，拥有更少但更大的节点是有明显好处的。然而，并不是每个人都需要大节点，如果我们希望节点分布在所有区域，将节点数量减少到少于三个可能不是一个好主意。
 
@@ -880,7 +1531,9 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE95]
+```
+ 1  kube_pod_container_resource_requests_memory_bytes
+```
 
 我们可以看到 Prometheus（服务器）具有最多的请求内存（500MB），而其他所有的请求内存都远低于这个数值。请记住，我们只看到了具有预留的 Pod，那些没有预留的 Pod 不会出现在该查询的结果中。正如您已经知道的那样，在特殊情况下，例如用于 CI/CD 流程中的短暂 Pod，不定义预留和限制是可以的。
 
@@ -890,7 +1543,11 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE96]
+```
+ 1  sum(
+ 2    kube_pod_container_resource_requests_memory_bytes
+ 3  )
+```
 
 在我的情况下，所请求的内存总量大约为 1.6GB RAM。
 
@@ -898,7 +1555,14 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE97]
+```
+ 1  sum(
+ 2    kube_pod_container_resource_requests_memory_bytes
+ 3  ) / 
+ 4  sum(
+ 5    kube_node_status_allocatable_memory_bytes
+ 6  )
+```
 
 在我的情况下（以下是屏幕截图），请求内存的总量约为集群可分配 RAM 的百分之二十（`0.2`）。我远非处于任何危险之中，也没有必要扩展集群。如果有什么，我有太多未使用的内存，可能想要缩减规模。然而，目前我们只关注扩展规模。稍后我们将探讨可能导致缩减规模的警报。
 
@@ -906,17 +1570,48 @@ Prometheus 的速率函数计算了范围向量中时间序列的每秒平均增
 
 让我们看看旧图表数值和我们即将使用的数值之间的差异。
 
-[PRE98]
+```
+ 1  diff mon/prom-values-cpu.yml \
+ 2      mon/prom-values-memory.yml
+```
 
 输出如下。
 
-[PRE99]
+```
+103a104,119
+> - alert: NotEnoughMemory
+>   expr: 1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes) > 0.9
+>   for: 30m
+>   labels:
+>     severity: notify
+>   annotations:
+>     summary: There's not enough memory
+>     description: Memory usage of the cluster is above 90%
+> - alert: TooMuchMemoryRequested
+>   expr: sum(kube_pod_container_resource_requests_memory_bytes) / sum(kube_node_status_allocatable_memory_bytes) > 0.9
+>   for: 30m
+>   labels:
+>     severity: notify
+>   annotations:
+>     summary: There's not enough allocatable memory
+>     description: More than 90% of allocatable memory is requested
+```
 
 我们添加了两个新的警报（“内存不足”和“请求内存过多”）。定义本身应该很简单，因为我们已经创建了相当多的警报。表达式与我们在 Prometheus 图表屏幕中使用的表达式相同，只是增加了大于百分之九十（`> 0.9`）的阈值。因此，我们将跳过进一步的解释。
 
 我们将使用新值升级我们的 Prometheus 图表，并打开警报屏幕以确认它们。
 
-[PRE100]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-memory.yml
+ 8
+ 9  open "http://$PROM_ADDR/alerts"
+```
 
 如果警报“内存不足”和“请求内存过多”尚不可用，请稍等片刻，然后刷新屏幕。
 
@@ -932,21 +1627,69 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 作为提醒，我们之前使用的表达式如下（无需重新运行）。
 
-[PRE101]
+```
+ 1  sum(rate(
+ 2    node_cpu_seconds_total{
+ 3      mode!="idle",
+ 4      mode!="iowait",
+ 5      mode!~"^(?:guest.*)$"
+ 6    }[5m]
+ 7  ))
+ 8  by (instance) /
+ 9  count(
+10    node_cpu_seconds_total{
+11      mode="system"
+12    }
+13  )
+14  by (instance)
+15
+16  1 -
+17  sum(
+18    node_memory_MemAvailable_bytes
+19  ) 
+20  by (instance) /
+21  sum(
+22    node_memory_MemTotal_bytes
+23  )
+24  by (instance)
+```
 
 现在，让我们将图表的值的另一个更新与我们现在使用的进行比较。
 
-[PRE102]
+```
+ 1  diff mon/prom-values-memory.yml \
+ 2      mon/prom-values-cpu-memory.yml
+```
 
 输出如下。
 
-[PRE103]
+```
+119a120,127
+> - alert: TooMuchCPUAndMemory
+>   expr: (sum(rate(node_cpu_seconds_total{mode!="idle", mode!="iowait", mode!~"^(?:guest.*)$"}[5m])) by (instance) / count(node_cpu_seconds_total{mode="system"}) by (instance)) < 0.5 and (1 - sum(node_memory_MemAvailable_bytes) by (instance) / sum(node_memory_MemTotal_bytes) by (instance)) < 0.5
+>   for: 30m
+>   labels:
+>     severity: notify
+>   annotations:
+>     summary: Too much unused CPU and memory
+>     description: Less than 50% of CPU and 50% of memory is used on at least one node
+```
 
 我们正在添加一个名为`TooMuchCPUAndMemory`的新警报。它是以前两个警报的组合。只有当 CPU 和内存使用率都低于百分之五十时，它才会触发。这样我们就可以避免发送错误的警报，并且不会因为资源预留（CPU 或内存）之一太低而诱发缩减集群的决定，而另一个可能很高。
 
 在我们进入下一个主题（或指标类型）之前，剩下的就是升级 Prometheus 的图表并确认新的警报确实是可操作的。
 
-[PRE104]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-cpu-memory.yml
+ 8
+ 9  open "http://$PROM_ADDR/alerts"
+```
 
 如果警报仍然不存在，请刷新警报屏幕。在我的情况下（以下是屏幕截图），保留内存和 CPU 的总量低于百分之五十，并且警报处于挂起状态。在您的情况下，这可能并不是真的，警报可能还没有达到其阈值。尽管如此，我将继续解释我的情况，在这种情况下，CPU 和内存使用量都低于总可用量的百分之五十。
 
@@ -968,11 +1711,15 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 让我们打开 Prometheus 的图形屏幕。
 
-[PRE105]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 请键入以下表达式，然后单击“执行”按钮。
 
-[PRE106]
+```
+ 1  kube_pod_status_phase
+```
 
 输出显示了集群中每个 Pod 的情况。如果你仔细观察，你会注意到每个 Pod 都有五个结果，分别对应五种可能的阶段。如果你关注`phase`字段，你会发现有一个条目是`Failed`、`Pending`、`Running`、`Succeeded`和`Unknown`。因此，每个 Pod 有五个结果，但只有一个值为`1`，而其他四个的值都设置为`0`。
 
@@ -982,7 +1729,12 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 请键入以下表达式，然后单击“执行”按钮。
 
-[PRE107]
+```
+ 1  sum(
+ 2    kube_pod_status_phase
+ 3  ) 
+ 4  by (phase)
+```
 
 输出应该显示所有的 Pod 都处于`Running`阶段。在我的情况下，有二十七个正在运行的 Pod，没有一个处于其他任何阶段。
 
@@ -990,7 +1742,14 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 请键入以下表达式，然后单击“执行”按钮。
 
-[PRE108]
+```
+ 1  sum(
+ 2    kube_pod_status_phase{
+ 3      phase=~"Failed|Unknown|Pending"
+ 4    }
+ 5  ) 
+ 6  by (phase)
+```
 
 如预期的那样，除非您搞砸了什么，输出的值都设置为`0`。
 
@@ -998,25 +1757,47 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 到目前为止，没有我们需要担心的 Pod。我们将通过创建一个故意失败的 Pod 来改变这种情况，使用一个显然不存在的镜像。
 
-[PRE109]
+```
+ 1  kubectl run problem \
+ 2      --image i-do-not-exist \
+ 3      --restart=Never
+```
 
 从输出中可以看出，`pod/problem`已经被`created`。如果我们通过脚本（例如，CI/CD 流水线）创建它，我们可能会认为一切都很好。即使我们跟着使用`kubectl rollout status`，我们只能确保它开始工作，而不能确保它继续工作。
 
 但是，由于我们没有通过 CI/CD 流水线创建该 Pod，而是手动创建的，我们可以列出`default`命名空间中的所有 Pod。
 
-[PRE110]
+```
+ 1  kubectl get pods
+```
 
 输出如下。
 
-[PRE111]
+```
+NAME    READY STATUS       RESTARTS AGE
+problem 0/1   ErrImagePull 0        27s
+```
 
 我们假设我们只有短期记忆，并且已经忘记了`image`设置为`i-do-not-exist`。问题可能是什么？嗯，第一步是描述 Pod。
 
-[PRE112]
+```
+ 1  kubectl describe pod problem
+```
 
 输出，仅限于`Events`部分的消息，如下。
 
-[PRE113]
+```
+...
+Events:
+...  Message
+...  -------
+...  Successfully assigned default/problem to aks-nodepool1-29770171-2
+...  Back-off pulling image "i-do-not-exist"
+...  Error: ImagePullBackOff
+...  pulling image "i-do-not-exist"
+...  Failed to pull image "i-do-not-exist": rpc error: code = Unknown desc = Error response from daemon: repository i-do-not-exist not found: does not exist or no pull access
+ Warning  Failed     8s (x3 over 46s)   kubelet, aks-nodepool1-29770171-2  Error: ErrImagePull
+```
 
 问题显然通过`Back-off pulling image "i-do-not-exist"`消息表现出来。在更下面，我们可以看到来自容器服务器的消息，说明`它未能拉取图像"i-do-not-exist"`。
 
@@ -1024,21 +1805,46 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 像以前许多次一样，我们将查看 Prometheus 的图表值的旧定义和新定义之间的差异。
 
-[PRE114]
+```
+ 1  diff mon/prom-values-errors.yml \
+ 2      mon/prom-values-phase.yml
+```
 
 输出如下。
 
-[PRE115]
+```
+136a137,146
+> - name: pods
+>   rules:
+>   - alert: ProblematicPods
+>     expr: sum(kube_pod_status_phase{phase=~"Failed|Unknown|Pending"}) by (phase) > 0
+>     for: 1m
+>     labels:
+>       severity: notify
+>     annotations:
+>       summary: At least one Pod could not run
+>       description: At least one Pod is in a problematic phase
+```
 
 我们定义了一个名为`pod`的新警报组。在其中，我们有一个名为`ProblematicPods`的`alert`，如果有一个或多个 Pod 的`Failed`、`Unknown`或`Pending`阶段持续超过一分钟（`1m`）将触发警报。我故意将它设置为非常短的`for`持续时间，以便我们可以轻松测试它。后来，我们将切换到十五分钟的间隔，这将足够让 Kubernetes 在我们收到通知之前解决问题，而不会让我们陷入恐慌模式。
 
 让我们用更新后的值更新 Prometheus 的图表。
 
-[PRE116]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-phase.yml
+```
 
 由于我们尚未解决`problem` Pod 的问题，我们很快应该在 Slack 上收到新的通知。让我们确认一下。
 
-[PRE117]
+```
+ 1  open "https://devops20.slack.com/messages/CD8QJA8DS/"
+```
 
 如果您还没有收到通知，请稍等片刻。
 
@@ -1048,7 +1854,9 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 现在我们收到了一个通知，说其中一个 Pod 出了问题，我们应该去 Prometheus，挖掘数据，直到找到问题的原因，并解决它。但是，由于我们已经知道问题是什么（我们是故意创建的），我们将跳过所有这些，然后移除有问题的 Pod，然后继续下一个主题。
 
-[PRE118]
+```
+ 1  kubectl delete pod problem
+```
 
 # 升级旧的 Pod
 
@@ -1058,13 +1866,17 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 就像本章中几乎所有其他练习一样，我们将从打开 Prometheus 的图形屏幕开始，探索可能帮助我们实现目标的指标。
 
-[PRE119]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 如果我们检查可用的指标，我们会看到有`kube_pod_start_time`。它的名称清楚地表明了它的目的。它以一个仪表的形式提供了每个 Pod 的启动时间的 Unix 时间戳。让我们看看它的作用。
 
 请键入以下表达式，然后单击“执行”按钮。
 
-[PRE120]
+```
+ 1  kube_pod_start_time
+```
 
 这些值本身没有用，教你如何从这些值计算出人类日期也没有意义。重要的是现在和那些时间戳之间的差异。
 
@@ -1074,7 +1886,9 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 请键入以下表达式，然后点击执行按钮。
 
-[PRE121]
+```
+ 1  time()
+```
 
 就像`kube_pod_start_time`一样，我们得到了一个代表自 1970 年以来的秒数的长数字。除了值之外，唯一显着的区别是只有一个条目，而对于`kube_pod_start_time`，我们得到了集群中每个 Pod 的结果。
 
@@ -1082,7 +1896,10 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 请键入以下表达式，然后点击执行按钮。
 
-[PRE122]
+```
+ 1  time() -
+ 2  kube_pod_start_time
+```
 
 这次的结果是表示现在与每个 Pod 创建之间的秒数的更小的数字。在我的情况下（以下是屏幕截图），第一个 Pod（`go-demo-5`的一个副本）已经超过六千秒。那将是大约一百分钟（6096/60），或不到两个小时（100 分钟/60 分钟=1.666 小时）。
 
@@ -1092,23 +1909,51 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 请键入以下表达式，然后点击执行按钮。
 
-[PRE123]
+```
+ 1  (
+ 2    time() -
+ 3    kube_pod_start_time{
+ 4      namespace!="kube-system"
+ 5    }
+ 6  ) > 60
+```
 
 在我的情况下，所有的 Pod 都比一分钟大（你的情况可能也是如此）。我们确认它可以工作，所以我们可以将阈值增加到九十天。要达到九十天，我们应该将阈值乘以六十得到分钟，再乘以六十得到小时，再乘以二十四得到天，最后再乘以九十。公式将是`60 * 60 * 24 * 90`。我们可以使用最终值`7776000`，但那会使查询更难解读。我更喜欢使用公式。
 
 请键入以下表达式，然后点击执行按钮。
 
-[PRE124]
+```
+ 1  (
+ 2    time() -
+ 3    kube_pod_start_time{
+ 4      namespace!="kube-system"
+ 5    }
+ 6  ) >
+ 7  (60 * 60 * 24 * 90)
+```
 
 毫无疑问，可能没有结果。如果您为本章创建了一个新的集群，如果您花了九十天才到这里，那您可能是地球上最慢的读者。这可能是我迄今为止写过的最长的一章，但仍不值得花九十天的时间来阅读。
 
 现在我们知道要使用哪个表达式，我们可以在我们的设置中添加一个警报。
 
-[PRE125]
+```
+ 1  diff mon/prom-values-phase.yml \
+ 2      mon/prom-values-old-pods.yml
+```
 
 输出如下。
 
-[PRE126]
+```
+146a147,154
+> - alert: OldPods
+>   expr: (time() - kube_pod_start_time{namespace!="kube-system"}) > 60
+>   labels:
+>     severity: notify
+>     frequency: low
+>   annotations:
+>     summary: Old Pods
+>     description: At least one Pod has not been updated to more than 90 days
+```
 
 我们可以看到旧值和新值之间的差异在`OldPods`警报中。它包含了我们几分钟前使用的相同表达式。
 
@@ -1118,7 +1963,17 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 让我们使用更新后的值升级我们的 Prometheus 图表，并打开 Slack 频道，我们应该能看到新消息。
 
-[PRE127]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-old-pods.yml
+ 8
+ 9  open "https://devops20.slack.com/messages/CD8QJA8DS/"
+```
 
 现在只需等待片刻，直到新消息到达。它应该包含标题*旧的 Pod*和文本说明*至少有一个 Pod 未更新超过 90 天*。
 
@@ -1138,13 +1993,17 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 像往常一样，我们将首先打开 Prometheus 的图表屏幕。
 
-[PRE128]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 我们可以通过`container_memory_usage_bytes`来检索容器的内存使用情况。
 
 请键入下面的表达式，点击执行按钮，然后切换到*图表*屏幕。
 
-[PRE129]
+```
+ 1  container_memory_usage_bytes
+```
 
 如果你仔细观察顶部的使用情况，你可能会感到困惑。似乎有些容器使用的内存远远超出预期的数量。
 
@@ -1152,7 +2011,11 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 请键入下面的表达式，然后点击执行按钮。
 
-[PRE130]
+```
+ 1  container_memory_usage_bytes{
+ 2    container_name!=""
+ 3  }
+```
 
 现在结果更有意义了。它反映了我们集群内运行的容器的内存使用情况。
 
@@ -1160,7 +2023,11 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 请键入下面的表达式，然后点击执行按钮。
 
-[PRE131]
+```
+ 1  container_memory_usage_bytes{
+ 2    container_name="prometheus-server"
+ 3  }
+```
 
 我们可以看到容器在过去一小时内内存使用情况的波动。通常，我们会对一天或一周这样更长的时间段感兴趣。我们可以通过点击图表上方的-和+按钮，或者直接在它们之间的字段中输入值（例如`1w`）来实现这一点。然而，改变持续时间可能不会有太大帮助，因为我们运行集群的时间不长。除非你阅读速度很慢，否则我们可能无法获得比几个小时更多的数据。
 
@@ -1170,7 +2037,14 @@ CPU 和内存的示例都集中在需要知道何时扩展我们的集群。我�
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE132]
+```
+ 1  sum(rate(
+ 2    container_cpu_usage_seconds_total{
+ 3      container_name="prometheus-server"
+ 4    }[5m]
+ 5  ))
+ 6  by (pod_name)
+```
 
 查询显示了五分钟间隔内的 CPU 秒速总和。我们添加了`by (pod_name)`到混合中，以便我们可以区分不同的 Pod，并查看一个是何时创建的，另一个是何时销毁的。
 
@@ -1198,7 +2072,9 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 首先，我们将重新打开 Prometheus 的图表屏幕。
 
-[PRE133]
+```
+ 1 open "http://$PROM_ADDR/graph"
+```
 
 我们已经知道如何通过`container_memory_usage_bytes`获取内存使用情况，所以我们将直接开始检索请求的内存。如果我们可以将这两者结合起来，我们将得到请求的内存和实际内存使用之间的差异。
 
@@ -1206,7 +2082,11 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 请键入以下表达式，然后点击“执行”按钮，切换到*图表*选项卡。
 
-[PRE134]
+```
+ 1  kube_pod_container_resource_requests_memory_bytes{
+ 2    container="prometheus-server"
+ 3  }
+```
 
 从结果中我们可以看到，我们为`prometheus-server`容器请求了 500MB 的 RAM。
 
@@ -1216,7 +2096,17 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 请键入以下表达式，然后点击“执行”按钮。
 
-[PRE135]
+```
+ 1  sum(label_join(
+ 2    container_memory_usage_bytes{
+ 3      container_name="prometheus-server"
+ 4    },
+ 5    "pod",
+ 6    ",",
+ 7    "pod_name"
+ 8  ))
+ 9  by (pod)
+```
 
 这一次，我们不仅为指标添加了一个新标签，而且还通过这个新标签（`by (pod)`）对结果进行了分组。
 
@@ -1226,7 +2116,23 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 请键入以下表达式，然后点击“执行”按钮。
 
-[PRE136]
+```
+ 1  sum(label_join(
+ 2    container_memory_usage_bytes{
+ 3      container_name="prometheus-server"
+ 4    },
+ 5    "pod",
+ 6    ",",
+ 7    "pod_name"
+ 8  ))
+ 9  by (pod) /
+10  sum(
+11    kube_pod_container_resource_requests_memory_bytes{
+12      container="prometheus-server"
+13    }
+14  )
+15  by (pod)
+```
 
 在我的情况下（以下是屏幕截图），差异逐渐变小。它开始时大约为百分之六十，现在大约为百分之七十五。这样的差异对我们来说不足以采取任何纠正措施。
 
@@ -1236,7 +2142,23 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 请键入以下表达式，然后按“执行”按钮。
 
-[PRE137]
+```
+ 1  sum(label_join(
+ 2    container_memory_usage_bytes{
+ 3      namespace!="kube-system"
+ 4    },
+ 5    "pod",
+ 6    ",",
+ 7    "pod_name"
+ 8  ))
+ 9  by (pod) /
+10  sum(
+11    kube_pod_container_resource_requests_memory_bytes{
+12      namespace!="kube-system"
+13    }
+14  )
+15  by (pod)
+```
 
 结果应该是请求和实际内存之间差异的百分比列表，排除了`kube-system`中的 Pod。
 
@@ -1252,11 +2174,39 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 现在我们已经制定了一些规则，我们可以看一下旧值和新值之间的另一个差异。
 
-[PRE138]
+```
+ 1  diff mon/prom-values-old-pods.yml \
+ 2      mon/prom-values-req-mem.yml
+```
 
 输出如下。
 
-[PRE139]
+```
+148c148
+<   expr: (time() - kube_pod_start_time{namespace!="kube-system"}) > 60
+---
+>   expr: (time() - kube_pod_start_time{namespace!="kube-system"}) > (60 * 60 * 24 * 90)
+154a155,172
+> - alert: ReservedMemTooLow
+>   expr: sum(label_join(container_memory_usage_bytes{namespace!="kube-system", namespace!="ingress-nginx"}, "pod", ",", "pod_name")) by (pod) /
+ sum(kube_pod_container_resource_requests_memory_bytes{namespace!="kube-system"}) by (pod) > 1.5
+>   for: 1m
+>   labels:
+>     severity: notify
+>     frequency: low
+>   annotations:
+>     summary: Reserved memory is too low
+>     description: At least one Pod uses much more memory than it reserved
+> - alert: ReservedMemTooHigh
+>   expr: sum(label_join(container_memory_usage_bytes{namespace!="kube-system", namespace!="ingress-nginx"}, "pod", ",", "pod_name")) by (pod) / sum(kube_pod_container_resource_requests_memory_bytes{namespace!="kube-system"}) by (pod) < 0.5 and sum(kube_pod_container_resource_requests_memory_bytes{namespace!="kube-system"}) by (pod) > 5.25e+06
+>   for: 6m
+>   labels:
+>     severity: notify
+>     frequency: low
+>   annotations:
+>     summary: Reserved memory is too high
+>     description: At least one Pod uses much less memory than it reserved
+```
 
 首先，我们将`OldPods`警报的阈值重新设置为其预期值九十天（`60 * 60 * 24 * 90`）。这样我们就可以阻止它仅用于测试目的触发警报。
 
@@ -1266,17 +2216,57 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 现在，让我们使用更新后的值升级我们的 Prometheus 图表，并打开图表屏幕。
 
-[PRE140]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-req-mem.yml
+```
 
 我们不会等到警报开始触发。相反，我们将尝试实现类似的目标，但使用 CPU。
 
 可能没有必要解释我们将使用的表达式的过程。我们将直接跳入基于 CPU 的警报，探索旧值和新值之间的差异。
 
-[PRE141]
+```
+ 1  diff mon/prom-values-req-mem.yml \
+ 2      mon/prom-values-req-cpu.yml
+```
 
 输出如下。
 
-[PRE142]
+```
+157c157
+<   for: 1m
+---
+>   for: 1h
+166c166
+<   for: 6m
+---
+>   for: 6h
+172a173,190
+> - alert: ReservedCPUTooLow
+>   expr: sum(label_join(rate(container_cpu_usage_seconds_total{namespace!="kube-system", namespace!="ingress-nginx", pod_name!=""}[5m]), "pod", ",", "pod_name")) by (pod) / sum(kube_pod_container_resource_requests_cpu_cores{namespace!="kube-system"}) by (pod) > 1.5
+>   for: 1m
+>   labels:
+>     severity: notify
+>     frequency: low
+>   annotations:
+>     summary: Reserved CPU is too low
+>     description: At least one Pod uses much more CPU than it reserved
+> - alert: ReservedCPUTooHigh
+>   expr: sum(label_join(rate(container_cpu_usage_seconds_total{namespace!="kube-system", pod_name!=""}[5m]), "pod", ",", "pod_name")) by (pod) / sum(kube_pod_container_resource_requests_cpu_cores{namespace!="kube-system"}) by (pod) < 0.5 and 
+sum(kube_pod_container_resource_requests_cpu_cores{namespace!="kube-system"}) by (pod) > 0.005
+>   for: 6m
+>   labels:
+>     severity: notify
+>     frequency: low
+>   annotations:
+>     summary: Reserved CPU is too high
+>     description: At least one Pod uses much less CPU than it reserved
+```
 
 前两组差异是为我们之前探讨的`ReservedMemTooLow`和`ReservedMemTooHigh`警报定义更明智的阈值。在更下面，我们可以看到两个新的警报。
 
@@ -1286,7 +2276,15 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 现在，让我们使用更新后的值升级我们的 Prometheus 图表。
 
-[PRE143]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-req-cpu.yml
+```
 
 我会让你去检查是否有任何警报触发，以及它们是否从 Alertmanager 转发到 Slack。你现在应该知道如何做了。
 
@@ -1304,13 +2302,31 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 首先，我们将返回 Prometheus 的图表屏幕。
 
-[PRE144]
+```
+ 1  open "http://$PROM_ADDR/graph"
+```
 
 我们已经知道可以通过`container_memory_usage_bytes`指标获取实际内存使用情况。由于我们已经探讨了如何获取请求的内存，我们可以猜测极限是类似的。它们确实是，可以通过`kube_pod_container_resource_limits_memory_bytes`获取。由于其中一个指标与以前相同，另一个非常相似，我们将直接执行完整查询。
 
 请键入以下表达式，按“执行”按钮，然后切换到*图表*选项卡。
 
-[PRE145]
+```
+ 1  sum(label_join(
+ 2    container_memory_usage_bytes{
+ 3      namespace!="kube-system"
+ 4    }, 
+ 5    "pod", 
+ 6    ",", 
+ 7    "pod_name"
+ 8  ))
+ 9  by (pod) /
+10  sum(
+11    kube_pod_container_resource_limits_memory_bytes{
+12      namespace!="kube-system"
+13    }
+14  )
+15  by (pod)
+```
 
 在我的情况下（以下是屏幕截图），我们可以看到相当多的 Pod 使用的内存超过了定义的极限。
 
@@ -1320,21 +2336,53 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 接下来，我们将详细探讨旧值和新值之间的差异。
 
-[PRE146]
+```
+ 1  diff mon/prom-values-req-cpu.yml \
+ 2      mon/prom-values-limit-mem.yml
+```
 
 输出如下。
 
-[PRE147]
+```
+175c175
+<   for: 1m
+---
+>   for: 1h
+184c184
+<   for: 6m
+---
+>   for: 6h
+190a191,199
+> - alert: MemoryAtTheLimit
+>   expr: sum(label_join(container_memory_usage_bytes{namespace!="kube-system"}, "pod", ",", "pod_name")) by (pod) / sum(kube_pod_container_resource_limits_memory_bytes{namespace!="kube-system"}) by (pod) > 0.8
+>   for: 1h
+>   labels:
+>     severity: notify
+>     frequency: low
+>   annotations:
+>     summary: Memory usage is almost at the limit
+>     description: At least one Pod uses memory that is close it its limit
+```
 
 除了恢复以前使用的警报的合理阈值之外，我们定义了一个名为`MemoryAtTheLimit`的新警报。如果实际使用超过极限的百分之八十（`0.8`）超过一小时（`1h`），它将触发。
 
 接下来是升级我们的 Prometheus 图表。
 
-[PRE148]
+```
+ 1  helm upgrade -i prometheus \
+ 2    stable/prometheus \
+ 3    --namespace metrics \
+ 4    --version 7.1.3 \
+ 5    --set server.ingress.hosts={$PROM_ADDR} \
+ 6    --set alertmanager.ingress.hosts={$AM_ADDR} \
+ 7    -f mon/prom-values-limit-mem.yml
+```
 
 最后，我们可以打开 Prometheus 的警报屏幕，并确认新的警报确实被添加到了其中。
 
-[PRE149]
+```
+ 1  open "http://$PROM_ADDR/alerts"
+```
 
 我们不会重复为 CPU 创建类似的警报的步骤。你应该知道如何自己做。
 
@@ -1348,7 +2396,13 @@ Kubernetes 将没有指定资源的容器的 Pod 视为**BestEffort Quality of S
 
 目前，我会让你决定是直接进入下一章，销毁整个集群，还是只移除我们安装的资源。如果你选择后者，请使用接下来的命令。
 
-[PRE150]
+```
+ 1  helm delete prometheus --purge
+ 2
+ 3  helm delete go-demo-5 --purge
+ 4
+ 5  kubectl delete ns go-demo-5 metrics
+```
 
 在你离开之前，你可能想回顾一下本章的要点。
 

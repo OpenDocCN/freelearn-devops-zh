@@ -32,7 +32,9 @@ Docker 安全性不应该与您的常规 IT 安全流程分开，因为概念是
 
 为了做到这一点，在创建我们的镜像时，我们可以设置一个 Dockerfile 并创建一个将在容器上运行进程的用户。下面这行与在 Linux 命令行上设置用户相同，我们首先设置组，然后将用户分配到这个组中：
 
-[PRE0]
+```
+RUN addgroup --gid <GID> <UID> && adduser <UID> -h <home_directory> --disabled-password --uid <UID> --ingroup <UID> <user_name>
+```
 
 在上述命令中，我们还使用`adduser`选项来设置`home`目录并禁用登录密码。
 
@@ -42,7 +44,9 @@ Docker 安全性不应该与您的常规 IT 安全流程分开，因为概念是
 
 正如您将在即将进行的练习中看到的，我们将切换到我们专门创建的用户以创建我们将要运行的进程。您可以自行决定组和用户的名称，但许多用户更喜欢使用四位或五位数字作为这将不会向潜在攻击者突出显示该用户的任何更多特权，并且通常是创建用户和组的标准做法。在我们的 Dockerfile 中，在创建进程之前，我们包括`USER`指令，并包括我们先前创建的用户的用户 ID：
 
-[PRE1]
+```
+USER <UID>
+```
 
 在本章的这一部分，我们将介绍一个新的镜像，并展示如果容器上的进程由 root 用户运行可能会出现的问题。我们还将向您展示容器中的 root 用户与底层主机上的 root 用户是相同的。然后，我们将更改我们的镜像，以展示删除容器上运行的进程的 root 访问权限的好处。
 
@@ -58,41 +62,83 @@ Docker 安全性不应该与您的常规 IT 安全流程分开，因为概念是
 
 1.  使用您喜欢的文本编辑器创建一个名为`Dockerfile_original`的新 Dockerfile，并将以下代码输入文件。在此步骤中，所有命令都是以 root 用户身份运行的：
 
-[PRE2]
+```
+1 FROM alpine
+2
+3 RUN apk update
+4 RUN apk add wget curl nmap libcap
+5
+6 RUN echo "#!/sh\n" > test_memory.sh
+7 RUN echo "cat /proc/meminfo; mpstat; pmap -x 1"     >> test_memory.sh
+8 RUN chmod 755 test_memory.sh
+9
+10 CMD ["sh", "test_memory.sh"]
+```
 
 这将创建一个基本的应用程序，将运行一个名为`test_memory.sh`的小脚本，该脚本使用`meminfo`，`mpstat`和`pmap`命令来提供有关容器内存状态的详细信息。您还会注意到在*第 4 行*上，我们正在安装一些额外的应用程序，以使用`nmap`查看网络进程，并使用`libcap`库查看用户容器的功能。
 
 1.  构建`security-app`镜像并在同一步骤中运行该镜像：
 
-[PRE3]
+```
+docker build -t security-app . ; docker run –rm security-app
+```
 
 输出已经大大减少，您应该看到镜像构建，然后运行内存报告：
 
-[PRE4]
+```
+MemTotal:        2036900 kB
+MemFree:         1243248 kB
+MemAvailable:    1576432 kB
+Buffers:          73240 kB
+…
+```
 
 1.  使用`whoami`命令查看容器上的运行用户：
 
-[PRE5]
+```
+docker run --rm security-app whoami
+```
 
 不应该让人感到惊讶的是运行用户是 root 用户：
 
-[PRE6]
+```
+root
+```
 
 1.  使用`capsh –print`命令查看用户在容器上能够运行的进程。作为 root 用户，您应该拥有大量的功能：
 
-[PRE7]
+```
+docker run --rm -it security-app capsh –print
+```
 
 您会注意到用户可以访问更改文件所有权（`cap_chown`），杀死进程（`cap_kill`）和对 DNS 进行更改（`cap_net_bind_service`）等功能。这些都是可以在运行环境中引起许多问题的高级进程，不应该对容器可用：
 
-[PRE8]
+```
+Current: = cap_chown,cap_dac_override,cap_fowner,cap_fsetid,
+cap_kill,cap_setgid,cap_setuid,cap_setpcap,cap_net_bind_service,
+cap_net_raw,cap_sys_chroot,cap_mknod,cap_audit_write,
+cap_setfcap+eip
+groups=0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),
+11(floppy),20(dialout),26(tape),27(video)
+```
 
 1.  作为 root 用户，攻击者还可以使用我们之前安装的`nmap`等工具来扫描网络以查找开放的端口和网络目标。通过传递`nmap`命令再次运行您的容器镜像，查找`localhost`下已打开的`443`端口：
 
-[PRE9]
+```
+docker run --rm -it security-app sh -c 'nmap -sS -p 443 localhost'
+```
 
 命令的输出如下：
 
-[PRE10]
+```
+Starting Nmap 7.70 ( https://nmap.org ) at 2019-11-13 02:40 UTC
+Nmap scan report for localhost (127.0.0.1)
+Host is up (0.000062s latency).
+Other addresses for localhost (not scanned): ::1
+PORT    STATE  SERVICE
+443/tcp closed https
+Nmap done: 1 IP address (1 host up) scanned in 0.27 seconds
+```
 
 注意
 
@@ -100,57 +146,105 @@ Docker 安全性不应该与您的常规 IT 安全流程分开，因为概念是
 
 1.  如前所述，在容器上作为 root 用户与在底层主机上作为 root 用户是相同的。这可以通过将一个由 root 拥有的文件挂载到容器上来证明。为此，创建一个秘密文件。将您的秘密密码回显到`/tmp/secret.txt`文件中：
 
-[PRE11]
+```
+echo "secret password" > /tmp/secret.txt
+```
 
 更改所有权以确保 root 用户拥有它：
 
-[PRE12]
+```
+sudo chown root /tmp/secret.txt
+```
 
 1.  使用`docker run`命令将文件挂载到运行的容器上，并检查是否能够访问并查看文件中的数据。容器上的用户可以访问只有主机系统上的 root 用户才能访问的文件：
 
-[PRE13]
+```
+docker run -v /tmp/secret.txt:/tmp/secret.txt security-app sh -c 'cat /tmp/secret.txt'
+```
 
 来自 docker run 命令的输出将是“`secret password`”
 
-[PRE14]
+```
+secret password
+```
 
 然而，Docker 容器不应该能够暴露这些信息。
 
 1.  要开始对容器进行一些简单的更改，以阻止再次发生这种访问，再次打开 Dockerfile 并添加突出显示的代码（*行 6*，*7*，*8*和*9*），保持先前的代码不变。这些代码将创建一个名为`10001`的组和一个名为`20002`的用户。然后将设置一个带有`home`目录的用户，然后您将进入该目录并开始使用*行 9*中的`USER`指令进行操作：
 
-[PRE15]
+```
+1 FROM alpine
+2
+3 RUN apk update
+4 RUN apk add wget curl nmap libcap
+5
+6 RUN addgroup --gid 10001 20002 && adduser 20002 -h     /home/security_apps --disabled-password --uid 20002     --ingroup 20002
+7 WORKDIR /home/security_apps
+8
+9 USER 20002
+```
 
 1.  对*行 15*进行更改，以确保脚本是从新的`security_app`目录运行的，然后保存 Dockerfile：
 
-[PRE16]
+```
+11 RUN echo "#!/sh\n" > test_memory.sh
+12 RUN echo "cat /proc/meminfo; mpstat; pmap -x 1" >>     test_memory.sh
+13 RUN chmod 755 test_memory.sh
+14
+15 CMD ["sh", "/home/security_apps/test_memory.sh"]
+```
 
 完整的 Dockerfile 应该如下所示：
 
-[PRE17]
+```
+FROM alpine
+RUN apk update
+RUN apk add wget curl nmap libcap
+RUN addgroup --gid 10001 20002 && adduser 20002 -h   /home/security_apps --disabled-password --uid 20002     --ingroup 20002
+WORKDIR /home/security_apps
+USER 20002
+RUN echo "#!/sh\n" > test_memory.sh
+RUN echo "cat /proc/meminfo; mpstat; pmap -x 1" >>   test_memory.sh
+RUN chmod 755 test_memory.sh
+CMD ["sh", "/home/security_apps/test_memory.sh"]
+```
 
 1.  再次构建图像并使用`whoami`命令运行它：
 
-[PRE18]
+```
+docker build -t security-app . ; docker run --rm security-app whoami
+```
 
 您将看到一个新用户为`20002`而不是 root 用户：
 
-[PRE19]
+```
+20002
+```
 
 1.  以前，您可以从容器中运行`nmap`。验证新用户是否被阻止访问`nmap`命令以扫描网络漏洞：
 
-[PRE20]
+```
+docker run --rm -it security-app sh -c 'nmap -sS -p 443 localhost'
+```
 
 通过使用`nmap -sS`命令再次运行您的镜像，您现在应该无法运行该命令，因为容器正在以`20002`用户身份运行，没有足够的权限来运行该命令：
 
-[PRE21]
+```
+You requested a scan type which requires root privileges.
+QUITTING!
+```
 
 1.  您现在已经大大限制了运行容器的功能，但是由主机 root 用户拥有的文件是否仍然可以被运行的`security-app`容器访问？再次挂载文件，看看是否可以输出文件的信息：
 
-[PRE22]
+```
+docker run -v /tmp/secret.txt:/tmp/secret.txt security-app sh -c 'cat /tmp/secret.txt'
+```
 
 您应该在结果中看到`Permission denied`，确保容器不再可以访问`secret.txt`文件：
 
-[PRE23]
+```
+cat: can't open '/tmp/secret.txt': Permission denied
+```
 
 正如我们在本练习中所演示的，删除正在运行的容器对 root 用户的访问权限是减少攻击者可以实现的目标的一个良好的第一步。下一节将快速查看运行容器的特权和能力以及如何使用`docker run`命令进行操作。
 
@@ -192,7 +286,9 @@ Docker 安全性不应该与您的常规 IT 安全流程分开，因为概念是
 
 要添加额外的功能，您只需包括该功能，如果您在执行`docker run`命令时添加或删除功能，您的命令将如下所示：
 
-[PRE24]
+```
+docker run –-cap-add|--cap-drop <capability_name> <image_name>
+```
 
 正如您所看到的，语法使用`––cap–add`来添加功能，`––cap–drop`来移除功能。
 
@@ -224,19 +320,27 @@ DCT 并不仅限于 Docker Hub。如果用户在其环境中启用了 DCT，他�
 
 就像我们在前面的章节中看到的那样，Docker 提供了易于使用的命令行选项来生成、加载和使用签名密钥。如果您启用了 DCT，Docker 将使用您的密钥直接对图像进行签名。如果您想进一步控制事情，您可以使用`docker trust key generate`命令来创建您的离线密钥，并为它们分配名称：
 
-[PRE25]
+```
+docker trust key generate <name>
+```
 
 您的密钥将存储在您的`home`目录的`.docker/trust`目录中。如果您有一组离线密钥，您可以使用`docker trust key load`命令和您创建它们的名称来使用这些密钥，如下所示：
 
-[PRE26]
+```
+docker trust key load <pem_key_file> –name <name>
+```
 
 一旦您拥有您的密钥，或者加载了您的原始密钥，您就可以开始对图像进行签名。您需要使用`docker trust sign`命令包括图像的完整注册表名称和标签：
 
-[PRE27]
+```
+docker trust sign <registry>/<repo>:<tag>
+```
 
 一旦您签署了您的图像，或者您有一个需要验证签名的图像，您可以使用`docker trust inspect`命令来显示签名密钥和签发者的详细信息：
 
-[PRE28]
+```
+docker trust inspect –pretty <registry>/<repo>:<tag>
+```
 
 在开发过程中使用 DCT 可以防止用户使用来自不受信任和未知来源的容器图像。我们将使用本章前几节中我们一直在开发的安全应用程序来创建和实施 DCT 签名密钥。
 
@@ -246,71 +350,163 @@ DCT 并不仅限于 Docker Hub。如果用户在其环境中启用了 DCT，他�
 
 1.  将`DOCKER_CONTENT_TRUST`环境变量导出到您的系统，以在您的系统上启用 DCT。还要确保将变量设置为`1`：
 
-[PRE29]
+```
+export DOCKER_CONTENT_TRUST=1
+```
 
 1.  现在启用了 DCT，您将无法拉取或处理任何没有与其关联签名密钥的 Docker 图像。我们可以通过从 Docker Hub 存储库中拉取`security-app`图像来测试：
 
-[PRE30]
+```
+docker pull vincesestodocker/security-app
+```
 
 从错误消息中可以看出，我们无法拉取最新的图像，这是个好消息，因为我们最初没有使用签名密钥进行推送：
 
-[PRE31]
+```
+Using default tag: latest
+Error: remote trust data does not exist for docker.io/vincesestodocker/security-app: notary.docker.io does 
+not have trust data for docker.io/vincesestodocker/security-app
+```
 
 1.  将图像推送到您的图像存储库：
 
-[PRE32]
+```
+docker push vincesestodocker/security-app
+```
 
 您不应该能够这样做，因为本地图像也没有关联签名密钥：
 
-[PRE33]
+```
+The push refers to repository 
+[docker.io/vincesestodocker/security-app]
+No tag specified, skipping trust metadata push
+```
 
 1.  将新图像标记为`trust1`，准备推送到 Docker Hub：
 
-[PRE34]
+```
+docker tag security-app:latest vincesestodocker/security-app:trust1
+```
 
 1.  如前所述，当我们第一次将图像推送到存储库时，签名密钥将自动与图像关联。确保给你的图像打上标签，因为这将阻止 DCT 识别需要签名。再次将图像推送到存储库：
 
-[PRE35]
+```
+docker push vincesestodocker/security-app:trust1
+```
 
 在运行上述命令后，将打印以下行：
 
-[PRE36]
+```
+The push refers to repository 
+[docker.io/vincesestodocker/security-app]
+eff6491f0d45: Layer already exists 
+307b7a157b2e: Layer already exists 
+03901b4a2ea8: Layer already exists 
+ver2: digest: sha256:7fab55c47c91d7e56f093314ff463b7f97968e
+e0f80f5ee927430fc39f525f66 size: 949
+Signing and pushing trust metadata
+You are about to create a new root signing key passphrase. 
+This passphrase will be used to protect the most sensitive key 
+in your signing system. Please choose a long, complex passphrase 
+and be careful to keep the password and the key file itself 
+secure and backed up. It is highly recommended that you use a 
+password manager to generate the passphrase and keep it safe. 
+There will be no way to recover this key. You can find the key 
+in your config directory.
+Enter passphrase for new root key with ID 66347fd: 
+Repeat passphrase for new root key with ID 66347fd: 
+Enter passphrase for new repository key with ID cf2042d: 
+Repeat passphrase for new repository key with ID cf2042d: 
+Finished initializing "docker.io/vincesestodocker/security-app"
+Successfully signed docker.io/vincesestodocker/security-app:
+trust1
+```
 
 以下输出显示，当图像被推送到注册表时，作为该过程的一部分创建了一个新的签名密钥，要求用户在过程中创建新的根密钥和存储库密钥。
 
 1.  现在更加安全了。不过，在您的系统上运行图像呢？现在我们的系统上启用了 DCT，运行容器图像会有任何问题吗？使用`docker run`命令在您的系统上运行`security-app`图像：
 
-[PRE37]
+```
+docker run -it vincesestodocker/security-app sh
+```
 
 该命令应返回以下输出：
 
-[PRE38]
+```
+docker: No valid trust data for latest.
+See 'docker run --help'.
+```
 
 在上面的输出中，我们故意没有使用`trust1`标签。与前几章一样，Docker 将尝试使用`latest`标签运行图像。由于这也没有与之关联的签名密钥，因此无法运行它。
 
 1.  您可以直接从工作系统对图像进行签名，并且可以使用之前创建的密钥对后续标记的图像进行签名。使用`trust2`标签对图像进行标记：
 
-[PRE39]
+```
+docker tag vincesestodocker/security-app:trust1 vincesestodocker/security-app:trust2
+```
 
 1.  使用在此练习中创建的签名密钥对新标记的图像进行签名。使用`docker trust sign`命令对图像和图像的层进行签名：
 
-[PRE40]
+```
+docker trust sign vincesestodocker/security-app:trust2
+```
 
 该命令将自动将已签名的图像推送到我们的 Docker Hub 存储库：
 
-[PRE41]
+```
+Signing and pushing trust data for local image 
+vincesestodocker/security-app:trust2, may overwrite remote 
+trust data
+The push refers to repository 
+[docker.io/vincesestodocker/security-app]
+015825f3a965: Layer already exists 
+2c32d3f8446b: Layer already exists 
+1bbb374ec935: Layer already exists 
+bcc0069f86e9: Layer already exists 
+e239574b2855: Layer already exists 
+f5e66f43d583: Layer already exists 
+77cae8ab23bf: Layer already exists 
+trust2: digest: sha256:a61f528324d8b63643f94465511132a38ff945083c
+3a2302fa5a9774ea366c49 size: 1779
+Signing and pushing trust metadataEnter passphrase for 
+vincesestodocker key with ID f4b834e: 
+Successfully signed docker.io/vincesestodocker/security-app:
+trust2
+```
 
 1.  使用`docker trust`命令和`inspect`选项查看签名信息：
 
-[PRE42]
+```
+docker trust inspect --pretty vincesestodocker/security-app:trust2
+```
 
 输出将为您提供签名者的详细信息，已签名的标记图像以及有关图像的其他信息：
 
-[PRE43]
+```
+Signatures for vincesestodocker/security-app:trust2
+SIGNED TAG      DIGEST                     SIGNERS
+trust2          d848a63170f405ad3…         vincesestodocker
+List of signers and their keys for vincesestodocker/security-app:
+trust2
+SIGNER              KEYS
+vincesestodocker    f4b834e54c71
+Administrative keys for vincesestodocker/security-app:trust2
+  Repository Key:
+    26866c7eba348164f7c9c4f4e53f04d7072fefa9b52d254c573e8b082
+    f77c966
+  Root Key:
+    69bef52a24226ad6f5505fd3159f778d6761ac9ad37483f6bc88b1cb4
+    7dda334
+```
 
 1.  使用`docker trust revoke`命令来移除相关密钥的签名：
 
-[PRE44]
+```
+docker trust revoke vincesestodocker/security-app:trust2
+Enter passphrase for vincesestodocker key with ID f4b834e: 
+Successfully deleted signature for vincesestodocker/security-app:
+trust2
+```
 
 注意
 
@@ -346,27 +542,39 @@ Anchore 容器分析是一个开源的静态分析工具，允许您扫描您的
 
 一旦我们的系统正常运行，我们可以使用`system status`命令来提供所有服务的列表，并确保它们正常运行：
 
-[PRE45]
+```
+anchore-cli system status
+```
 
 一旦系统正常运行，您需要做的第一件事情之一就是验证 feeds 列表是否是最新的。这将确保您的数据库已经填充了漏洞 feeds。这可以通过以下`system feeds list`命令来实现：
 
-[PRE46]
+```
+anchore-cli system feeds list
+```
 
 默认情况下，`anchore-cli`将使用 Docker Hub 作为您的图像注册表。如果您的图像存储在不同的注册表上，您将需要使用`anchore-cli registry add`命令添加注册表，并指定注册表名称，以及包括 Anchore 可以使用的用户名和密码：
 
-[PRE47]
+```
+anchore-cli registry add <registry> <user> <password>
+```
 
 要将图像添加到 Anchore，您可以使用`image add`命令行选项，包括 Docker Hub 位置和图像名称：
 
-[PRE48]
+```
+anchore-cli image add <repository_name>/<image_name>
+```
 
 如果您希望扫描图像以查找漏洞，可以使用`image vuln`选项，包括您最初扫描的图像名称。我们还可以使用`os`选项来查找特定于操作系统的漏洞，以及`non-os`来查找与语言相关的漏洞。在以下示例中，我们使用了`all`来包括`os`和`non-os`选项：
 
-[PRE49]
+```
+anchore-cli image vuln <repository_name>/<image_name> all
+```
 
 然后，要查看图像的完成评估，并根据图像是否安全可用提供通过或失败，您可以使用`anchore-cli`命令的`evaluate check`选项：
 
-[PRE50]
+```
+anchore-cli evaluate check <repository_name>/<image_name>
+```
 
 考虑到所有这些，Anchore 确实提供了一个支持和付费版本，带有易于使用的 Web 界面，但正如您将在以下练习中看到的，需要很少的工作即可让 Anchore 应用程序在您的系统上运行和扫描。
 
@@ -382,53 +590,103 @@ Anchore 容器分析是一个开源的静态分析工具，允许您扫描您的
 
 1.  创建并标记您一直在使用的`security-app`图像的新版本。使用`scan1`标记图像：
 
-[PRE51]
+```
+docker tag security-app:latest vincesestodocker/security-app:scan1 ;
+```
 
 将其推送到 Docker Hub 存储库：
 
-[PRE52]
+```
+docker push vincesestodocker/security-app:scan1
+```
 
 1.  创建一个名为`aevolume`的新目录，并使用以下命令进入该目录。这是我们将执行工作的地方：
 
-[PRE53]
+```
+mkdir aevolume; cd aevolume
+```
 
 1.  Anchore 为您提供了一切您需要开始使用的东西，一个易于使用的`docker-compose.yaml`文件来设置和运行 Anchore API。使用以下命令拉取最新的`anchore-engine` Docker Compose 文件：
 
-[PRE54]
+```
+curl -O https://docs.anchore.com/current/docs/engine/quickstart/docker-compose.yaml
+```
 
 1.  查看`docker-compose.yml`文件。虽然文件包含超过 130 行，但文件中没有太复杂的内容。`Compose`文件正在设置 Anchore 的功能，包括 PostgreSQL 数据库、目录和分析器进行查询；一个简单的队列和策略引擎；以及一个 API 来运行命令和查询。
 
 1.  使用`docker-compose pull`命令拉取`docker-compose.yml`文件所需的镜像，确保您在与`Compose`文件相同的目录中：
 
-[PRE55]
+```
+docker-compose pull
+```
 
 该命令将开始拉取数据库、目录、分析器、简单队列、策略引擎和 API：
 
-[PRE56]
+```
+Pulling anchore-db           ... done
+Pulling engine-catalog       ... done
+Pulling engine-analyzer      ... done
+Pulling engine-policy-engine ... done
+Pulling engine-simpleq       ... done
+Pulling engine-api           ... done
+```
 
 1.  如果我们的所有镜像现在都可用，如前面的输出所示，除了使用`docker-compose up`命令运行`Compose`文件之外，没有其他事情要做。使用`-d`选项使所有容器作为守护进程在后台运行：
 
-[PRE57]
+```
+docker-compose up -d
+```
 
 该命令应该输出以下内容：
 
-[PRE58]
+```
+Creating network "aevolume_default" with the default driver
+Creating volume "aevolume_anchore-db-volume" with default driver
+Creating volume "aevolume_anchore-scratch" with default driver
+Creating aevolume_anchore-db_1 ... done
+Creating aevolume_engine-catalog_1 ... done
+Creating aevolume_engine-analyzer_1      ... done
+Creating aevolume_engine-simpleq_1       ... done
+Creating aevolume_engine-api_1           ... done
+Creating aevolume_engine-policy-engine_1 ... done
+```
 
 1.  运行`docker ps`命令，以查看系统上正在运行的包含 Anchore 的容器，准备开始扫描我们的镜像。表格中的`IMAGE`、`COMMAND`和`CREATED`列已被删除以方便查看：
 
-[PRE59]
+```
+docker-compose ps
+```
 
 输出中的所有值应该显示每个 Anchore Engine 容器的`healthy`状态：
 
-[PRE60]
+```
+CONTAINER ID       STATUS         PORTS
+    NAMES
+d48658f6aa77       (healthy)      8228/tcp
+    aevolume_engine-analyzer_1
+e4aec4e0b463   (healthy)          8228/tcp
+    aevolume_engine-policy-engine_1
+afb59721d890   (healthy)          8228->8228/tcp
+    aevolume_engine-api_1
+d61ff12e2376   (healthy)          8228/tcp
+    aevolume_engine-simpleq_1
+f5c29716aa40   (healthy)          8228/tcp
+    aevolume_engine-catalog_1
+398fef820252   (healthy)          5432/tcp
+    aevolume_anchore-db_1
+```
 
 1.  现在环境已部署到您的系统上，使用`docker-compose exec`命令来运行前面提到的`anchor-cli`命令。使用`pip3`命令将`anchorecli`包安装到您的运行系统上。使用`--version`命令来验证`anchore-cli`是否已成功安装：
 
-[PRE61]
+```
+pip3 install anchorecli; anchore-cli --version
+```
 
 该命令返回`anchor-cli`的版本：
 
-[PRE62]
+```
+anchore-cli, version 0.5.0
+```
 
 注意
 
@@ -436,7 +694,11 @@ Anchore 容器分析是一个开源的静态分析工具，允许您扫描您的
 
 1.  现在您可以运行您的`anchore-cli`命令，但您需要指定 API 的 URL（使用`--url`）以及用户名和密码（使用`--u`和`--p`）。相反，使用以下命令将值导出到您的环境中，这样您就不需要使用额外的命令行选项：
 
-[PRE63]
+```
+export ANCHORE_CLI_URL=http://localhost:8228/v1
+export ANCHORE_CLI_USER=admin
+export ANCHORE_CLI_PASS=foobar
+```
 
 注意
 
@@ -444,11 +706,25 @@ Anchore 容器分析是一个开源的静态分析工具，允许您扫描您的
 
 1.  现在`anchore-cli`已安装和配置好，使用`anchore-cli system status`命令来验证分析器、队列、策略引擎、目录和 API 是否都正常运行：
 
-[PRE64]
+```
+anchore-cli system status
+```
 
 可能会出现一两个服务宕机的情况，这意味着您很可能需要重新启动容器：
 
-[PRE65]
+```
+Service analyzer (anchore-quickstart, http://engine-analyzer:
+8228): up
+Service simplequeue (anchore-quickstart, http://engine-simpleq:
+8228): up
+Service policy_engine (anchore-quickstart, http://engine-policy-engine:8228): up
+Service catalog (anchore-quickstart, http://engine-catalog:
+8228): up
+Service apiext (anchore-quickstart, http://engine-api:8228): 
+up
+Engine DB Version: 0.0.11
+Engine Code Version: 0.5.1
+```
 
 注意
 
@@ -456,47 +732,132 @@ Anchore 容器分析是一个开源的静态分析工具，允许您扫描您的
 
 1.  使用`anchore-cli system feeds list`命令查看数据库中的所有漏洞：
 
-[PRE66]
+```
+anchore-cli system feeds list
+```
 
 由于提供给数据库的漏洞数量很大，以下输出已经被缩减：
 
-[PRE67]
+```
+Feed                Group          LastSync
+    RecordCount
+nvdv2               nvdv2:cves     None
+    0
+vulnerabilities     alpine:3\.      2019-10-24T03:47:28.504381
+    1485
+vulnerabilities     alpine:3.3     2019-10-24T03:47:36.658242
+    457
+vulnerabilities     alpine:3.4     2019-10-24T03:47:51.594635
+    681
+vulnerabilities     alpine:3.5     2019-10-24T03:48:03.442695
+    875
+vulnerabilities     alpine:3.6     2019-10-24T03:48:19.384824
+    1051
+vulnerabilities     alpine:3.7     2019-10-24T03:48:36.626534
+    1253
+vulnerabilities     alpine:3.8     None
+    0
+vulnerabilities     alpine:3.9     None
+    0
+vulnerabilities     amzn:2         None
+    0
+```
 
 在前面的输出中，您会注意到一些漏洞 feed 显示为`None`。这是因为数据库是最近设置的，并且尚未更新所有漏洞。继续显示 feed 列表，就像在上一步中所做的那样，一旦所有条目在`LastSync`列中显示日期，您就可以开始扫描镜像了。
 
 1.  一旦 feed 完全更新，使用`anchore-cli image add`命令添加镜像。记得使用完整路径，包括镜像仓库标签，因为 Anchore 将使用位于 Docker Hub 上的镜像：
 
-[PRE68]
+```
+anchore-cli image add vincesestodocker/security-app:scan1
+```
 
 该命令将镜像添加到 Anchore 数据库，准备进行扫描：
 
-[PRE69]
+```
+Image Digest: sha256:7fab55c47c91d7e56f093314ff463b7f97968ee0
+f80f5ee927430
+fc39f525f66
+Parent Digest: sha256:7fab55c47c91d7e56f093314ff463b7f97968ee
+0f80f5ee927430fc39f525f66
+Analysis Status: not_analyzed
+Image Type: docker
+Analyzed At: None
+Image ID: 8718859775e5d5057dd7a15d8236a1e983a9748b16443c99f8a
+40a39a1e7e7e5
+Dockerfile Mode: None
+Distro: None
+Distro Version: None
+Size: None
+Architecture: None
+Layer Count: None
+Full Tag: docker.io/vincesestodocker/security-app:scan1
+Tag Detected At: 2019-10-24T03:51:18Z 
+```
 
 当您添加镜像时，您会注意到我们已经强调输出显示为`not_analyzed`。这将被排队等待分析，对于较小的镜像，这将是一个快速的过程。
 
 1.  监控您的镜像，查看是否已使用`anchore-cli image list`命令进行分析：
 
-[PRE70]
+```
+anchore-cli image list
+```
 
 这将提供我们当前添加的所有镜像列表，并显示它们是否已经被分析的状态：
 
-[PRE71]
+```
+Full Tag               Image Digest            Analysis Status
+security-app:scan1     sha256:a1bd1f6fec31…    analyzed
+```
 
 1.  现在镜像已经添加并分析完成，您可以开始查看镜像，并查看基础镜像和安装的应用程序，包括版本和许可证号。使用`anchore-cli`的`image content os`命令。您还可以使用其他内容类型，包括`file`用于镜像上的所有文件，`npm`用于所有 Node.js 模块，`gem`用于 Ruby gems，`java`用于 Java 存档，以及`python`用于 Python 工件。
 
-[PRE72]
+```
+anchore-cli image content vincesestodocker/security-app:scan1 os
+```
 
 该命令将返回以下输出：
 
-[PRE73]
+```
+Package                   Version        License
+alpine-baselayout         3.1.2          GPL-2.0-only
+alpine-keys               2.1            MIT
+apk-tools                 2.10.4         GPL2 
+busybox                   1.30.1         GPL-2.0
+ca-certificates           20190108       MPL-2.0 GPL-2.0-or-later
+ca-certificates-cacert    20190108       MPL-2.0 GPL-2.0-or-later
+curl                      7.66.0         MIT
+libc-utils                0.7.1          BSD
+libcrypto1.1              1.1.1c         OpenSSL
+libcurl                   7.66.0         MIT
+libssl1.1                 1.1.1c         OpenSSL
+libtls-standalone         2.9.1          ISC
+musl                      1.1.22         MIT
+musl-utils                1.1.22         MIT BSD GPL2+
+nghttp2-libs              1.39.2         MIT
+scanelf                   1.2.3          GPL-2.0
+ssl_client                1.30.1         GPL-2.0
+wget                      1.20.3         GPL-3.0-or-later
+zlib                      1.2.11         zlib
+```
 
 1.  使用`anchore-cli image vuln`命令，并包括您要扫描的图像以检查漏洞。如果没有漏洞存在，您将不会看到任何输出。我们在下面的命令行中使用了`all`来提供关于操作系统和非操作系统漏洞的报告。我们也可以使用`os`来获取特定于操作系统的漏洞，使用`non-os`来获取与语言相关的漏洞：
 
-[PRE74]
+```
+anchore-cli image vuln vincesestodocker/security-app:scan1 all
+```
 
 1.  对图像进行评估检查，为我们提供图像扫描的“通过”或“失败”结果。使用`anchore-cli evaluate check`命令来查看图像是否安全可用：
 
-[PRE75]
+```
+anchore-cli evaluate check vincesestodocker/security-app:scan1
+From the output of the above command, it looks like our image 
+is safe with a pass result.Image Digest: sha256:7fab55c47c91d7e56f093314ff463b7f97968ee0f80f5ee927430fc
+39f525f66
+Full Tag: docker.io/vincesestodocker/security-app:scan1
+Status: pass
+Last Eval: 2019-10-24T03:54:40Z
+Policy ID: 2c53a13c-1765-11e8-82ef-23527761d060
+```
 
 所有前面的练习都已经很好地确定了我们的图像是否存在漏洞并且是否安全可用。接下来的部分将向您展示 Anchore 的替代方案，尽管它有付费组件，但仍然通过访问免费版本提供了大量的功能。
 
@@ -554,7 +915,13 @@ Snyk 将每天扫描您的镜像，如果发现任何问题，将会通知您。
 
 默认情况下，特别是如果您正在运行最新版本的 Docker，您可能已经同时运行了两者。您可以通过运行`docker info`命令并查找`Security Options`来验证这一点。以下是一个显示两个功能都可用的系统的输出：
 
-[PRE76]
+```
+docker info
+Security Options:
+  apparmor
+  seccomp
+   Profile: default
+```
 
 以下部分将涵盖 Linux 的 AppArmor 和安全计算，并清楚地介绍如何在系统上实施和使用两者。
 
@@ -574,23 +941,33 @@ AppArmor 还配备了一套命令，帮助用户管理应用程序，包括将�
 
 我们可以开始使用 AppArmor，因为它提供了一些易于使用的命令行工具。您将使用的第一个是`aa-status`命令，它提供了系统上所有正在运行的配置文件的状态。这些配置文件位于系统的`/etc/apparmor.d`目录中：
 
-[PRE77]
+```
+aa-status
+```
 
 如果我们的系统上安装了配置文件，我们至少应该有`docker-default`配置文件；它可以通过`docker run`命令的`--security-opt`选项应用于我们的 Docker 容器。在下面的示例中，您可以看到我们将`--security-opt`值设置为`apparmor`配置文件，或者您可以使用`unconfined`配置文件，这意味着没有配置文件与该镜像一起运行：
 
-[PRE78]
+```
+docker run --security-opt apparmor=<profile> <image_name>
+```
 
 要生成我们的配置文件，我们可以使用`aa-genprof`命令来进一步了解需要设置为配置文件的内容。AppArmor 将在您执行一些示例命令时扫描日志，然后为您在系统上创建一个配置文件，并将其放在默认配置文件目录中：
 
-[PRE79]
+```
+aa-genprof <application>
+```
 
 一旦您满意您的配置文件，它们需要加载到您的系统中，然后您才能开始使用它们与您的镜像。您可以使用`apparmor_parser`命令，带有`-r`（如果已经设置，则替换）和`-W`（写入缓存）选项。然后可以将配置文件与正在运行的容器一起使用：
 
-[PRE80]
+```
+apparmor_parser -r -W <path_to_profile>
+```
 
 最后，如果您希望从 AppArmor 中删除配置文件，可以使用`apparmor_parser`命令和`-R`选项来执行此操作：
 
-[PRE81]
+```
+apparmor_parser -R <path_to_profile>
+```
 
 AppArmor 看起来很复杂，但希望通过以下练习，您应该能够熟悉该应用程序，并对生成自定义配置文件增加额外的信心。
 
@@ -600,23 +977,38 @@ AppArmor 看起来很复杂，但希望通过以下练习，您应该能够熟�
 
 1.  如果您正在运行 Docker Engine 版本 19 或更高版本，则 AppArmor 应已作为应用程序的一部分设置好。运行`docker info`命令来验证它是否正在运行：
 
-[PRE82]
+```
+docker info
+…
+Security Options:
+  apparmor
+…
+```
 
 1.  在本章中，我们通过创建用户`20002`更改了容器的运行用户。我们将暂停此操作，以演示 AppArmor 在此情况下的工作原理。使用文本编辑器打开`Dockerfile`，这次将*第 9 行*注释掉，就像我们在下面的代码中所做的那样：
 
-[PRE83]
+```
+  8 
+  9 #USER 20002
+```
 
 1.  再次构建`Dockerfile`并验证镜像一旦再次作为 root 用户运行：
 
-[PRE84]
+```
+docker build -t security-app . ; docker run --rm security-app whoami
+```
 
 上述命令将构建`Dockerfile`，然后返回以下输出：
 
-[PRE85]
+```
+root
+```
 
 1.  通过在命令行中运行`aa-status`使用 AppArmor`status`命令：
 
-[PRE86]
+```
+aa-status
+```
 
 注意
 
@@ -624,67 +1016,130 @@ AppArmor 看起来很复杂，但希望通过以下练习，您应该能够熟�
 
 这将显示类似于以下内容的输出，并提供加载的配置文件和加载的配置文件类型。您会注意到输出包括在 Linux 系统上运行的所有 AppArmor 配置文件：
 
-[PRE87]
+```
+apparmor module is loaded.
+15 profiles are loaded.
+15 profiles are in enforce mode.
+    /home/vinces/DockerWork/example.sh
+    /sbin/dhclient
+    /usr/bin/lxc-start
+    /usr/lib/NetworkManager/nm-dhcp-client.action
+    /usr/lib/NetworkManager/nm-dhcp-helper
+    /usr/lib/connman/scripts/dhclient-script
+    /usr/lib/lxd/lxd-bridge-proxy
+    /usr/lib/snapd/snap-confine
+    /usr/lib/snapd/snap-confine//mount-namespace-capture-helper
+    /usr/sbin/tcpdump
+    docker-default
+    lxc-container-default
+    lxc-container-default-cgns
+    lxc-container-default-with-mounting
+    lxc-container-default-with-nesting
+0 profiles are in complain mode.
+1 processes have profiles defined.
+1 processes are in enforce mode.
+    /sbin/dhclient (920) 
+0 processes are in complain mode.
+0 processes are unconfined but have a profile defined.
+```
 
 1.  在后台运行`security-app`容器，以帮助我们测试 AppArmor：
 
-[PRE88]
+```
+docker run -dit security-app sh
+```
 
 1.  由于我们没有指定要使用的配置文件，AppArmor 使用`docker-default`配置文件。通过再次运行`aa-status`来验证这一点：
 
-[PRE89]
+```
+aa-status
+```
 
 您将看到，在输出的底部，现在显示有两个进程处于`强制模式`，一个显示为`docker-default`：
 
-[PRE90]
+```
+apparmor module is loaded.
+…
+2 processes are in enforce mode.
+    /sbin/dhclient (920) 
+    docker-default (9768)
+0 processes are in complain mode.
+0 processes are unconfined but have a profile defined.
+```
 
 1.  删除我们当前正在运行的容器，以便在本练习中稍后不会混淆：
 
-[PRE91]
+```
+docker kill $(docker ps -a -q)
+```
 
 1.  在不使用 AppArmor 配置文件的情况下启动容器，使用`-–security-opt` Docker 选项指定`apparmor=unconfined`。还使用`–-cap-add SYS_ADMIN`功能，以确保您对运行的容器具有完全访问权限：
 
-[PRE92]
+```
+docker run -dit --security-opt apparmor=unconfined --cap-add SYS_ADMIN security-app sh
+```
 
 1.  访问容器并查看您可以运行哪些类型的命令。使用`docker exec`命令和`CONTAINER ID`访问容器，但请注意，您的`CONTAINER ID`值将与以下不同：
 
-[PRE93]
+```
+docker exec -it db04693ddf1f sh
+```
 
 1.  通过创建两个目录并使用以下命令将它们挂载为绑定挂载来测试你所拥有的权限：
 
-[PRE94]
+```
+mkdir 1; mkdir 2; mount --bind 1 2
+ls -l
+```
 
 能够在容器上挂载目录是一种提升的权限，所以如果你能够做到这一点，那么很明显没有配置文件在阻止我们，并且我们可以像这样访问挂载文件系统：
 
-[PRE95]
+```
+total 8
+drwxr-xr-x    2 root     root          4096 Nov  4 04:08 1
+drwxr-xr-x    2 root     root          4096 Nov  4 04:08 2
+```
 
 1.  使用`docker kill`命令退出容器。你应该看到默认的 AppArmor 配置文件是否会限制对这些命令的访问：
 
-[PRE96]
+```
+docker kill $(docker ps -a -q)
+```
 
 1.  创建`security-app`镜像的一个新实例。在这个实例中，也使用`--cap-add SYS_ADMIN`能力，以允许加载默认的 AppArmor 配置文件：
 
-[PRE97]
+```
+docker run -dit --cap-add SYS_ADMIN security-app sh
+```
 
 当创建一个新的容器时，该命令将返回提供给用户的随机哈希。
 
 1.  通过使用`exec`命令访问新的运行容器来测试更改，并查看是否可以执行绑定挂载，就像之前的步骤一样：
 
-[PRE98]
+```
+docker exec -it <new_container_ID> sh 
+mkdir 1; mkdir 2; mount --bind 1 2
+```
 
 你应该会看到`Permission denied`：
 
-[PRE99]
+```
+mount: mounting 1 on 2 failed: Permission denied
+```
 
 1.  再次退出容器。使用`docker kill`命令删除原始容器：
 
-[PRE100]
+```
+docker kill $(docker ps -a -q)
+```
 
 在这个练习的下一部分，你将看到是否可以为我们的 Docker 容器实现自定义配置文件。
 
 1.  使用 AppArmor 工具收集需要跟踪的资源信息。使用`aa-genprof`命令跟踪`nmap`命令的详细信息：
 
-[PRE101]
+```
+aa-genprof nmap
+```
 
 注意
 
@@ -694,7 +1149,11 @@ AppArmor 看起来很复杂，但希望通过以下练习，您应该能够熟�
 
 我们已经减少了命令的输出，但如果成功的话，你应该会看到一个输出，显示正在对`/usr/bin/nmap`命令进行分析：
 
-[PRE102]
+```
+…
+Profiling: /usr/bin/nmap
+[(S)can system log for AppArmor events] / (F)inish
+```
 
 注意
 
@@ -706,35 +1165,60 @@ AppArmor 看起来很复杂，但希望通过以下练习，您应该能够熟�
 
 1.  在一个单独的终端窗口中运行`nmap`命令，以向`aa-genprof`提供应用程序的详细信息。在`docker run`命令中使用`-u root`选项，以 root 用户身份运行`security-app`容器，这样它就能够运行`nmap`命令：
 
-[PRE103]
+```
+docker run -it -u root security-app sh -c 'nmap -sS -p 443 localhost'
+```
 
 1.  返回到你一直在运行`aa-genprof`命令的终端。按下*S*来扫描系统日志以查找事件。扫描完成后，按下*F*来完成生成：
 
-[PRE104]
+```
+Reading log entries from /var/log/syslog.
+Updating AppArmor profiles in /etc/apparmor.d.
+```
 
 所有配置文件都放在`/etc/apparmor.d/`目录中。如果一切正常，你现在应该在`/etc/apparmor.d/usr.bin.nmap`文件中看到类似以下输出的文件：
 
-[PRE105]
+```
+1 # Last Modified: Mon Nov 18 01:03:31 2019
+2 #include <tunables/global>
+3 
+4 /usr/bin/nmap {
+5   #include <abstractions/base>
+6 
+7   /usr/bin/nmap mr,
+8 
+9 }
+```
 
 1.  使用`apparmor_parser`命令将新文件加载到系统上。使用`-r`选项来替换已存在的配置文件，使用`-W`选项将其写入缓存：
 
-[PRE106]
+```
+apparmor_parser -r -W /etc/apparmor.d/usr.bin.nmap
+```
 
 1.  运行`aa-status`命令来验证配置文件现在是否可用，并查看是否有一个新的配置文件指定了`nmap`：
 
-[PRE107]
+```
+aa-status | grep nmap
+```
 
 请注意，配置文件的名称与应用程序的名称相同，即`/usr/bin/nmap`，这是在运行容器时需要使用的名称：
 
-[PRE108]
+```
+/usr/bin/nmap
+```
 
 1.  现在，测试您的更改。以`-u root`用户运行容器。还使用`--security-opt apparmor=/usr/bin/nmap`选项以使用新创建的配置文件运行容器：
 
-[PRE109]
+```
+docker run -it -u root --security-opt apparmor=/usr/bin/nmap security-app sh -c 'nmap -sS -p 443 localhost'
+```
 
 您还应该看到`Permission denied`的结果，以显示我们创建的 AppArmor 配置文件正在限制使用，这正是我们希望看到的：
 
-[PRE110]
+```
+sh: nmap: Permission denied
+```
 
 在这个练习中，我们演示了如何在您的系统上开始使用 AppArmor，并向您展示了如何创建您自己的配置文件。在下一节中，我们将继续介绍类似的应用程序，即 Linux 的*seccomp*。
 
@@ -746,15 +1230,21 @@ Linux 的`seccomp`是从 3.17 版本开始添加到 Linux 内核中的，它提�
 
 Docker 将使用主机系统的`seccomp`配置，可以通过搜索`/boot/config`文件并检查`CONFIG_SECCOMP`选项是否设置为`y`来找到它：
 
-[PRE111]
+```
+cat /boot/config-'uname -r' | grep CONFIG_SECCOMP=
+```
 
 在运行我们的容器时，如果我们需要以无`seccomp`配置文件的方式运行容器，我们可以使用`--security-opt`选项，然后指定`seccomp`配置文件未确认。以下示例提供了此语法的示例：
 
-[PRE112]
+```
+docker run --security-opt seccomp=unconfined <image_name>
+```
 
 我们也可以创建我们自定义的配置文件。在这些情况下，我们将自定义配置文件的位置指定为`seccomp`的值，如下所示：
 
-[PRE113]
+```
+docker run --security-opt seccomp=new_default.json <image_name>
+```
 
 ## 练习 11.06：开始使用 seccomp
 
@@ -762,67 +1252,109 @@ Docker 将使用主机系统的`seccomp`配置，可以通过搜索`/boot/config
 
 1.  检查您运行的 Linux 系统是否已启用`seccomp`。然后可以确保它也在 Docker 上运行：
 
-[PRE114]
+```
+cat /boot/config-'uname -r' | grep CONFIG_SECCOMP=
+```
 
 在引导配置目录中搜索`CONFIG_SECCOMP`，它的值应为`y`：
 
-[PRE115]
+```
+CONFIG_SECCOMP=y
+```
 
 1.  使用`docker info`命令确保 Docker 正在使用配置文件：
 
-[PRE116]
+```
+docker info
+```
 
 在大多数情况下，您会注意到它正在运行默认配置文件：
 
-[PRE117]
+```
+…
+Security Options:
+  seccomp
+   Profile: default
+…
+```
 
 我们已经减少了`docker info`命令的输出，但是如果您查找`Security Options`标题，您应该会在系统上看到`seccomp`。如果您希望关闭此功能，您需要将`CONFIG_SECCOMP`的值更改为`n`。
 
 1.  运行`security-app`，看看它是否也在运行时使用了`seccomp`配置文件。还要在`/proc/1/status`文件中搜索单词`Seccomp`：
 
-[PRE118]
+```
+docker run -it security-app grep Seccomp /proc/1/status
+```
 
 值为`2`将显示容器一直在使用`Seccomp`配置文件运行：
 
-[PRE119]
+```
+Seccomp:    2
+```
 
 1.  可能会有一些情况，您希望在不使用`seccomp`配置文件的情况下运行容器。您可能需要调试容器或运行在其上的应用程序。要在不使用任何`seccomp`配置文件的情况下运行容器，请使用`docker run`命令的`--security-opt`选项，并指定`seccomp`将不受限制。现在对您的`security-app`容器执行此操作，以查看结果：
 
-[PRE120]
+```
+docker run -it --security-opt seccomp=unconfined security-app grep Seccomp /proc/1/status
+```
 
 值为`0`将显示我们已成功关闭`Seccomp`：
 
-[PRE121]
+```
+Seccomp:    0
+```
 
 1.  创建自定义配置文件也并不是很困难，但可能需要一些额外的故障排除来完全理解语法。首先，测试`security-app`容器，看看我们是否可以在命令行中使用`chown`命令。然后，您的自定义配置文件将尝试阻止此命令的可用性：
 
-[PRE122]
+```
+docker run -it security-app sh
+```
 
 1.  当前作为默认值运行的`seccomp`配置文件应该允许我们运行`chown`命令，因此在您可以访问运行的容器时，测试一下是否可以创建新文件并使用`chown`命令更改所有权。最后运行目录的长列表以验证更改是否已生效：
 
-[PRE123]
+```
+/# touch test.txt
+/# chown 1001 test.txt
+/# ls -l test.txt
+```
 
 这些命令应该提供类似以下的输出：
 
-[PRE124]
+```
+-rw-r--r--    1 1001      users        0 Oct 22 02:44 test.txt
+```
 
 1.  通过修改默认配置文件来创建您的自定义配置文件。使用`wget`命令从本书的官方 GitHub 帐户下载自定义配置文件到您的系统上。使用以下命令将下载的自定义配置文件重命名为`new_default.json`：
 
-[PRE125]
+```
+wget https://raw.githubusercontent.com/docker/docker/v1.12.3/profiles/seccomp/default.json -O new_default.json
+```
 
 1.  使用文本编辑器打开`new_default.json`文件，尽管会有大量的配置列表，但要搜索控制`chown`的特定配置。在撰写本文时，这位于默认`seccomp`配置文件的*第 59 行*：
 
-[PRE126]
+```
+59                 {  
+60                         "name": "chown",
+61                         "action": "SCMP_ACT_ALLOW",
+62                         "args": []
+63                 },
+```
 
 `SCMP_ACT_ALLOW`操作允许运行命令，但如果从`new_default.json`文件中删除*第 59*至*63 行*，这应该会阻止我们的配置文件允许运行此命令。删除这些行并保存文件以供我们使用。
 
 1.  与此练习中*步骤 4*一样，使用`--security-opt`选项并指定使用我们编辑过的`new_default.json`文件来运行镜像：
 
-[PRE127]
+```
+docker run -it --security-opt seccomp=new_default.json security-app sh
+```
 
 1.  执行与此练习中*步骤 6*相同的测试，如果我们的更改起作用，`seccomp`配置文件现在应该阻止我们运行`chown`命令：
 
-[PRE128]
+```
+/# touch test.txt
+/# chown 1001 test.txt
+chown: test.txt: Operation not permitted
+```
 
 只需进行最少量的工作，我们就成功创建了一个策略，以阻止恶意代码或攻击者更改容器中文件的所有权。虽然这只是一个非常基本的例子，但它让您了解了如何开始配置`seccomp`配置文件，以便根据您的需求进行特定的微调。
 
@@ -840,7 +1372,10 @@ Docker 将使用主机系统的`seccomp`配置，可以通过搜索`/boot/config
 
 1.  访问容器并验证您是否不再能够执行在`seccomp`配置文件中被阻止的`mkdir`、`kill`和`uname`命令。例如，如果我们在添加了新配置文件的新图像上执行`mkdir`命令，我们应该看到类似以下的输出：
 
-[PRE129]
+```
+$ mkdir test
+mkdir: can't create directory 'test': Operation not permitted
+```
 
 注意
 
@@ -860,7 +1395,14 @@ Docker 将使用主机系统的`seccomp`配置，可以通过搜索`/boot/config
 
 1.  验证图像是否安全可用。您应该能够在 Anchore 中执行评估检查，并看到类似以下输出的通过状态：
 
-[PRE130]
+```
+Image Digest: sha256:57d8817bac132c2fded9127673dd5bc7c3a976546
+36ce35d8f7a05cad37d37b7
+Full Tag: docker.io/dockerrepo/postgres-app:sample_tag
+Status: pass
+Last Eval: 2019-11-23T06:15:32Z
+Policy ID: 2c53a13c-1765-11e8-82ef-23527761d060
+```
 
 注意
 

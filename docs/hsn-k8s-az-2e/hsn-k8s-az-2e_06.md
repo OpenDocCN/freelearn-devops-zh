@@ -42,7 +42,9 @@ AKS 中的第二个扩展维度是集群中的节点数。集群中的节点数�
 
 1.  通过在 Azure 命令行中运行`kubectl create`命令来安装 guestbook：
 
-[PRE0]
+```
+kubectl create -f guestbook-all-in-one.yaml
+```
 
 1.  输入上述命令后，您应该在命令行输出中看到类似的内容，如*图 4.1*所示：![当您执行该命令时，您的命令行输出将列出已创建的服务和部署。](img/Figure_4.1.jpg)
 
@@ -50,7 +52,9 @@ AKS 中的第二个扩展维度是集群中的节点数。集群中的节点数�
 
 1.  目前，没有任何服务是公开可访问的。我们可以通过运行以下命令来验证这一点：
 
-[PRE1]
+```
+kubectl get svc 
+```
 
 1.  *图 4.2*显示没有任何服务具有外部 IP：![输出屏幕将显示 External-IP 列为<none>。这表示没有任何服务具有公共 IP。](img/Figure_4.2.jpg)
 
@@ -58,7 +62,9 @@ AKS 中的第二个扩展维度是集群中的节点数。集群中的节点数�
 
 1.  为了测试我们的应用程序，我们将公开它。为此，我们将介绍一个新的命令，允许您在 Kubernetes 中编辑服务，而无需更改文件系统上的文件。要开始编辑，请执行以下命令：
 
-[PRE2]
+```
+kubectl edit service frontend
+```
 
 1.  这将打开一个`vi`环境。导航到现在显示为`type:` `ClusterIP`（第 27 行），并将其更改为`type: LoadBalancer`，如*图 4.3*所示。要进行更改，请按*I*按钮，输入更改，按*Esc*按钮，输入`:wq!`，然后按*Enter*保存更改：![输出显示第 27 行被 Type: LoadBalancer 替换。](img/Figure_4.3.jpg)
 
@@ -66,7 +72,9 @@ AKS 中的第二个扩展维度是集群中的节点数。集群中的节点数�
 
 1.  保存更改后，您可以观察服务对象，直到公共 IP 可用。要做到这一点，请输入以下内容：
 
-[PRE3]
+```
+kubectl get svc -w
+```
 
 1.  更新 IP 地址可能需要几分钟时间。一旦看到正确的公共 IP，您可以通过按*Ctrl* + *C*（Mac 上为*command + C*）退出`watch`命令：![使用 kubectl get svc -w 命令，前端服务的外部 IP 将从<pending>更改为实际的外部 IP 地址。](img/Figure_4.4.jpg)
 
@@ -84,11 +92,15 @@ AKS 中的第二个扩展维度是集群中的节点数。集群中的节点数�
 
 Kubernetes 使我们能够动态地扩展应用程序的每个组件。在本节中，我们将向您展示如何扩展访客留言应用程序的前端。这将导致 Kubernetes 向部署添加额外的 Pods：
 
-[PRE4]
+```
+kubectl scale deployment/frontend --replicas=6
+```
 
 您可以设置要使用的副本数，Kubernetes 会处理其余的工作。您甚至可以将其缩减为零（用于重新加载配置的技巧之一，当应用程序不支持动态重新加载配置时）。要验证整体扩展是否正确工作，您可以使用以下命令：
 
-[PRE5]
+```
+kubectl get pods
+```
 
 这应该给您一个如*图 4.6*所示的输出：
 
@@ -98,7 +110,9 @@ Kubernetes 使我们能够动态地扩展应用程序的每个组件。在本节
 
 如您所见，前端服务扩展到了六个 Pod。Kubernetes 还将这些 Pod 分布在集群中的多个节点上。您可以使用以下命令查看此服务运行在哪些节点上：
 
-[PRE6]
+```
+kubectl get pods -o wide
+```
 
 这将生成以下输出：
 
@@ -118,11 +132,30 @@ HPA 定期监视 Kubernetes 指标，并根据您定义的规则自动缩放您�
 
 1.  要开始配置，让我们首先手动将我们的部署缩减到 1 个实例：
 
-[PRE7]
+```
+kubectl scale deployment/frontend --replicas=1
+```
 
 1.  接下来，我们将创建一个 HPA。通过输入`code hpa.yaml`在 Cloud Shell 中打开代码编辑器，并输入以下代码：
 
-[PRE8]
+```
+1  apiVersion: autoscaling/v2beta1
+2  kind: HorizontalPodAutoscaler
+3  metadata:
+4    name: frontend-scaler
+5  spec:
+6    scaleTargetRef:
+7      apiVersion: extensions/v1beta1
+8      kind: Deployment
+9      name: frontend
+10   minReplicas: 1
+11   maxReplicas: 10
+12   metrics:
+13   - type: Resource
+14     resource:
+15       name: cpu
+16       targetAverageUtilization: 25
+```
 
 让我们来看看这个文件中配置了什么：
 
@@ -136,11 +169,15 @@ HPA 定期监视 Kubernetes 指标，并根据您定义的规则自动缩放您�
 
 1.  保存此文件，并使用以下命令创建 HPA：
 
-[PRE9]
+```
+kubectl create -f hpa.yaml
+```
 
 这将创建我们的自动缩放器。您可以使用以下命令查看您的自动缩放器：
 
-[PRE10]
+```
+kubectl get hpa
+```
 
 这将最初输出如*图 4.8*所示的内容：
 
@@ -156,7 +193,9 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 1.  现在，我们将继续做两件事：首先，我们将观察我们的 Pods，看看是否创建了新的 Pods。然后，我们将创建一个新的 shell，并为我们的系统创建一些负载。让我们从第一个任务开始——观察我们的 Pods：
 
-[PRE11]
+```
+kubectl get pods -w
+```
 
 这将持续监视创建或终止的 Pod。
 
@@ -170,7 +209,12 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 1.  接下来，我们将使用一个名为`hey`的程序来生成这个负载。`hey`是一个发送负载到 Web 应用程序的小程序。我们可以使用以下命令安装和运行`hey`：
 
-[PRE12]
+```
+export GOPATH=~/go
+export PATH=$GOPATH/bin:$PATH
+go get -u github.com/rakyll/hey
+hey -z 20m http://<external-ip>
+```
 
 `hey`程序现在将尝试创建多达 2000 万个连接到我们的前端。这将在我们的系统上生成 CPU 负载，这将触发 HPA 开始扩展我们的部署。这将需要几分钟才能触发扩展操作，但在某个时刻，您应该看到创建多个 Pod 来处理额外的负载，如*图 4.11*所示：
 
@@ -182,7 +226,9 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 1.  让我们通过运行以下命令来更仔细地查看我们的 HPA 所做的事情：
 
-[PRE13]
+```
+kubectl describe hpa
+```
 
 我们可以在“描述”操作中看到一些有趣的点，如*图 4.12*所示：
 
@@ -200,7 +246,9 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 1.  如果您等待几分钟，HPA 应该开始缩减。您可以使用以下命令跟踪此缩减操作：
 
-[PRE14]
+```
+kubectl get hpa -w
+```
 
 这将跟踪 HPA 并向您显示部署的逐渐缩减，如*图 4.13*所示：
 
@@ -210,7 +258,10 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 1.  在我们进入下一节之前，让我们清理一下在本节中创建的资源：
 
-[PRE15]
+```
+kubectl delete -f hpa.yaml
+kubectl delete -f guestbook-all-in-one.yaml
+```
 
 在本节中，我们首先手动，然后自动扩展了我们的应用程序。但是，集群资源是静态的；我们在一个两节点的集群上运行了这个。在许多情况下，您可能也会在集群本身耗尽资源。在下一节中，我们将处理这个问题，并解释如何自己扩展您的 AKS 集群。
 
@@ -240,7 +291,9 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 一旦这个缩减操作完成，我们将在这个小集群上重新启动我们的 guestbook 应用程序：
 
-[PRE16]
+```
+kubectl create -f guestbook-all-in-one.yaml
+```
 
 在下一节中，我们将扩展 guestbook，以便它不再在我们的小集群上运行。然后，我们将配置集群自动缩放器来扩展我们的集群。
 
@@ -250,11 +303,15 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 为了强制我们的集群资源不足，我们将手动扩展`redis-slave`部署。要做到这一点，请使用以下命令：
 
-[PRE17]
+```
+kubectl scale deployment redis-slave --replicas 5
+```
 
 您可以通过查看我们集群中的 Pod 来验证此命令是否成功：
 
-[PRE18]
+```
+kubectl get pods
+```
 
 这应该显示类似于*图 4.17*中生成的输出：
 
@@ -266,13 +323,19 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 我们现在将配置集群自动缩放器自动扩展我们的集群。与上一节中的手动扩展一样，您可以通过两种方式配置集群自动缩放器。您可以通过 Azure 门户配置它，类似于我们进行手动扩展的方式，或者您可以使用**命令行界面（CLI）**进行配置。在本例中，我们将使用 CLI 来启用集群自动缩放器。以下命令将为我们的集群配置集群自动缩放器：
 
-[PRE19]
+```
+az aks nodepool update --enable-cluster-autoscaler \
+  -g rg-handsonaks --cluster-name handsonaks \
+  --name agentpool --min-count 1 --max-count 3
+```
 
 此命令在我们集群中的节点池上配置了集群自动缩放器。它将其配置为最少一个节点和最多三个节点。这将花费几分钟来配置。
 
 配置了集群自动缩放器后，您可以使用以下命令来观察集群中节点的数量：
 
-[PRE20]
+```
+kubectl get nodes -w
+```
 
 新节点出现并在集群中变为`Ready`大约需要 5 分钟。一旦新节点处于`Ready`状态，您可以通过按下*Ctrl* + *C*（Mac 上的*command* + *C*）来停止观察节点。您应该看到类似于*图 4.18*中的输出：
 
@@ -282,7 +345,9 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 新节点应该确保我们的集群有足够的资源来调度扩展的`redis-slave`部署。要验证这一点，请运行以下命令来检查 Pod 的状态：
 
-[PRE21]
+```
+kubectl get pods
+```
 
 这应该显示所有处于`Running`状态的 Pod，如下所示：
 
@@ -292,7 +357,13 @@ HPA 需要几秒钟来读取指标。等待 HPA 返回的结果看起来类似�
 
 我们现在将清理我们创建的资源，禁用集群自动缩放器，并确保我们的集群在接下来的示例中有两个节点。要做到这一点，请使用以下命令：
 
-[PRE22]
+```
+kubectl delete -f guestbook-all-in-one.yaml
+az aks nodepool update --disable-cluster-autoscaler \
+  -g rg-handsonaks --cluster-name handsonaks --name agentpool
+az aks nodepool scale --node-count 2 -g rg-handsonaks \
+  --cluster-name handsonaks --name agentpool
+```
 
 #### 注意
 
@@ -328,11 +399,15 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  我们从我们的留言簿应用程序开始，以演示这个例子：
 
-[PRE23]
+```
+kubectl create -f guestbook-all-in-one.yaml
+```
 
 1.  几分钟后，所有的 Pod 应该都在运行。让我们通过将服务从`ClusterIP`更改为`LoadBalancer`来执行我们的第一个升级，就像我们在本章前面所做的那样。然而，现在我们将编辑我们的 YAML 文件，而不是使用`kubectl edit`。使用以下命令编辑 YAML 文件：
 
-[PRE24]
+```
+code guestbook-all-in-one.yaml
+```
 
 取消注释此文件中的第 108 行，将类型设置为`LoadBalancer`并保存文件。如*图 4.20*所示：
 
@@ -342,11 +417,15 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  按照以下代码进行更改：
 
-[PRE25]
+```
+kubectl apply -f guestbook-all-in-one.yaml
+```
 
 1.  您现在可以使用以下命令获取服务的公共 IP：
 
-[PRE26]
+```
+kubectl get svc
+```
 
 等几分钟，您应该会看到 IP，就像*图 4.21*中显示的那样：
 
@@ -356,15 +435,21 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  现在我们将进行另一个更改。我们将把第 133 行的前端图像从`image: gcr.io/google-samples/gb-frontend:v4`降级为以下内容：
 
-[PRE27]
+```
+image: gcr.io/google-samples/gb-frontend:v3
+```
 
 通过使用这个熟悉的命令在编辑器中打开留言簿应用程序，可以进行此更改：
 
-[PRE28]
+```
+code guestbook-all-in-one.yaml
+```
 
 1.  运行以下命令执行更新并观察 Pod 更改：
 
-[PRE29]
+```
+kubectl apply -f guestbook-all-in-one.yaml && kubectl get pods -w
+```
 
 1.  这将生成以下输出：![执行 kubectl apply -f guestbook-all-in-one.yaml && kubectl get pods -w 命令会生成一个显示 Pod 更改的输出。您将看到从新的 ReplicaSet 创建的 Pod。](img/Figure_4.22.jpg)
 
@@ -382,7 +467,9 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 您可以在这里看到新的 ReplicaSet 被扩展，而旧的 ReplicaSet 被缩减。您还将看到前端有两个 ReplicaSets，新的 ReplicaSet 逐个替换另一个 Pod：
 
-[PRE30]
+```
+kubectl get replicaset
+```
 
 这将显示如*图 4.24*所示的输出：
 
@@ -392,7 +479,9 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  Kubernetes 还将保留您的部署历史。您可以使用此命令查看部署历史：
 
-[PRE31]
+```
+kubectl rollout history deployment frontend
+```
 
 这将生成如*图 4.25*所示的输出：
 
@@ -402,11 +491,15 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  由于 Kubernetes 保留了我们部署的历史记录，这也使得回滚成为可能。让我们对部署进行回滚：
 
-[PRE32]
+```
+kubectl rollout undo deployment frontend
+```
 
 这将触发回滚。这意味着新的 ReplicaSet 将被缩减为零个实例，而旧的 ReplicaSet 将再次扩展为三个实例。我们可以使用以下命令来验证这一点：
 
-[PRE33]
+```
+kubectl get replicaset
+```
 
 产生的输出如*图 4.26*所示：
 
@@ -418,7 +511,9 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  最后，让我们再次通过运行`kubectl delete`命令进行清理：
 
-[PRE34]
+```
+kubectl delete -f guestbook-all-in-one.yaml
+```
 
 恭喜！您已完成了应用程序的升级和回滚到先前版本。
 
@@ -432,11 +527,15 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  您将开始部署 guestbook 应用程序：
 
-[PRE35]
+```
+kubectl create -f guestbook-all-in-one.yaml
+```
 
 1.  要开始编辑，请执行以下命令：
 
-[PRE36]
+```
+kubectl edit service frontend
+```
 
 1.  这将打开一个`vi`环境。导航到现在显示为`type:` `ClusterIP`（第 27 行），并将其更改为`type: LoadBalancer`，如*图 4.27*所示。要进行更改，请按*I*按钮，输入更改内容，按*Esc*按钮，输入`:wq!`，然后按*Enter*保存更改：![输出显示第 27 行被 Type: LoadBalancer 替换。](img/Figure_4.3.jpg)
 
@@ -444,7 +543,9 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  保存更改后，您可以观察服务对象，直到公共 IP 可用。要做到这一点，请输入以下内容：
 
-[PRE37]
+```
+kubectl get svc -w
+```
 
 1.  它将花费几分钟时间来显示更新后的 IP。一旦看到正确的公共 IP，您可以通过按*Ctrl* + *C*（Mac 上为*command* + *C*）退出`watch`命令
 
@@ -458,23 +559,36 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  通过创建一个名为`frontend-image-patch.yaml`的文件来开始这个例子：
 
-[PRE38]
+```
+code frontend-image-patch.yaml
+```
 
 1.  在该文件中使用以下文本作为补丁：
 
-[PRE39]
+```
+spec:
+  template:
+    spec:
+      containers:
+      - name: php-redis
+        image: gcr.io/google-samples/gb-frontend:v3
+```
 
 此补丁文件使用与典型 YAML 文件相同的 YAML 布局。补丁文件的主要特点是它只需要包含更改，而不必能够部署整个资源。
 
 1.  要应用补丁，请使用以下命令：
 
-[PRE40]
+```
+kubectl patch deployment frontend --patch "$(cat frontend-image-patch.yaml)"
+```
 
 此命令执行两件事：首先，它读取`frontend-image-patch.yaml`文件，然后将其传递给`patch`命令以执行更改。
 
 1.  您可以通过描述前端部署并查找`Image`部分来验证更改：
 
-[PRE41]
+```
+kubectl describe deployment frontend
+```
 
 这将显示如下输出：
 
@@ -488,11 +602,15 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  运行以下命令将图像补丁回到`v4`：
 
-[PRE42]
+```
+kubectl patch deployment frontend --patch='{"spec":{"template":{"spec":{"containers":[{"name":"php-redis","image":"gcr.io/google-samples/gb-frontend:v4"}]}}}}'
+```
 
 1.  您可以通过描述部署并查找`Image`部分来验证此更改：
 
-[PRE43]
+```
+kubectl describe deployment frontend
+```
 
 这将显示如图 4.29 所示的输出：
 
@@ -502,7 +620,9 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 在我们继续下一个例子之前，让我们从集群中删除 guestbook 应用程序：
 
-[PRE44]
+```
+kubectl delete -f guestbook-all-in-one.yaml
+```
 
 到目前为止，您已经探索了升级 Kubernetes 应用程序的三种方式。首先，您对实际的 YAML 文件进行了更改，并使用`kubectl apply`应用了这些更改。之后，您使用了`kubectl edit`和`kubectl patch`进行了更多更改。在本章的最后一节中，我们将使用 Helm 来升级我们的应用程序。
 
@@ -512,11 +632,15 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  运行以下命令：
 
-[PRE45]
+```
+helm install wp stable/wordpress
+```
 
 我们将强制更新`WordPress`容器的图像。让我们首先检查当前图像的版本：
 
-[PRE46]
+```
+kubectl describe statefulset wp-mariadb | grep Image
+```
 
 在我们的情况下，图像版本为`10.3.21-debian-10-r0`如下：
 
@@ -528,7 +652,9 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 然而，为了更新 MariaDB 容器图像，我们需要获取服务器的 root 密码和数据库的密码。我们可以通过以下方式获取这些密码：
 
-[PRE47]
+```
+kubectl get secret wp-mariadb -o yaml
+```
 
 这将生成一个如*图 4.31*所示的输出：
 
@@ -538,17 +664,23 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 为了获取解码后的密码，请使用以下命令：
 
-[PRE48]
+```
+echo "<password>" | base64 -d
+```
 
 这将向我们显示解码后的 root 密码和解码后的数据库密码。
 
 1.  我们可以使用 Helm 更新图像标签，然后使用以下命令观察 Pod 的更改：
 
-[PRE49]
+```
+helm upgrade wp stable/wordpress --set mariadb.image.tag=10.3.21-debian-10-r1,mariadb.rootUser.password=<decoded password>,mariadb.db.password=<decoded db password> && kubectl get pods -w
+```
 
 这将更新我们的 MariaDB 的图像并启动一个新的 Pod。在新的 Pod 上运行`describe`并使用`grep`查找`Image`将向我们显示新的图像版本：
 
-[PRE50]
+```
+kubectl describe pod wp-mariadb-0 | grep Image
+```
 
 这将生成一个如*图 4.32*所示的输出：
 
@@ -558,7 +690,11 @@ DevOps 报告（[`services.google.com/fh/files/misc/state-of-devops-2019.pdf`](h
 
 1.  最后，通过运行以下命令进行清理：
 
-[PRE51]
+```
+helm delete wp
+kubectl delete pvc --all
+kubectl delete pv --all
+```
 
 因此，我们已经使用 Helm 升级了我们的应用程序。正如您在本例中所看到的，使用 Helm 进行升级可以通过使用`--set`运算符来完成。这使得使用 Helm 进行升级和多次部署变得非常高效。
 

@@ -30,7 +30,12 @@ Docker 二进制文件可以同时作为客户端和守护程序运行。当 Doc
 
 要测试这些 API，运行`docker`守护程序，使用 TCP 端口，如下所示：
 
-[PRE0]
+```
+$ export DOCKER_HOST=tcp://0.0.0.0:2375
+$ sudo service docker restart
+$ export DOCKER_DAEMON=http://127.0.0.1:2375 # or IP of your host
+
+```
 
 ### 注意
 
@@ -38,7 +43,11 @@ Docker 二进制文件可以同时作为客户端和守护程序运行。当 Doc
 
 在我们开始之前，让我们确保`docker`守护程序正在响应我们的请求：
 
-[PRE1]
+```
+$ curl $DOCKER_DAEMON/_ping
+OK
+
+```
 
 好的，一切都很好。让我们开始吧。
 
@@ -50,7 +59,16 @@ Docker 二进制文件可以同时作为客户端和守护程序运行。当 Doc
 
 `create`命令创建一个容器：
 
-[PRE2]
+```
+$ curl \
+> -H "Content-Type: application/json" \
+> -d '{"Image":"ubuntu:14.04",\
+> "Cmd":["echo", "I was started with the API"]}' \
+> -X POST $DOCKER_DAEMON/containers/create?\
+> name=api_container;
+{"Id":"4e145a6a54f9f6bed4840ac730cde6dc93233659e7eafae947efde5caf583f c3","Warnings":null}
+
+```
 
 ### 注意
 
@@ -67,7 +85,10 @@ Docker 二进制文件可以同时作为客户端和守护程序运行。当 Doc
 
 |
 
-[PRE3]
+```
+config
+
+```
 
 | `JSON` | 描述要启动的容器的配置 |
 | --- | --- |
@@ -79,7 +100,10 @@ POST 请求的查询参数：
 
 |
 
-[PRE4]
+```
+name
+
+```
 
 | `String` | 这为容器分配一个名称。它必须匹配`/?[a-zA-Z0-9_-]+`正则表达式。 |
 | --- | --- |
@@ -91,28 +115,40 @@ POST 请求的查询参数：
 
 |
 
-[PRE5]
+```
+201
+
+```
 
 | 无错误 |
 | --- |
 
 |
 
-[PRE6]
+```
+404
+
+```
 
 | 没有这样的容器 |
 | --- |
 
 |
 
-[PRE7]
+```
+406
+
+```
 
 | 无法附加（容器未运行） |
 | --- |
 
 |
 
-[PRE8]
+```
+500
+
+```
 
 | 内部服务器错误 |
 | --- |
@@ -121,7 +157,11 @@ POST 请求的查询参数：
 
 `list`命令获取容器列表：
 
-[PRE9]
+```
+$ curl $DOCKER_DAEMON/containers/json?all=1\&limit=1
+[{"Command":"echo 'I was started with the API'","Created":1407995735,"Id":"96bdce1493715c2ca8940098db04b99e3629 4a333ddacab0e04f62b98f1ec3ae","Image":"ubuntu:14.04","Names":["/api_c ontainer"],"Ports":[],"Status":"Exited (0) 3 minutes ago"}
+
+```
 
 这是一个`GET`请求 API。对`/containers/json`的请求将返回一个`JSON`响应，其中包含满足条件的容器列表。在这里，传递`all`查询参数将列出未运行的容器。`limit`参数是响应中将列出的容器数量。
 
@@ -134,35 +174,50 @@ POST 请求的查询参数：
 
 |
 
-[PRE10]
+```
+all
+
+```
 
 | 1/`True`/`true` 或 0/`False`/`false` | 这告诉是否显示所有容器。默认情况下只显示正在运行的容器。 |
 | --- | --- |
 
 |
 
-[PRE11]
+```
+limit
+
+```
 
 | `整数` | 这显示最后 [*n*] 个容器，包括非运行中的容器。 |
 | --- | --- |
 
 |
 
-[PRE12]
+```
+since
+
+```
 
 | `容器` `ID` | 这只显示自 [x] 以来启动的容器，包括非运行中的容器。 |
 | --- | --- |
 
 |
 
-[PRE13]
+```
+before
+
+```
 
 | `容器` `ID` | 这只显示在 [x] 之前启动的容器，包括非运行中的容器。 |
 | --- | --- |
 
 |
 
-[PRE14]
+```
+size
+
+```
 
 | 1/`True`/`true` 或 0/`False`/`false` | 这告诉是否在响应中显示容器大小。 |
 | --- | --- |
@@ -174,21 +229,30 @@ POST 请求的查询参数：
 
 |
 
-[PRE15]
+```
+200
+
+```
 
 | 没有错误 |
 | --- |
 
 |
 
-[PRE16]
+```
+400
+
+```
 
 | 错误的参数和客户端错误 |
 | --- |
 
 |
 
-[PRE17]
+```
+500
+
+```
 
 | 服务器错误 |
 | --- |
@@ -203,7 +267,11 @@ POST 请求的查询参数：
 
 以下命令列出本地图像：
 
-[PRE18]
+```
+$ curl $DOCKER_DAEMON/images/json
+[{"Created":1406791831,"Id":"7e03264fbb7608346959378f270b32bf31daca14d15e9979a5803ee32e9d2221","ParentId":"623cd16a51a7fb4ecd539eb1e5d9778 c90df5b96368522b8ff2aafcf9543bbf2","RepoTags":["shrikrishna/apt- moo:latest"],"Size":0,"VirtualSize":281018623} ,{"Created":1406791813,"Id":"c5f4f852c7f37edcb75a0b712a16820bb8c729a6 a5093292e5f269a19e9813f2","ParentId":"ebe887219248235baa0998323342f7f 5641cf5bff7c43e2b802384c1cb0dd498","RepoTags":["shrikrishna/onbuild:l atest"],"Size":0,"VirtualSize":281018623} ,{"Created":1406789491,"Id":"0f0dd3deae656e50a78840e58f63a5808ac53cb4 dc87d416fc56aaf3ab90c937","ParentId":"061732a839ad1ae11e9c7dcaa183105 138e2785954ea9e51f894f4a8e0dc146c","RepoTags":["shrikrishna/optimus:g it_url"],"Size":0,"VirtualSize":670857276}
+
+```
 
 这是一个 `GET` 请求 API。对 `/images/json` 的请求将返回一个包含满足条件的图像详细信息列表的 `JSON` 响应。
 
@@ -214,14 +282,20 @@ POST 请求的查询参数：
 
 |
 
-[PRE19]
+```
+all
+
+```
 
 | 1/`True`/`true` 或 0/`False`/`false` | 这告诉是否显示中间容器。默认为假。 |
 | --- | --- |
 
 |
 
-[PRE20]
+```
+filters
+
+```
 
 | `JSON` | 这些用于提供图像的筛选列表。 |
 | --- | --- |
@@ -236,13 +310,28 @@ POST 请求的查询参数：
 
 以下命令获取 Docker 的系统范围信息。这是处理 `docker info` 命令的端点：
 
-[PRE21]
+```
+$ curl $DOCKER_DAEMON/info
+{"Containers":41,"Debug":1,"Driver":"aufs","DriverStatus":[["Root Dir","/mnt/sda1/var/lib/docker/aufs"],["Dirs","225"]],"ExecutionDrive r":"native- 0.2","IPv4Forwarding":1,"Images":142,"IndexServerAddress":"https://in dex.docker.io/v1/","InitPath":"/usr/local/bin/docker","InitSha1":""," KernelVersion":"3.15.3- tinycore64","MemoryLimit":1,"NEventsListener":0,"NFd":15,"NGoroutines ":15,"Sockets":["unix:///var/run/docker.sock","tcp://0.0.0.0:2375"]," SwapLimit":1}
+
+```
 
 ### 从容器中提交图像
 
 以下命令从容器中提交图像：
 
-[PRE22]
+```
+$ curl \
+> -H "Content-Type: application/json" \
+> -d '{"Image":"ubuntu:14.04",\
+> "Cmd":["echo", "I was started with the API"]}' \
+> -X POST $DOCKER_DAEMON/commit?\
+> container=96bdce149371\
+> \&m=Created%20with%20remote%20api\&repo=shrikrishna/api_image;
+
+{"Id":"5b84985879a84d693f9f7aa9bbcf8ee8080430bb782463e340b241ea760a5a 6b"}
+
+```
 
 提交是对`/commit`参数的`POST`请求，其中包含有关其基础图像和与将在提交时创建的图像相关联的命令的数据。关键信息包括要提交的`container` `ID`参数，提交消息以及它所属的存储库，所有这些都作为查询参数传递。
 
@@ -255,7 +344,10 @@ POST 请求的查询参数：
 
 |
 
-[PRE23]
+```
+config
+
+```
 
 | `JSON` | 这描述了要提交的容器的配置 |
 | --- | --- |
@@ -267,35 +359,50 @@ POST 请求的查询参数：
 
 |
 
-[PRE24]
+```
+container
+
+```
 
 | `Container ID` | 您打算提交的容器的`ID` |
 | --- | --- |
 
 |
 
-[PRE25]
+```
+repo
+
+```
 
 | `String` | 要在其中创建图像的存储库 |
 | --- | --- |
 
 |
 
-[PRE26]
+```
+tag
+
+```
 
 | `String` | 新图像的标签 |
 | --- | --- |
 
 |
 
-[PRE27]
+```
+m
+
+```
 
 | `String` | 提交消息 |
 | --- | --- |
 
 |
 
-[PRE28]
+```
+author
+
+```
 
 | `String` | 作者信息 |
 | --- | --- |
@@ -307,21 +414,30 @@ POST 请求的查询参数：
 
 |
 
-[PRE29]
+```
+201
+
+```
 
 | 没有错误 |
 | --- |
 
 |
 
-[PRE30]
+```
+404
+
+```
 
 | 没有这样的容器 |
 | --- |
 
 |
 
-[PRE31]
+```
+500
+
+```
 
 | 内部服务器错误 |
 | --- |
@@ -330,7 +446,11 @@ POST 请求的查询参数：
 
 从以下命令获取存储库的所有图像和元数据的 tarball 备份：
 
-[PRE32]
+```
+$ curl $DOCKER_DAEMON/images/shrikrishna/code.it/get > \
+> code.it.backup.tar.gz
+
+```
 
 这将需要一些时间，因为图像首先必须被压缩成一个 tarball，然后被流式传输，但然后它将被保存在 tar 存档中。
 
@@ -356,7 +476,11 @@ POST 请求的查询参数：
 
 `docker exec`命令允许用户通过 Docker API 和 CLI 在其 Docker 容器中生成一个进程，例如：
 
-[PRE33]
+```
+$ docker run -dit --name exec_example -v $(pwd):/data -p 8000:8000 dockerfile/python python -m SimpleHTTPServer
+$ docker exec -it exec_example bash
+
+```
 
 第一个命令启动一个简单的文件服务器容器。使用`-d`选项将容器发送到后台。在第二个命令中，使用`docker exec`，我们通过在其中创建一个 bash 进程来登录到容器。现在我们将能够检查容器，读取日志（如果我们已经登录到文件中），运行诊断（如果需要检查是因为错误而出现），等等。
 
@@ -390,7 +514,10 @@ Docker 会动态地从可用地址池中为容器分配 IP。虽然在某些方�
 
 可以在启动容器时使用`--link`选项指定链接：
 
-[PRE34]
+```
+$ docker run --link CONTAINER_IDENTIFIER:ALIAS . . .
+
+```
 
 您可以在第三章中了解更多关于链接的信息。
 
@@ -444,17 +571,28 @@ Docker 会动态地从可用地址池中为容器分配 IP。虽然在某些方�
 
 1.  步骤 1：运行`etcd`服务器：
 
-[PRE35]
+```
+$ docker run -d -p 4001:4001 coreos/etcd:v0.4.6 -name myetcd
+
+```
 
 1.  步骤 2：一旦镜像下载完成并且服务器启动，运行以下命令注册一条消息：
 
-[PRE36]
+```
+$ curl -L -X PUT http://127.0.0.1:4001/v2/keys/message -d value="Hello"
+{"action":"set","node":{"key":"/message","value":"Hello","modifiedIndex":3,"createdIndex":3}}
+
+```
 
 这只是对`/v2/keys/message`路径上的服务器发出的`PUT`请求（这里的密钥是`message`）。
 
 1.  步骤 3：使用以下命令获取密钥：
 
-[PRE37]
+```
+$ curl -L http://127.0.0.1:4001/v2/keys/message
+{"action":"get","node":{"key":"/message","value":"Hello","modifiedIndex":4,"createdIndex":4}}
+
+```
 
 您可以继续尝试更改值，尝试无效的密钥等。您会发现响应是`JSON`格式的，这意味着您可以轻松地将其与应用程序集成，而无需使用任何库。
 
@@ -474,7 +612,10 @@ Docker Machine 旨在提供一个命令，让您从零开始进行 Docker 项目
 
 使用 Docker Machine，无论是在新笔记本电脑上、数据中心的虚拟机上，还是在公共云实例上配置`docker`守护程序，都可以使用相同的单个命令准备目标主机以运行 Docker 容器：
 
-[PRE38]
+```
+$ machine create -d [infrastructure provider] [provider options] [machine name]
+
+```
 
 然后，您可以从相同的界面管理多个 Docker 主机，而不管它们的位置，并在它们上运行任何 Docker 命令。
 
@@ -490,11 +631,17 @@ Docker Machine 旨在提供一个命令，让您从零开始进行 Docker 项目
 
 例如，如果您想要安排一个需要 1GB 内存的 Redis 容器，可以使用 Swarm 进行安排：
 
-[PRE39]
+```
+$ docker run -d -P -m 1g redis
+
+```
 
 除了资源调度，Swarm 还支持基于策略的调度，具有标准和自定义约束。例如，如果您想在支持 SSD 的主机上运行您的**MySQL**容器（以确保更好的写入和读取性能），可以按照以下方式指定：
 
-[PRE40]
+```
+$ docker run -d -P -e constraint:storage=ssd mysql
+
+```
 
 除了所有这些，Swarm 还提供了高可用性和故障转移。它不断监视容器的健康状况，如果一个容器发生故障，会自动重新平衡，将失败主机上的 Docker 容器移动并重新启动到新主机上。最好的部分是，无论您是刚开始使用一个实例还是扩展到 100 个实例，界面都保持不变。
 
@@ -510,13 +657,32 @@ Docker Compose 更像是一个 IDE，或者是一种语言语法，它提供了�
 
 我们使用 Docker Compose 通过编写`YAML`文件来声明我们的多容器应用程序的配置和状态。例如，假设我们有一个使用 Redis 数据库的 Python 应用程序。以下是我们为 Compose 编写`YAML`文件的方式：
 
-[PRE41]
+```
+containers:
+  web:
+     build: .
+     command: python app.py
+     ports:
+     - "5000:5000"
+     volumes:
+     - .:/code
+     links:
+     - redis
+     environment:
+     - PYTHONUNBUFFERED=1
+  redis:
+     image: redis:latest
+     command: redis-server --appendonly yes
+```
 
 在上面的例子中，我们定义了两个应用程序。一个是需要从当前目录的 Dockerfile 构建的 Python 应用程序。它暴露了一个端口（`5000`），并且要么有一个卷，要么有一段代码绑定到当前工作目录。它还定义了一个环境变量，并且与第二个应用程序容器`redis`链接。第二个容器使用了 Docker 注册表中的`redis`容器。
 
 有了定义的配置，我们可以使用以下命令启动两个容器：
 
-[PRE42]
+```
+$ docker up
+
+```
 
 通过这个单一的命令，Python 容器使用 Dockerfile 构建，并且`redis`镜像从注册表中拉取。然而，`redis`容器首先启动，因为 Python 容器的规范中有 links 指令，并且 Python 容器依赖于它。
 
@@ -570,23 +736,36 @@ Docker 容器是以减少的能力集启动的。因此，您会发现您可以�
 
 `--cap-add`标志向容器添加功能。例如，让我们改变容器接口的状态（这需要`NET_ADMIN`服务功能）：
 
-[PRE43]
+```
+$ docker run --cap-add=NET_ADMIN ubuntu sh -c "ip link eth0 down"
+
+```
 
 `--cap-drop`标志在容器中列入黑名单功能。例如，让我们在容器中列入黑名单除`chown`命令之外的所有功能，然后尝试添加用户。这将失败，因为它需要`CAP_CHOWN`服务。
 
-[PRE44]
+```
+$ docker run --cap-add=ALL --cap-drop=CHOWN -it ubuntu useradd test
+useradd: failure while writing changes to /etc/shadow
+
+```
 
 `--devices`标志用于直接在容器上挂载外部/虚拟设备。在 v1.2 之前，我们必须在主机上挂载它，并在`--privileged`容器中使用`-v`标志进行绑定挂载。使用`--device`标志，您现在可以在容器中使用设备，而无需使用`--privileged`容器。
 
 例如，要在容器上挂载笔记本电脑的 DVD-RW 设备，请运行以下命令：
 
-[PRE45]
+```
+$ docker run --device=/dev/dvd-rw:/dev/dvd-rw ...
+
+```
 
 有关这些标志的更多信息，请访问[`blog.docker.com/tag/docker-1-2/`](http://blog.docker.com/tag/docker-1-2/)。
 
 Docker 1.3 版本还引入了其他改进。CLI 中添加了`--security-opts`标志，允许您设置自定义的**SELinux**和**AppArmor**标签和配置文件。例如，假设您有一个策略，允许容器进程仅监听 Apache 端口。假设您在`svirt_apache`中定义了此策略，您可以将其应用于容器，如下所示：
 
-[PRE46]
+```
+$ docker run --security-opt label:type:svirt_apache -i -t centos \ bash
+
+```
 
 这一功能的好处之一是，用户将能够在支持 SELinux 或 AppArmor 的内核上运行 Docker，而无需在容器上使用`docker run --privileged`。不像`--privileged`容器一样给予运行容器所有主机访问权限，这显著减少了潜在威胁的范围。
 

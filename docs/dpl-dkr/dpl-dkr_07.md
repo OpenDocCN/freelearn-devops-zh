@@ -56,17 +56,75 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 要看到这一点的实际效果，我们首先将运行一个最资源密集的框架（JBoss），限制为 30 MB 的 RAM，看看会发生什么：
 
-[PRE0]
+```
+$ docker run -it \
+             --rm \
+             -m 30m \
+             jboss/wildfly 
+Unable to find image 'jboss/wildfly:latest' locally
+latest: Pulling from jboss/wildfly
+<snip>
+Status: Downloaded newer image for jboss/wildfly:latest
+=========================================================================
+
+ JBoss Bootstrap Environment
+
+ JBOSS_HOME: /opt/jboss/wildfly
+
+ JAVA: /usr/lib/jvm/java/bin/java
+
+ JAVA_OPTS:  -server -Xms64m -Xmx512m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true
+
+=========================================================================
+
+* JBossAS process (57) received KILL signal *
+```
 
 不出所料，容器使用了太多的 RAM，并立即被内核杀死。现在，如果我们尝试相同的事情，但给它 400 MB 的 RAM 呢？
 
-[PRE1]
+```
+
+$ docker run -it \
+             --rm \
+             -m 400m \
+             jboss/wildfly
+=========================================================================
+
+ JBoss Bootstrap Environment
+
+ JBOSS_HOME: /opt/jboss/wildfly
+
+ JAVA: /usr/lib/jvm/java/bin/java
+
+ JAVA_OPTS:  -server -Xms64m -Xmx512m -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -Djava.net.preferIPv4Stack=true -Djboss.modules.system.pkgs=org.jboss.byteman -Djava.awt.headless=true
+
+=========================================================================
+
+14:05:23,476 INFO  [org.jboss.modules] (main) JBoss Modules version 1.5.2.Final
+<snip>
+14:05:25,568 INFO  [org.jboss.ws.common.management] (MSC service thread 1-6) JBWS022052: Starting JBossWS 5.1.5.Final (Apache CXF 3.1.6) 
+14:05:25,667 INFO  [org.jboss.as] (Controller Boot Thread) WFLYSRV0060: Http management interface listening on http://127.0.0.1:9990/management
+14:05:25,667 INFO  [org.jboss.as] (Controller Boot Thread) WFLYSRV0051: Admin console listening on http://127.0.0.1:9990
+14:05:25,668 INFO  [org.jboss.as] (Controller Boot Thread) WFLYSRV0025: WildFly Full 10.1.0.Final (WildFly Core 2.2.0.Final) started in 2532ms - Started 331 of 577 services (393 services are lazy, passive or on-demand)
+```
 
 我们的容器现在可以无问题地启动了！
 
 如果你在裸机环境中大量使用应用程序，你可能会问自己为什么 JBoss JVM 事先不知道它将无法在如此受限制的环境中运行并更早地失败。答案在于`cgroups`的一个非常不幸的怪癖（尽管我认为它可能被视为一个特性，取决于你的观点），它将主机的资源未经修改地呈现给容器，即使容器本身受到限制。如果你运行一个内存受限的容器并打印出可用的 RAM 限制，你很容易看到这一点：
 
-[PRE2]
+```
+$ # Let's see what a low allocation shows
+$ docker run -it --rm -m 30m ubuntu /usr/bin/free -h
+ total        used        free      shared  buff/cache   available
+Mem:           7.6G        1.4G        4.4G         54M        1.8G        5.9G
+Swap:            0B          0B          0B
+
+$ # What about a high one?
+$ docker run -it --rm -m 900m ubuntu /usr/bin/free -h
+ total        used        free      shared  buff/cache   available
+Mem:           7.6G        1.4G        4.4G         54M        1.8G        5.9G
+Swap:            0B          0B          0B
+```
 
 正如你所想象的，这会导致在这样一个`cgroup`受限制的容器中启动的应用程序出现各种级联问题，主要问题是应用程序根本不知道有限制，因此它会尝试做它的工作，假设它可以完全访问可用的 RAM。一旦应用程序达到预定义的限制，应用程序进程通常会被杀死，容器也会死掉。这是一个巨大的问题，对于可以对高内存压力做出反应的应用程序和运行时来说，它们可能能够在容器中使用更少的 RAM，但因为它们无法确定它们正在受到限制，它们倾向于以比应该更高的速率吞噬内存。
 
@@ -132,17 +190,100 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 将以下内容添加到名为`cpu_shares.sh`的文件中（也可在[`github.com/sgnn7/deploying_with_docker`](https://github.com/sgnn7/deploying_with_docker)上找到）：
 
-[PRE3]
+```
+#!/bin/bash -e
+
+CPU_COUNT=$(nproc --all)
+START_AT=$(date +%s)
+STOP_AT=$(( $START_AT + 60 ))
+
+echo "Detected $CPU_COUNT CPUs"
+echo "Time range: $START_AT -> $STOP_AT"
+
+declare -a CONTAINERS
+
+echo "Allocating all cores but one with default shares"
+for ((i = 0; i < $CPU_COUNT - 1; i++)); do
+  echo "Starting container $i"
+  CONTAINERS[i]=$(docker run \
+                  -d \
+                  ubuntu \
+                  /bin/bash -c "c=0; while [ $STOP_AT -gt \$(date +%s) ]; do c=\$((c + 1)); done; echo \$c")
+done
+
+echo "Starting container with high shares"
+  fast_task=$(docker run \
+              -d \
+              --cpu-shares 8192 \
+              ubuntu \
+              /bin/bash -c "c=0; while [ $STOP_AT -gt \$(date +%s) ]; do c=\$((c + 1)); done; echo \$c")
+
+  CONTAINERS[$((CPU_COUNT - 1))]=$fast_task
+
+echo "Waiting full minute for containers to finish..."
+sleep 62
+
+for ((i = 0; i < $CPU_COUNT; i++)); do
+  container_id=${CONTAINERS[i]}
+  echo "Container $i counted to $(docker logs $container_id)"
+  docker rm $container_id >/dev/null
+done
+```
 
 现在我们将运行此代码并查看我们标志的效果：
 
-[PRE4]
+```
+$ # Make the file executable
+$ chmod +x ./cpu_shares.sh
+
+$ # Run our little program
+$ ./cpu_shares.sh
+Detected 8 CPUs
+Time range: 1507405189 -> 1507405249
+Allocating all cores but one with default shares
+Starting container 0
+Starting container 1
+Starting container 2
+Starting container 3
+Starting container 4
+Starting container 5
+Starting container 6
+Starting container with high shares
+Waiting full minute for containers to finish...
+Container 0 counted to 25380
+Container 1 counted to 25173
+Container 2 counted to 24961
+Container 3 counted to 24882
+Container 4 counted to 24649
+Container 5 counted to 24306
+Container 6 counted to 24280
+Container 7 counted to 31938
+```
 
 尽管具有较高`--cpu-share`值的容器没有得到预期的完全增加，但如果我们在更长的时间内使用更紧密的 CPU 绑定循环运行基准测试，差异将会更加明显。但即使在我们的小例子中，您也可以看到最后一个容器在机器上运行的所有其他容器中具有明显优势。
 
 为了了解`--cpus`标志的作用，让我们看看在一个没有争用的系统上它能做什么：
 
-[PRE5]
+```
+$ # First without any limiting
+$ time docker run -it \
+ --rm \
+ ubuntu \
+ /bin/bash -c 'for ((i=0; i<100; i++)); do sha256sum /bin/bash >/dev/null; done'
+real    0m1.902s
+user    0m0.030s
+sys    0m0.006s
+
+$ # Now with only a quarter of the CPU available
+$ time docker run -it \
+ --rm \
+ --cpus=0.25 \
+ ubuntu \
+ /bin/bash -c 'for ((i=0; i<100; i++)); do sha256sum /bin/bash >/dev/null; done'
+real    0m6.456s
+user    0m0.018s
+sys    0m0.017s
+```
 
 正如您所看到的，`--cpus`标志非常适合确保任务不会使用超过指定值的 CPU，即使在机器上没有资源争用的情况下。
 
@@ -160,21 +301,57 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 我们可以使用`ulimit -a`来查看我们当前（也称为**软限制**）的设置：
 
-[PRE6]
+```
+$ ulimit -a
+core file size          (blocks, -c) 0
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 29683
+max locked memory       (kbytes, -l) 64
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 1024
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 0
+stack size              (kbytes, -s) 8192
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 29683
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+```
 
 正如您所看到的，这里只设置了一些东西，但有一项突出：我们的“打开文件”限制（`1024`）对于一般应用程序来说是可以的，但如果我们运行许多处理大量打开文件的服务（例如相当数量的 Docker 容器），这个值必须更改，否则您将遇到错误，您的服务将有效地停止运行。
 
 您可以使用`ulimit -S <flag> <value>`来更改当前 shell 的值：
 
-[PRE7]
+```
+$ ulimit -n
+1024
+
+$ # Set max open files to 2048
+$ ulimit -S -n 2048
+
+$ # Let's see the full list again
+$ ulimit -a
+<snip>
+open files                      (-n) 2048
+<snip>
+```
 
 但是，如果我们尝试将其设置为非常高的值会怎样呢？
 
-[PRE8]
+```
+$ ulimit -S -n 10240
+bash: ulimit: open files: cannot modify limit: Invalid argument
+```
 
 在这里，我们现在遇到了系统强加的硬限制。如果我们想要修改超出这些值，这个限制是需要在系统级别进行更改的。我们可以使用`ulimit -H -a`来检查这些硬限制是什么：
 
-[PRE9]
+```
+$ ulimit -H -a | grep '^open files'
+open files                      (-n) 4096
+```
 
 因此，如果我们想要增加我们的打开文件数超过`4096`，我们确实需要更改系统级设置。此外，即使`4086`的软限制对我们来说没问题，该设置仅适用于我们自己的 shell 及其子进程，因此不会影响系统上的任何其他服务或进程。
 
@@ -184,15 +361,24 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 +   创建一个安全限制配置文件。你可以通过向`/etc/security/limits.d/90-ulimit-open-files-increase.conf`添加几行来简单地做到这一点。以下示例将`root`的打开文件软限制设置为`65536`，然后设置所有其他账户（`*`不适用于`root`账户）的限制。你应该提前找出你的系统的适当值是多少。
 
-[PRE10]
+```
+root soft nofile 65536
+root hard nofile 65536
+* soft nofile 65536
+* hard nofile 65536
+```
 
 +   将`pam_limits`模块添加到**可插拔认证模块**（**PAM**）。这将影响所有用户会话以前的`ulimit`更改设置，因为一些发行版没有包含它，否则你的更改可能不会持续。将以下内容添加到`/etc/pam.d/common-session`：
 
-[PRE11]
+```
+session required pam_limits.so
+```
 
 +   或者，在一些发行版上，你可以直接在`systemd`中的受影响服务定义中添加设置到覆盖文件中：
 
-[PRE12]
+```
+LimitNOFILE=65536
+```
 
 覆盖`systemd`服务是本节中一个相当冗长和分散注意力的话题，但它是一个非常常见的策略，用于调整在具有该 init 系统的集群部署上运行的第三方服务，因此这是一个非常有价值的技能。如果您想了解更多关于这个话题的信息，您可以在[`askubuntu.com/a/659268`](https://askubuntu.com/a/659268)找到该过程的简化版本，如果您想要详细版本，可以在[`www.freedesktop.org/software/systemd/man/systemd.service.html`](https://www.freedesktop.org/software/systemd/man/systemd.service.html)找到上游文档。注意！在第一个例子中，我们使用了`*`通配符，它影响了机器上的所有账户。通常，出于安全原因，您希望将此设置隔离到仅受影响的服务账户，如果可能的话。我们还使用了`root`，因为在一些发行版中，根值是通过名称专门设置的，这会由于更高的特异性而覆盖`*`通配符设置。如果您想了解更多关于限制的信息，您可以在[`linux.die.net/man/5/limits.conf`](https://linux.die.net/man/5/limits.conf)找到更多信息。
 
@@ -202,7 +388,10 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 这个值是内核参数的一部分，因此可以使用`sysctl`命令查看：
 
-[PRE13]
+```
+$ sysctl fs.file-max
+fs.file-max = 757778
+```
 
 虽然在这台机器上这个值似乎是合理的，但我曾经看到一些旧版本的发行版具有令人惊讶的低值，如果您在系统上运行了大量容器，很容易出现错误。
 
@@ -210,7 +399,9 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 要更改此值以使其在重新启动后保持不变，我们需要将以下内容添加到`/etc/sysctl.d`文件夹中（即`/etc/sysctl.d/10-file-descriptors-increase.conf`）：
 
-[PRE14]
+```
+fs.file-max = 1000000
+```
 
 更改后，重新启动，您现在应该能够在机器上打开多达 100 万个文件句柄！
 
@@ -220,11 +411,27 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 在 Ubuntu LTS 16.04 安装中，默认的缓冲区设置如下（尽管您的设置可能有所不同）：
 
-[PRE15]
+```
+net.core.optmem_max = 20480
+net.core.rmem_default = 212992
+net.core.rmem_max = 212992
+net.core.wmem_default = 212992
+net.core.wmem_max = 212992
+net.ipv4.tcp_rmem = 4096 87380 6291456
+net.ipv4.tcp_wmem = 4096 16384 4194304
+```
 
 我们将通过将以下内容添加到`/etc/sysctl.d/10-socket-buffers.conf`中，将这些值调整为一些合理的默认值，但请确保在您的环境中使用合理的值：
 
-[PRE16]
+```
+net.core.optmem_max = 40960
+net.core.rmem_default = 16777216
+net.core.rmem_max = 16777216
+net.core.wmem_default = 16777216
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 87380 16777216
+```
 
 通过增加这些值，我们的缓冲区变得更大，应该能够处理相当多的流量，并且具有更好的吞吐量，这是我们在集群环境中想要的。
 
@@ -234,13 +441,24 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 要查看您的机器上一些示例临时端口的使用情况，您可以使用`netstat`：
 
-[PRE17]
+```
+$ netstat -an | grep ESTABLISHED
+tcp        0      0 192.168.56.101:46496     <redacted>:443      ESTABLISHED
+tcp        0      0 192.168.56.101:45512     <redacted>:443      ESTABLISHED
+tcp        0      0 192.168.56.101:42014     <redacted>:443      ESTABLISHED
+<snip>
+tcp        0      0 192.168.56.101:45984     <redacted>:443      ESTABLISHED
+tcp        0      0 192.168.56.101:56528     <redacted>:443      ESTABLISHED
+```
 
 当您开发具有大量出站连接的多个服务的系统时（在使用 Docker 服务时几乎是强制性的），您可能会注意到您被允许使用的端口数量有限，并且可能会发现这些端口可能与一些内部 Docker 服务使用的范围重叠，导致间歇性且经常令人讨厌的连接问题。为了解决这些问题，需要对临时端口范围进行更改。
 
 由于这些也是内核设置，我们可以使用`sysctl`来查看我们当前的范围，就像我们在之前的几个示例中所做的那样：
 
-[PRE18]
+```
+$ sysctl net.ipv4.ip_local_port_range
+net.ipv4.ip_local_port_range = 32768    60999
+```
 
 您可以看到我们的范围在端口分配的上半部分，但在该范围内可能开始监听的任何服务都可能遇到麻烦。我们可能需要的端口数量也可能超过 28,000 个。
 
@@ -248,7 +466,20 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 要更改此值，我们可以使用`sysctl -w`进行临时更改，或者使用`sysctl.d`进行永久更改：
 
-[PRE19]
+```
+$ # First the temporary change to get us up to 40000
+$ # ports. For our services, we separately have to
+$ # ensure none listen on any ports above 24999.
+$ sudo sysctl -w net.ipv4.ip_local_port_range="25000 65000"
+net.ipv4.ip_local_port_range = 25000 65000
+
+$ # Sanity check
+$ sysctl net.ipv4.ip_local_port_range
+net.ipv4.ip_local_port_range = 25000    65000
+
+$ # Now for the permanent change (requires restart)
+$ echo "net.ipv4.ip_local_port_range = 25000 65000" | sudo tee /etc/sysctl.d/10-ephemeral-ports.conf
+```
 
 通过这个改变，我们有效地增加了我们可以支持的出站连接数量超过 30％，但我们也可以使用相同的设置来确保临时端口不会与其他运行中的服务发生冲突。
 
@@ -256,7 +487,26 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 很遗憾，到目前为止我们看到的设置并不是唯一需要调整的东西，随着对服务器的网络连接增加，您可能还会在`dmesg`和/或内核日志中看到`nf_conntrack: table full`错误。对于不熟悉`netfilter`的人来说，它是一个跟踪所有**网络地址转换**（**NAT**）会话的内核模块，它将任何新连接添加到哈希表中，并在关闭连接并达到预定义的超时后清除它们，因此随着对单台机器的连接数量增加，您很可能会发现大多数相关设置都是默认的保守设置，需要进行调整（尽管您的发行版可能有所不同-请确保验证您的设置！）：
 
-[PRE20]
+```
+$ sysctl -a | grep nf_conntrack
+net.netfilter.nf_conntrack_buckets = 65536
+<snip>
+net.netfilter.nf_conntrack_generic_timeout = 600
+<snip>
+net.netfilter.nf_conntrack_max = 262144
+<snip>
+net.netfilter.nf_conntrack_tcp_timeout_close = 10
+net.netfilter.nf_conntrack_tcp_timeout_close_wait = 60
+net.netfilter.nf_conntrack_tcp_timeout_established = 432000
+net.netfilter.nf_conntrack_tcp_timeout_fin_wait = 120
+net.netfilter.nf_conntrack_tcp_timeout_last_ack = 30
+net.netfilter.nf_conntrack_tcp_timeout_max_retrans = 300
+net.netfilter.nf_conntrack_tcp_timeout_syn_recv = 60
+net.netfilter.nf_conntrack_tcp_timeout_syn_sent = 120
+net.netfilter.nf_conntrack_tcp_timeout_time_wait = 120
+net.netfilter.nf_conntrack_tcp_timeout_unacknowledged = 300
+<snip>
+```
 
 其中有很多可以改变，但需要调整的错误通常是以下几种：
 
@@ -268,17 +518,25 @@ OOM 管理是一个庞大的主题，比起在本节中包含它更明智，但�
 
 要应用最后两个设置，您需要将以下内容添加到`/etc/sysctl.d/10-conntrack.conf`，并根据自己的基础架构配置调整值：
 
-[PRE21]
+```
+net.netfilter.nf_conntrack_tcp_timeout_established = 43200
+net.netfilter.nf_conntrack_max = 524288
+```
 
 netfilter 是一个非常复杂的话题，在一个小节中涵盖不全，因此在更改这些数字之前，强烈建议阅读其影响和配置设置。要了解每个设置的情况，您可以访问[`www.kernel.org/doc/Documentation/networking/nf_conntrack-sysctl.txt`](https://www.kernel.org/doc/Documentation/networking/nf_conntrack-sysctl.txt)并阅读相关内容。
 
 对于桶计数，您需要直接更改`nf_conntrack` `hashsize`内核模块参数：
 
-[PRE22]
+```
+echo '131072' | sudo tee /sys/module/nf_conntrack/parameters/hashsize
+```
 
 最后，为了确保在加载 netfilter 模块时遵循正确的顺序，以便这些值正确地持久化，您可能还需要将以下内容添加到`/etc/modules`的末尾：
 
-[PRE23]
+```
+nf_conntrack_ipv4
+nf_conntrack_ipv6
+```
 
 如果一切都正确完成，下次重启应该会设置所有我们讨论过的 netfilter 设置。
 
@@ -296,11 +554,40 @@ netfilter 是一个非常复杂的话题，在一个小节中涵盖不全，因�
 
 让我们看看这个过程，并尝试退出一个以`bash`为起始进程的程序：
 
-[PRE24]
+```
+$ # Let's try to run 'sleep' and exit with <Ctrl>-C
+$ docker run -it \
+ ubuntu \
+ bash -c 'sleep 5000'
+^C^C^C^C^C^C^C^C^C^C
+<Ctrl-C not working>
+
+$ # On second terminal
+$ docker ps
+CONTAINER ID IMAGE  COMMAND                CREATED            STATUS 
+c7b69001271d ubuntu "bash -c 'sleep 5000'" About a minute ago Up About a minute
+
+$ # Can we stop it?
+$ docker stop c7b69001271d
+<nothing happening>
+^C
+
+$ # Last resort - kill the container!
+$ docker kill c7b69001271d
+c7b69001271d
+```
 
 这次，我们将使用`--init`标志运行我们的容器：
 
-[PRE25]
+```
+$ docker run -it \
+ --init \
+ ubuntu \
+ bash -c 'sleep 5000'
+^C
+
+$ # <Ctrl>-C worked just fine!
+```
 
 正如你所看到的，`--init`能够接收我们的信号并将其传递给所有正在监听的子进程，并且它作为一个孤儿进程收割者运行良好，尽管后者在基本容器中真的很难展示出来。有了这个标志及其功能，你现在应该能够使用诸如 Bash 之类的 shell 运行多个进程，或者升级到一个完整的进程管理工具，比如`supervisord`（[`supervisord.org/`](http://supervisord.org/)），而不会出现任何问题。
 
@@ -312,7 +599,58 @@ netfilter 是一个非常复杂的话题，在一个小节中涵盖不全，因�
 
 如果新的服务代码没有改变它与其他服务交互的基本方式（输入和输出），通常唯一需要的就是重建（或替换）容器镜像，然后将其放入 Docker 注册表，然后以有序和交错的方式重新启动服务。通过交错重启，始终至少有一个任务可以处理服务请求，并且从外部观点来看，这种转换应该是完全无缝的。大多数编排工具会在您更改或更新服务的任何设置时自动为您执行此操作，但由于它们非常特定于实现，我们将专注于 Docker Swarm 作为我们的示例：
 
-[PRE26]
+```
+$ # Create a new swarm
+$ docker swarm init
+Swarm initialized: current node (j4p08hdfou1tyrdqj3eclnfb6) is now a manager.
+<snip>
+
+$ # Create a service based on mainline NGINX and update-delay
+$ # of 15 seconds
+$ docker service create \
+ --detach=true \
+ --replicas 4 \
+ --name nginx_update \
+ --update-delay 15s \
+ nginx:mainline
+s9f44kn9a4g6sf3ve449fychv
+
+$ # Let's see what we have
+$ docker service ps nginx_update
+ID            NAME            IMAGE           DESIRED STATE  CURRENT STATE
+rbvv37cg85ms  nginx_update.1  nginx:mainline  Running        Running 56 seconds ago
+y4l76ld41olf  nginx_update.2  nginx:mainline  Running        Running 56 seconds ago
+gza13g9ar7jx  nginx_update.3  nginx:mainline  Running        Running 56 seconds ago
+z7dhy6zu4jt5  nginx_update.4  nginx:mainline  Running        Running 56 seconds ago
+
+$ # Update our service to use the stable NGINX branch
+$ docker service update \
+ --detach=true \
+ --image nginx:stable \
+ nginx_update
+nginx_update
+
+$ # After a minute, we can now see the new service status
+$ docker service ps nginx_update
+ID            NAME               IMAGE           DESIRED STATE  CURRENT STATE
+qa7evkjvdml5  nginx_update.1     nginx:stable    Running        Running about a minute ago
+rbvv37cg85ms  \_ nginx_update.1  nginx:mainline  Shutdown       Shutdown about a minute ago
+qbg0hsd4nxyz  nginx_update.2     nginx:stable    Running        Running about a minute ago
+y4l76ld41olf  \_ nginx_update.2  nginx:mainline  Shutdown       Shutdown about a minute ago
+nj5gcf541fgj  nginx_update.3     nginx:stable    Running        Running 30 seconds ago
+gza13g9ar7jx  \_ nginx_update.3  nginx:mainline  Shutdown       Shutdown 31 seconds ago
+433461xm4roq  nginx_update.4     nginx:stable    Running        Running 47 seconds ago
+z7dhy6zu4jt5  \_ nginx_update.4  nginx:mainline  Shutdown       Shutdown 48 seconds ago
+
+$ # All our services now are using the new image
+$ # and were started staggered!
+
+$ # Clean up
+$ docker service rm nginx_update 
+nginx_update 
+$ docker swarm leave --force 
+Node left the swarm.
+```
 
 正如你所看到的，应该很容易做到在没有任何停机时间的情况下进行自己的代码更改！
 

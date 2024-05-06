@@ -60,7 +60,10 @@ Spark 存储后端通常在 Hadoop 上运行，或者在文件系统上运行 NF
 
 因此，我们首先生成一个`flocker`密钥，并将其放入`keys/`目录：
 
-[PRE0]
+```
+ssh-keygen -t rsa -f keys/flocker
+
+```
 
 ## Docker Machine
 
@@ -90,7 +93,16 @@ AWS 计算器计算出这个设置的成本大约是每月 380 美元，不包�
 
 因此，我们创建基础设施：
 
-[PRE1]
+```
+for i in `seq 101 110`; do
+docker-machine create -d amazonec2 \
+--amazonec2-ami ami-c9580bde \
+--amazonec2-ssh-keypath keys/flocker \
+--amazonec2-instance-type "t2.medium" \
+aws-$i;
+done
+
+```
 
 并运行。
 
@@ -126,11 +138,18 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 要使用 Flocker，在命令行上，您需要运行类似以下的 Docker 命令来读取或写入 Flocker `myvolume`卷上的有状态数据，该卷被挂载为容器内的`/data`：
 
-[PRE2]
+```
+docker run -v myvolume:/data --volume-driver flocker image command
+
+```
 
 此外，您可以使用`docker volume`命令管理卷：
 
-[PRE3]
+```
+docker volume ls
+docker volume create -d flocker
+
+```
 
 在本教程架构中，我们将在 aws-104 上安装 Flocker 控制节点，因此将专用，以及在所有节点（包括 node-104）上安装 flocker 代理。
 
@@ -166,7 +185,10 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 这些 playbook 可能很简单，可能还不够成熟。还有官方的 ClusterHQ Flocker 角色 playbook（参考[`github.com/ClusterHQ/ansible-role-flocker`](https://github.com/ClusterHQ/ansible-role-flocker)），但为了解释的连贯性，我们将使用第一个存储库，所以让我们克隆它：
 
-[PRE4]
+```
+git clone git@github.com:fsoppelsa/ansible-flocker.git
+
+```
 
 ## 生成 Flocker 证书
 
@@ -174,11 +196,18 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 **在 Ubuntu 上**：
 
-[PRE5]
+```
+sudo apt-get -y install --force-yes clusterhq-flocker-cli
+
+```
 
 **在 Mac OS X 上**：
 
-[PRE6]
+```
+pip install https://clusterhq-
+    archive.s3.amazonaws.com/python/Flocker-1.15.0-py2-none-any.whl
+
+```
 
 一旦拥有此工具，我们生成所需的证书。为了简化事情，我们将创建以下证书结构：
 
@@ -208,7 +237,11 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 当然，我们必须欺骗并使用`ansible-flocker`存储库中提供的`utility/generate_certs.sh`脚本，它将为我们完成工作：
 
-[PRE7]
+```
+cd utils
+./generate_certs.sh
+
+```
 
 在执行此脚本后，我们现在在`certs/`中有所有我们的证书：
 
@@ -250,15 +283,33 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 然后，我们创建一个目录，Ansible 将从中获取文件、证书和配置，然后复制到节点上：
 
-[PRE8]
+```
+mkdir files/
+
+```
 
 现在，我们将之前创建的所有证书从`certs/`目录复制到`files/`中：
 
-[PRE9]
+```
+cp certs/* files/
+
+```
 
 最后，我们在`files/agent.yml`中定义 Flocker 配置文件，内容如下，调整 AWS 区域并修改`hostname`、`access_key_id`和`secret_access_key`：
 
-[PRE10]
+```
+control-service:
+hostname: "<Control node IP>"
+port: 4524
+dataset:
+backend: "aws"
+region: "us-east-1"
+zone: "us-east-1a"
+access_key_id: "<AWS-KEY>"
+secret_access_key: "<AWS-ACCESS-KEY>"
+version: 1
+
+```
 
 这是核心的 Flocker 配置文件，将在每个节点的`/etc/flocker`中。在这里，您可以指定和配置所选后端的凭据。在我们的情况下，我们选择基本的 AWS 选项 EBS，因此我们包括我们的 AWS 凭据。
 
@@ -280,13 +331,26 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 让我们运行它：
 
-[PRE11]
+```
+$ export ANSIBLE_HOST_KEY_CHECKING=False
+$ ansible-playbook \
+-i inventory \
+--private-key keys/flocker \
+playbooks/flocker_control_install.yml
+
+```
 
 ## 安装集群节点
 
 类似地，我们使用另一个 playbook `flocker_nodes_install.yml` 安装其他节点：
 
-[PRE12]
+```
+$ ansible-playbook \
+-i inventory \
+--private-key keys/flocker \
+playbooks/flocker_nodes_install.yml
+
+```
 
 步骤与以前大致相同，只是这个 playbook 不复制一些证书，也不启动`flocker-control`服务。只有 Flocker 代理和 Flocker Docker 插件服务在那里运行。我们等待一段时间直到 Ansible 退出。
 
@@ -296,33 +360,67 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 为了检查 Flocker 是否正确安装，我们现在登录到控制节点，检查 Flocker 插件是否正在运行（遗憾的是，它有`.sock`文件），然后我们使用`curl`命令安装`flockerctl`实用程序（参考[`docs.clusterhq.com/en/latest/flocker-features/flockerctl.html`](https://docs.clusterhq.com/en/latest/flocker-features/flockerctl.html)）：
 
-[PRE13]
+```
+$ docker-machine ssh aws-104
+$ sudo su -
+# ls /var/run/docker/plugins/flocker/
+flocker.sock  flocker.sock.lock
+# curl -sSL https://get.flocker.io |sh
+
+```
 
 现在我们设置一些`flockerctl`使用的环境变量：
 
-[PRE14]
+```
+export FLOCKER_USER=client
+export FLOCKER_CONTROL_SERVICE=54.84.176.7
+export FLOCKER_CERTS_PATH=/etc/flocker
+
+```
 
 我们现在可以列出节点和卷（当然，我们还没有卷）：
 
-[PRE15]
+```
+flockerctl status
+flockerctl list
+
+```
 
 ![测试一切是否正常运行](img/image_07_008.jpg)
 
 现在，我们可以转到集群的另一个节点，检查 Flocker 集群的连接性（特别是插件和代理是否能够到达并对控制节点进行身份验证），比如`aws-108`，创建一个卷并向其中写入一些数据：
 
-[PRE16]
+```
+$ docker-machine ssh aws-108
+$ sudo su -
+# docker run -v test:/data --volume-driver flocker \
+busybox sh -c "echo example > /data/test.txt"
+# docker run -v test:/data --volume-driver flocker \
+busybox sh -c "cat /data/test.txt"
+example
+
+```
 
 ![测试一切是否正常运行](img/image_07_009.jpg)
 
 如果我们回到控制节点`aws-104`，我们可以通过使用 docker 和`flockerctl`命令列出它们来验证已创建具有持久数据的卷：
 
-[PRE17]
+```
+docker volume ls
+flockerctl list
+
+```
 
 ![测试一切是否正常运行](img/image_07_010.jpg)
 
 太棒了！现在我们可以删除已退出的容器，从 Flocker 中删除测试卷数据集，然后我们准备安装 Swarm：
 
-[PRE18]
+```
+# docker rm -v ba7884944577
+# docker rm -v 7293a156e199
+# flockerctl destroy -d 8577ed21-25a0-4c68-bafa-640f664e774e
+
+```
 
 # 安装和配置 Swarm
 
@@ -332,13 +430,20 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 现在我们添加一个专用的`spark`覆盖 VxLAN 网络：
 
-[PRE19]
+```
+docker network create --driver overlay --subnet 10.0.0.0/24 spark
+
+```
 
 ## 一个用于 Spark 的卷
 
 现在我们连接到任何 Docker 主机并创建一个`75G`大小的卷，用于保存一些持久的 Spark 数据：
 
-[PRE20]
+```
+docker volume create -d flocker -o size=75G -o profile=bronze --
+    name=spark
+
+```
 
 这里讨论的选项是 `profile`。这是一种存储的类型（主要是速度）。如链接 [`docs.clusterhq.com/en/latest/flocker-features/aws-configuration.html#aws-dataset-backend`](https://docs.clusterhq.com/en/latest/flocker-features/aws-configuration.html#aws-dataset-backend) 中所解释的，ClusterHQ 维护了三种可用的 AWS EBS 配置文件：
 
@@ -354,13 +459,31 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 我们选择一个主机来运行 Spark 独立管理器，即 `aws-105`，并将其标记为这样：
 
-[PRE21]
+```
+docker node update --label-add type=sparkmaster aws-105
+
+```
 
 其他节点将托管我们的 Spark 工作节点。
 
 我们在 `aws-105` 上启动 Spark 主节点：
 
-[PRE22]
+```
+$ docker service create \
+--container-label spark-master \
+--network spark \
+--constraint 'node.labels.type == sparkmaster' \
+--publish 8080:8080 \
+--publish 7077:7077 \
+--publish 6066:6066 \
+--name spark-master \
+--replicas 1 \
+--env SPARK_MASTER_IP=0.0.0.0 \
+--mount type=volume,target=/data,source=spark,volume-driver=flocker 
+    \
+fsoppelsa/spark-master
+
+```
 
 首先是镜像。我发现 Google 镜像中包含一些恼人的东西（例如取消设置一些环境变量，因此无法使用 `--env` 开关从外部进行配置）。因此，我创建了一对 Spark 1.6.2 主节点和工作节点镜像。
 
@@ -384,7 +507,18 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 因此，根据这个配置，让我们添加三个 Spark 工作节点：
 
-[PRE23]
+```
+$ docker service create \
+--constraint 'node.labels.type != sparkmaster' \
+--network spark \
+--name spark-worker \
+--replicas 3 \
+--env SPARK\_MASTER\_IP=10.0.0.3 \
+--env SPARK\_WORKER\_CORES=1 \
+--env SPARK\_WORKER\_MEMORY=1g \
+fsoppelsa/spark-worker
+
+```
 
 在这里，我们将一些环境变量传递到容器中，以限制每个容器的资源使用量为 1 核心和 1G 内存。
 
@@ -398,11 +532,20 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 我们准备一个带有一些 Spark 实用程序的容器，例如`fsoppelsa/spark-worker`，并运行它来使用 Spark 二进制文件`run-example`计算 Pi 的值：
 
-[PRE24]
+```
+docker run -ti fsoppelsa/spark-worker /spark/bin/run-example 
+    SparkPi
+
+```
 
 经过大量输出消息后，Spark 完成计算，给出：
 
-[PRE25]
+```
+...
+Pi is roughly 3.14916
+...
+
+```
 
 如果我们回到 Spark UI，我们可以看到我们惊人的 Pi 应用程序已成功完成。
 
@@ -410,7 +553,11 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 更有趣的是运行一个连接到主节点执行 Spark 作业的交互式 Scala shell：
 
-[PRE26]
+```
+$ docker run -ti fsoppelsa/spark-worker \
+/spark/bin/spark-shell --master spark://<aws-105-IP>:7077
+
+```
 
 ![测试 Spark](img/image_07_014.jpg)
 
@@ -420,15 +567,33 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 为了做到这一点，并且由于 Flocker 限制了副本因子，我们终止当前的三个工作节点集，并创建一个只有一个的集合，挂载 spark：
 
-[PRE27]
+```
+$ docker service rm spark-worker
+$ docker service create \
+--constraint 'node.labels.type == sparkmaster' \
+--network spark \
+--name spark-worker \
+--replicas 1 \
+--env SPARK\_MASTER\_IP=10.0.0.3 \
+--mount type=volume,target=/data,source=spark,volume-driver=flocker\
+fsoppelsa/spark-worker
+
+```
 
 我们现在获得了主机`aws-105`的 Docker 凭据：
 
-[PRE28]
+```
+$ eval $(docker-machine env aws-105)
+
+```
 
 我们可以尝试通过连接到 Spark 主容器在`/data`中写入一些数据。在这个例子中，我们只是将一些文本数据（lorem ipsum 的内容，例如在[`www.loremipsum.net`](http://www.loremipsum.net/)上可用）保存到`/data/file.txt`中。
 
-[PRE29]
+```
+$ docker exec -ti 13ad1e671c8d bash
+# echo "the content of lorem ipsum" > /data/file.txt
+
+```
 
 ![使用 Flocker 存储](img/image_07_015.jpg)
 
@@ -440,13 +605,28 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 1.  将结果保存在`/data/output`中：
 
-[PRE30]
+```
+$ docker exec -ti 13ad1e671c8d /spark/bin/spark-shell
+...
+scala> val inFile = sc.textFile("file:/data/file.txt")
+scala> val counts = inFile.flatMap(line => line.split(" 
+        ")).map(word => (word, 1)).reduceByKey(_ + _)
+scala> counts.saveAsTextFile("file:/data/output")
+scala> ^D
+
+```
 
 ![使用 Flocker 存储](img/image_07_016.jpg)
 
 现在，让我们在任何 Spark 节点上启动一个`busybox`容器，并检查`spark`卷的内容，验证输出是否已写入。我们运行以下代码：
 
-[PRE31]
+```
+$ docker run -v spark:/data -ti busybox sh
+# ls /data
+# ls /data/output/
+# cat /data/output/part-00000
+
+```
 
 ![使用 Flocker 存储](img/image_07_017.jpg)
 
@@ -456,11 +636,25 @@ Flocker 支持非常广泛的存储选项，从 AWS EBS 到 EMC、NetApp、戴�
 
 现在我们来说明 Swarm Mode 最令人惊奇的功能--`scale`命令。我们恢复了在尝试 Flocker 之前的配置，因此我们销毁了`spark-worker`服务，并以副本因子`3`重新创建它：
 
-[PRE32]
+```
+aws-101$ docker service create \
+--constraint 'node.labels.type != sparkmaster' \
+--network spark \
+--name spark-worker \
+--replicas 3 \
+--env SPARK_MASTER_IP=10.0.0.3 \
+--env SPARK\_WORKER\_CORES=1 \
+--env SPARK\_WORKER\_MEMORY=1g \
+fsoppelsa/spark-worker
+
+```
 
 现在，我们使用以下代码将服务扩展到`30`个 Spark 工作节点：
 
-[PRE33]
+```
+aws-101$ docker service scale spark-worker=30
+
+```
 
 经过几分钟，必要的时间来拉取镜像，我们再次检查：
 
@@ -506,29 +700,72 @@ Prometheus 的主要特点包括：
 
 首先，我们创建一个新的覆盖网络，以免干扰`ingress`或`spark`网络，称为`monitoring`：
 
-[PRE34]
+```
+aws-101$ docker network create --driver overlay monitoring
+
+```
 
 然后，我们以`全局`模式启动 cAdvisor 服务，这意味着每个 Swarm 节点上都会运行一个 cAdvisor 容器。我们在容器内挂载一些系统路径，以便 cAdvisor 可以访问它们：
 
-[PRE35]
+```
+aws-101$ docker service create \
+--mode global \
+--name cadvisor \
+--network monitoring \
+--mount type=bind,src=/var/lib/docker/,dst=/var/lib/docker \
+--mount type=bind,src=/,dst=/rootfs \
+--mount type=bind,src=/var/run,dst=/var/run \
+--publish 8080 \
+google/cadvisor
+
+```
 
 然后我们使用`basi/prometheus-swarm`来设置 Prometheus：
 
-[PRE36]
+```
+aws-101$ docker service create \
+--name prometheus \
+--network monitoring \
+--replicas 1 \
+--publish 9090:9090 \
+prom/prometheus-swarm
+
+```
 
 然后我们添加`node-exporter`服务（再次`全局`，必须在每个节点上运行）：
 
-[PRE37]
+```
+aws-101$ docker service create \
+--mode global \
+--name node-exporter \
+--network monitoring \
+--publish 9100 \
+prom/node-exporter
+
+```
 
 最后，我们以一个副本启动**Grafana**：
 
-[PRE38]
+```
+aws-101$ docker service create \
+--name grafana \
+--network monitoring \
+--publish 3000:3000 \
+--replicas 1 \
+-e "GF_SECURITY_ADMIN_PASSWORD=password" \
+-e "PROMETHEUS_ENDPOINT=http://prometheus:9090" \
+grafana/grafana
+
+```
 
 ## 在 Grafana 中导入 Prometheus
 
 当 Grafana 可用时，为了获得 Swarm 健康状况的令人印象深刻的图表，我们使用这些凭据登录 Grafana 运行的节点，端口为`3000`：
 
-[PRE39]
+```
+"admin":"password"
+
+```
 
 作为管理员，我们点击 Grafana 标志，转到**数据源**，并添加`Prometheus`：
 

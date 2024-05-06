@@ -54,17 +54,60 @@
 
 要使`ZabbixServer`容器运行起来，我们必须首先启动一个数据库容器。让我们通过运行以下命令从头开始使用我们的 vagrant 实例：
 
-[PRE0]
+```
+[russ@mac ~]$ cd ~/Documents/Projects/monitoring-docker/vagrant-centos/
+[russ@mac ~]$ vagrant destroy
+default: Are you sure you want to destroy the 'default' VM? [y/N] y
+==>default: Forcing shutdown of VM...
+==>default: Destroying VM and associated drives...
+==>default: Running cleanup tasks for 'shell' provisioner...
+[russ@mac ~]$ vagrant up
+Bringing machine 'default' up with 'virtualbox' provider...
+==>default: Importing base box 'russmckendrick/centos71'...
+==>default: Matching MAC address for NAT networking...
+==>default: Checking if box 'russmckendrick/centos71' is up to date...
+
+.....
+
+==>default: => Installing docker-engine ...
+==>default: => Configuring vagrant user ...
+==>default: => Starting docker-engine ...
+==>default: => Installing docker-compose ...
+==>default: => Finished installation of Docker
+[russ@mac ~]$ vagrantssh
+
+```
 
 现在，我们有一个干净的环境，是时候启动我们的数据库容器了，如下所示：
 
-[PRE1]
+```
+docker run \
+--detach=true \
+--publish=3306 \
+--env="MARIADB_USER=zabbix" \
+--env="MARIADB_PASS=zabbix_password" \
+--name=zabbix-db \
+million12/mariadb
+
+```
 
 这将从[`hub.docker.com/r/million12/mariadb/`](https://hub.docker.com/r/million12/mariadb/)下载`million12/mariadb`镜像，并启动一个名为`zabbix-db`的容器，运行 MariaDB 10（[`mariadb.org`](https://mariadb.org)），使用名为`zabbix`的用户，密码为`zabbix_password`。我们还在容器上打开了 MariaDB 端口`3306`，但由于我们将从链接的容器连接到它，因此无需在主机上暴露该端口。
 
 现在，我们的数据库容器已经运行起来了，现在我们需要启动我们的 Zabbix 服务器容器：
 
-[PRE2]
+```
+docker run \
+--detach=true \
+--publish=80:80 \
+--publish=10051:10051 \
+--link=zabbix-db:db \
+--env="DB_ADDRESS=db" \
+--env="DB_USER=zabbix" \
+--env="DB_PASS=zabbix_password" \
+--name=zabbix \
+zabbix/zabbix-server-2.4
+
+```
 
 这将下载镜像，目前为止，镜像大小超过 1GB，因此这个过程可能需要几分钟，具体取决于您的连接速度，并启动一个名为`zabbix`的容器。它将主机上的 Web 服务器（端口`80`）和 Zabbix 服务器进程（端口`10051`）映射到容器上，创建到我们数据库容器的链接，设置别名`db`，并将数据库凭据作为环境变量注入，以便在容器启动时运行的脚本可以填充数据库。
 
@@ -88,7 +131,22 @@
 
 在撰写本章时，我考虑了为 Zabbix 服务器服务提供另一组安装说明。虽然本书都是关于监控 Docker 容器，但在容器内运行像 Zabbix 这样资源密集型的服务感觉有点违反直觉。因此，有一个 vagrant 机器使用 Puppet 来引导 Zabbix 服务器的工作安装：
 
-[PRE3]
+```
+[russ@mac ~]$ cd ~/Documents/Projects/monitoring-docker/vagrant-zabbix/
+[russ@mac ~]$ vagrant up
+Bringing machine 'default' up with 'virtualbox' provider...
+==>default: Importing base box 'russmckendrick/centos71'...
+==>default: Matching MAC address for NAT networking...
+==>default: Checking if box 'russmckendrick/centos71' is up to date...
+
+.....
+
+==>default: Debug: Received report to process from zabbix.media-glass.es
+==>default: Debug: Evicting cache entry for environment 'production'
+==>default: Debug: Caching environment 'production' (ttl = 0 sec)
+==>default: Debug: Processing report from zabbix.media-glass.es with processor Puppet::Reports::Store
+
+```
 
 您可能已经注意到，有大量的输出流到终端，那刚刚发生了什么？首先，启动了一个 CentOS 7 vagrant 实例，然后安装了 Puppet 代理。一旦安装完成，安装就交给了 Puppet。使用 Werner Dijkerman 的 Zabbix Puppet 模块，安装了 Zabbix 服务器；有关该模块的更多详细信息，请参阅其 Puppet Forge 页面[`forge.puppetlabs.com/wdijkerman/zabbix`](https://forge.puppetlabs.com/wdijkerman/zabbix)。
 
@@ -126,19 +184,32 @@
 
 虽然 CentOS 和 Ubuntu 的步骤是相同的，但进行初始软件包安装的操作略有不同。与其逐步显示安装和配置代理的命令，不如在`/monitoring_docker/chapter04/`文件夹中为每个主机操作系统准备一个脚本。要查看脚本，请从终端运行以下命令：
 
-[PRE4]
+```
+cat /monitoring_docker/chapter04/install-agent-centos.sh
+cat /monitoring_docker/chapter04/install-agent-ubuntu.sh
+
+```
 
 现在，您已经查看了脚本，是时候运行它们了，要做到这一点，请输入以下命令之一。如果您正在运行 CentOS，请运行此命令：
 
-[PRE5]
+```
+bash /monitoring_docker/chapter04/install-agent-centos.sh
+
+```
 
 对于 Ubuntu，运行以下命令：
 
-[PRE6]
+```
+bash /monitoring_docker/chapter04/install-agent-ubuntu.sh
+
+```
 
 要验证一切是否按预期运行，请运行以下命令检查 Zabbix 代理日志文件：
 
-[PRE7]
+```
+cat /var/log/zabbix/zabbix_agentd.log
+
+```
 
 您应该会看到文件末尾确认代理已启动，并且`zabbix_module_docker.so`模块已加载：
 
@@ -146,7 +217,13 @@
 
 在我们进入 Zabbix Web 界面之前，让我们使用第二章中的`docker-compose`文件启动一些容器，*使用内置工具*：
 
-[PRE8]
+```
+[vagrant@docker ~]$ cd /monitoring_docker/chapter02/02-multiple/
+[vagrant@docker 02-multiple]$ docker-compose up -d
+[vagrant@docker 02-multiple]$ docker-compose scale web=3
+[vagrant@docker 02-multiple]$ docker-compose ps
+
+```
 
 我们现在应该有三个运行中的 Web 服务器容器和一个在主机上运行的 Zabbix 代理。
 

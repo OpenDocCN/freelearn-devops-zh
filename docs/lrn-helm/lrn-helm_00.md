@@ -80,15 +80,30 @@
 
 代码块设置如下：
 
-[PRE0]
+```
+html, body, #map {
+ height: 100%; 
+ margin: 0;
+ padding: 0
+}
+```
 
 当我们希望引起您对代码块的特定部分的注意时，相关的行或项目会以粗体显示：
 
-[PRE1]
+```
+[default]
+exten => s,1,Dial(Zap/1|30)
+exten => s,2,Voicemail(u100)
+exten => s,102,Voicemail(b100)
+exten => i,1,Voicemail(s0)
+```
 
 任何命令行输入或输出都以以下方式编写：
 
-[PRE2]
+```
+$ mkdir css
+$ cd css
+```
 
 **粗体**：表示新术语、重要单词或屏幕上看到的单词。例如，菜单或对话框中的单词会以这样的方式出现在文本中。这是一个例子：“从**管理**面板中选择**系统信息**”。
 

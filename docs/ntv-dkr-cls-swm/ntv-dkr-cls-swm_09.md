@@ -62,7 +62,11 @@ Docker 非常适合这种工作流程。开发人员在本地使用 Docker 来�
 
 确保安全性的第一个重要步骤是决定如何使用 CA。当您使用第一个节点形成集群时，它将自动为整个集群创建一个自签名的 CA。在启动后，它创建 CA，签署自己的证书，为管理器添加证书，即自身，并成为准备运行的单节点集群。当新节点加入时，它通过提供正确的令牌来获取证书。每个节点都有自己的身份，经过加密签名。此外，系统为每个规则、工作节点或管理器都有一个证书。角色信息在身份信息中，以告知节点的身份。如果管理器泄露了根 CA，整个集群就会受到威胁。Docker Swarm 模式支持外部 CA 来维护管理器的身份。管理器可以简单地将 CSR 转发给外部 CA，因此不需要维护自己的 CA。请注意，目前仅支持`cfssl`协议。以下命令是使用外部 CA 初始化集群。
 
-[PRE0]
+```
+$ docker swarm init --external-ca \  
+    protocol=cfssl,url=https://ca.example.com
+
+```
 
 ## 证书和双向 TLS
 
@@ -70,7 +74,10 @@ Docker 非常适合这种工作流程。开发人员在本地使用 Docker 来�
 
 Swarm 会自动执行证书轮换。在 SwarmKit 和 Docker Swarm 模式中，证书轮换可以设置为短至一小时。以下是调整证书到期时间的命令。
 
-[PRE1]
+```
+$ docker swarm update --cert-expiry 1h
+
+```
 
 ## 加入令牌
 
@@ -92,13 +99,23 @@ Swarm 会自动执行证书轮换。在 SwarmKit 和 Docker Swarm 模式中，�
 
 好消息是，如果令牌被 compromise，令牌可以使用以下命令之一*简单地旋转*。
 
-[PRE2]
+```
+$ docker swarm join-token --rotate worker
+$ docker swarm join-token --rotate manager
+
+```
 
 ## 使用 Docker Machine 添加 TLS
 
 另一个良好的实践是使用 Docker Machine 为所有管理节点提供额外的 TLS 层，自动设置，以便每个管理节点都可以以安全的方式被远程 Docker 客户端访问。这可以通过以下命令简单地完成，类似于我们在上一章中所做的方式：
 
-[PRE3]
+```
+$ docker-machine create \
+      --driver generic \
+      --generic-ip-address=<IP> \
+    mg0
+
+```
 
 ### 在私有网络上形成一个集群
 
@@ -116,7 +133,13 @@ Docker Content Trust 机制是使用 Docker Notary ([`github.com/docker/notary`]
 
 第一步是克隆 Notary（在这个例子中，我们将其版本固定为 0.4.2）：
 
-[PRE4]
+```
+git clone https://github.com/docker/notary.git
+cd notary
+git checkout v0.4.2
+cd notary
+
+```
 
 打开`docker-compose.yml`并添加图像选项以指定签名者和服务器的图像名称和标签。在这个例子中，我使用 Docker Hub 来存储构建图像。所以是`chanwit/server:v042`和`chanwit/signer:v042`。根据您的本地配置进行更改。
 
@@ -124,31 +147,78 @@ Docker Content Trust 机制是使用 Docker Notary ([`github.com/docker/notary`]
 
 然后开始
 
-[PRE5]
+```
+$ docker-compose up -d
+
+```
 
 我们现在在[`127.0.0.1:4443`](https://127.0.0.1:4443)上运行一个 Notary 服务器。为了使 Docker 客户端能够与 Notary 进行握手，我们需要将 Notary 服务器证书复制为这个受信任地址（`127.0.0.4443`）的 CA。
 
-[PRE6]
+```
+$ mkdir -p ~/.docker/tls/127.0.0.1:4443/
+$ cp ./fixtures/notary-server.crt 
+    ~/.docker/tls/127.0.0.1:4443/ca.crt
+
+```
 
 之后，我们启用 Docker 内容信任，并将 Docker 内容信任服务器指向我们自己的 Notary，地址为`https://127.0.0.1:4443`。
 
-[PRE7]
+```
+$ export DOCKER_CONTENT_TRUST=1
+$ export DOCKER_CONTENT_TRUST_SERVER=https://127.0.0.1:4443
+
+```
 
 然后我们将图像标记为新图像，并在启用 Docker 内容信任的同时推送图像：
 
-[PRE8]
+```
+$ docker tag busybox chanwit/busybox:signed
+$ docker push chanwit/busybox:signed
+
+```
 
 如果设置正确完成，我们将看到 Docker 客户端要求新的根密钥和新的存储库密钥。然后它将确认`chanwit/busybox:signed`已成功签名。
 
-[PRE9]
+```
+The push refers to a repository [docker.io/chanwit/busybox]
+e88b3f82283b: Layer already exists
+signed: digest: 
+sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912 size: 527
+Signing and pushing trust metadata
+You are about to create a new root signing key passphrase. This passphrase
+will be used to protect the most sensitive key in your signing system. Please
+choose a long, complex passphrase and be careful to keep the password and the
+key file itself secure and backed up. It is highly recommended that you use a
+password manager to generate the passphrase and keep it safe. There will be no
+way to recover this key. You can find the key in your config directory.
+Enter passphrase for new root key with ID 1bec0c1:
+Repeat passphrase for new root key with ID 1bec0c1:
+Enter passphrase for new repository key with ID ee73739 (docker.io/chanwit/busybox):
+Repeat passphrase for new repository key with ID ee73739 (docker.io/chanwit/busybox):
+Finished initializing "docker.io/chanwit/busybox"
+Successfully signed "docker.io/chanwit/busybox":signed
+
+```
 
 现在，我们可以尝试拉取相同的镜像：
 
-[PRE10]
+```
+$ docker pull chanwit/busybox:signed
+Pull (1 of 1): chanwit/busybox:signed@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912
+sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912: Pulling from chanwit/busybox
+Digest: sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912
+Status: Image is up to date for chanwit/busybox@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912
+Tagging chanwit/busybox@sha256:29f5d56d12684887bdfa50dcd29fc31eea4aaf4ad3bec43daf19026a7ce69912 as chanwit/busybox:signed
+
+```
 
 当我们拉取一个未签名的镜像时，这时会显示没有受信任的数据：
 
-[PRE11]
+```
+$ docker pull busybox:latest
+Error: remote trust data does not exist for docker.io/library/busybox: 127.0.0.1:4443 does not have trust data for docker.io/library/busybox
+
+```
 
 # 介绍 Docker 秘密
 
@@ -156,19 +226,32 @@ Docker 1.13 在 Swarm 中包含了新的秘密管理概念。
 
 我们知道，我们需要 Swarm 模式来使用秘密。当我们初始化一个 Swarm 时，Swarm 会为我们生成一些秘密：
 
-[PRE12]
+```
+$ docker swarm init
+
+```
 
 Docker 1.13 添加了新的命令`secret`来管理秘密，目的是有效地处理它们。秘密子命令被创建，ls，用于检查和 rm。
 
 让我们创建我们的第一个秘密。`secret create`子命令从标准输入中获取一个秘密。因此，我们需要输入我们的秘密，然后按*Ctrl*+*D*保存内容。小心不要按*Enter*键。例如，我们只需要`1234`而不是`1234\n`作为我们的密码：
 
-[PRE13]
+```
+$ docker secret create password
+1234
+
+```
 
 然后按两次*Ctrl*+*D*关闭标准输入。
 
 我们可以检查是否有一个名为 password 的秘密：
 
-[PRE14]
+```
+$ docker secret ls
+ID                      NAME                CREATED             UPDATED
+16blafexuvrv2hgznrjitj93s  password  25 seconds ago      25 seconds ago
+uxep4enknneoevvqatstouec2  test-pass 18 minutes ago      18 minutes ago
+
+```
 
 这是如何工作的？秘密的内容可以通过在创建新服务时传递秘密选项来绑定到服务。秘密将是`/run/secrets/`目录中的一个文件。在我们的情况下，我们将有`/run/secrets/password`包含字符串`1234`。
 
@@ -176,29 +259,63 @@ Docker 1.13 添加了新的命令`secret`来管理秘密，目的是有效地处
 
 我们将展示一个小技巧，使 MariaDB 支持新的 Swarm 秘密，从以下的`entrypoint.sh`开始：
 
-[PRE15]
+```
+$ wget https://raw.githubusercontent.com/docker-
+library/mariadb/2538af1bad7f05ac2c23dc6eb35e8cba6356fc43/10.1/docker-entrypoint.sh
+
+```
 
 我们将这行放入这个脚本中，大约在第 56 行之前，然后检查`MYSQL_ROOT_PASSWORD`。
 
-[PRE16]
+```
+# check secret file. if exist, override
+if [ -f "/run/secrets/mysql-root-password" ]; then
+MYSQL_ROOT_PASSWORD=$(cat /run/secrets/mysql-root-password)
+fi
+
+```
 
 此代码检查是否存在`/run/secrets/mysql-root-password`。如果是，则将密钥分配给环境变量`MYSQL_ROOT_PASSWORD`。
 
 之后，我们可以准备一个 Dockerfile 来覆盖 MariaDB 的默认`docker-entrypoint.sh`。
 
-[PRE17]
+```
+FROM mariadb:10.1.19
+RUN  unlink /docker-entrypoint.sh
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN  chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN  ln -s usr/local/bin/docker-entrypoint.sh /
+
+```
 
 然后我们构建新的镜像。
 
-[PRE18]
+```
+$ docker build -t chanwit/mariadb:10.1.19 .
+
+```
 
 回想一下，我们有一个名为 password 的秘密，我们有一个允许我们从秘密文件`/run/secrets/mysql-root-password`设置根密码的镜像。因此，该镜像期望在`/run/secrets`下有一个不同的文件名。有了这个，我们可以使用完整选项的秘密（`source=password`，`target=mysql-root-password`）来使 Swarm 服务工作。例如，我们现在可以从这个 MariaDB 镜像启动一个新的`mysql` Swarm 服务：
 
-[PRE19]
+```
+$ docker network create -d overlay dbnet
+lsc7prijmvg7sj6412b1jnsot
+$ docker service create --name mysql \
+--secret source=password,target=mysql-root-password \
+--network dbnet \
+chanwit/mariadb:10.1.19
+
+```
 
 要查看我们的秘密是否有效，我们可以在相同的覆盖网络上启动一个 PHPMyAdmin 实例。不要忘记通过向`myadmin`服务传递`-e PMA_HOST=mysql`来将这些服务链接在一起。
 
-[PRE20]
+```
+$ docker service create --name myadmin \
+--network dbnet --publish 8080:80 \
+-e PMA_HOST=mysql \
+phpmyadmin/phpmyadmin
+
+```
 
 然后，您可以在浏览器中打开`http://127.0.0.1:8080`，并使用我们通过 Docker 秘密提供的密码`1234`作为 root 登录`PHPMyAdmin`，这样我们就可以使用秘密。
 

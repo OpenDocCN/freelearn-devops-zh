@@ -72,11 +72,16 @@ Kubernetes 基于 Google 在规模上运行生产工作负载的十五年经验�
 
 1.  要安装，请运行此命令：
 
-[PRE0]
+```
+$ brew install kubectl
+```
 
 1.  要查看您安装的版本，请使用此命令：
 
-[PRE1]
+```
+$ kubectl version –client --short
+Client Version: v1.18.1
+```
 
 ## 在 Windows 上安装
 
@@ -84,23 +89,34 @@ Kubernetes 基于 Google 在规模上运行生产工作负载的十五年经验�
 
 1.  要安装，请运行此命令：
 
-[PRE2]
+```
+$ scoop install kubectl
+```
 
 1.  要查看您安装的版本，请使用此命令：
 
-[PRE3]
+```
+$ kubectl version –client --short
+Client Version: v1.18.1
+```
 
 1.  在您的主目录中创建`.kube`目录：
 
-[PRE4]
+```
+$ mkdir %USERPROFILE%\.kube
+```
 
 1.  导航到`.kube`目录：
 
-[PRE5]
+```
+$ cd %USERPROFILE%\.kube
+```
 
 1.  配置`kubectl`以使用远程 Kubernetes 集群：
 
-[PRE6]
+```
+$ New-Item config -type file
+```
 
 ## 在 Linux 上安装
 
@@ -108,7 +124,9 @@ Kubernetes 基于 Google 在规模上运行生产工作负载的十五年经验�
 
 +   使用`curl`：
 
-[PRE7]
+```
+$ curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+```
 
 +   如果您的 Linux 系统支持 Docker 镜像，请使用[`hub.docker.com/r/bitnami/kubectl/`](https://hub.docker.com/r/bitnami/kubectl/)。
 
@@ -120,7 +138,9 @@ Linux 是 CI/CD 流水线中非常常见的环境。
 
 要获取支持的`kubectl`命令列表，请运行此命令：
 
-[PRE8]
+```
+$ kubectl --help
+```
 
 `kubectl`命令按类别分组。让我们看看每个类别。
 

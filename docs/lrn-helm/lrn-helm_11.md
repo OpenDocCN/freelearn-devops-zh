@@ -66,11 +66,15 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 首先，由于操作员将部署到 Kubernetes，您应该通过运行以下命令来启动 Minikube 环境：
 
-[PRE0]
+```
+$ minikube start
+```
 
 启动 Minikube 后，创建一个名为`chapter8`的命名空间，如下所示：
 
-[PRE1]
+```
+$ kubectl create ns chapter8
+```
 
 由于访客留言簿操作员是作为一个容器镜像构建的，您需要创建一个可以存储它以便以后引用的镜像存储库。为了存储这个镜像，我们将在 Quay（quay.io）中创建一个新的存储库，这是一个公共容器注册表（如果您在其他地方有帐户，那也可以）。我们还将准备一个本地开发环境，其中包含构建操作员镜像所需的必要工具。
 
@@ -134,31 +138,44 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 1.  通过运行`minikube ssh`命令来访问 VM，如下所示：
 
-[PRE2]
+```
+$ minikube ssh
+```
 
 1.  一旦进入 VM，您需要下载`operator-sdk` CLI。这可以通过使用`curl`命令来完成。请注意，写作时使用的`operator-sdk`版本是`0.15.2`版本。
 
 要下载此版本的`operator-sdk` CLI，请运行以下命令：
 
-[PRE3]
+```
+$ cu**rl -o operator-sdk -L https://github.com/operator-framework/operator-sdk/releases/download/v0.15.2/operator-sdk-v0**.15.2-x86_64-linux-gnu 
+```
 
 1.  下载后，您需要更改`operator-sdk`二进制文件的权限为用户可执行。运行`chmod`命令进行此修改，如下所示：
 
-[PRE4]
+```
+$ chmod u+x operator-sdk
+```
 
 1.  接下来，将`operator-sdk`二进制文件移动到 VM 的`PATH`变量管理的位置，例如`/usr/bin`。因为此操作需要 root 权限，您需要使用`sudo`运行`mv`命令，如下所示：
 
-[PRE5]
+```
+$ sudo mv operator-sdk /usr/bin
+```
 
 1.  最后，通过运行`operator-sdk version`命令来验证您的`operator-sdk`安装，如下所示：
 
-[PRE6]
+```
+$ operator-sdk version
+operator-sdk version: 'v0.15.2', commit: 'ffaf278993c8fcb00c6f527c9f20091eb8dd3352', go version: 'go1.13.3 linux/amd64'
+```
 
 如果此命令执行没有错误，那么您已成功安装了`operator-sdk` CLI。
 
 1.  作为一个额外的步骤，您还应该在 Minikube VM 中克隆 Packt 存储库，因为我们将稍后利用`guestbook` Helm 图表来构建 Helm operator。在 VM 中运行以下命令来克隆存储库：](https://github.com/PacktPublishing/-Learn-Helm.git)
 
-[PRE7]
+```
+$ git clone https://github.com/PacktPub**lishing/-Learn-Helm.git Learn-Helm
+```
 
 现在您已经有了 Quay 镜像存储库和从 Minikube VM 创建的本地开发环境，让我们开始编写 Guestbook Operator。请注意，operator 代码的示例位于 Packt 存储库的 https://github.com/PacktPublishing/-Learn-Helm/tree/master/guestbook-operator 位置。
 
@@ -172,7 +189,21 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 使用`operator-sdk new`命令可以轻松创建操作员文件结构。在您的 Minikube VM 中，执行以下命令来创建 Guestbook Operator 的脚手架：
 
-[PRE8]
+```
+$ operator-sdk new guestbook-operator --type helm --kind Guestbook --helm-chart Learn-Helm/helm-charts/charts/guestbook
+INFO[0000] Creating new Helm operator 'guestbook-operator'. 
+INFO[0003] Created helm-charts/guestbook       
+WARN[0003] Using default RBAC rules: failed to get Kubernetes config: could not locate a kubeconfig 
+INFO[0003] Created build/Dockerfile                     
+INFO[0003] Created watches.yaml                         
+INFO[0003] Created deploy/service_account.yaml          
+INFO[0003] Created deploy/role.yaml                     
+INFO[0003] Created deploy/role_binding.yaml             
+INFO[0003] Created deploy/operator.yaml                 
+INFO[0003] Created deploy/crds/charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml 
+INFO[0003] Generated CustomResourceDefinition manifests. 
+INFO[0003] Project creation complete.
+```
 
 `operator-sdk new`命令创建了一个名为`guestbook-operator`的本地目录，其中包含操作员内容。指定应使用`--type`标志创建 Helm 操作员，以及`Guestbook`作为 CR 的名称。
 
@@ -186,23 +217,34 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 在您的 Minikube VM 中，运行`operator-sdk build`命令，将您的 Quay 用户名替换为指定位置，如下所示：
 
-[PRE9]
+```
+$ cd guestbook-operator
+$ operator-sdk build quay.io/$QUAY_USERNAME/guestbook-operator
+```
 
 如果构建成功，您将收到以下消息：
 
-[PRE10]
+```
+INFO[0092] Operator build complete.
+```
 
 由于 Minikube VM 安装了 Docker，`operator-sdk` CLI 在后台使用 Docker 构建图像。您可以运行`docker images`命令来验证图像是否已构建，如下所示：
 
-[PRE11]
+```
+$ docker images
+```
 
 操作员图像在本地构建后，必须将其推送到图像注册表，以便可以从 Kubernetes 中拉取。为了使用 Docker 将图像推送到注册表，您必须首先对目标注册表进行身份验证。使用`docker login`命令登录到 Quay，如下面的代码片段所示：
 
-[PRE12]
+```
+$ docker login quay.io --username $QUAY_USERNAME --password $QUAY_PASSWORD
+```
 
 登录到 Quay 后，使用`docker push`命令将操作员图像推送到 Quay 注册表，就像这样：
 
-[PRE13]
+```
+$ docker push quay.io/$QUAY_USERNAME/guestbook-operator
+```
 
 推送完成后，返回到您在*创建 Quay 存储库*部分创建的`guestbook-operator`存储库。您应该能够在**存储库标签**部分看到一个新的标签发布，如下面的屏幕截图所示：
 
@@ -218,13 +260,24 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 以下是`deploy`文件夹中的内容所示的文件结构：
 
-[PRE14]
+```
+deploy/
+  crds/
+    charts.helm.k8s.io_guestbooks_crd.yaml
+    charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml
+  operator.yaml
+  role_binding.yaml
+  role.yaml
+  service_account.yaml
+```
 
 `crds/`文件夹包含创建 Guestbook CRD 所需的 YAML 资源（`charts.helm.k8s.io_guestbooks_crd.yaml`）。此文件用于在 Kubernetes 中注册新的 Guestbook API 端点。此外，`crds/`文件夹包含一个示例 Guestbook CR 应用程序（`charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml`）。创建此文件将触发操作员安装 Guestbook Helm 图表。
 
 请查看 CR 的内容，以熟悉所定义属性的类型，如下所示：
 
-[PRE15]
+```
+$ cat guestbook-operator/deploy/crds/charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml
+```
 
 以下代码块中提供了输出的片段：
 
@@ -242,15 +295,23 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 1.  不幸的是，Minikube VM 不包含`Kubectl`，所以如果您仍然通过命令行连接到 VM，您必须首先退出到您的本地系统，通过运行以下命令：
 
-[PRE16]
+```
+$ exit
+```
 
 1.  早些时候使用`operator-sdk`创建的资源也位于 Packt 存储库的`guestbook-operator/`文件夹下。如果您之前没有克隆过这个存储库，请使用以下命令现在克隆它：
 
-[PRE17]
+```
+$ git clone https://github.com/PacktPublishing/-Learn-Helm.git Learn-Helm
+```
 
 作为一个快速的旁注，需要注意的是，Packt 存储库中唯一修改自 Minikube VM 中创建的资源的资源是`role.yaml`文件。`operator-sdk` CLI 基于包含在 guestbook Helm 图表中的模板文件生成了一个简单的`role.yaml`文件。但是，如果您能回忆起来，guestbook 图表包含了一些资源，只有在条件值基础上才会包含这些资源。这些资源是`Job`和`PersistentVolumeClaim`挂钩资源，只有在启用持久存储时才会包含。其中一个示例显示在`PersistentVolumeClaim`模板中，如下面的代码片段所示：
 
-[PRE18]
+```
+{{- if .Values.redis.master.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+```
 
 `operator-sdk` CLI 没有自动为`Jobs`和`PersistentVolumeClaims`创建**基于角色的访问控制**（**RBAC**）规则，因为它不知道是否应该包含此模板。
 
@@ -258,23 +319,32 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 1.  Guestbook 操作员将依赖于一个新的 API 端点。通过在`guestbook-operator/deploy/crds`文件夹下应用 CRD 来创建此端点，如下所示：
 
-[PRE19]
+```
+$ kubectl apply -f guestbook-operator/deploy/crds/charts.helm.k8s.io_guestbooks_crd.yaml
+```
 
 我们将在稍后使用该文件夹下的第二个文件（CR）来部署 Guestbook 应用程序。
 
 1.  接下来，您需要修改`guestbook-operator/deploy/operator.yaml`文件，以指定您之前构建的操作员图像。您会注意到在这个文件中有以下代码行：
 
-[PRE20]
+```
+# Replace this with the built image name
+image: REPLACE_IMAGE
+```
 
 将`REPLACE_IMAGE`文本替换为您的操作员图像的位置。此值应类似于`quay.io/$QUAY_USERNAME/guestbook-operator`。
 
 1.  一旦您应用了 CRD 并更新了您的`operator.yaml`文件，您可以通过运行以下命令来继续应用`guestbook-operator/deploy/`文件夹中的每个资源：
 
-[PRE21]
+```
+$ kubectl apply -f guestbook-operator/deploy -n chapter8
+```
 
 1.  通过对`chapter8`命名空间中的 Pods 运行观察，等待操作员报告`1/1`就绪状态，就像这样：
 
-[PRE22]
+```
+$ kubectl get pods -n chapter8 -w
+```
 
 现在 Guestbook operator 已部署，让我们使用它来安装 Guestbook Helm chart。
 
@@ -282,35 +352,62 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 当使用 Helm 作为独立的 CLI 工具时，您可以通过运行`helm install`命令来安装 Helm chart。使用 Helm operator，您可以通过创建 CR 来安装 Helm chart。通过创建位于`guestbook-operator/deploy/crds/`文件夹下的提供的 CR 来安装 Guestbook Helm chart，如下面的代码片段所示：
 
-[PRE23]
+```
+$ kubectl apply -f guestbook-operator/deploy/crds/charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml -n chapter8
+```
 
 对`chapter8`命名空间中的 Pod 运行另一个`watch`命令，如下面的代码片段所示，您应该能够看到 Guestbook 和 Redis Pods 因 Helm chart 安装而启动：
 
-[PRE24]
+```
+$ kubectl get pods -n chapter8 -w
+```
 
 以下代码块描述了每个 Pod 处于`READY`状态：
 
-[PRE25]
+```
+NAME                                  READY   STATUS    RESTARTS
+example-guestbook-65bc5fdc55-jvkdz    1/1     Running   0
+guestbook-operator-6fddc8d7cb-94mzp   1/1     Running   0
+redis-master-0                        1/1     Running   0
+redis-slave-0                         1/1     Running   0
+redis-slave-1                         1/1     Running   0
+```
 
 当您创建 Guestbook CR 时，操作员会执行`helm install`命令来安装 Guestbook chart。您可以通过运行`helm list`来确认已创建的发布，就像这样：
 
-[PRE26]
+```
+$ helm list -n chapter8
+NAME             	NAMESPACE	REVISION	UPDATED       
+example-guestbook	chapter8 	1       	2020-02-24
+```
 
 通过修改`example-guestbook` CR 来执行发布的升级。修改您的`guestbook-operator/deploy/crds/charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml`文件，将副本数从`1`更改为`2`，就像这样：
 
-[PRE27]
+```
+replicaCount: 2
+```
 
 在更新了`replicaCount`值之后应用更改，如下所示：
 
-[PRE28]
+```
+$ kubectl apply -f guestbook-operator/deploy/crds/charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml -n chapter8
+```
 
 修改 Guestbook CR 将触发针对`example-guestbook`发布的`helm upgrade`命令。正如您可能还记得*第五章*中所述，*构建您的第一个 Helm Chart*，Guestbook Helm chart 的升级钩子将启动对 Redis 数据库的备份。如果您在修改 CR 后对`chapter8`命名空间中的 Pod 运行`watch`，您将注意到一个备份`Job`开始，并且一旦备份完成，您将看到两个 Guestbook Pods 中的一个终止。您还将从以下代码片段中的`helm list`命令中注意到`example-guestbook`发布的修订号已增加到`2`：
 
-[PRE29]
+```
+$ helm list -n chapter8
+NAME             	NAMESPACE	REVISION	UPDATED       
+example-guestbook	chapter8 	2       	2020-02-24
+```
 
 尽管修订号已增加到`2`，但截至撰写本文时，基于 Helm 的 Operators 的一个限制是您无法像使用 CLI 那样发起回滚到先前的修订。如果您尝试对`example-guestbook`发布运行`helm history`，您还将注意到只有第二个修订在发布历史中，如下面的代码片段所示：
 
-[PRE30]
+```
+$ helm history example-guestbook -n chapter8
+REVISION	UPDATED                 	STATUS        
+2       	Tue Feb 25 04:36:10 2020	deployed
+```
 
 这是使用 Helm CLI 和使用基于 Helm 的 operator 之间的重要区别。由于不保留发布历史记录，基于 Helm 的 operator 不允许执行显式回滚。但是，如果升级失败，将运行`helm rollback`命令。在这种情况下，将执行回滚钩子，试图回滚到尝试的升级。
 
@@ -320,19 +417,25 @@ Operators 通常使用称为 Operator Framework 的工具包编写，并基于�
 
 执行以下`kubectl patch`命令，将 Guestbook 部署的副本计数从`2`更改为`3`：
 
-[PRE31]
+```
+$ kubectl patch deployment example-guestbook -p '{'spec':{'replicas':3}}' -n chapter8
+```
 
 通常，这只会添加一个额外的 Guestbook 应用程序副本。但是，因为 Guestbook CR 当前仅定义了`2`个副本，所以 operator 会快速将副本计数更改回`2`，并终止创建的额外 Pod。如果您实际上想将副本计数增加到`3`，则必须更新 Guestbook CR 上的`replicaCount`值。该过程的优势在于确保期望状态与集群的实际状态匹配。
 
 使用基于 Helm 的 operator 卸载 Guestbook 应用程序就像删除 CR 一样简单。删除`example-guestbook` CR 以卸载发布，就像这样：
 
-[PRE32]
+```
+$ kubectl delete -f guestbook-operator/deploy/crds/charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml -n chapter8
+```
 
 这将删除`example-guestbook`发布以及所有相关资源。
 
 您还可以删除 Guestbook Operator 及其资源，因为我们在下一节中将不再需要它们。您可以通过运行以下命令来执行此操作：
 
-[PRE33]
+```
+$ kubectl delete -f guestbook-operator/deploy/ -n chapter8
+```
 
 一般来说，您应该始终确保在删除运算符之前先删除 CR。当您删除 CR 时，运算符会执行`helm uninstall`命令来删除您的发布。如果您意外地先删除了运算符，您将不得不在命令行上手动运行`helm uninstall`。
 
@@ -346,7 +449,18 @@ Helm 允许您在 Helm 图表中提供一个名为`crds/`的特殊目录，用�
 
 以下文件结构描述了一个 Helm 图表，可用于安装 Guestbook 运算符：
 
-[PRE34]
+```
+guestbook-operator/
+  Chart.yaml
+  crds/
+    charts.helm.k8s.io_guestbooks_crd.yaml
+  templates/
+    operator.yaml
+    role_binding.yaml
+    role.yaml
+    Service_account.yaml
+  values.yaml
+```
 
 安装此 Helm 图表时，首先会安装 Guestbook CRD。如果 CRD 已经存在于集群中，它将跳过 CRD 的创建，而只会创建模板资源。请注意，虽然 CRDs 可以方便地包含在 Helm 图表中，但存在一些限制。首先，Helm 图表中的 CRDs 不能包含任何 Go 模板，因此 CRDs 无法像典型资源那样受益于参数化。CRDs 也永远无法升级、回滚或删除。因此，如果需要执行这些操作，用户必须小心地手动修改或删除 CRDs。最后，如前所述安装此类图表将需要集群管理员权限，这是 Kubernetes 中允许的最高权限，因为图表至少包含一个 CRD 资源。
 
@@ -354,7 +468,13 @@ Helm 允许您在 Helm 图表中提供一个名为`crds/`的特殊目录，用�
 
 这样的 Helm chart 的示例布局显示在以下文件结构中：
 
-[PRE35]
+```
+guestbook-cr
+  Chart.yaml
+  templates/
+    guestbook.yaml
+  values.yaml
+```
 
 前面的示例包括一个名为`guestbook.yaml`的模板。这个模板可以包含最初由`operator-sdk` CLI 生成的 Guestbook CR，名称为`charts.helm.k8s.io_v1alpha1_guestbook_cr.yaml`。与 CRDs 不同，`templates/`文件夹下的 CRs 受益于 Go 模板和生命周期管理，就像所有其他资源一样。当 CR 包含基于用户提供的值有条件地包含的复杂字段，或者当同一个发布中必须包含多个不同的 CRs 时，这种方法提供了最大的价值。通过这种方法，您还可以管理 CRs 的生命周期并保持修订历史。
 
@@ -364,13 +484,17 @@ Helm 允许您在 Helm 图表中提供一个名为`crds/`的特殊目录，用�
 
 首先，运行以下命令来删除您的 Guestbook CRD：
 
-[PRE36]
+```
+$ kubectl delete crd guestbooks.charts.helm.k8s.io
+```
 
 在继续下一个清理步骤之前，请注意，在*问题*部分后面提出的一个问题将挑战您编写自己的 Helm charts 来实现*使用 Helm 管理 Operators 和 CRs*部分讨论的图表设计。您可能希望推迟这些步骤来测试您的实现。
 
 要继续清理工作，请运行以下命令来删除您的`chapter8`命名空间：
 
-[PRE37]
+```
+$ kubectl delete ns chapter8
+```
 
 最后，运行`minikube stop`命令来停止您的 Minikube 虚拟机。
 

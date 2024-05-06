@@ -46,7 +46,21 @@
 
 现在，让我们来看一个 Dockerfile 的例子：
 
-[PRE0]
+```
+FROM ubuntu
+# install dependencies
+RUN apt-get install -y software-properties-common python
+RUN add-apt-repository ppa:chris-lea/node.js
+RUN echo "deb http://us.archive.ubuntu.com/ubuntu/ precise universe" >> /etc/apt/sources.list
+RUN apt-get update
+RUN apt-get install -y nodejs
+# make directory
+RUN mkdir /var/www
+# copy app.js
+ADD app.js /var/www/app.js
+# set the default command to run
+CMD ["/usr/bin/node", "/var/www/app.js"]
+```
 
 从上面的 Dockerfile 中，我们可以看出这个镜像是基于`ubuntu`构建的。然后，它运行了一系列的`apt-get`命令来安装依赖，并创建了一个名为`/var/www`的目录。接下来，将`app.js`文件从当前目录复制到镜像文件系统中的`/var/www/app.js`。最后，配置默认命令来运行这个`Node.js`应用程序。我相信当你开始构建镜像时，你会看到 Dockerfile 是多么简单和强大。
 
@@ -108,7 +122,22 @@
 
 以下是如何在`ubuntu-1` pod 的`YAML`文件中配置在 pod 级别使用主机命名空间的示例：
 
-[PRE1]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ubuntu-1
+  labels:
+    app: util
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu
+    imagePullPolicy: Always
+  hostPID: true
+  hostNetwork: true
+  hostIPC: true
+```
 
 前面的工作负载 YAML 配置了`ubuntu-1` pod 以使用主机级 PID 命名空间、网络命名空间和 IPC 命名空间。请记住，除非必要，否则不应将这些属性设置为`true`。将这些属性设置为`true`还会解除同一工作节点上其他工作负载的安全边界，正如在*第五章*中已经提到的，*配置 Kubernetes 安全边界*。
 
@@ -152,7 +181,29 @@
 
 现在，让我们看一个为容器配置`SecurityContext`的示例：
 
-[PRE2]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  labels:
+    app: web
+spec:
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  containers:
+  - name: nginx
+    image: kaizheh/nginx 
+    securityContext:
+      privileged: false
+      capabilities:
+        add:
+        - NETWORK_ADMIN
+      readOnlyRootFilesystem: true 
+      runAsUser: 100
+      runAsGroup: 1000
+```
 
 nginx-pod 内的`nginx`容器以 UID 为`100`和 GID 为`1000`的用户身份运行。除此之外，`nginx`容器还获得了额外的`NETWORK_ADMIN`权限，并且根文件系统被设置为只读。这里的 YAML 文件只是展示了如何配置安全上下文的示例。请注意，在生产环境中运行的容器中不建议添加`NETWORK_ADMIN`。
 
@@ -180,21 +231,48 @@ nginx-pod 内的`nginx`容器以 UID 为`100`和 GID 为`1000`的用户身份运
 
 AppArmor 配置文件通常定义了进程拥有的 Linux 功能，容器可以访问的网络资源和文件等。为了使用 AppArmor 配置文件保护 pod 或容器，您需要更新 pod 的注释。让我们看一个例子，假设您有一个 AppArmor 配置文件来阻止任何文件写入活动。
 
-[PRE3]
+```
+#include <tunables/global>
+profile k8s-apparmor-example-deny-write flags=(attach_disconnected) {
+  #include <abstractions/base>
+  file,
+  # Deny all file writes.
+  deny /** w,
+}
+```
 
 请注意，AppArmor 不是 Kubernetes 对象，如 pod、部署等。它不能通过`kubectl`操作。您需要 SSH 到每个节点，并将 AppArmor 配置文件加载到内核中，以便 pod 可以使用它。
 
 以下是加载 AppArmor 配置文件的命令：
 
-[PRE4]
+```
+cat /etc/apparmor.d/profile.name | sudo apparmor_parser -a
+```
 
 然后，将配置文件放入`enforce`模式：
 
-[PRE5]
+```
+sudo aa-enforce /etc/apparmor.d/profile.name
+```
 
 一旦加载了 AppArmor 配置文件，您可以更新 pod 的注释，以使用 AppArmor 配置文件保护您的容器。以下是将 AppArmor 配置文件应用于容器的示例：
 
-[PRE6]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-apparmor
+  annotations:
+    # Tell Kubernetes to apply the AppArmor profile 
+    # "k8s-apparmor-example-deny-write".
+    container.apparmor.security.beta.kubernetes.io/hello: 
+      localhost/k8s-apparmor-example-deny-write
+spec:
+  containers:
+  - name: hello
+    image: busybox
+    command: [ "sh", "-c", "echo 'Hello AppArmor!' && sleep 1h" ]
+```
 
 `hello-apparmor`内的容器除了在回显“Hello AppArmor！”消息后进入睡眠状态外，什么也不做。当它运行时，如果您从容器中启动一个 shell 并写入任何文件，AppArmor 将会阻止。尽管编写健壮的 AppArmor 配置文件并不容易，但您仍然可以创建一些基本的限制，比如拒绝写入到某些目录，拒绝接受原始数据包，并使某些文件只读。此外，在将配置应用到生产集群之前，先测试配置文件。开源工具如 bane 可以帮助为容器创建 AppArmor 配置文件。
 
@@ -246,29 +324,87 @@ Kubernetes PodSecurityPolicy 是一个集群级资源，通过它可以控制 po
 
 现在，让我们来看一个 PodSecurityPolicy 的例子：
 
-[PRE7]
+```
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+    name: example
+spec:
+  allowedCapabilities:
+  - NET_ADMIN
+  - IPC_LOCK
+  allowedHostPaths:
+  - pathPrefix: /dev
+  - pathPrefix: /run
+  - pathPrefix: /
+  fsGroup:
+    rule: RunAsAny
+  hostNetwork: true
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - hostPath
+  - secret
+```
 
 这个 PodSecurityPolicy 允许`NET_ADMIN`和`IPC_LOCK`的权限，从主机和 Kubernetes 的秘密卷挂载`/`，`/dev`和`/run`。它不强制执行任何文件系统组 ID 或辅助组，也允许容器以任何用户身份运行，访问主机网络命名空间，并以特权容器运行。策略中没有强制执行 SELinux 策略。
 
 要启用此 Pod 安全策略，您可以运行以下命令：
 
-[PRE8]
+```
+$ kubectl apply -f example-psp.yaml
+```
 
 现在，让我们验证 Pod 安全策略是否已成功创建：
 
-[PRE9]
+```
+$ kubectl get psp
+```
 
 输出将如下所示：
 
-[PRE10]
+```
+NAME      PRIV     CAPS                           SELINUX    RUNASUSER   FSGROUP    SUPGROUP   READONLYROOTFS   VOLUMES
+example   true     NET_ADMIN, IPC_LOCK            RunAsAny   RunAsAny    RunAsAny   RunAsAny   false            hostPath,secret
+```
 
 创建了 Pod 安全策略后，还需要另一步来强制执行它。您将需要授予用户、组或服务帐户使用`PodSecurityPolicy`对象的特权。通过这样做，Pod 安全策略有权根据关联的服务帐户评估工作负载。以下是如何强制执行 PodSecurityPolicy 的示例。首先，您需要创建一个使用 PodSecurityPolicy 的集群角色：
 
-[PRE11]
+```
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: use-example-psp
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs:     ['use']
+  resourceNames:
+  - example
+```
 
 然后，创建一个`RoleBinding`或`ClusterRoleBinding`对象，将之前创建的`ClusterRole`对象与服务帐户、用户或组关联起来：
 
-[PRE12]
+```
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: use-example-psp-binding
+roleRef:
+  kind: ClusterRole
+  name: use-example-psp
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+# Authorize specific service accounts:
+- kind: ServiceAccount
+  name: test-sa
+  namespace: psp-test
+```
 
 之前创建的`use-example-pspbinding.yaml`文件创建了一个`RoleBinding`对象，将`use-example-psp`集群角色与`psp-test`命名空间中的`test-sa`服务帐户关联起来。通过所有这些设置，`psp-test`命名空间中其服务帐户为`test-sa`的任何工作负载将通过 PodSecurityPolicy 示例的评估。只有符合要求的工作负载才能被允许进入集群。
 
@@ -280,33 +416,117 @@ Kubernetes PodSecurityPolicy Advisor（也称为`kube-psp-advisor`）是来自 S
 
 首先，让我们将`kube-psp-advisor`作为`kubectl`插件进行安装。如果您还没有安装`krew`，请按照说明（https://github.com/kubernetes-sigs/krew#installation）安装它。然后，使用`krew`安装`kube-psp-advisor`如下：
 
-[PRE13]
+```
+$ kubectl krew install advise-psp
+```
 
 然后，您应该能够运行以下命令来验证安装：
 
-[PRE14]
+```
+$ kubectl advise-psp
+A way to generate K8s PodSecurityPolicy objects from a live K8s environment or individual K8s objects containing pod specifications
+Usage:
+  kube-psp-advisor [command]
+Available Commands:
+  convert     Generate a PodSecurityPolicy from a single K8s Yaml file
+  help        Help about any command
+  inspect     Inspect a live K8s Environment to generate a PodSecurityPolicy
+Flags:
+  -h, --help           help for kube-psp-advisor
+      --level string   Log level (default "info")
+```
 
 要为命名空间中的工作负载生成 Pod 安全策略，可以运行以下命令：
 
-[PRE15]
+```
+$ kubectl advise-psp inspect --grant --namespace psp-test
+```
 
 上述命令为在`psp-test`命名空间内运行的工作负载生成了 Pod 安全策略。如果工作负载使用默认服务账户，则不会为其生成 PodSecurityPolicy。这是因为默认服务账户将被分配给没有专用服务账户关联的工作负载。当然，您肯定不希望默认服务账户能够使用特权工作负载的 PodSecurityPolicy。
 
 以下是`kube-psp-advisor`为`psp-test`命名空间中的工作负载生成的输出示例，包括 Role、RoleBinding 和 PodSecurityPolicy 在一个单独的 YAML 文件中，其中包含多个 Pod 安全策略。让我们来看一个推荐的 PodSecurityPolicy：
 
-[PRE16]
+```
+# Pod security policies will be created for service account 'sa-1' in namespace 'psp-test' with following workloads:
+#	Kind: ReplicaSet, Name: busy-rs, Image: busybox
+#	Kind: Pod, Name: busy-pod, Image: busybox
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  creationTimestamp: null
+  name: psp-for-psp-test-sa-1
+spec:
+  allowedCapabilities:
+  - SYS_ADMIN
+  allowedHostPaths:
+  - pathPrefix: /usr/bin
+    readOnly: true
+  fsGroup:
+    rule: RunAsAny
+  hostIPC: true
+  hostNetwork: true
+  hostPID: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - configMap
+  - secret
+  - hostPath
+```
 
 以下是由`kube-psp-advisor`生成的 Role：
 
-[PRE17]
+```
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: use-psp-by-psp-test:sa-1
+  namespace: psp-test
+rules:
+- apiGroups:
+  - policy
+  resourceNames:
+  - psp-for-psp-test-sa-1
+  resources:
+  - podsecuritypolicies
+  verbs:
+  - use
+---
+```
 
 以下是由`kube-psp-advisor`生成的 RoleBinding：
 
-[PRE18]
+```
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: null
+  name: use-psp-by-psp-test:sa-1-binding
+  namespace: psp-test
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: use-psp-by-psp-test:sa-1
+subjects:
+- kind: ServiceAccount
+  name: sa-1
+  namespace: psp-test
+---
+```
 
 前面的部分是推荐的 PodSecurityPolicy，`psp-for-psp-test-sa-1`，适用于`busy-rs`和`busy-pod`工作负载，因为这两个工作负载共享相同的服务账户`sa-1`。因此，分别创建了`Role`和`RoleBinding`来使用 Pod 安全策略`psp-for-psp-test-sa-1`。PodSecurityPolicy 是基于使用`sa-1`服务账户的工作负载的安全属性的聚合生成的：
 
-[PRE19]
+```
+---
+# Pod security policies will NOT be created for service account 'default' in namespace 'psp-test' with following workdloads:
+#	Kind: ReplicationController, Name: busy-rc, Image: busybox
+---
+```
 
 前面的部分提到`busy-rc`工作负载使用`default`服务账户，因此不会为其创建 Pod 安全策略。这是一个提醒，如果要为工作负载生成 Pod 安全策略，请不要使用默认服务账户。
 

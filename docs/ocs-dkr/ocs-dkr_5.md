@@ -44,7 +44,21 @@ Chef 的网站上写着：
 
 以下 Chef 配方基于`code.it`启动一个容器：
 
-[PRE0]
+```
+# Include Docker recipe
+include_recipe 'docker'
+
+# Pull latest image
+docker_image 'shrikrishna/code.it'
+
+# Run container exposing ports
+docker_container 'shrikrishna/code.it' do
+  detach true
+  port '80:8000'
+  env 'NODE_PORT=8000'
+  volume '/var/log/code.it:/var/log/code.it'
+end
+```
 
 第一个非注释语句包括 Chef-Docker 配方。`docker_image 'shrikrishna/code.it'`语句相当于在控制台中运行`$ docker pull shrikrishna/code.it`命令。配方末尾的语句块相当于运行`$ docker run --d -p '8000:8000' -e 'NODE_PORT=8000' -v '/var/log/code.it:/var/log/code.it' shrikrishna/code.it`命令。
 
@@ -56,13 +70,30 @@ PuppetLabs 的网站上写着：
 
 Puppet 的等效于 Chef cookbooks 的模块。有一个为 Docker 提供支持的模块可用。通过运行以下命令来安装它：
 
-[PRE1]
+```
+$ puppet module install garethr-docker
+
+```
 
 ### 编写一个 Puppet 清单来在 Docker 上运行 Code.it
 
 以下 Puppet 清单启动了一个`code.it`容器：
 
-[PRE2]
+```
+# Installation
+include 'docker'
+
+# Download image
+docker::image {'shrikrishna/code.it':}
+
+# Run a container
+docker::run { 'code.it-puppet':
+  image   => 'shrikrishna/code.it',
+  command => 'node /srv/app.js',
+  ports   => '8000',
+  volumes => '/var/log/code.it'
+}
+```
 
 第一个非注释语句包括`docker`模块。`docker::image {'shrikrishna/code.it':}`语句相当于在控制台中运行`$ docker pull shrikrishna/code.it`命令。在配方末尾的语句块相当于运行`$ docker run --d -p '8000:8000' -e 'NODE_PORT=8000' -v '/var/log/code.it:/var/log/code.it' shrikrishna/code.it node /srv/app.js`命令。
 
@@ -72,27 +103,49 @@ Puppet 的等效于 Chef cookbooks 的模块。有一个为 Docker 提供支持�
 
 让我们编写一个 Dockerfile 来设置一个 apt 缓存服务器作为缓存代理服务器：
 
-[PRE3]
+```
+FROM        ubuntu
+
+VOLUME      ["/var/cache/apt-cacher-ng"]
+RUN       apt-get update ; apt-get install -yq apt-cacher-ng
+
+EXPOSE      3142
+RUN     echo "chmod 777 /var/cache/apt-cacher-ng ;" + "/etc/init.d/apt-cacher-ng start ;" + "tail -f /var/log/apt-cacher-ng/*" >> /init.sh
+CMD     ["/bin/bash", "/init.sh"]
+```
 
 这个 Dockerfile 在镜像中安装了`apt-cacher-ng`软件包，并暴露端口`3142`（供目标容器使用）。
 
 使用此命令构建镜像：
 
-[PRE4]
+```
+$ sudo docker build -t shrikrishna/apt_cacher_ng
+
+```
 
 然后运行它，绑定暴露的端口：
 
-[PRE5]
+```
+$ sudo docker run -d -p 3142:3142 --name apt_cacher shrikrishna/apt_cacher_ng
+
+```
 
 要查看日志，请运行以下命令：
 
-[PRE6]
+```
+$ sudo docker logs -f apt_cacher
+
+```
 
 ## 在构建 Dockerfiles 时使用 apt-cacher
 
 所以我们已经设置了一个 apt-cacher。现在我们必须在我们的 Dockerfiles 中使用它：
 
-[PRE7]
+```
+FROM ubuntu
+RUN  echo 'Acquire::http { Proxy "http://<host's-docker0-ip- here>:3142"; };' >> /etc/apt/apt.conf.d/01proxy
+
+```
 
 在第二条指令中，用您的 Docker 主机的 IP 地址（在`docker0`接口处）替换`<host's-docker0-ip-here>`命令。在构建这个 Dockerfile 时，如果遇到任何已经安装过的软件包的`apt-get install`安装命令（无论是为了这个镜像还是其他镜像），它将从本地代理服务器获取软件包，从而加快构建过程中的软件包安装速度。如果要安装的软件包不在缓存中，则从 Canonical 仓库获取并保存在缓存中。
 
@@ -114,7 +167,10 @@ apt-cacher 只对使用 Apt 软件包管理工具的基于 Debian 的容器（�
 
 有一个`bootstrapper`脚本可以设置 Dokku。在 VPS/虚拟机内运行此命令：
 
-[PRE8]
+```
+$ wget -qO- https://raw.github.com/progrium/dokku/v0.2.3/bootstrap.sh | sudo DOKKU_TAG=v0.2.3 bash
+
+```
 
 ### 注意
 
@@ -126,25 +182,47 @@ apt-cacher 只对使用 Apt 软件包管理工具的基于 Debian 的容器（�
 
 步骤 1：克隆 Dokku：
 
-[PRE9]
+```
+$ git clone https://github.com/progrium/dokku.git
+
+```
 
 步骤 2：在您的`/etc/hosts`文件中设置 SSH 主机：
 
-[PRE10]
+```
+10.0.0.2 dokku.app
+
+```
 
 步骤 3：在`~/.ssh/config`中设置 SSH 配置
 
-[PRE11]
+```
+Host dokku.app
+Port 2222
+
+```
 
 步骤 4：创建虚拟机
 
 以下是一些可选的 ENV 参数设置：
 
-[PRE12]
+```
+# - `BOX_NAME`
+# - `BOX_URI`
+# - `BOX_MEMORY`
+# - `DOKKU_DOMAIN`
+# - `DOKKU_IP`.
+cd path/to/dokku
+vagrant up
+
+```
 
 步骤 5：使用此命令复制您的 SSH 密钥：
 
-[PRE13]
+```
+$ cat ~/.ssh/id_rsa.pub | pbcopy
+
+```
 
 在`http://dokku.app`的 dokku-installer 中粘贴您的 SSH 密钥（指向`/etc/hosts`文件中分配的`10.0.0.2`）。在**Dokku 设置**屏幕上更改**主机名**字段为您的域名，然后选中**使用虚拟主机命名**的复选框。然后，单击**完成设置**以安装您的密钥。您将从这里被引导到应用程序部署说明。
 
@@ -158,11 +236,18 @@ apt-cacher 只对使用 Apt 软件包管理工具的基于 Debian 的容器（�
 
 在此示例中，我已将我的 Dokku 主机名设置为`dokku.app`，方法是将以下配置添加到我的本地主机的`/etc/hosts`文件中：
 
-[PRE14]
+```
+10.0.0.2 dokku.app
+
+```
 
 我还在本地主机的`~/.ssh/config`文件中设置了 SSH 端口转发规则：
 
-[PRE15]
+```
+Host dokku.app
+Port 2222
+
+```
 
 ### 注意
 
@@ -172,7 +257,10 @@ apt-cacher 只对使用 Apt 软件包管理工具的基于 Debian 的容器（�
 
 最后要做的事情是将您的公共`ssh`密钥上传到 Dokku 主机并将其与用户名关联起来。要这样做，请运行此命令：
 
-[PRE16]
+```
+$ cat ~/.ssh/id_rsa.pub | ssh dokku.app "sudo sshcommand acl-add dokku shrikrishna"
+
+```
 
 在上述命令中，将`dokku.app`名称替换为您的域名，将`shrikrishna`替换为您的名称。
 
@@ -182,7 +270,27 @@ apt-cacher 只对使用 Apt 软件包管理工具的基于 Debian 的容器（�
 
 我们现在有了自己的 PaaS，可以在那里部署我们的应用程序。让我们在那里部署`code.it`文件。您也可以尝试在那里部署您自己的应用程序：
 
-[PRE17]
+```
+$ cd code.it
+$ git remote add dokku dokku@dokku.app:codeit
+$ git push dokku master
+Counting objects: 456, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (254/254), done.
+Writing objects: 100% (456/456), 205.64 KiB, done.
+Total 456 (delta 34), reused 454 (delta 12)
+-----> Building codeit ...
+Node.js app detected
+-----> Resolving engine versions
+
+......
+......
+......
+
+-----> Application deployed:
+http://codeit.dokku.app
+
+```
 
 就是这样！我们现在在我们的 PaaS 中有一个可用的应用程序。有关 Dokku 的更多详细信息，您可以查看其 GitHub 存储库页面[`github.com/progrium/dokku`](https://github.com/progrium/dokku)。
 
@@ -218,13 +326,21 @@ apt-cacher 只对使用 Apt 软件包管理工具的基于 Debian 的容器（�
 
 1.  **Fleetctl**：Fleet 简而言之是一个分布式初始化系统，这意味着它将允许我们在集群级别管理服务。Fleetctl 是一个 CLI 客户端，用于运行 fleet 命令。要安装 fleetctl，请运行以下命令：
 
-[PRE18]
+```
+$ wget \ https://github.com/coreos/fleet/releases/download/v0.3.2/fleet -v0.3.2-darwin-amd64.zip && unzip fleet-v0.3.2-darwin-amd64.zip
+$ sudo cp fleet-v0.3.2-darwin-amd64/fleetctl /usr/local/bin/
+
+```
 
 ## 获取并配置 Vagrantfile
 
 Vagrantfiles 是 Dockerfiles 的 Vagrant 等价物。Vagrantfile 包含诸如获取基本虚拟机、运行设置命令、启动虚拟机镜像实例数量等详细信息。CoreOS 有一个包含 Vagrantfile 的存储库，可用于下载和在虚拟机中使用 CoreOS。这是在开发环境中尝试 CoreOS 功能的理想方式：
 
-[PRE19]
+```
+$ git clone https://github.com/coreos/coreos-vagrant/
+$ cd coreos-vagrant
+
+```
 
 上述命令克隆了包含 Vagrantfile 的`coreos-vagrant`存储库，该文件下载并启动基于 CoreOS 的虚拟机。
 
@@ -240,7 +356,11 @@ Vagrant 是一款免费开源软件，用于创建和配置虚拟开发环境。
 
 CoreOS 团队构建了一个发现服务（[`discovery.etcd.io`](https://discovery.etcd.io)），它提供了一个免费服务，帮助`etcd`实例通过存储对等信息相互通信。它通过提供一个唯一标识集群的令牌来工作。集群中的每个`etcd`实例都使用此令牌通过发现服务识别其他`etcd`实例。生成令牌很容易，只需通过`GET`请求发送到[discovery.etcd.io/new](http://discovery.etcd.io/new)即可。
 
-[PRE20]
+```
+$ curl -s https://discovery.etcd.io/new
+https://discovery.etcd.io/5cfcf52e78c320d26dcc7ca3643044ee
+
+```
 
 现在打开`coreos-vagrant`目录中名为`user-data.sample`的文件，并找到包含`etcd`服务下的`discovery`配置选项的注释行。取消注释并提供先前运行的`curl`命令返回的令牌。完成后，将文件重命名为`user-data`。
 
@@ -252,7 +372,18 @@ CoreOS 团队构建了一个发现服务（[`discovery.etcd.io`](https://discove
 
 以下是 CoreOS 代码的示例：
 
-[PRE21]
+```
+coreos:
+  etcd:
+    # generate a new token for each unique cluster from https://discovery.etcd.io/new
+    # WARNING: replace each time you 'vagrant destroy'
+    discovery: https://discovery.etcd.io/5cfcf52e78c320d26dcc7ca3643044ee
+    addr: $public_ipv4:4001
+    peer-addr: $public_ipv4:7001
+  fleet:
+    public-ip: $public_ipv4
+  units:
+```
 
 ### 提示
 
@@ -268,21 +399,50 @@ CoreOS 团队构建了一个发现服务（[`discovery.etcd.io`](https://discove
 
 以下是 Vagrant 实例的代码示例：
 
-[PRE22]
+```
+# Size of the CoreOS cluster created by Vagrant
+$num_instances=3
+```
 
 ### 生成实例并验证健康
 
 现在我们已经准备好配置，是时候在本地机器上看到一个运行的集群了：
 
-[PRE23]
+```
+$ vagrant up
+Bringing machine 'core-01' up with 'virtualbox' provider...
+Bringing machine 'core-02' up with 'virtualbox' provider...
+Bringing machine 'core-03' up with 'virtualbox' provider...
+==> core-01: Box 'coreos-alpha' could not be found. Attempting to find and install...
+core-01: Box Provider: virtualbox
+core-01: Box Version: >= 0
+==> core-01: Adding box 'coreos-alpha' (v0) for provider: virtualbox
+. . . . .
+. . . . .
+. . . . .
+
+```
 
 创建完机器后，您可以 SSH 登录到它们，尝试以下命令，但您需要将`ssh`密钥添加到您的 SSH 代理中。这样做将允许您将 SSH 会话转发到集群中的其他节点。要添加密钥，请运行以下命令：
 
-[PRE24]
+```
+$ ssh-add ~/.vagrant.d/insecure_private_key
+Identity added: /Users/CoreOS/.vagrant.d/insecure_private_key (/Users/CoreOS/.vagrant.d/insecure_private_key)
+$ vagrant ssh core-01 -- -A
+
+```
 
 现在让我们验证一下机器是否正常运行，并要求 fleet 列出集群中正在运行的机器：
 
-[PRE25]
+```
+$ export FLEETCTL_TUNNEL=127.0.0.1:2222
+$ fleetctl list-machines
+MACHINE     IP           METADATA
+daacff1d... 172.17.8.101 -
+20dddafc... 172.17.8.102 -
+eac3271e... 172.17.8.103 -
+
+```
 
 ### 启动服务
 
@@ -292,33 +452,98 @@ CoreOS 团队构建了一个发现服务（[`discovery.etcd.io`](https://discove
 
 `code.it.1.service`
 
-[PRE26]
+```
+[Unit]
+Description=Code.it 1
+Requires=docker.service  
+After=docker.service
+
+[Service]
+ExecStart=/usr/bin/docker run --rm --name=code.it-1 -p 80:8000 shrikrishna/code.it
+ExecStartPost=/usr/bin/etcdctl set /domains/code.it-1/%H:%i running  
+ExecStop=/usr/bin/docker stop code.it-1  
+ExecStopPost=/usr/bin/etcdctl rm /domains/code.it-1/%H:%i
+
+[X-Fleet]
+X-Conflicts=code.it.*.service
+```
 
 `code.it.2.service`
 
-[PRE27]
+```
+[Unit]
+Description=Code.it 2  
+Requires=docker.service  
+After=docker.service
+
+[Service]
+ExecStart=/usr/bin/docker run --rm --name=code.it-2 -p 80:8000 shrikrishna/code.it
+ExecStartPost=/usr/bin/etcdctl set /domains/code.it-2/%H:%i running  
+ExecStop=/usr/bin/docker stop code.it-2  
+ExecStopPost=/usr/bin/etcdctl rm /domains/code.it-2/%H:%i
+
+[X-Fleet]
+X-Conflicts=code.it.2.service
+```
 
 `code.it.3.service`
 
-[PRE28]
+```
+[Unit]
+Description=Code.it 3  
+Requires=docker.service  
+After=docker.service
+
+[Service]
+ExecStart=/usr/bin/docker run --rm --name=code.it-3 -p 80:8000 shrikrishna/code.it
+ExecStartPost=/usr/bin/etcdctl set /domains/code.it-3/%H:%i running  
+ExecStop=/usr/bin/docker stop code.it-3  
+ExecStopPost=/usr/bin/etcdctl rm /domains/code.it-3/%H:%i
+
+[X-Fleet]
+X-Conflicts=code.it.*.service  
+```
 
 您可能已经注意到这些文件中的模式。`ExecStart`参数保存了必须执行的命令，以启动服务。在我们的情况下，这意味着运行`code.it`容器。`ExecStartPost`是在`ExecStart`参数成功后执行的命令。在我们的情况下，服务的可用性被注册在`etcd`服务中。相反，`ExecStop`命令将停止服务，而`ExecStopPost`命令在`ExecStop`命令成功后执行，这在这种情况下意味着从`etcd`服务中删除服务的可用性。
 
 `X-Fleet`是 CoreOS 特有的语法，告诉 fleet 两个服务不能在同一台机器上运行（因为它们在尝试绑定到相同端口时会发生冲突）。现在所有的块都就位了，是时候将作业提交到集群了：
 
-[PRE29]
+```
+$ fleetctl submit code.it.1.service code.it.2.service code.it.3.service
+
+```
 
 让我们验证服务是否已提交到集群：
 
-[PRE30]
+```
+$ fleetctl list-units
+UNIT              LOAD  ACTIVE  SUB  DESC                 MACHINE
+code.it.1.service  -     -       -   Code.it 1  -
+code.it.2.service  -     -       -   Code.it 2  -
+code.it.3.service  -     -       -   Code.it 3  -
+
+```
 
 机器列为空，活动状态未设置。这意味着我们的服务尚未启动。让我们启动它们：
 
-[PRE31]
+```
+$ fleetctl start code.it.{1,2,3}.service
+Job code.it.1.service scheduled to daacff1d.../172.17.8.101
+Job code.it.1.service scheduled to 20dddafc.../172.17.8.102
+Job code.it.1.service scheduled to eac3271e.../172.17.8.103
+
+```
 
 让我们通过再次执行`$ fleetctl list-units`文件来验证它们是否正在运行：
 
-[PRE32]
+```
+$ fleetctl list-units
+UNIT               LOAD    ACTIVE   SUB     DESC                     MACHINE
+code.it.1.service  loaded  active  running  Code.it 1 daacff1d.../172.17.8.101
+code.it.1.service  loaded  active  running  Code.it 2 20dddafc.../172.17.8.102
+code.it.1.service  loaded  active  running  Code.it 3 eac3271e.../172.17.8.103
+
+```
 
 恭喜！您刚刚建立了自己的集群！现在在 Web 浏览器中转到`172.17.8.101`、`172.17.8.102`或`172.17.8.103`，看看`code.it`应用程序正在运行！
 

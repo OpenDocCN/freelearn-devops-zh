@@ -22,11 +22,15 @@ Kustomize 作为一个独立的二进制文件和自 v.1.14 以来作为`kubectl
 
 +   要在终端上显示生成的修改模板，请使用以下命令：
 
-[PRE0]
+```
+$ kubectl kustomize base 
+```
 
 +   要在 Kubernetes 上部署生成的修改模板：
 
-[PRE1]
+```
+$ kubectl apply –k base
+```
 
 在前面的示例中，`base`是包含应用程序文件和`kustomization.yaml`的文件夹。
 
@@ -72,7 +76,8 @@ Kustomize 作为一个独立的二进制文件和自 v.1.14 以来作为`kubectl
 
 通过`kustomization.yaml`中的以下代码，我们为`nginx`图像设置了一个新标签：
 
-[PRE2]
+```
+```
 
 图像：
 
@@ -80,11 +85,13 @@ Kustomize 作为一个独立的二进制文件和自 v.1.14 以来作为`kubectl
 
 newTag: 1.19.1
 
-[PRE3]
+```
+```
 
 以下代码设置了要应用设置的`resources`。由于`service`没有图像，Kustomize 只会应用于`deployment`，但我们将在以后的步骤中需要`service`，所以我们仍然设置它：
 
-[PRE4]
+```
+```
 
 资源：
 
@@ -92,7 +99,8 @@ newTag: 1.19.1
 
 - service.yaml
 
-[PRE5]
+```
+```
 
 现在，让我们通过运行`$ kubectl kustomize base`命令来检查 Kustomize 将如何更改部署：
 
@@ -134,7 +142,14 @@ newTag: 1.19.1
 
 好的，让我们来检查我们在`development/kustomization.yaml`文件中得到的更改：
 
-[PRE6]
+```
+resources:
+- ../../base # setting where the main templates are stored
+nameSuffix: -development # updating service/deployment name
+commonLabels:
+  environment: development # add new label
+namespace: nginx-dev # setting namespace
+```
 
 让我们通过运行`$ kubectl kustomize overlays/development`命令来看看这些更改将如何应用于开发环境的`deployment`和`service`：
 
@@ -146,7 +161,17 @@ newTag: 1.19.1
 
 现在让我们检查`production/kustomization.yaml`文件：
 
-[PRE7]
+```
+resources:
+- ../../base # setting where the main templates are stored
+nameSuffix: -production # updating service/deployment name
+commonLabels:
+  environment: production # add new label
+namespace: nginx-prod # setting namespace
+images:
+- name: nginx
+  newTag: 1.19.2 # tag gets changed
+```
 
 我们要应用的更改与为`development`所做的更改非常相似，但我们还希望设置不同的 Docker 镜像标签。
 
@@ -164,7 +189,16 @@ Kustomize 合并所有找到的`kustomization.yaml`文件，首先应用来自`b
 
 现在，是时候实际执行使用 Kustomize 进行安装了：
 
-[PRE8]
+```
+$ kubectl create ns nginx-prod 
+namespace/nginx-prod created
+$ kubectl apply –k overlays/production/
+service/nginx-prod created
+deployment.apps/nginx-production created
+$ kubectl get pods –n nginx-prod
+NAME                    READY   STATUS    RESTARTS   AGE
+nginx-production-dc9cbdb6-j4ws4   1/1     Running   0          17s
+```
 
 通过上述命令，我们已经创建了`nginx-prod`命名空间，并借助 Kustomize 应用的更改安装了`nginx`应用程序，您可以看到它正在运行。
 

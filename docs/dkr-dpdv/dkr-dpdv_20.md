@@ -74,7 +74,16 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 您将在操作中设置一个密码。不要忘记它！
 
-[PRE0]
+```
+ $ openssl genrsa -aes256 -out ca-key.pem 4096
+
+ Generating RSA private key, 4096 bit long modulus
+ ...............................................++
+ ..++
+ e is 65537 (0x10001)
+ Enter pass phrase for ca-key.pem:
+ Verifying - Enter pass phrase for ca-key.pem: 
+```
 
 您现在在当前目录中有一个名为`ca-key.pem`的新文件。这是 CA 的私钥。
 
@@ -82,7 +91,9 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 您需要输入上一步的密码。希望您还没有忘记它:-D
 
-[PRE1]
+```
+ $ openssl req -new -x509 -days 730 -key ca-key.pem -sha256 -out ca.pem 
+```
 
 这已经在您的工作目录中添加了第二个文件，名为`ca.pem`。这是 CA 的公钥，也称为“证书”。
 
@@ -106,13 +117,19 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 1.  为守护程序创建私钥。
 
-[PRE2]
+```
+ $ openssl genrsa -out daemon-key.pem 4096
+ <Snip> 
+```
 
 这已在您的工作目录中创建了一个名为`daemon-key.pem`的新文件。这是守护节点的私钥。
 
 *为 CA 创建证书签名请求（CSR），以创建并签署守护程序的证书。确保使用您打算在其上运行安全 Docker 守护程序的节点的正确 DNS 名称。示例使用`node3`。
 
-[PRE3]
+```
+ $ openssl req -subj "/CN=node3" \
+   -sha256 -new -key daemon-key.pem -out daemon.csr 
+```
 
 您现在在工作目录中有第四个文件。这个文件是 CSR，名为`daemon.csr`。*向证书添加所需属性。
 
@@ -120,7 +137,10 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 创建一个名为`extfile.cnf`的新文件，并填入以下值。示例中使用了实验室中守护节点的 DNS 名称和 IP。您的环境中的值可能不同。
 
-[PRE4]
+```
+ subjectAltName = DNS:node3,IP:10.0.0.12
+ extendedKeyUsage = serverAuth 
+```
 
 *生成证书。
 
@@ -130,7 +150,9 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 在继续之前，删除 CSR 和`extfile.cnf`。
 
-[PRE5]
+```
+$ rm daemon.csr extfile.cnf 
+```
 
 #### 为客户端创建密钥对
 
@@ -142,29 +164,47 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 这将在您的工作目录中生成一个名为`client-key.pem`的新文件。
 
-[PRE6]
+```
+ $ openssl genrsa -out client-key.pem 4096 
+```
 
 *创建一个 CSR。确保使用将成为您安全 Docker 客户端的节点的正确 DNS 名称。示例中使用了`node1`。
 
-[PRE7]
+```
+ $ openssl req -subj '/CN=node1' -new -key client-key.pem -out client.csr 
+```
 
 这将在当前目录中创建一个名为`client.csr`的新文件。*创建一个名为`extfile.cnf`的文件，并填入以下值。这将使证书对客户端身份验证有效。
 
-[PRE8]
+```
+ extendedKeyUsage = clientAuth 
+```
 
 *使用 CSR、CA 的公钥和私钥以及`extfile.cnf`文件为`node1`创建证书。这将在当前目录中创建一个名为`client-cert.pem`的新文件，其中包含客户端的签名公钥。
 
 删除 CSR 和`extfile.cnf`文件，因为它们不再需要。
 
-[PRE9]
+```
+$ rm client.csr extfile.cnf 
+```
 
 此时，您的工作目录中应该有以下 7 个文件：
 
-[PRE10]
+```
+ca-key.pem          << CA private key
+ca.pem              << CA public key (cert)
+ca.srl              << Tracks serial numbers
+client-cert.pem     << client public key (Cert)
+client-key.pem      << client private key
+daemon-cert.pem     << daemon public key (cert)
+daemon-key.pem      << daemon private key 
+```
 
 在继续之前，您应该从密钥中删除写权限，并将它们设置为只有您和其他属于您组的账户可以读取。
 
-[PRE11]
+```
+$ chmod `0400` ca-key.pem client-key.pem daemon-key.pem 
+```
 
 #### 分发密钥
 
@@ -178,7 +218,17 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 从包含`node2`（CA 节点）上的密钥的目录中运行以下命令。
 
-[PRE12]
+```
+// Daemon files
+$ scp ./ca.pem ubuntu@daemon:/home/ubuntu/.docker/ca.pem
+$ scp ./daemon-cert.pem ubuntu@daemon:/home/ubuntu/.docker/cert.pem
+$ scp ./daemon-key.pem ubuntu@daemon:/home/ubuntu/.docker/key.pem
+
+//Client files
+$ scp ./ca.pem ubuntu@client:/home/ubuntu/.docker/ca.pem
+$ scp ./client-cert.pem ubuntu@client:/home/ubuntu/.docker/cert.pem
+$ scp ./client-key.pem ubuntu@client:/home/ubuntu/.docker/key.pem 
+```
 
 关于这些命令有几点需要注意：
 
@@ -232,23 +282,48 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 编辑`daemon.json`文件并添加以下行。
 
-[PRE13]
+```
+{
+    "hosts": ["tcp://node3:2376"],
+    "tls": true,
+    "tlsverify": true,
+    "tlscacert": "/home/ubuntu/.docker/ca.pem",
+    "tlscert": "/home/ubuntu/.docker/cert.pem",
+    "tlskey": "/home/ubuntu/.docker/key.pem"
+} 
+```
 
 **警告！**运行`systemd`的 Linux 系统不允许您在`daemon.json`中使用“hosts”选项。相反，您必须在 systemd 覆盖文件中指定它。最简单的方法是使用`sudo systemctl edit docker`命令。这将在编辑器中打开一个名为`/etc/systemd/system/docker.service.d/override.conf`的新文件。添加以下三行并保存文件。
 
-[PRE14]
+```
+`[Service]`
+`ExecStart``=`
+`ExecStart``=``/usr/bin/dockerd -H tcp://node3:2376` 
+```
 
 现在 TLS 和主机选项已设置，是时候重新启动 Docker 了。
 
 一旦 Docker 重新启动，您可以通过检查`ps`命令的输出来验证新的`hosts`值是否生效。
 
-[PRE15]
+```
+$ ps -elf `|` grep dockerd
+`4` S root  ... /usr/bin/dockerd -H tcp://node3:2376 
+```
 
 命令输出中的“`-H tcp://node3:2376`”的存在证明了守护程序正在监听网络。端口`2376`是使用 TLS 的 Docker 的标准端口。`2375`是默认的不安全端口。
 
 如果运行普通命令，例如`docker version`，它将无法工作。这是因为我们刚刚配置了**守护程序**在网络上监听，但**Docker 客户端**仍然尝试使用本地 IPC 套接字。再次尝试命令，但这次指定`-H tcp://node3:2376`标志。
 
-[PRE16]
+```
+$ docker -H tcp://node3:2376 version
+Client:
+ Version:       `18`.01.0-ce
+ API version:   `1`.35
+ <Snip>
+Get http://daemon:2376/v1.35/version: net/http: HTTP/1.x transport connectio`\`
+n broken: malformed HTTP response `"\x15\x03\x01\x00\x02\x02"`.
+* Are you trying to connect to a TLS-enabled daemon without TLS? 
+```
 
 命令看起来更好了，但仍然无法工作。这是因为守护程序正在拒绝来自未经身份验证的客户端的所有连接。
 
@@ -268,21 +343,47 @@ Docker 提供了两种模式来保护客户端和守护程序之间的 TLS 通�
 
 导出以下环境变量以配置客户端通过网络连接到远程守护程序。
 
-[PRE17]
+```
+export DOCKER_HOST=tcp://node3:2376 
+```
 
 尝试以下命令。
 
-[PRE18]
+```
+$ docker version
+Client:
+ Version:       `18`.01.0-ce
+<Snip>
+Get http://daemon:2376/v1.35/version: net/http: HTTP/1.x transport connectio`\`
+n broken: malformed HTTP response `"\x15\x03\x01\x00\x02\x02"`.
+* Are you trying to connect to a TLS-enabled daemon without TLS? 
+```
 
 Docker 客户端现在正在通过网络向远程守护程序发送命令，但远程守护程序将仅接受经过身份验证的连接。
 
 导出另一个环境变量，告诉 Docker 客户端使用其证书对所有命令进行签名。
 
-[PRE19]
+```
+export DOCKER_TLS_VERIFY=1 
+```
 
 再次运行`docker version`命令。
 
-[PRE20]
+```
+$ docker version
+Client:
+ Version:       `18`.01.0-ce
+<Snip>
+Server:
+ Engine:
+  Version:      `18`.01.0-ce
+  API version:  `1`.35 `(`minimum version `1`.12`)`
+  Go version:   go1.9.2
+  Git commit:   03596f5
+  Built:        Wed Jan `10` `20`:09:37 `2018`
+  OS/Arch:      linux/amd64
+  Experimental: `false` 
+```
 
 恭喜。客户端已成功通过安全连接与远程守护程序通信。实验的最终配置如图 A1.4 所示。
 
@@ -310,7 +411,16 @@ Docker 支持两种 TLS 模式：
 
 以下的`daemon.json`应该适用于大多数系统：
 
-[PRE21]
+```
+{
+    "hosts": ["tcp://node3:2376"],
+    "tls": true,
+    "tlsverify": true,
+    "tlscacert": "/home/ubuntu/.docker/ca.pem",
+    "tlscert": "/home/ubuntu/.docker/cert.pem",
+    "tlskey": "/home/ubuntu/.docker/key.pem"
+} 
+```
 
 `*   `hosts`告诉 Docker 在哪个套接字上绑定守护进程。该示例将其绑定到端口`2376`上的网络套接字。您可以使用任何空闲端口，但惯例是在安全的 Docker 连接中使用`2376`。运行`systemd`的 Linux 系统无法使用此标志，需要使用`systemd`覆盖文件。
 
@@ -332,4 +442,4 @@ Docker 支持两种 TLS 模式：
 
 `DOCKER_HOST`告诉客户端在哪里找到守护进程。`export DOCKER_HOST=tcp://node3:2376`将告诉 Docker 客户端连接到远程主机`node3`上的端口`2376`上的守护进程。
 
-`export DOCKER_TLS_VERIFY=1`将告诉 Docker 客户端签署其发出的所有命令。[PRE22]
+`export DOCKER_TLS_VERIFY=1`将告诉 Docker 客户端签署其发出的所有命令。```````````````````````

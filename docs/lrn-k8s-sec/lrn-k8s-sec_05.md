@@ -70,7 +70,9 @@ Kubernetes 支持三种类型的主体，如下：
 
 集群管理员可以通过运行以下命令创建与 pod 关联的新服务账户：
 
-[PRE0]
+```
+$ kubectl create serviceaccount new_account
+```
 
 在默认命名空间中将创建一个`new_account`服务账户。为了确保最小权限，集群管理员应将每个 Kubernetes 资源与具有最小权限的服务账户关联起来。
 
@@ -80,11 +82,23 @@ Kubernetes 支持三种类型的主体，如下：
 
 角色受限于命名空间。另一方面，ClusterRole 在集群级别工作。用户可以创建跨整个集群的 ClusterRole。ClusterRole 可用于调解对跨集群的资源的访问，例如节点、健康检查和跨多个命名空间的对象，例如 pods。以下是一个角色定义的简单示例：
 
-[PRE1]
+```
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: role-1
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get"]
+```
 
 这个简单的规则允许`get`操作超越默认命名空间中的`pods`资源。可以通过执行以下命令使用 kubectl 创建此角色：
 
-[PRE2]
+```
+$ kubectl apply -f role.yaml
+```
 
 如果以下任一条件为真，则用户只能创建或修改角色：
 
@@ -100,11 +114,20 @@ RoleBinding 对象用于将角色与主体关联。与 ClusterRole 类似，Clus
 
 1.  创建一个 RoleBinding 对象，将“custom-clusterrole”集群角色与默认命名空间中的`demo-sa`服务账户关联起来，就像这样：
 
-[PRE3]
+```
+kubectl create rolebinding new-rolebinding-sa \
+     --clusterrole=custom-clusterrole \
+     --serviceaccount=default:demo-sa
+```
 
 1.  创建一个 RoleBinding 对象，将`custom-clusterrole`集群角色与`group-1`组关联起来，就像这样：
 
-[PRE4]
+```
+kubectl create rolebinding new-rolebinding-group \
+     --clusterrole=custom-clusterrole \
+     --group=group-1 \
+     --namespace=namespace-1
+```
 
 RoleBinding 对象将角色链接到主体，并使角色可重用且易于管理。
 
@@ -124,7 +147,13 @@ RoleBinding 对象将角色链接到主体，并使角色可重用且易于管�
 
 默认情况下，Kubernetes 有三个不同的命名空间。运行以下命令查看它们：
 
-[PRE5]
+```
+$ kubectl get namespace
+NAME          STATUS    AGE
+default       Active    1d
+kube-system   Active    1d
+kube-public   Active    1d
+```
 
 三个命名空间的描述如下：
 
@@ -140,15 +169,21 @@ RoleBinding 对象将角色链接到主体，并使角色可重用且易于管�
 
 可以使用以下命令在 Kubernetes 中创建新的命名空间：
 
-[PRE6]
+```
+$ kubectl create namespace test
+```
 
 创建新的命名空间后，可以使用`namespace`属性将对象分配给命名空间，如下所示：
 
-[PRE7]
+```
+$ kubectl apply --namespace=test -f pod.yaml
+```
 
 同样地，可以使用`namespace`属性访问命名空间内的对象，如下所示：
 
-[PRE8]
+```
+$ kubectl get pods --namespace=test
+```
 
 在 Kubernetes 中，并非所有对象都有命名空间。低级别对象如`Nodes`和`persistentVolumes`跨越多个命名空间。
 

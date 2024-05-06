@@ -32,7 +32,16 @@
 
 如果您还没有运行的 Jenkins 服务器，您可以按照以下“参考”部分中的*安装 Jenkins*网页链接中找到的指南进行操作，并在您正在使用的任何操作系统上安装 Jenkins。例如，我们将使用该页面的信息在 Ubuntu 系统上设置 Jenkins 服务器。首先打开一个终端窗口。现在获取 Jenkins 软件包的 apt-key。接下来，您将向 apt 源列表中添加 Debian Jenkins 源。然后，您将更新系统上的软件包，最后，您将使用 apt-get 安装 Jenkins。命令看起来像下面这样：
 
-[PRE0]
+```
+# If Java has not yet been installed, install it now
+sudo apt install openjdk-8-jre-headless
+
+# Install Jenkins on an Ubuntu system
+wget -q -O - https://pkg.jenkins.io/debian/jenkins.io.key | sudo apt-key add -
+sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+sudo apt-get update
+sudo apt-get install jenkins
+```
 
 在我的系统上运行这些命令看起来像下面这样：
 
@@ -44,7 +53,14 @@
 
 既然你有了一个 Jenkins 服务器，你可以开始创建工作来执行确认它是否按预期工作。让我们从一个微不足道的 Hello world!工作开始，以确认 Jenkins 正在工作。登录到你的 Jenkins 服务器，点击“新建项目”链接。在新项目页面中，输入我们的工作名称。我使用`hello-test`。选择我们要创建的工作类型为 pipeline。接下来，点击页面左下角附近的“确定”按钮。这将带你到我们新工作的配置屏幕。这个将会非常简单。我们将创建一个 pipeline 脚本，所以向下滚动直到看到 Pipeline 脚本输入框，并输入以下脚本（注意 pipeline 脚本是用 groovy 编写的，它使用 Java（和 C）形式的注释）：
 
-[PRE1]
+```
+// Our hello world pipeline script, named "hello-test"
+node {
+  stage('Say Hello') {
+      echo 'Hello Docker Quick Start Guide Readers!'
+   }
+}
+```
 
 现在就这样吧，点击“保存”按钮保存我们 Jenkins 工作的更新配置。一旦配置保存了，让我们通过点击“立即构建”链接来测试工作。如果一切都按预期运行，我们应该看到工作成功完成。它会看起来像下面这样：
 
@@ -52,7 +68,16 @@
 
 现在让我们创建另一个工作。点击链接返回仪表板，然后再次点击“新建项目”链接。这次，让我们把工作命名为`hello-docker-test`。同样，选择 pipeline 作为你想要创建的工作类型，然后点击“确定”按钮。再次向下滚动到 Pipeline 脚本输入框，并输入以下内容：
 
-[PRE2]
+```
+// Our Docker hello world pipeline script, named "hello-docker-test"
+node {
+   stage('Hello via Alpine') {
+      docker.image('alpine:latest').inside {
+         sh 'echo Hello DQS Readers - from inside an alpine container!'
+      }
+   }
+}
+```
 
 点击“保存”按钮保存新工作的配置，然后点击“立即构建”链接启动 Jenkins 工作。以下是这次可能看起来的样子：
 
@@ -60,7 +85,12 @@
 
 这次发生了什么？这次没有成功完成。显然失败了，因为我们的 Jenkins 服务器上还没有安装 Docker。所以让我们继续按照第一章“设置 Docker 开发环境”中找到的指令，安装 Docker，并将其安装在我们的 Jenkins 服务器上。一旦安装好了，还有一个额外的步骤你会想要做，那就是将 Jenkins 用户添加到 Docker 组中。命令如下：
 
-[PRE3]
+```
+# Add the jenkins user to the docker group
+sudo usermod -aG docker jenkins
+# Then restart the jenkins service
+sudo service jenkins restart
+```
 
 这与我们用来将我们的 Docker 服务器的当前用户添加到 docker 组的命令非常相似，因此在 Docker 命令中不需要使用`sudo`。好的，现在让我们回到我们的 Jenkins 服务器 UI 和我们的`hello-docker-test`作业，再次点击“立即构建”按钮。
 
@@ -76,7 +106,11 @@
 
 您刚刚看到了设置新的 Jenkins 服务器有多少工作。虽然这并不是一个艰巨的工作，但至少有五个步骤您必须完成，然后才能选择您的插件并登录开始工作。并且在游戏节目*猜猜这首歌*的精神下，我可以在三个步骤内部署一个 Jenkins 服务器，前两个步骤只是为了让我们的 Jenkins 数据在托管 Jenkins 服务器的 Docker 容器的生命周期之外持久存在。假设您已经按照第一章“设置 Docker 开发环境”的说明设置并运行了 Docker 主机，我们希望创建一个位置，让 Jenkins 服务器存储其数据。我们将创建一个文件夹并分配所有权。它将如下所示：
 
-[PRE4]
+```
+# Setup volume location to store Jenkins configuration
+mkdir $HOME/jenkins_home
+chown 1000 $HOME/jenkins_home
+```
 
 所有者`1000`是将在 Docker 容器内用于 jenkins 用户的用户 ID。
 
@@ -86,7 +120,12 @@
 
 它建议使用在 jenkins/jenkins:lts Jenkins 镜像库中找到的镜像，目前的版本是 2.149.x。这是我们将在下面的示例中使用的镜像。以下是我们将使用的命令来部署我们的 Jenkins 服务器容器：
 
-[PRE5]
+```
+# Deploy a Jenkins server that is configured to build Docker images
+docker container run -d -p 8080:8080 -p 50000:50000 \
+-v $HOME/jenkins_home:/var/jenkins_home \
+--name jenkins --rm jenkins/jenkins:lts
+```
 
 仔细看这个命令，我们可以看到我们正在将容器作为守护进程（非交互式）启动。我们看到我们在主机上打开了两个端口，它们映射到容器上的相同端口号，具体是`8080`和`50000`。接下来，我们看到我们正在使用一个卷，并且它映射到我们之前创建的文件夹。这是 Jenkins 将存储其数据的地方，比如我们创建的作业和它们执行的状态。然后您会注意到我们给容器命名为`jenkins`。之后，我们告诉 Docker 在退出时删除容器，使用`--rm`标志。最后，我们告诉 Docker 我们要运行哪个镜像。
 
@@ -110,11 +149,24 @@
 
 首先，我们将在 Docker 主机上创建一个位置，以挂载 Docker 卷来存储和保留 Jenkins 配置。如果您正在使用与上一节相同的 Docker 主机，您应该已经创建了文件夹并将其分配给 ID`1000`。如果没有，以下是您可以使用的命令：
 
-[PRE6]
+```
+# Setup volume location to store Jenkins configuration
+mkdir $HOME/jenkins_home
+chown 1000 $HOME/jenkins_home
+```
 
 另外，如果您还没有这样做，您可以使用`docker container stop jenkins`命令来停止（并删除）我们在上一节中创建的 Jenkins 容器，以为我们的新的、改进的 Jenkins 服务器腾出空间。当您准备创建新的容器时，您可以使用以下命令：
 
-[PRE7]
+```
+# Deploy a Jenkins server that is configured to build Docker images
+docker container run -d -p 8080:8080 -p 50000:50000 \
+-v $HOME/jenkins_home:/var/jenkins_home \
+-v /var/run/docker.sock:/var/run/docker.sock \
+--name jenkins --rm h1kkan/jenkins-docker:lts
+
+# Start the Docker service in the Jenkins docker container
+docker container exec -it -u root jenkins service docker start
+```
 
 您可能已经注意到了这个代码块中的一些不同之处。第一个是使用了第二个卷。这是一种众所周知的技巧，允许容器向其主机发出 Docker 命令。这本质上允许了所谓的 Docker-in-Docker。下一个不同之处是额外的 Docker 命令，它将在运行的容器内启动 Docker 服务。因为每个容器都会启动一个单一进程，所以同时运行 Jenkins 服务器进程和 Docker 守护程序需要这一额外步骤。
 
@@ -124,13 +176,44 @@
 
 首先，使用容器停止命令停止当前的 Jenkins 容器。它将保留我们的 Jenkins 服务器数据的`jenkins_home`文件夹，但如果由于某种原因您跳到本章的这一部分并且还没有创建它，以下是要使用的命令：
 
-[PRE8]
+```
+# Setup volume location to store Jenkins configuration
+mkdir $HOME/jenkins_home
+chown 1000 $HOME/jenkins_home
+```
 
 再次强调，如果您对先前的示例中的这两个命令进行了操作，并且您正在使用相同的 Docker 主机，您就不必再次执行这些操作，因为该文件夹已经存在并且具有正确的所有权。
 
 接下来，您需要为我们的 Jenkins 堆栈创建一个 compose 文件。我把我的命名为`jenkins-stack.yml`，并输入以下 YML 代码：
 
-[PRE9]
+```
+# jenkins-stack.yml
+version: "3"
+services:
+  jenkins:
+    image: h1kkan/jenkins-docker:lts
+    ports:
+       - 8080:8080
+       - 50000:50000
+    volumes:
+       - $HOME/jenkins_home:/var/jenkins_home
+       - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+       replicas: 1
+       restart_policy:
+         condition: on-failure
+    placement:
+      constraints: [node.role == manager]
+
+  registry:
+    image: registry
+    ports:
+       - 5000:5000
+ deploy:
+    replicas: 1
+    restart_policy:
+      condition: on-failure
+```
 
 您将注意到我们正在创建两个服务；一个是我们的 Jenkins 服务器，另一个是 Docker 注册表。我们将在即将到来的示例中使用注册表服务，所以现在把它放在心里。查看 Jenkins 服务描述时，我们没有看到在第七章*Docker Stacks*中学到的任何内容。您将注意到我们的两个端口映射和上一个示例中使用的两个卷。我们将把单个 Jenkins 副本限制在我们的管理节点上。
 
@@ -140,7 +223,10 @@
 
 现在使用堆栈部署命令来设置 Jenkins 应用程序。以下是要使用的命令的示例：
 
-[PRE10]
+```
+# Deploy our Jenkins application via a Docker stack
+docker stack deploy -c jenkins-stack.yml jenkins
+```
 
 一旦堆栈部署并且服务正在运行，您可以浏览到您集群中的任何节点，端口为 8080，并访问您的 Jenkins 服务器。更重要的是，如果您正在重用我们之前示例中的`jenkins_home`文件夹，您将不必提供管理员密码，创建新用户和选择插件，因为所有与这些任务相关的数据都存储在`jenkins_home`文件夹中，并且现在由基于堆栈的 Jenkins 服务重用。另一个有趣的事实是，当您在堆栈应用程序中使用此镜像时，您无需启动 Docker 服务。奖励！
 
@@ -168,17 +254,47 @@
 
 让我们开始吧。我们要做的第一件事是构建我们专门的 Docker 镜像，用于我们的 Jenkins 代理。为此，我们将使用第三章“创建 Docker 镜像”中学到的技能来创建 Docker 镜像。首先在您的开发系统上创建一个新文件夹，然后将工作目录更改为该文件夹。我把我的命名为`jenkins-agent`：
 
-[PRE11]
+```
+# Make a new folder to use for the build context of your new Docker image, and cd into it
+mkdir jenkins-agent
+cd jenkins-agent
+```
 
 现在创建一个新文件，命名为`Dockerfile`，使用您喜欢的编辑器，输入以下代码，然后保存：
 
-[PRE12]
+```
+# jenkins-agent Dockerfile
+FROM h1kkan/jenkins-docker:lts-alpine
+USER root
+ARG user=jenkins
+
+ENV HOME /home/${user}
+ARG VERSION=3.26
+ARG AGENT_WORKDIR=/home/${user}/agent
+
+RUN apk add --update --no-cache curl bash git openssh-client openssl procps \
+ && curl --create-dirs -sSLo /usr/share/jenkins/slave.jar https://repo.jenkins-ci.org/public/org/jenkins-ci/main/remoting/${VERSION}/remoting-${VERSION}.jar \
+ && chmod 755 /usr/share/jenkins \
+ && chmod 644 /usr/share/jenkins/slave.jar \
+ && apk del curl
+
+ENV AGENT_WORKDIR=${AGENT_WORKDIR}
+RUN mkdir -p /home/${user}/.jenkins && mkdir -p ${AGENT_WORKDIR}
+USER ${user}
+
+VOLUME /home/${user}/.jenkins
+VOLUME ${AGENT_WORKDIR}
+WORKDIR /home/${user}
+```
 
 我们的新 Dockerfile 正在做什么：在我们的`FROM`指令中，我们使用了与上面的 Docker-in-Docker 示例中相同的 Docker 镜像，以便我们有一个基础镜像，可以让我们构建 Docker 镜像。接下来，我们使用`USER`命令将当前用户设置为 root。然后，我们创建一个名为用户的`ARG`并将其设置为`jenkins`的值。之后，我们设置了一个名为`HOME`的环境变量，该变量具有 Jenkins 用户的主目录的值。然后，我们设置了另外两个`ARGs`，一个用于版本，一个用于 Jenkins 代理的工作目录。接下来是魔术发生的地方。我们使用`RUN`命令来设置并获取 Jenkins 的`slave.jar`文件。这是作为 Jenkins 代理所需的部分。我们还在文件夹和文件上设置了一些权限，然后通过删除 curl 来进行一些清理。之后，我们设置了另一个环境变量，这个环境变量是`AGENT_WORKDIR`。接下来，我们在容器中创建了一些文件夹。然后，我们再次使用`USER`指令，这次将当前用户设置为我们的 Jenkins 用户。最后，我们通过创建一些`VOLUME`实例来完成 Dockerfile，并将当前工作目录设置为我们的 Jenkins 用户的主目录。哦！这似乎很多，但实际上并不那么糟糕，您只需将上述代码复制粘贴到您的 Dockerfile 中并保存即可。
 
 现在我们的 Dockerfile 准备好使用了，现在是创建一个 git 仓库并将代码保存到其中的好时机。一旦您确认您的项目已经正确地使用 git 设置好，我们就可以构建我们的新 Docker 镜像。以下是您将用于此目的的命令：
 
-[PRE13]
+```
+# Build our new Jenkins agent image
+docker image build -t jenkins-agent:latest .
+```
 
 它应该成功构建并创建一个本地缓存的镜像，标记为`jenkins-agent:latest`。
 
@@ -186,11 +302,17 @@
 
 接下来，我们需要将我们的新镜像推送到 Docker 注册表。当然，我们可以将其推送到 hub.docker.com 中的我们的仓库，但由于我们恰好部署了一个 Docker 注册表的应用程序堆栈，为什么不利用它来存储我们的 Jenkins 代理镜像呢？首先，我们需要使用注册表为我们的新镜像打标签。基于您的 Docker Swarm 的域名，您的标签命令将与我的不同，但对于我的示例，以下是我的标签命令的样子：
 
-[PRE14]
+```
+# Tag the image with our swarm service registry
+docker image tag jenkins-agent:latest ubuntu-node01:5000/jenkins-agent:latest
+```
 
 现在镜像已经在本地标记，我们可以使用以下命令将其推送到注册表；同样，基于您的 Swarm 的域名，您的命令将有所不同：
 
-[PRE15]
+```
+# Push the Jenkins agent image to the registry
+docker image push ubuntu-node01:5000/jenkins-agent:latest
+```
 
 所有这些命令可能会使用比`latest`标签更好的版本方案，但您应该能够自行解决这个问题。随着我们的镜像构建、标记和推送到 Docker 注册表，我们准备好更新 Jenkins 配置以使用它。
 
@@ -331,23 +453,104 @@
 
 以下是`Dockerfile`文件的内容：
 
-[PRE16]
+```
+FROM node:10-alpine
+COPY . .
+RUN npm install
+EXPOSE 8000
+CMD npm start
+```
 
 以下是`Jenkinsfile`文件的内容：
 
-[PRE17]
+```
+node {
+   def app
+   stage('Clone repository') {
+      /* Clone the repository to our workspace */
+      checkout scm
+   }
+   stage('Build image') {
+      /* Builds the image; synonymous to docker image build on the command line */
+      /* Use a registry name if pushing into docker hub or your company registry, like this */
+      /* app = docker.build("earlwaud/jenkins-example-app") */
+      app = docker.build("jenkins-example-app")
+   }
+   stage('Test image') {
+      /* Execute the defined tests */
+      app.inside {
+         sh 'npm test'
+      }
+   }
+   stage('Push image') {
+      /* Now, push the image into the registry */
+      /* This would probably be docker hub or your company registry, like this */
+      /* docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') */
+
+      /* For this example, We are using our jenkins-stack service registry */
+      docker.withRegistry('https://ubuntu-node01:5000') {
+         app.push("latest")
+      }
+   }
+}
+```
 
 以下是`main.js`文件的内容：
 
-[PRE18]
+```
+// load the http module
+var http = require('http');
+
+// configure our HTTP server
+var server = http.createServer(function (request, response) {
+   response.writeHead(200, {"Content-Type": "text/plain"});
+   response.end("Hello Docker Quick Start\n");
+});
+
+// listen on localhost:8000
+server.listen(8000);
+console.log("Server listening at http://127.0.0.1:8000/");
+```
 
 以下是`package.json`文件的内容：
 
-[PRE19]
+```
+{
+   "name": "dqs-example-app",
+   "version": "1.0.0",
+   "description": "A Docker Quick Start Example HTTP server",
+   "main": "main.js",
+   "scripts": {
+      "test": "node test.js",
+      "start": "node main.js"
+   },
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/earlwaud/dqs-example-app/"
+   },
+   "keywords": [
+      "node",
+      "docker",
+      "dockerfile",
+      "jenkinsfile"
+   ],
+   "author": "earlwaud@hotmail.com",
+   "license": "ISC",
+   "devDependencies": { "test": ">=0.6.0" }
+}
+```
 
 最后，以下是`test.js`文件的内容：
 
-[PRE20]
+```
+var assert = require('assert')
+
+function test() {
+   assert.equal(1 + 1, 2);
+}
+
+if (module == require.main) require('test').run(test);
+```
 
 当你完成所有操作后，你的存储库文件夹应该看起来像下面这样：
 
@@ -355,7 +558,12 @@
 
 现在，让我们将我们的工作推送到 GitHub 存储库。你将使用标准的 git 命令来添加文件，提交文件，然后将文件推送到存储库。以下是我使用的命令：
 
-[PRE21]
+```
+# Initial commit of our application files to the new repo
+git add Dockerfile Jenkinsfile main.js package.json test.js
+git commit -m "Initial commit"
+git push origin master
+```
 
 对我来说，情况是这样的：
 
@@ -387,7 +595,29 @@
 
 以下是控制台日志输出的编辑视图，供参考（完整的日志输出可以在源代码包中找到）：
 
-[PRE22]
+```
+Started by an SCM change
+Started by user Earl Waud
+Obtained Jenkinsfile from git https://github.com/EarlWaud/dqs-example-app.git
+[Pipeline] node
+Running on agent-00042y2g983xq on docker in /home/jenkins/agent/workspace/dqs-example-app
+[Pipeline] { (Clone repository)
+Cloning repository https://github.com/EarlWaud/dqs-example-app.git
+> git init /home/jenkins/agent/workspace/dqs-example-app # timeout=10
+[Pipeline] { (Build image)
++ docker build -t jenkins-example-app .
+Successfully built b228cd7c0013
+Successfully tagged jenkins-example-app:latest
+[Pipeline] { (Test image)
++ docker inspect -f . jenkins-example-app
++ npm test
+> node test.js
+Passed:1 Failed:0 Errors:0
+[Pipeline] { (Push image)
++ docker tag jenkins-example-app ubuntu-node01:5000/jenkins-example-app:latest
++ docker push ubuntu-node01:5000/jenkins-example-app:latest
+Finished: SUCCESS
+```
 
 现在剩下的就是庆祝我们的成功：
 

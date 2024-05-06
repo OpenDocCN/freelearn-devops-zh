@@ -36,11 +36,21 @@
 
 与 Docker 镜像和 Docker 容器一样，卷命令代表它们自己的管理类别。正如您所期望的那样，卷的顶级管理命令如下：
 
-[PRE0]
+```
+# Docker volume managment command
+docker volume
+```
 
 卷管理组中可用的子命令包括以下内容：
 
-[PRE1]
+```
+# Docker volume management subcommands
+docker volume create # Create a volume
+docker volume inspect # Display information on one or more volumes
+docker volume ls # List volumes
+docker volume rm # Remove one or more volumes
+docker volume prune          # Remove all unused local volumes
+```
 
 有几种不同的方法可以创建 Docker 卷，所以让我们继续通过创建一些来调查 Docker 卷。
 
@@ -58,15 +68,26 @@
 
 有几种方法可以创建 Docker 卷。一种方法是使用`volume create`命令。该命令的语法如下：
 
-[PRE2]
+```
+# Syntax for the volume create command
+Usage:  docker volume create [OPTIONS] [VOLUME]
+```
 
 除了可选的卷名称参数外，`create`命令还允许使用以下选项：
 
-[PRE3]
+```
+# The options available to the volume create command:
+-d, --driver string         # Specify volume driver name (default "local")
+--label list                # Set metadata for a volume
+-o, --opt map               # Set driver specific options (default map[])
+```
 
 让我们从最简单的例子开始：
 
-[PRE4]
+```
+# Using the volume create command with no optional parameters
+docker volume create
+```
 
 执行上述命令将创建一个新的 Docker 卷并分配一个随机名称。该卷将使用内置的本地驱动程序（默认情况下）。使用`volume ls`命令，您可以看到 Docker 守护程序分配给我们新卷的随机名称。它看起来会像这样：
 
@@ -74,7 +95,10 @@
 
 再上一层，让我们创建另一个卷，这次使用命令提供一个可选的卷名称。命令看起来会像这样：
 
-[PRE5]
+```
+# Create a volume with a fancy name
+docker volume create my-vol-02
+```
 
 这次，卷已创建，并被命名为`my-vol-02`，如所请求的：
 
@@ -90,7 +114,13 @@
 
 有一种方法可以查看隐藏虚拟机的文件系统（和其他功能）。通过一个命令，通常称为魔术屏幕命令，您可以访问正在运行的 Docker VM。该命令如下：
 
-[PRE6]
+```
+# The Magic Screen command
+screen ~/Library/Containers/com.docker.docker/Data
+/com.docker.driver.amd64-linux/tty
+# or if you are using Mac OS High Sierra
+screen ~/Library/Containers/com.docker.docker/Data/vms/0/tty
+```
 
 使用*Ctrl* + *AK*来终止屏幕会话。
 
@@ -98,7 +128,15 @@
 
 这是一个在 OS X 主机上创建的卷的挂载点访问示例。这是设置：
 
-[PRE7]
+```
+# Start by creating a new volume
+docker volume create my-osx-volume
+# Now find the Mountpoint
+docker volume inspect my-osx-volume -f "{{json .Mountpoint}}"
+# Try to view the contents of the Mountpoint's folder
+sudo ls -l /var/lib/docker/volumes/my-osx-volume
+# "No such file or directory" because the directory does not exist on the OS X host
+```
 
 这就是设置的样子：
 
@@ -106,7 +144,14 @@
 
 现在，这是如何使用魔术屏幕命令来实现我们想要的，即访问卷的挂载点：
 
-[PRE8]
+```
+# Now issue the Magic Screen command and hit <enter> to get a prompt
+screen ~/Library/Containers/com.docker.docker/Data/vms/0/tty
+# You are now root in the VM, and can issue the following command
+ls -l /var/lib/docker/volumes/my-osx**-volume** # The directory exists and you will see the actual Mountpoint sub folder "_data"
+# Now hit control-a followed by lower case k to kill the screen session
+<CTRL-a>k 
+```
 
 然后...
 
@@ -116,11 +161,23 @@
 
 我们在第三章中看到，*创建 Docker 镜像*，我们还可以使用容器运行命令上的参数或在 Dockerfile 中添加`VOLUME`指令来创建卷。并且，正如您所期望的那样，您可以使用 Docker `volume create`命令预先创建的卷通过使用容器运行参数，即`--mount`参数，将卷挂载到容器中，例如，如下所示：
 
-[PRE9]
+```
+# mount a pre-created volume with --mount parameter
+docker container run --rm -d \
+--mount source=my-vol-02,target=/myvol \
+--name vol-demo2 \
+volume-demo2:1.0 tail -f /dev/null
+```
 
 这个例子将运行一个新的容器，它将挂载现有的名为`my-vol-02`的卷。它将在容器中的`/myvol`处挂载该卷。请注意，前面的例子也可以在不预先创建`my-vol-02:volume`的情况下运行，使用`--mount`参数运行容器的行为将在启动容器的过程中创建卷。请注意，当挂载卷时，图像挂载点文件夹中定义的任何内容都将添加到卷中。但是，如果图像挂载点文件夹中存在文件，则它也存在于主机的挂载点，并且主机文件的内容将最终成为文件中的内容。使用此 Dockerfile 中的图像，看起来是这样的：
 
-[PRE10]
+```
+# VOLUME instruction Dockerfile for Docker Quick Start
+FROM alpine
+RUN mkdir /myvol
+RUN echo "Data from image" > /myvol/both-places.txt
+CMD ["sh"]
+```
 
 请注意`Data from image`行。现在，使用一个包含与`both-places.txt`匹配名称的文件的预先创建的卷，但文件中包含`Data from volume`内容，我们将基于该图像运行一个容器。发生了什么：
 
@@ -132,7 +189,16 @@
 
 还可以在主机上的文件与容器中的文件之间创建一对一的映射。要实现这一点，需要在容器运行命令中添加一个`-v`参数。您需要提供要从主机共享的文件的路径和文件名，以及容器中文件的完全限定路径。容器运行命令可能如下所示：
 
-[PRE11]
+```
+# Map a single file from the host to a container
+echo "important data" > /tmp/data-file.txt
+docker container run --rm -d \
+ -v /tmp/data-file.txt:/myvol/data-file.txt \
+ --name vol-demo \
+ volume-demo2:1.0 tail -f /dev/null
+# Prove it
+docker exec vol-demo cat /myvol/data-file.txt
+```
 
 可能如下所示：
 
@@ -140,11 +206,30 @@
 
 有几种不同的方法可以在容器运行命令中定义卷。为了说明这一点，看看以下运行命令，每个都将完成相同的事情：
 
-[PRE12]
+```
+# Using --mount with source and target
+docker container run --rm -d \
+ --mount source=my-volume,target=/myvol,readonly \
+ --name vol-demo1 \
+ volume-demo:latest tail -f /dev/null
+ # Using --mount with source and destination
+docker container run --rm -d \
+ --mount source=my-volume,destination=/myvol,readonly \
+ --name vol-demo2 \
+ volume-demo:latest tail -f /dev/null
+ # Using -v 
+docker container run --rm -d \
+ -v my-volume:/myvol:ro \
+ --name vol-demo3 \
+ volume-demo:latest tail -f /dev/null
+```
 
 前面三个容器运行命令都将创建一个已挂载相同卷的容器，以只读模式。可以使用以下命令进行验证：
 
-[PRE13]
+```
+# Check which container have mounted a volume by name
+docker ps -a --filter volume=in-use-volume
+```
 
 ![](img/7ad05dcb-f85f-488e-947d-c83d390a8360.png)
 
@@ -160,7 +245,12 @@
 
 我们已经看到并使用了卷列表命令`volume ls`和检查命令`volume inspect`，我认为您应该对这些命令的功能有很好的理解。卷管理组中还有另外两个命令，都用于卷的移除。第一个是`volume rm`命令，您可以使用它按名称移除一个或多个卷。然后，还有`volume prune`命令；使用清理命令，您可以移除所有未使用的卷。在使用此命令时要特别小心。以下是删除和清理命令的语法：
 
-[PRE14]
+```
+# Remove volumes command syntax
+Usage: docker volume rm [OPTIONS] VOLUME [VOLUME...]
+# Prune volumes command syntax
+Usage: docker volume prune [OPTIONS]
+```
 
 以下是使用删除和清理命令的一些示例：
 
@@ -168,7 +258,10 @@
 
 由于`in-use-volume`卷被挂载在`vol-demo`容器中，它没有被清理命令移除。您可以在卷列表命令上使用过滤器，查看哪些卷与容器不相关，因此将在清理命令中被移除。以下是过滤后的 ls 命令：
 
-[PRE15]
+```
+# Using a filter on the volume ls command
+docker volume ls --filter dangling=true
+```
 
 # 参考资料
 
@@ -184,7 +277,24 @@
 
 Docker 卷的另一个功能允许您将一个 Docker 容器中挂载的卷与其他容器共享。这被称为**数据卷容器**。使用数据卷容器基本上是一个两步过程。在第一步中，您运行一个容器，该容器创建或挂载 Docker 卷（或两者），在第二步中，当运行其他容器时，您使用特殊的卷参数`--volumes-from`来配置它们挂载在第一个容器中的所有卷。以下是一个例子：
 
-[PRE16]
+```
+# Step 1
+docker container run \
+ --rm -d \
+ -v data-vol-01:/data/vol1 -v data-vol-02:/data/vol2 \
+ --name data-container \
+ vol-demo2:1.0 tail -f /dev/null
+# Step 2
+docker container run \
+ --rm -d \
+ --volumes-from data-container \
+ --name app-container \
+ vol-demo2:1.0 tail -f /dev/null
+# Prove it
+docker container exec app-container ls -l /data
+# Prove it more
+docker container inspect -f '{{ range .Mounts }}{{ .Name }} {{ end }}' app-container
+```
 
 执行时的样子如下：
 

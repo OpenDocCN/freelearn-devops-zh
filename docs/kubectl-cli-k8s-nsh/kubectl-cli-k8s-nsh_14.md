@@ -22,7 +22,9 @@
 
 +   `kg`代表`kubectl get` - 这对于获取 pod、部署、有状态集、服务、节点和其他详细信息非常有用，如下例命令所示：
 
-[PRE0]
+```
+$ kg nodes
+```
 
 上述命令的输出如下截图所示：
 
@@ -36,7 +38,9 @@
 
 +   `kga`代表`kubectl get all` - 这显示了当前设置的命名空间中的 pod、部署、有状态集、服务和资源的列表。您还可以提供`-n`标志来指定命名空间，或者`-A`来显示所有命名空间中的资源：
 
-[PRE1]
+```
+$ kga
+```
 
 上述命令的输出如下截图所示：
 
@@ -50,7 +54,10 @@
 
 +   `kp` 代表 `kubectl get pods -o wide`—这会显示当前命名空间中 pods 的列表。`-o wide` 标志会显示给定 pod 的分配 IP 和它所在的节点：
 
-[PRE2]
+```
+$ k get pods
+$ kp
+```
 
 上述命令的输出显示在以下截图中：
 
@@ -64,11 +71,15 @@
 
 +   `ka` 代表 `kubectl apply -f`—您可以使用这个命令来创建/更新一个部署：
 
-[PRE3]
+```
+$ ka nginx.yaml
+```
 
 +   `kei` 代表 `kubectl exec -it`—这会执行进入运行中 pod 的 shell：
 
-[PRE4]
+```
+$ kei nginx-fcb5d6b64-x4kwg – bash
+```
 
 上述命令的输出显示在以下截图中：
 
@@ -80,7 +91,9 @@
 
 +   `ke` 代表 `kubectl exec`—这会在运行的 pod 中执行一个命令：
 
-[PRE5]
+```
+$ ke nginx-fcb5d6b64-x4kwg -- ls -alh
+```
 
 上述命令的输出显示在以下截图中：
 
@@ -92,7 +105,9 @@
 
 +   `ktn` 代表 `watch kubectl top nodes`—使用这个命令来观察节点的资源消耗：
 
-[PRE6]
+```
+$ ktn
+```
 
 上述命令的输出显示在以下截图中：
 
@@ -104,7 +119,9 @@
 
 +   `ktp` 代表 `watch kubectl top pods`—使用这个命令来观察 pod 的资源消耗：
 
-[PRE7]
+```
+$ ktp
+```
 
 上述命令的输出显示在以下截图中：
 
@@ -116,7 +133,9 @@
 
 +   `kpf` 代表 `kubectl port-forward`—使用这个命令进行端口转发，以便我们可以从 `localhost` 访问 pod：
 
-[PRE8]
+```
+$ kpf nginx-fcb5d6b64-x4kwg 8080
+```
 
 上述命令的输出显示在以下截图中：
 
@@ -128,7 +147,9 @@
 
 +   `kl`代表`kubectl logs` - 这显示了一个 pod 或 deployment 的日志：
 
-[PRE9]
+```
+$ kl deploy/nginx --tail 10
+```
 
 上述命令的输出显示在以下截图中：
 
@@ -148,7 +169,29 @@
 
 以下是`.zsh_aliases`的示例片段：
 
-[PRE10]
+```
+$ cat .zsh_aliases
+# aliases
+alias a="atom ."
+alias c="code ."
+alias d="docker"
+alias h="helm"
+alias k="kubectl"
+alias ke="kubectl exec -it"
+alias kc="kubectl create -f"
+alias ka="kubectl apply -f"
+alias kd="kubectl describe"
+alias kl="kubectl logs"
+alias kg="kubectl get"
+alias kp="kubectl get pods -o wide"
+alias kap="kubectl get pods --all-namespaces -o wide"
+alias ktn="watch kubectl top nodes"
+alias ktp="watch kubectl top pods"
+alias ktc="watch kubectl top pods --containers"
+alias kpf="kubectl port-forward"
+alias kcx="kubectx"
+alias kns="kubectl-ns"
+```
 
 使用别名将帮助您更高效地输入几个字母而不是几个单词。此外，并非所有命令都容易记住，因此使用别名也将有助于克服这一点。
 

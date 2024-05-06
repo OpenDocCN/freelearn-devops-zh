@@ -130,13 +130,44 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 为了简单起见，我们将使用本地 Kubernetes。我们将使用第六章中描述的镜像，所以确保运行以下命令：
 
-[PRE0]
+```py
+$ cd Chapter06
+$ cd frontend
+$ docker-compose build server
+...
+Successfully tagged thoughts_frontend:latest
+$ cd ..
+$ cd thoughts_backend/
+$ docker-compose build server db
+...
+Successfully tagged thoughts_frontend:latest
+$ cd ..
+$ cd users_backend
+$ docker-compose build server db
+...
+Successfully tagged users_server:latest
+```
 
 基本的 Kubernetes 配置存储在示例文件夹（[`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/tree/master/Chapter08/example`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/tree/master/Chapter08/example)）子目录中。
 
 您可以使用以下命令部署整个系统：
 
-[PRE1]
+```py
+$ cd Chapter08/example
+$ kubectl apply -f namespace.yaml
+namespace/example created
+$ kubectl apply -f . --recursive
+deployment.apps/frontend created
+ingress.extensions/frontend-ingress created
+service/frontend-service created
+namespace/example unchanged
+deployment.apps/thoughts-backend created
+ingress.extensions/thoughts-backend-ingress created
+service/thoughts-service created
+deployment.apps/users-backend created
+ingress.extensions/users-backend-ingress created
+service/users-service created
+```
 
 这创建了整个系统。
 
@@ -144,13 +175,25 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 如果您检查系统，应该已经部署了，通过运行`kubectl get pods`命令显示：
 
-[PRE2]
+```py
+$ kubectl get pods -n example
+NAME                   READY STATUS  RESTARTS AGE
+frontend-j75fp         1/1   Running 0        4m
+frontend-n85fk         1/1   Running 0        4m
+frontend-nqndl         1/1   Running 0        4m
+frontend-xnljj         1/1   Running 0        4m
+thoughts-backend-f7tq7 2/2   Running 0        4m
+users-backend-7wzts    2/2   Running 0        4m
+```
 
 请注意，有四个`frontend`的副本。我们将在本章中更改 Pod 的数量，作为如何更改部署的示例。
 
 现在，删除部署以从头开始：
 
-[PRE3]
+```py
+$ kubectl delete namespace example
+namespace "example" deleted
+```
 
 有关此设置的更多详细信息，请查看第六章中的*在本地部署完整系统*部分，*使用 Kubernetes 进行本地开发*。
 
@@ -160,7 +203,14 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 主文件是`flux-deployment.yaml`。其中大部分是注释的样板文件，但请查看要从中提取的存储库的定义：
 
-[PRE4]
+```py
+# Replace the following URL to change the Git repository used by Flux.
+- --git-url=git@github.com:PacktPublishing/Hands-On-Docker-for-Microservices-with-Python.git
+- --git-branch=master
+# Include this if you want to restrict the manifests considered by flux
+# to those under the following relative paths in the git repository
+- --git-path=Chapter08/example
+```
 
 这些行告诉 Flux 要使用的存储库，分支和任何路径。如果路径被注释了，在您的情况下可能是这样，它将使用整个存储库。在下一节中，我们需要更改要使用的存储库为您自己的存储库。
 
@@ -168,11 +218,28 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 要使用 Flux，请创建命名空间，然后应用完整的`flux`目录：
 
-[PRE5]
+```py
+$ kubectl apply -f flux/namespace.yaml
+namespace/flux created
+$ kubectl apply -f flux/
+serviceaccount/flux created
+clusterrole.rbac.authorization.k8s.io/flux created
+clusterrolebinding.rbac.authorization.k8s.io/flux created
+deployment.apps/flux created
+secret/flux-git-deploy created
+deployment.apps/memcached created
+service/memcached created
+namespace/flux unchanged
+```
 
 使用以下代码，您可以检查一切是否按预期运行：
 
-[PRE6]
+```py
+$ kubectl get pods -n flux
+NAME                       READY STATUS  RESTARTS AGE
+flux-75fff6bbf7-bfnq6      1/1   Running 0        34s
+memcached-84f9f4d566-jv6gp 1/1   Running 0        34s
+```
 
 但是，要能够从 Git 存储库部署，我们需要对其进行配置。
 
@@ -190,13 +257,18 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 1.  一旦您拥有自己的副本，它将具有类似以下的 URL：
 
-[PRE7]
+```py
+https://github.com/<YOUR GITHUB USER>/Hands-On-Docker-for-Microservices-with-Python/
+```
 
 1.  现在，您需要在`Chapter08/flux/flux-deployment.yaml`文件中替换它为`--git-url`参数。
 
 1.  更改后，使用以下命令重新应用 Flux 配置：
 
-[PRE8]
+```py
+$ kubectl apply -f flux/flux-deployment.yaml
+deployment.apps/flux changed
+```
 
 现在，Flux 正在跟踪您完全控制的自己的存储库，并且您可以对其进行更改。首先，我们需要允许 Flux 访问 GitHub 存储库，可以通过部署密钥实现。
 
@@ -204,7 +276,10 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 为了允许 Flux 访问 GitHub，我们需要将其秘钥添加为有效的部署密钥。使用`fluxctl`，很容易获取当前的`ssh`秘钥；只需运行以下命令：
 
-[PRE9]
+```py
+$ fluxctl identity --k8s-fwd-ns flux
+ssh-rsa <secret key>
+```
 
 有了这些信息，转到您分叉的 GitHub 项目的“设置|部署密钥”部分。使用描述性名称填写标题，使用之前获取的秘钥填写密钥部分，然后选择“添加密钥”：
 
@@ -218,15 +293,40 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 我们可以与 Flux 同步，因此 GitHub 中的描述将应用于集群，使用以下命令：
 
-[PRE10]
+```py
+$ fluxctl sync --k8s-fwd-ns flux
+Synchronizing with git@github.com:<repo>.git
+Revision of master to apply is daf1b12
+Waiting for daf1b12 to be applied ...
+Done.
+Macbook Pro:Chapter08 $ kubectl get pods -n example
+NAME                   READY STATUS  RESTARTS AGE
+frontend-8srpc         1/1   Running 0        24s
+frontend-cfrvk         1/1   Running 0        24s
+frontend-kk4hj         1/1   Running 0        24s
+frontend-vq4vf         1/1   Running 0        24s
+thoughts-backend-zz8jw 2/2   Running 0        24s
+users-backend-jrvcr    2/2   Running 0        24s
+```
 
 同步需要一点时间，可能会出现错误，指出正在克隆存储库：
 
-[PRE11]
+```py
+$ fluxctl sync --k8s-fwd-ns flux
+Error: git repository git@github.com:<repo>.git is not ready to sync (status: cloned)
+Run 'fluxctl sync --help' for usage
+```
 
 等待几分钟，然后重试：
 
-[PRE12]
+```py
+$ fluxctl sync --k8s-fwd-ns flux
+Synchronizing with git@github.com:<repo>.git
+Revision of master to apply is daf1b12
+Waiting for daf1b12 to be applied ...
+Done.
+$
+```
 
 您的 Flux 部署，因此本地 Kubernetes 集群现在与 Git 中的配置同步，并将随任何更改更新。
 
@@ -238,7 +338,18 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 1.  按照以下描述更改您分叉的存储库中的`Chapter08/example/frontend/deployment.yaml`文件：
 
-[PRE13]
+```py
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: frontend
+    labels:
+        app: frontend
+    namespace: example
+spec:
+    replicas: 2
+```
 
 这将将副本的数量从`4`更改为`2`。
 
@@ -246,7 +357,9 @@ Flux（[`github.com/fluxcd/flux`](https://github.com/fluxcd/flux)）是一个工
 
 1.  使用以下命令监视集群：
 
-[PRE14]
+```py
+$ kubectl get pods -n example -w
+```
 
 几分钟后，您将看到前端 Pod 的数量减少。您可以通过手动同步 Flux 来加快速度。
 
@@ -292,11 +405,21 @@ GitOps 主要针对生产环境，这些环境比本章中使用的示例本地�
 
 这意味着替换以下行：
 
-[PRE15]
+```py
+spec:
+  containers:
+  - name: frontend-service
+    image: thoughts_frontend:latest
+```
 
 我们用以下行替换它们：
 
-[PRE16]
+```py
+spec:
+  containers:
+  - name: frontend-service
+    image: <registry>/thoughts_frontend:v1.5
+```
 
 这就是能够以受控方式更新图像的优势所在。您将使用流水线（如第四章中所述的*创建流水线和工作流程*）构建和推送带标记的图像到远程注册表，然后您可以控制在集群中部署哪个特定版本。
 

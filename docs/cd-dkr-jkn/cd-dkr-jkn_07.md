@@ -288,7 +288,9 @@ Maven（和其他构建工具）推广了版本快照，为未发布的版本添
 
 例如，`Docker 构建`阶段应该是这样的：
 
-[PRE0]
+```
+sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."
+```
 
 更改后，当我们运行 Jenkins 构建时，我们应该在我们的 Docker 注册表中使用时间戳版本标记图像。
 
@@ -316,11 +318,17 @@ Maven（和其他构建工具）推广了版本快照，为未发布的版本添
 
 让我们创建两个 Ansible 清单文件。从暂存开始，我们可以定义`inventory/staging`文件。假设暂存地址是`192.168.0.241`，它将具有以下内容：
 
-[PRE1]
+```
+[webservers]
+web1 ansible_host=192.168.0.241 ansible_user=admin
+```
 
 类比而言，如果生产 IP 地址是`192.168.0.242`，那么`inventory/production`应该如下所示：
 
-[PRE2]
+```
+[webservers]
+web2 ansible_host=192.168.0.242 ansible_user=admin
+```
 
 只为每个环境拥有一个机器可能看起来过于简化了；然而，使用 Docker Swarm（我们稍后在本书中展示），一组主机可以隐藏在一个 Docker 主机后面。
 
@@ -332,7 +340,13 @@ Maven（和其他构建工具）推广了版本快照，为未发布的版本添
 
 为了做到这一点，我们可以使用带有`-H`参数的`docker`（或`docker-compose`命令），该参数指定了远程 Docker 主机地址。这将是一个很好的解决方案，如果您不打算使用 Ansible 或任何其他配置管理工具，那么这就是前进的方式。然而，出于本章已经提到的原因，使用 Ansible 是有益的。在这种情况下，我们可以在持续交付管道中使用`ansible-playbook`命令。
 
-[PRE3]
+```
+stage("Deploy to staging") {
+    steps {
+        sh "ansible-playbook playbook.yml -i inventory/staging"
+    }
+}
+```
 
 如果`playbook.yml`和 docker-compose.yml 看起来与*使用 Docker 的 Ansible*部分中的内容相同，那么将足以将应用程序与依赖项部署到暂存环境中。
 
@@ -346,7 +360,13 @@ Maven（和其他构建工具）推广了版本快照，为未发布的版本添
 
 在最简单的情况下，唯一的区别是清单文件和应用程序配置（例如，在 Spring Boot 应用程序的情况下，我们将设置不同的 Spring 配置文件，这将导致使用不同的属性文件）。在我们的情况下，没有应用程序属性，所以唯一的区别是清单文件。
 
-[PRE4]
+```
+stage("Release") {
+    steps {
+        sh "ansible-playbook playbook.yml -i inventory/production"
+    }
+}
+```
 
 实际上，如果我们想要实现零停机部署，发布步骤可能会更加复杂。关于这个主题的更多内容将在接下来的章节中介绍。
 
@@ -358,7 +378,14 @@ Maven（和其他构建工具）推广了版本快照，为未发布的版本添
 
 冒烟测试通常与验收测试以相同的方式定义。因此，管道中的“冒烟测试”阶段应该如下所示：
 
-[PRE5]
+```
+stage("Smoke test") {
+    steps {
+        sleep 60
+        sh "./smoke_test.sh"
+    }
+}
+```
 
 设置完成后，连续交付构建应该自动运行，并且应用程序应该发布到生产环境。通过这一步，我们已经完成了连续交付管道的最简单但完全有效的形式。
 
@@ -368,7 +395,63 @@ Maven（和其他构建工具）推广了版本快照，为未发布的版本添
 
 接下来我们看到计算器项目的完整 Jenkins 文件：
 
-[PRE6]
+```
+pipeline {
+  agent any
+
+  triggers {
+    pollSCM('* * * * *')
+  }
+
+  stages {
+    stage("Compile") { steps { sh "./gradlew compileJava" } }
+    stage("Unit test") { steps { sh "./gradlew test" } }
+
+    stage("Code coverage") { steps {
+      sh "./gradlew jacocoTestReport"
+      publishHTML (target: [
+              reportDir: 'build/reports/jacoco/test/html',
+              reportFiles: 'index.html',
+              reportName: "JaCoCo Report" ])
+      sh "./gradlew jacocoTestCoverageVerification"
+    } }
+
+    stage("Static code analysis") { steps {
+      sh "./gradlew checkstyleMain"
+      publishHTML (target: [
+              reportDir: 'build/reports/checkstyle/',
+              reportFiles: 'main.html',
+              reportName: "Checkstyle Report" ])
+    } }
+
+    stage("Build") { steps { sh "./gradlew build" } }
+
+    stage("Docker build") { steps {
+      sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."
+   } }
+
+    stage("Docker push") { steps {
+      sh "docker push leszko/calculator:${BUILD_TIMESTAMP}"
+    } }
+
+    stage("Deploy to staging") { steps {
+      sh "ansible-playbook playbook.yml -i inventory/staging"
+      sleep 60
+    } }
+
+    stage("Acceptance test") { steps { sh "./acceptance_test.sh" } }  
+
+    // Performance test stages
+
+    stage("Release") { steps {
+      sh "ansible-playbook playbook.yml -i inventory/production"
+      sleep 60
+    } }
+
+    stage("Smoke test") { steps { sh "./smoke_test.sh" } }
+  }
+}
+```
 
 您可以在 GitHub 上找到这个 Jenkinsfile：[`github.com/leszko/calculator/blob/master/Jenkinsfile`](https://github.com/leszko/calculator/blob/master/Jenkinsfile)。
 

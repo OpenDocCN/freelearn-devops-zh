@@ -40,11 +40,23 @@ Libnetwork 是一个可插拔的架构，允许网络驱动程序实现我们刚
 
 现在你已经了解了 Docker 网络是什么，阅读了这些细节之后，你可能会想，他说的“简单”在哪里？坚持住。现在我们将开始讨论你如何轻松地创建和使用 Docker 网络。与 Docker 卷一样，网络命令代表它们自己的管理类别。正如你所期望的，网络的顶级管理命令如下：
 
-[PRE0]
+```
+# Docker network managment command
+docker network 
+```
 
 网络管理组中可用的子命令包括以下内容：
 
-[PRE1]
+```
+# Docker network management subcommands
+docker network connect # Connect a container to a network
+docker network create            # Create a network
+docker network disconnect        # Disconnect a container from a network
+docker network inspect # Display network details
+docker network ls # List networks
+docker network rm # Remove one or more networks
+docker network prune # Remove all unused networks
+```
 
 现在让我们来看看内置或本地网络驱动程序。
 
@@ -114,15 +126,31 @@ Docker 的开箱即用安装包括一些内置网络驱动程序。这些也被�
 
 尽管这些第三方驱动程序各自具有独特的安装、设置和执行方法，但一般步骤是相似的。首先，您下载驱动程序，然后处理任何配置设置，最后运行驱动程序。这些远程驱动程序通常不需要群集模式，并且可以在有或没有群集模式的情况下使用。例如，让我们深入了解如何使用织物驱动程序。要安装织物网络驱动程序，请在每个 Docker 主机上发出以下命令：
 
-[PRE2]
+```
+# Install the weave network driver plug-in
+sudo curl -L git.io/weave -o /usr/local/bin/weave
+sudo chmod a+x /usr/local/bin/weave
+# Disable checking for new versions
+export CHECKPOINT_DISABLE=1
+# Start up the weave network
+weave launch [for 2nd, 3rd, etc. optional hostname or IP of 1st Docker host running weave]
+# Set up the environment to use weave
+eval $(weave env)
+```
 
 上述步骤需要在将用于在织物网络上相互通信的容器的每个 Docker 主机上完成。启动命令可以提供第一个 Docker 主机的主机名或 IP 地址，该主机已设置并已运行织物网络，以便与其对等，以便它们的容器可以通信。例如，如果您已经在`node01`上设置了织物网络，当您在`node02`上启动织物时，您将使用以下命令：
 
-[PRE3]
+```
+# Start up weave on the 2nd node
+weave launch node01
+```
 
 或者，您可以使用连接命令连接新的（Docker 主机）对等体，从已配置的第一个主机执行。要添加`node02`（在安装和运行织物后），请使用以下命令：
 
-[PRE4]
+```
+# Peer host node02 with the weave network by connecting from node01
+weave connect node02
+```
 
 您可以在主机上不启用群集模式的情况下使用织物网络驱动程序。一旦织物被安装和启动，并且对等体（其他 Docker 主机）已连接，您的容器将自动利用织物网络，并能够相互通信，无论它们是在同一台 Docker 主机上还是在不同的主机上。
 
@@ -134,39 +162,70 @@ Docker 的开箱即用安装包括一些内置网络驱动程序。这些也被�
 
 请注意，在`ubuntu-node01`上：
 
-[PRE5]
+```
+# Install and setup the weave driver
+sudo curl -L git.io/weave -o /usr/local/bin/weave
+sudo chmod a+x /usr/local/bin/weave
+export CHECKPOINT_DISABLE=1
+weave launch
+eval $(weave env)
+```
 
 并且，请注意，在`ubuntu-node02`上：
 
-[PRE6]
+```
+# Install and setup the weave driver
+sudo curl -L git.io/weave -o /usr/local/bin/weave
+sudo chmod a+x /usr/local/bin/weave
+export CHECKPOINT_DISABLE=1
+weave launch
+eval $(weave env)
+```
 
 现在，回到`ubuntu-node01`，请注意以下内容：
 
-[PRE7]
+```
+# Bring node02 in as a peer on node01's weave network
+weave connect ubuntu-node02
+```
 
 ![](img/c4bd83df-3b2a-4931-9dbd-bcd67e7bb982.png)
 
 现在，让我们在每个节点上启动一个容器。确保给它们命名以便易于识别，从`ubuntu-node01`开始：
 
-[PRE8]
+```
+# Run a container detached on node01
+docker container run -d --name app01 alpine tail -f /dev/null
+```
 
 ![](img/3a1ca418-01e8-4774-96ac-cf34e7d948f3.png)
 
 现在，在`ubuntu-node02`上启动一个容器：
 
-[PRE9]
+```
+# Run a container detached on node02
+docker container run -d --name app02 alpine tail -f /dev/null
+```
 
 ![](img/6e796094-aece-4402-96d3-fcb4854893d2.png)
 
 很好。现在，我们在两个节点上都有容器在运行。让我们看看它们是否可以通信。因为我们在`node02`上，我们首先检查那里：
 
-[PRE10]
+```
+# From inside the app02 container running on node02,
+# let's ping the app01 container running on node01
+docker container exec -it app02 ping -c 4 app01
+```
 
 ![](img/69fb11da-ad53-4ec5-8b6a-f4ba031e70e4.png)
 
 是的！成功了。让我们试试反过来：
 
-[PRE11]
+```
+# Similarly, from inside the app01 container running on node01,
+# let's ping the app02 container running on node02
+docker container exec -it app01 ping -c 4 app02
+```
 
 ![](img/5ed6a092-d5db-46d9-bc71-2157d4bb58e1.png)
 
@@ -184,17 +243,32 @@ Docker 的开箱即用安装包括一些内置网络驱动程序。这些也被�
 
 好的，现在你已经对本地和远程网络驱动有了很多了解，你已经看到了在安装 Docker 和/或初始化 swarm 模式（或安装远程驱动）时，有几个驱动是为你创建的。但是，如果你想使用其中一些驱动创建自己的网络怎么办？这其实非常简单。让我们来看看。`network create`命令的内置帮助如下：
 
-[PRE12]
+```
+# Docker network create command syntax
+# Usage: docker network create [OPTIONS] NETWORK
+```
 
 检查这个，我们看到这个命令基本上有两个部分需要处理，OPTIONS 后面跟着我们想要创建的网络的 NETWORK 名称。我们有哪些选项？嗯，有相当多，但让我们挑选一些让你快速上手的。
 
 可能最重要的选项是`--driver`选项。这是我们告诉 Docker 在创建此网络时要使用哪个可插拔网络驱动程序的方式。正如您所见，驱动程序的选择决定了网络的特性。您提供给驱动程序选项的值将类似于从`docker network ls`命令的输出中显示的 DRIVER 列中显示的值。一些可能的值是 bridge、overlay 和 macvlan。请记住，您不能创建额外的主机或空网络，因为它们限制为每个 Docker 主机一个。到目前为止，这可能是什么样子？以下是使用大部分默认选项创建新覆盖网络的示例：
 
-[PRE13]
+```
+# Create a new overlay network, with all default options
+docker network create -d overlay defaults-over
+```
 
 这很好。您可以运行新服务并将它们附加到您的新网络。但是我们可能还想控制网络中的其他内容吗？嗯，IP 空间怎么样？是的，Docker 提供了控制网络 IP 设置的选项。这是使用`--subnet`、`--gateway`和`--ip-range`可选参数来完成的。所以，让我们看看如何使用这些选项创建一个新网络。如果您还没有安装 jq，请参阅第二章，*学习 Docker 命令*，了解如何安装它：
 
-[PRE14]
+```
+# Create a new overlay network with specific IP settings
+docker network create -d overlay \
+--subnet=172.30.0.0/24 \
+--ip-range=172.30.0.0/28 \
+--gateway=172.30.0.254 \
+specifics-over
+# Initial validation
+docker network inspect specifics-over --format '{{json .IPAM.Config}}' | jq
+```
 
 在我的实验室中执行上述代码看起来是这样的：
 
@@ -214,7 +288,16 @@ Docker 的开箱即用安装包括一些内置网络驱动程序。这些也被�
 
 首先是服务发现。当您创建一个服务时，它会得到一个唯一的名称。该名称会在群集 DNS 中注册。而且，每个服务都使用群集 DNS 进行名称解析。这里有一个例子。我们将利用之前在创建 Docker 网络部分创建的`specifics-over`叠加网络。我们将创建两个服务（`tester1`和`tester2`）并连接到该网络，然后我们将连接到`tester1`服务中的一个容器，并通过名称 ping`tester2`服务。看一下：
 
-[PRE15]
+```
+# Create service tester1
+docker service create --detach --replicas 3 --name tester1 \
+ --network specifics-over alpine tail -f /dev/null
+# Create service tester2
+docker service create --detach --replicas 3 --name tester2 \
+ --network specifics-over alpine tail -f /dev/null
+# From a container in the tester1 service ping the tester2 service by name
+docker container exec -it tester1.3.5hj309poppj8jo272ks9n4k6a ping -c 3 tester2
+```
 
 以下是执行前述命令时的样子：
 

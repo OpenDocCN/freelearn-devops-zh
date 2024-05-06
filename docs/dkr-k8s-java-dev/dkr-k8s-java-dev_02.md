@@ -26,7 +26,10 @@
 
 Docker 提供了三种不同的网络类型。要列出它们，请执行`docker network ls`命令：
 
-[PRE0]
+```
+$ docker network ls
+
+```
 
 Docker 将输出包含唯一网络标识符、名称和在幕后支持它的驱动程序的可用网络列表：
 
@@ -84,7 +87,10 @@ Docker 提供了一组简短的命令来处理网络。您可以从 shell（Linu
 
 让我们创建一个网络。我们将称我们的网络为`myNetwork`。从 shell 或命令行执行以下命令：
 
-[PRE1]
+```
+$ docker network create myNetwork
+
+```
 
 这是命令的最简单形式，但可能会经常使用。它采用默认驱动程序（我们没有使用任何选项来指定驱动程序，我们将只使用默认的桥接驱动程序）。作为输出，Docker 将打印出新创建的网络的标识符：
 
@@ -106,7 +112,10 @@ Docker 提供了一组简短的命令来处理网络。您可以从 shell（Linu
 
 创建网络后，我们可以使用`docker network inspect`命令检查其属性。从 shell 或命令行执行以下操作：
 
-[PRE2]
+```
+$ docker network inspect myNetwork
+
+```
 
 作为回应，你将获得关于你的网络的大量详细信息。正如你在截图中看到的，我们新创建的网络使用桥接驱动程序，即使我们没有明确要求使用它：
 
@@ -118,11 +127,19 @@ Docker 提供了一组简短的命令来处理网络。您可以从 shell（Linu
 
 现在我们的`myNetwork`准备就绪，我们可以运行 Docker 容器并将其附加到网络。要启动容器，我们将使用`docker run --net=<NETWORK>`选项，其中`<NETWORK>`是默认网络之一的名称，或者是你自己创建的网络的名称。例如，让我们运行 Apache Tomcat，这是 Java Servlet 和 JavaServer 页面技术的开源实现：
 
-[PRE3]
+```
+docker run -it --net=myNetwork tomcat
+
+```
 
 这将需要一些时间。Docker 引擎将从 Docker Hub 拉取所有 Tomcat 镜像层，然后运行 Tomcat 容器。还有另一种选项可以将网络附加到容器上，你可以告诉 Docker 你希望容器连接到其他容器使用的相同网络。这样，你不需要显式指定网络，只需告诉 Docker 你希望两个容器在同一网络上运行。要做到这一点，使用`container:`前缀，就像下面的例子一样：
 
-[PRE4]
+```
+docker run -it --net=bridge myTomcat
+
+docker run -it --net=container:myTomcat myPostgreSQL
+
+```
 
 在前面的例子中，我们使用桥接网络运行了`myTomcat`镜像。下一个命令将使用与`myTomcat`相同的网络运行`myPostgreSQL`镜像。这是一个非常常见的情况；你的应用程序将在与数据库相同的网络上运行，这将允许它们进行通信。当然，你在同一网络中启动的容器必须在同一 Docker 主机上运行。网络中的每个容器都可以直接与网络中的其他容器通信。尽管如此，网络本身会将容器与外部网络隔离开来，如下图所示：
 
@@ -136,21 +153,45 @@ Docker 提供了一组简短的命令来处理网络。您可以从 shell（Linu
 
 镜像可以暴露端口。暴露端口意味着您的容器化应用程序将在暴露的端口上监听。例如，Tomcat 应用服务器默认将在端口`8080`上监听。在同一主机和同一网络上运行的所有容器都可以与该端口上的 Tomcat 通信。暴露端口可以通过两种方式完成。它可以在 Dockerfile 中使用`EXPOSE`指令（我们将在稍后关于创建镜像的章节中进行）或者在`docker run`命令中使用`--expose`选项。接下来是这个官方 Tomcat 镜像的 Dockerfile 片段（请注意，为了示例的清晰度，它已经被缩短）：
 
-[PRE5]
+```
+FROM openjdk:8-jre-alpine
+
+ENV CATALINA_HOME /usr/local/tomcat
+
+ENV PATH $CATALINA_HOME/bin:$PATH
+
+RUN mkdir -p "$CATALINA_HOME"
+
+WORKDIR $CATALINA_HOME
+
+EXPOSE 8080
+
+CMD ["catalina.sh", "run"]
+
+```
 
 正如您所看到的，在 Dockerfile 的末尾附近有一个`EXPOSE 8080`指令。这意味着我们可以期望该容器在运行时将监听端口号`8080`。让我们再次运行最新的 Tomcat 镜像。这次，我们还将为我们的容器命名为`myTomcat`。使用以下命令启动应用服务器：
 
-[PRE6]
+```
+docker run -it --name myTomcat --net=myNetwork tomcat
+
+```
 
 为了检查同一网络上的容器是否可以通信，我们将使用另一个镜像`busybox`。BusyBox 是一种软件，它在一个可执行文件中提供了几个精简的 Unix 工具。让我们在单独的 shell 或命令提示符窗口中运行以下命令：
 
-[PRE7]
+```
+docker run -it --net container:myTomcat busybox
+
+```
 
 正如您所看到的，我们已经告诉 Docker，我们希望我们的`busybox`容器使用与 Tomcat 相同的网络。作为另一种选择，当然也可以使用`--net myNetwork`选项显式指定网络名称。
 
 让我们检查它们是否确实可以通信。在运行`busybox`的 shell 窗口中执行以下操作：
 
-[PRE8]
+```
+$ wget localhost:8080
+
+```
 
 上一个指令将在另一个容器上监听的端口`8080`上执行`HTTP GET`请求。在成功下载 Tomcat 的`index.html`之后，我们证明了两个容器可以通信：
 
@@ -160,23 +201,38 @@ Docker 提供了一组简短的命令来处理网络。您可以从 shell（Linu
 
 绑定主机到容器的端口（或一组端口），我们使用`docker run`命令的`-p`标志，如下例所示：
 
-[PRE9]
+```
+$ docker run -it --name myTomcat2 --net=myNetwork -p 8080:8080 tomcat
+
+```
 
 上一个命令运行了另一个 Tomcat 实例，也连接到`myNetwork`网络。然而，这一次，我们将容器的端口`8080`映射到相同编号的主机端口。`-p`开关的语法非常简单：只需输入主机端口号，冒号，然后是您想要映射的容器中的端口号：
 
-[PRE10]
+```
+$ docker run -p <hostPort>:<containerPort> <image ID or name>
+
+```
 
 Docker 镜像可以使用 Dockerfile 中的`EXPOSE`指令（例如`EXPOSE 7000-8000`）或`docker run`命令向其他容器暴露一系列端口，例如：
 
-[PRE11]
+```
+$ docker run --expose=7000-8000 <container ID or name>
+
+```
 
 然后，您可以使用`docker run`命令将一系列端口从主机映射到容器：
 
-[PRE12]
+```
+$ docker run -p 7000-8000:7000-8000 <container ID or name>
+
+```
 
 让我们验证一下是否可以从 Docker 外部访问 Tomcat 容器。为此，让我们运行带有映射端口的 Tomcat：
 
-[PRE13]
+```
+$ docker run -it --name myTomcat2 --net=myNetwork -p 8080:8080 tomcat 
+
+```
 
 然后，我们可以在我们喜爱的网络浏览器中输入以下地址：`http://localhost:8080`。
 
@@ -198,11 +254,17 @@ Docker 镜像可以使用 Dockerfile 中的`EXPOSE`指令（例如`EXPOSE 7000-8
 
 如果您运行以下命令，Docker 将在主机上将一个随机端口映射到 Tomcat 的暴露端口号`8080`：
 
-[PRE14]
+```
+$ docker run -it --name myTomcat3 --net=myNetwork -P tomcat
+
+```
 
 要确切查看已映射的主机端口，可以使用`docker ps`命令。这可能是确定当前端口映射的最快方法。`docker ps`命令用于查看正在运行的容器列表。从单独的 shell 控制台执行以下操作：
 
-[PRE15]
+```
+$ docker ps
+
+```
 
 在输出中，Docker 将列出所有正在运行的容器，显示在`PORTS`列中已经映射了哪些端口：
 
@@ -210,7 +272,10 @@ Docker 镜像可以使用 Dockerfile 中的`EXPOSE`指令（例如`EXPOSE 7000-8
 
 正如您在上一张截图中所看到的，我们的`myTomcat3`容器将把`8080`端口映射到主机上的`32772`端口。再次在`http://localhost:32772`地址上执行`HTTP GET`方法将会显示`myTomcat3`的欢迎页面。`docker ps`命令的替代方法是 docker port 命令，与容器 ID 或名称一起使用（这将为您提供已映射的端口信息）。在我们的情况下，这将是：
 
-[PRE16]
+```
+$ docker port myTomcat3
+
+```
 
 因此，Docker 将输出映射，表示容器中的端口号 80 已映射到主机上的端口号`8080`：
 
@@ -218,7 +283,10 @@ Docker 镜像可以使用 Dockerfile 中的`EXPOSE`指令（例如`EXPOSE 7000-8
 
 关于所有端口映射的信息也可以在 docker inspect 命令的结果中找到。例如，执行以下命令：
 
-[PRE17]
+```
+$ docker inspect myTomcat2
+
+```
 
 在`docker inspect`命令的输出中，您将找到包含映射信息的`Ports`部分：
 
@@ -281,7 +349,10 @@ Docker 数据卷有三个主要用途：
 
 有两种创建卷的方法。第一种是在运行镜像时指定`-v`选项。让我们运行我们已经知道的`busybox`镜像，并同时为我们的数据创建一个卷：
 
-[PRE18]
+```
+$ docker run -v d:/docker_volumes/volume1:/volume -it busybox
+
+```
 
 在上一个命令中，我们使用`-v`开关创建了一个卷，并指示 Docker 将`host`目录`d:/docker_volumes/volume1`映射到正在运行的容器中的`/volume`目录。如果我们现在列出正在运行的`busybox`容器中`/volume`目录的内容，我们可以看到我们的空`data1.txt`文件，如下面的截图所示：
 
@@ -291,7 +362,10 @@ Docker 数据卷有三个主要用途：
 
 `-v`选项不仅可以用于目录，还可以用于单个文件。如果您想在容器中使用配置文件，这将非常有用。最好的例子是官方 Docker 文档中的例子：
 
-[PRE19]
+```
+$ docker run -it -v ~/.bash_history:/root/.bash_history ubuntu
+
+```
 
 执行上一个命令将在本地机器和正在运行的 Ubuntu 容器之间给您相同的 bash 历史记录。最重要的是，如果您退出容器，您本地机器上的 bash 历史记录将包含您在容器内执行的 bash 命令。映射文件对您作为开发人员在调试或尝试应用程序配置时也很有用。
 
@@ -301,15 +375,24 @@ Docker 数据卷有三个主要用途：
 
 创建无名称卷的最简单形式将是：
 
-[PRE20]
+```
+$ docker volume create
+
+```
 
 作为输出，Docker 将为您提供卷标识符，您以后可以使用它来引用此卷。最好给卷一个有意义的名称。要创建一个独立的命名卷，请执行以下命令：
 
-[PRE21]
+```
+$ docker volume create --name myVolume
+
+```
 
 要列出我们现在可用的卷，执行`docker volume ls`命令：
 
-[PRE22]
+```
+$ docker volume ls
+
+```
 
 输出将简单地列出到目前为止我们创建的卷的列表：
 
@@ -317,7 +400,10 @@ Docker 数据卷有三个主要用途：
 
 以这种方式创建的卷不会显式地映射到主机上的路径。如果容器的基本映像包含指定挂载点处的数据（作为 Dockerfile 处理的结果），则此数据将在卷初始化时复制到新卷中。这与显式指定`host`目录不同。其背后的想法是，在创建图像时，您不应该关心卷在主机系统上的位置，使图像在不同主机之间可移植。让我们运行另一个容器并将命名卷映射到其中：
 
-[PRE23]
+```
+$ docker run -it -v myVolume:/volume --name myBusybox3 busybox
+
+```
 
 请注意，这一次，我们没有在主机上指定路径。相反，我们指示 Docker 使用我们在上一步创建的命名卷。命名卷将在容器中的`/volume`路径处可用。让我们在卷上创建一个文本文件：
 
@@ -325,7 +411,10 @@ Docker 数据卷有三个主要用途：
 
 如果我们现在运行另一个容器，指定相同的命名卷，我们将能够访问我们在之前创建的`myBusybox3`容器中可用的相同数据：
 
-[PRE24]
+```
+$ docker run -it -v myVolume:/volume --name myBusybox4 busybox
+
+```
 
 我们的两个容器现在共享单个卷，如下截图所示：
 
@@ -337,21 +426,33 @@ Docker 命名卷是在容器之间共享卷的一种简单方法。它们也是�
 
 在容器之间共享卷的另一个选项是`-volumes-from`开关。如果您的一个容器已经挂载了卷，通过使用此选项，我们可以指示 Docker 使用另一个容器中映射的卷，而不是提供卷的名称。考虑以下示例：
 
-[PRE25]
+```
+$ docker run -it -volumes-from myBusybox4 --name myBusybox5 busybox
+
+```
 
 以这种方式运行`myBusybox5`容器后，如果再次进入运行的`myBusybox5`容器中的`/volume`目录，您将看到相同的`data.txt`文件。
 
 `docker volume ls`命令可以接受一些过滤参数，这可能非常有用。例如，您可以列出未被任何容器使用的卷：
 
-[PRE26]
+```
+docker volume ls -f dangling=true
+
+```
 
 不再被任何容器使用的卷可以通过使用 docker volumes prune 命令轻松删除：
 
-[PRE27]
+```
+docker volume prune
+
+```
 
 要列出使用特定驱动程序创建的卷（我们将在短时间内介绍驱动程序），您可以使用驱动程序过滤器来过滤列表，如下例所示：
 
-[PRE28]
+```
+docker volume ls -f driver=local
+
+```
 
 最后但同样重要的是，创建卷的另一种方法是在 Dockerfile 中使用`VOLUME CREATE`指令。在本书的后面，当从 Dockerfile 创建镜像时，我们将使用它。使用`VOLUME CREATE`指令创建卷与在容器启动期间使用`-v`选项相比有一个非常重要的区别：当使用`VOLUME CREATE`时，您无法指定`host`目录。这类似于暴露和映射端口。您无法在 Dockerfile 中映射端口。Dockerfile 应该是可移植的、可共享的和与主机无关的。`host`目录是 100%依赖于主机的，会在任何其他机器上出现问题，这与 Docker 的理念有点不符。因此，在 Dockerfile 中只能使用可移植指令。
 
@@ -361,13 +462,19 @@ Docker 命名卷是在容器之间共享卷的一种简单方法。它们也是�
 
 与创建卷一样，Docker 中有两种删除卷的方法。首先，您可以通过引用容器的名称并执行 docker `rm -v`命令来删除卷：
 
-[PRE29]
+```
+$ docker rm -v <containerName or ID>
+
+```
 
 当删除容器时，如果没有提供`-v`选项，Docker 不会警告您删除其卷。结果，您将拥有`悬空`卷——不再被容器引用的卷。正如您记得的那样，使用`docker volume prune`命令很容易摆脱它们。
 
 另一种删除卷的选项是使用`docker volume rm`命令：
 
-[PRE30]
+```
+$ docker volume rm <volumeName or ID>
+
+```
 
 如果卷恰好被容器使用，Docker 引擎将不允许您删除它，并会给出警告消息：
 

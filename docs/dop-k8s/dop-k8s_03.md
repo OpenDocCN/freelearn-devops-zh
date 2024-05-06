@@ -98,39 +98,136 @@ Kubelet 是节点中的一个重要进程，定期向 kube-apiserver 报告节�
 
 然后是启动的时间！我们可以通过`brew cask install minikube`来安装 minikube：
 
-[PRE0]
+```
+// install minikube
+# brew cask install minikube
+==> Tapping caskroom/cask
+==> Linking Binary 'minikube-darwin-amd64' to '/usr/local/bin/minikube'.
+...
+minikube was successfully installed!
+```
 
 安装完 minikube 后，我们现在可以启动集群了：
 
-[PRE1]
+```
+// start the cluster
+# minikube start
+Starting local Kubernetes v1.6.4 cluster...
+Starting VM...
+Moving files into cluster...
+Setting up certs...
+Starting cluster components...
+Connecting to cluster...
+Setting up kubeconfig...
+Kubectl is now configured to use the cluster.
+```
 
 这将在本地启动一个 Kubernetes 集群。在撰写时，最新版本是`v.1.6.4` minikube。继续在 VirtualBox 中启动名为 minikube 的 VM。然后将设置`kubeconfig`，这是一个用于定义集群上下文和认证设置的配置文件。
 
 通过`kubeconfig`，我们能够通过`kubectl`命令切换到不同的集群。我们可以使用`kubectl config view`命令来查看`kubeconfig`中的当前设置：
 
-[PRE2]
+```
+apiVersion: v1
+
+# cluster and certificate information
+clusters:
+- cluster:
+ certificate-authority-data: REDACTED
+ server: https://35.186.182.157
+ name: gke_devops_cluster
+- cluster:
+ certificate-authority: /Users/chloelee/.minikube/ca.crt
+ server: https://192.168.99.100:8443
+ name: minikube
+
+# context is the combination of cluster, user and namespace
+contexts:
+- context:
+ cluster: gke_devops_cluster
+ user: gke_devops_cluster
+ name: gke_devops_cluster
+- context:
+ cluster: minikube
+ user: minikube
+ name: minikube
+current-context: minikube
+kind: Config
+preferences: {}
+
+# user information
+users:
+- name: gke_devops_cluster
+user:
+ auth-provider:
+ config:
+ access-token: xxxx
+ cmd-args: config config-helper --format=json
+ cmd-path: /Users/chloelee/Downloads/google-cloud-sdk/bin/gcloud
+ expiry: 2017-06-08T03:51:11Z
+ expiry-key: '{.credential.token_expiry}'
+ token-key: '{.credential.access_token}'
+ name: gcp
+
+# namespace info
+- name: minikube
+user:
+ client-certificate: /Users/chloelee/.minikube/apiserver.crt
+ client-key: /Users/chloelee/.minikube/apiserver.key
+```
 
 在这里，我们知道我们当前正在使用与集群和用户名称相同的 minikube 上下文。上下文是认证信息和集群连接信息的组合。如果您有多个上下文，可以使用`kubectl config use-context $context`来强制切换上下文。
 
 最后，我们需要在 minikube 中启用`kube-dns`插件。`kube-dns`是 Kuberentes 中的 DNS 服务：
 
-[PRE3]
+```
+// enable kube-dns addon
+# minikube addons enable kube-dns
+kube-dns was successfully enabled
+```
 
 # kubectl
 
 `kubectl`是控制 Kubernetes 集群管理器的命令。最常见的用法是检查集群的版本：
 
-[PRE4]
+```
+// check Kubernetes version
+# kubectl version
+Client Version: version.Info{Major:"1", Minor:"6", GitVersion:"v1.6.2", GitCommit:"477efc3cbe6a7effca06bd1452fa356e2201e1ee", GitTreeState:"clean", BuildDate:"2017-04-19T20:33:11Z", GoVersion:"go1.7.5", Compiler:"gc", Platform:"darwin/amd64"}
+Server Version: version.Info{Major:"1", Minor:"6", GitVersion:"v1.6.4", GitCommit:"d6f433224538d4f9ca2f7ae19b252e6fcb66a3ae", GitTreeState:"clean", BuildDate:"2017-05-30T22:03:41Z", GoVersion:"go1.7.3", Compiler:"gc", Platform:"linux/amd64"} 
+```
 
 我们随后知道我们的服务器版本是最新的，在撰写时是最新的版本 1.6.4。 `kubectl`的一般语法是：
 
-[PRE5]
+```
+kubectl [command] [type] [name] [flags] 
+```
 
 `command`表示您要执行的操作。如果您只在终端中键入`kubectl help`，它将显示支持的命令。`type`表示资源类型。我们将在下一节中学习主要的资源类型。`name`是我们命名资源的方式。沿途始终保持清晰和信息丰富的命名是一个好习惯。对于`flags`，如果您键入`kubectl options`，它将显示您可以传递的所有标志。
 
 `kubectl`非常方便，我们总是可以添加`--help`来获取特定命令的更详细信息。例如：
 
-[PRE6]
+```
+// show detailed info for logs command 
+kubectl logs --help 
+Print the logs for a container in a pod or specified resource. If the pod has only one container, the container name is 
+optional. 
+
+Aliases: 
+logs, log 
+
+Examples: 
+  # Return snapshot logs from pod nginx with only one container 
+  kubectl logs nginx 
+
+  # Return snapshot logs for the pods defined by label   
+  app=nginx 
+  kubectl logs -lapp=nginx 
+
+  # Return snapshot of previous terminated ruby container logs   
+  from pod web-1 
+  kubectl logs -p -c ruby web-1 
+... 
+```
 
 然后我们得到了`kubectl logs`命令中的完整支持选项。
 
@@ -144,7 +241,14 @@ Kubernetes 对象是集群中的条目，存储在 etcd 中。它们代表了集
 
 对象规范可以用 YAML（[`www.yaml.org/`](http://www.yaml.org/)）或 JSON（[`www.json.org/`](http://www.json.org/)）编写。在 Kubernetes 世界中，YAML 更常见。在本书的其余部分中，我们将使用 YAML 格式来编写对象规范。以下代码块显示了一个 YAML 格式的规范片段：
 
-[PRE7]
+```
+apiVersion: Kubernetes API version 
+kind: object type 
+metadata:  
+  spec metadata, i.e. namespace, name, labels and annotations 
+spec: 
+  the spec of Kubernetes object 
+```
 
 # 命名空间
 
@@ -170,7 +274,11 @@ Kubernetes 中的每个对象都拥有自己的名称。一个资源中的对象
 
 标签是一组键/值对，用于附加到对象。标签旨在为对象指定有意义的标识信息。常见用法是微服务名称、层级、环境和软件版本。用户可以定义有意义的标签，以便稍后与选择器一起使用。对象规范中的标签语法是：
 
-[PRE8]
+```
+labels: 
+  $key1: $value1 
+  $key2: $value2 
+```
 
 除了标签，标签选择器用于过滤对象集。用逗号分隔，多个要求将由`AND`逻辑运算符连接。有两种过滤方式：
 
@@ -180,13 +288,22 @@ Kubernetes 中的每个对象都拥有自己的名称。一个资源中的对象
 
 基于相等性的要求支持`=`，`==`和`!=`运算符。例如，如果选择器是`chapter=2,version!=0.1`，结果将是**对象 C**。如果要求是`version=0.1`，结果将是**对象 A**和**对象 B**。如果我们在支持的对象规范中写入要求，将如下所示：
 
-[PRE9]
+```
+selector: 
+  $key1: $value1 
+```
 
 ![](img/00035.jpeg)选择器示例
 
 基于集合的要求支持`in`，`notin`和`exists`（仅针对键）。例如，如果要求是`chapter in (3, 4),version`，那么对象 A 将被返回。如果要求是`version notin (0.2), !author_info`，结果将是**对象 A**和**对象 B**。以下是一个示例，如果我们写入支持基于集合的要求的对象规范：
 
-[PRE10]
+```
+selector: 
+  matchLabels:  
+    $key1: $value1 
+  matchExpressions: 
+{key: $key2, operator: In, values: [$value1, $value2]} 
+```
 
 `matchLabels`和`matchExpressions`的要求被合并在一起。这意味着过滤后的对象需要在两个要求上都为真。
 
@@ -196,7 +313,11 @@ Kubernetes 中的每个对象都拥有自己的名称。一个资源中的对象
 
 注释是一组用户指定的键/值对，用于指定非标识性元数据。使用注释可以像普通标记一样，例如，用户可以向注释中添加时间戳、提交哈希或构建编号。一些 kubectl 命令支持 `--record` 选项，以记录对注释对象进行更改的命令。注释的另一个用例是存储配置，例如 Kubernetes 部署（[`kubernetes.io/docs/concepts/workloads/controllers/deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment)）或关键附加组件 pods（[`coreos.com/kubernetes/docs/latest/deploy-addons.html`](https://coreos.com/kubernetes/docs/latest/deploy-addons.html)）。注释语法如下所示，位于元数据部分：
 
-[PRE11]
+```
+annotations: 
+  $key1: $value1 
+  $key2: $value2 
+```
 
 命名空间、名称、标签和注释位于对象规范的元数据部分。选择器位于支持选择器的资源的规范部分，例如 ReplicationController、service、ReplicaSet 和 Deployment。
 
@@ -206,11 +327,67 @@ Pod 是 Kubernetes 中最小的可部署单元。它可以包含一个或多个�
 
 我们可以使用 `kubectl explain <resource>` 命令来获取资源的详细描述。它将显示资源支持的字段：
 
-[PRE12]
+```
+// get detailed info for `pods` 
+# kubectl explain pods 
+DESCRIPTION: 
+Pod is a collection of containers that can run on a host. This resource is created by clients and scheduled onto hosts. 
+
+FIELDS: 
+   metadata  <Object> 
+     Standard object's metadata. More info: 
+     http://releases.k8s.io/HEAD/docs/devel/api- 
+     conventions.md#metadata 
+
+   spec  <Object> 
+     Specification of the desired behavior of the pod. 
+     More info: 
+     http://releases.k8s.io/HEAD/docs/devel/api-
+     conventions.md#spec-and-status 
+
+   status  <Object> 
+     Most recently observed status of the pod. This data 
+     may not be up to date. 
+     Populated by the system. Read-only. More info: 
+     http://releases.k8s.io/HEAD/docs/devel/api-
+     conventions.md#spec-and-status 
+
+   apiVersion  <string> 
+     APIVersion defines the versioned schema of this 
+     representation of an 
+     object. Servers should convert recognized schemas to 
+     the latest internal 
+     value, and may reject unrecognized values. More info: 
+     http://releases.k8s.io/HEAD/docs/devel/api-
+     conventions.md#resources 
+
+   kind  <string> 
+     Kind is a string value representing the REST resource  
+     this object represents. Servers may infer this from 
+     the endpoint the client submits 
+     requests to. Cannot be updated. In CamelCase. More 
+         info: 
+     http://releases.k8s.io/HEAD/docs/devel/api-
+     conventions.md#types-kinds 
+```
 
 在以下示例中，我们将展示如何在一个 pod 中创建两个容器，并演示它们如何相互访问。请注意，这既不是一个有意义的经典的 Sidecar 模式示例。这些模式只在非常特定的场景中使用。以下只是一个示例，演示了如何在 pod 中访问其他容器：
 
-[PRE13]
+```
+// an example for creating co-located and co-scheduled container by pod
+# cat 3-2-1_pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: example
+spec:
+ containers:
+ - name: web
+ image: nginx
+ - name: centos
+ image: centos
+ command: ["/bin/sh", "-c", "while : ;do curl http://localhost:80/; sleep 10; done"]
+```
 
 ![](img/00036.jpeg)Pod 中的容器可以通过 localhost 进行访问
 
@@ -218,13 +395,22 @@ Pod 是 Kubernetes 中最小的可部署单元。它可以包含一个或多个�
 
 接下来，使用 `kubectl create` 命令启动 pod，`-f` 选项让 kubectl 知道使用文件中的数据：
 
-[PRE14]
+```
+// create the resource by `kubectl create` - Create a resource by filename or stdin
+# kubectl create -f 3-2-1_pod.yaml
+pod "example" created  
+```
 
 在创建资源时，在 `kubectl` 命令的末尾添加 `--record=true`。Kubernetes 将在创建或更新此资源时添加最新的命令。因此，我们不会忘记哪些资源是由哪个规范创建的。
 
 我们可以使用 `kubectl get <resource>` 命令获取对象的当前状态。在这种情况下，我们使用 `kubectl get pods` 命令。
 
-[PRE15]
+```
+// get the current running pods 
+# kubectl get pods
+NAME      READY     STATUS              RESTARTS   AGE
+example   0/2       ContainerCreating   0          1s
+```
 
 在 `kubectl` 命令的末尾添加 `--namespace=$namespace_name` 可以访问不同命名空间中的对象。以下是一个示例，用于检查 `kube-system` 命名空间中的 pod，该命名空间由系统类型的 pod 使用：
 
@@ -242,11 +428,24 @@ Pod 是 Kubernetes 中最小的可部署单元。它可以包含一个或多个�
 
 我们示例 pod 的状态是 `ContainerCreating`。在这个阶段，Kubernetes 已经接受了请求，尝试调度 pod 并拉取镜像。当前没有容器正在运行。等待片刻后，我们可以再次获取状态：
 
-[PRE16]
+```
+// get the current running pods
+# kubectl get pods
+NAME      READY     STATUS    RESTARTS   AGE
+example   2/2       Running   0          3s  
+```
 
 我们可以看到当前有两个容器正在运行。正常运行时间为三秒。使用 `kubectl logs <pod_name> -c <container_name>` 可以获取容器的 `stdout`，类似于 `docker logs <container_name>`：
 
-[PRE17]
+```
+// get stdout for centos
+# kubectl logs example -c centos
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+...
+```
 
 pod 中的 centos 通过 localhost 与 nginx 共享相同的网络！Kubernetes 会在 pod 中创建一个网络容器。网络容器的功能之一是在 pod 内部的容器之间转发流量。我们将在 第五章 中了解更多，*网络和安全*。
 
@@ -254,29 +453,121 @@ pod 中的 centos 通过 localhost 与 nginx 共享相同的网络！Kubernetes 
 
 我们可以使用`kubectl describe <resource> <resource_name>`来获取资源的详细信息：
 
-[PRE18]
+```
+// get detailed information for a pod
+# kubectl describe pods example
+Name:    example
+Namespace:  default
+Node:    minikube/192.168.99.100
+Start Time:  Fri, 09 Jun 2017 07:08:59 -0400
+Labels:    <none>
+Annotations:  <none>
+Status:    Running
+IP:    172.17.0.4
+Controllers:  <none>
+Containers:  
+```
 
 此时，我们知道这个 pod 正在哪个节点上运行，在 minikube 中我们只有一个节点，所以不会有任何区别。在真实的集群环境中，知道哪个节点对故障排除很有用。我们没有为它关联任何标签、注释和控制器：
 
-[PRE19]
+```
+web:
+ Container ID:    
+ docker://a90e56187149155dcda23644c536c20f5e039df0c174444e 0a8c8  7e8666b102b
+   Image:    nginx
+   Image ID:    docker://sha256:958a7ae9e56979be256796dabd5845c704f784cd422734184999cf91f24c2547
+   Port:
+   State:    Running
+      Started:    Fri, 09 Jun 2017 07:09:00 -0400
+   Ready:    True
+   Restart Count:  0
+   Environment:  <none>
+   Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from 
+      default-token-jd1dq (ro)
+     centos:
+     Container ID:  docker://778965ad71dd5f075f93c90f91fd176a8add4bd35230ae0fa6c73cd1c2158f0b
+     Image:    centos
+     Image ID:    docker://sha256:3bee3060bfc81c061ce7069df35ce090593bda584d4ef464bc0f38086c11371d
+     Port:
+     Command:
+       /bin/sh
+       -c
+       while : ;do curl http://localhost:80/; sleep 10; 
+       done
+      State:    Running
+       Started:    Fri, 09 Jun 2017 07:09:01 -0400
+      Ready:    True
+      Restart Count:  0
+      Environment:  <none>
+      Mounts:
+          /var/run/secrets/kubernetes.io/serviceaccount from default-token-jd1dq (ro)
+```
 
 在容器部分，我们将看到这个 pod 中包含了两个容器。它们的状态、镜像和重启计数：
 
-[PRE20]
+```
+Conditions:
+ Type    Status
+ Initialized   True
+ Ready   True
+ PodScheduled   True
+```
 
 一个 pod 有一个`PodStatus`，其中包括一个表示为`PodConditions`的数组映射。`PodConditions`的可能键是`PodScheduled`、`Ready`、`Initialized`和`Unschedulable`。值可以是 true、false 或 unknown。如果 pod 没有按预期创建，`PodStatus`将为我们提供哪个部分失败的简要视图：
 
-[PRE21]
+```
+Volumes:
+ default-token-jd1dq:
+ Type:  Secret (a volume populated by a Secret)
+ SecretName:  default-token-jd1dq
+ Optional:  false
+```
 
 Pod 关联了一个 service account，为运行在 pod 中的进程提供身份。它由 API Server 中的 service account 和 token controller 控制。
 
 它将在包含用于 API 访问令牌的 pod 中，为每个容器挂载一个只读卷到`/var/run/secrets/kubernetes.io/serviceaccount`下。Kubernetes 创建了一个默认的 service account。我们可以使用`kubectl get serviceaccounts`命令来列出它们：
 
-[PRE22]
+```
+QoS Class:  BestEffort
+Node-Selectors:  <none>
+Tolerations:  <none>
+```
 
 我们还没有为这个 pod 分配任何选择器。QoS 表示资源服务质量。Toleration 用于限制可以使用节点的 pod 数量。我们将在第八章中学到更多，*集群管理*：
 
-[PRE23]
+```
+Events:
+ FirstSeen  LastSeen  Count  From      SubObjectPath    Type     
+  Reason    Message
+  ---------  --------  -----  ----      -------------    ------ 
+  --  ------    -------
+  19m    19m    1  default-scheduler        Normal    Scheduled  
+  Successfully assigned example to minikube
+  19m    19m    1  kubelet, minikube  spec.containers{web}  
+  Normal    Pulling    pulling image "nginx"
+  19m    19m    1  kubelet, minikube  spec.containers{web}  
+  Normal    Pulled    Successfully pulled image "nginx"
+  19m    19m    1  kubelet, minikube  spec.containers{web}  
+  Normal    Created    Created container with id 
+  a90e56187149155dcda23644c536c20f5e039df0c174444e0a8c87e8666b102b
+  19m    19m    1  kubelet, minikube  spec.containers{web}   
+  Normal    Started    Started container with id  
+ a90e56187149155dcda23644c536c20f5e039df0c174444e0a8c87e86 
+ 66b102b
+  19m    19m    1  kubelet, minikube  spec.containers{centos}  
+  Normal    Pulling    pulling image "centos"
+  19m    19m    1  kubelet, minikube  spec.containers{centos}  
+  Normal    Pulled    Successfully pulled image "centos"
+  19m    19m    1  kubelet, minikube  spec.containers{centos}  
+  Normal    Created    Created container with id 
+ 778965ad71dd5f075f93c90f91fd176a8add4bd35230ae0fa6c73cd1c 
+ 2158f0b
+  19m    19m    1  kubelet, minikube  spec.containers{centos}  
+  Normal    Started    Started container with id 
+ 778965ad71dd5f075f93c90f91fd176a8add4bd35230ae0fa6c73cd1c 
+ 2158f0b 
+```
 
 通过查看事件，我们可以了解 Kubernetes 在运行节点时的步骤。首先，调度器将任务分配给一个节点，这里它被命名为 minikube。然后 minikube 上的 kubelet 开始拉取第一个镜像并相应地创建一个容器。然后 kubelet 拉取第二个容器并运行。
 
@@ -292,47 +583,170 @@ Pod 关联了一个 service account，为运行在 pod 中的进程提供身份�
 
 在这个例子中，我们将创建两个带有标签`project`，`service`和`version`的 pod，如前图所示：
 
-[PRE24]
+```
+// an example for rc spec
+# cat 3-2-2_rc.yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+ name: nginx
+spec:
+ replicas: 2
+ selector:
+ project: chapter3
+ service: web
+ version: "0.1"
+ template:
+ metadata:
+ name: nginx
+ labels:
+ project: chapter3
+ service: web
+ version: "0.1"
+ spec:
+ containers:
+ - name: nginx
+ image: nginx
+ ports:
+ - containerPort: 80
+// create RC by above input file
+# kubectl create -f 3-2-2_rc.yaml
+replicationcontroller "nginx" created  
+```
 
 然后我们可以使用`kubectl`来获取当前的 RC 状态：
 
-[PRE25]
+```
+// get current RCs
+# kubectl get rc
+NAME      DESIRED   CURRENT   READY     AGE
+nginx     2         2         2         5s  
+```
 
 它显示我们有两个期望的 pod，我们目前有两个 pod 并且两个 pod 已经准备就绪。现在我们有多少个 pod？
 
-[PRE26]
+```
+// get current running pod
+# kubectl get pods
+NAME          READY     STATUS    RESTARTS   AGE
+nginx-r3bg6   1/1       Running   0          11s
+nginx-sj2f0   1/1       Running   0          11s  
+```
 
 它显示我们有两个正在运行的 pod。如前所述，ReplicationController 管理所有与选择器匹配的 pod。如果我们手动创建一个具有相同标签的 pod，理论上它应该与我们刚刚创建的 RC 的 pod 选择器匹配。让我们试一试：
 
-[PRE27]
+```
+// manually create a pod with same labels
+# cat 3-2-2_rc_self_created_pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: our-nginx
+ labels:
+ project: chapter3
+ service: web
+ version: "0.1"
+spec:
+ containers:
+ - name: nginx
+ image: nginx
+ ports:
+ - containerPort: 80
+// create a pod with same labels manually
+# kubectl create -f 3-2-2_rc_self_created_pod.yaml 
+pod "our-nginx" created  
+```
 
 让我们看看它是否正在运行：
 
-[PRE28]
+```
+// get pod status
+# kubectl get pods
+NAME          READY     STATUS        RESTARTS   AGE
+nginx-r3bg6   1/1       Running       0          4m
+nginx-sj2f0   1/1       Running       0          4m
+our-nginx     0/1       Terminating   0          4s  
+```
 
 它已经被调度，ReplicationController 捕捉到了它。pod 的数量变成了三个，超过了我们的期望数量。最终该 pod 被杀死：
 
-[PRE29]
+```
+// get pod status
+# kubectl get pods
+NAME          READY     STATUS    RESTARTS   AGE
+nginx-r3bg6   1/1       Running   0          5m
+nginx-sj2f0   1/1       Running   0          5m  
+```
 
 ![](img/00038.jpeg)ReplicationController 确保 pod 处于期望的状态。
 
 如果我们想要按需扩展，我们可以简单地使用 `kubectl edit <resource> <resource_name>` 来更新规范。在这里，我们将将副本数从 `2` 更改为 `5`：
 
-[PRE30]
+```
+// change replica count from 2 to 5, default system editor will pop out. Change `replicas` number
+# kubectl edit rc nginx
+replicationcontroller "nginx" edited  
+```
 
 让我们来检查 RC 信息：
 
-[PRE31]
+```
+// get rc information
+# kubectl get rc
+NAME      DESIRED   CURRENT   READY     AGE
+nginx     5         5         5         5m      
+```
 
 我们现在有五个 pods。让我们来看看 RC 是如何工作的：
 
-[PRE32]
+```
+// describe RC resource `nginx`
+# kubectl describe rc nginx
+Name:    nginx
+Namespace:  default
+Selector:  project=chapter3,service=web,version=0.1
+Labels:    project=chapter3
+ service=web
+ version=0.1
+Annotations:  <none>
+Replicas:  5 current / 5 desired
+Pods Status:  5 Running / 0 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+ Labels:  project=chapter3
+ service=web
+ version=0.1
+ Containers:
+ nginx:
+ Image:    nginx
+ Port:    80/TCP
+ Environment:  <none>
+ Mounts:    <none>
+ Volumes:    <none>
+Events:
+ FirstSeen  LastSeen  Count  From      SubObjectPath  Type      
+  Reason      Message
+---------  --------  -----  ----      -------------  --------  ------      -------
+34s    34s    1  replication-controller      Normal    SuccessfulCreate  Created pod: nginx-r3bg6 
+34s    34s    1  replication-controller      Normal    SuccessfulCreate  Created pod: nginx-sj2f0 
+20s    20s    1  replication-controller      Normal    SuccessfulDelete  Deleted pod: our-nginx
+15s    15s    1  replication-controller      Normal    SuccessfulCreate  Created pod: nginx-nlx3v
+15s    15s    1  replication-controller      Normal    SuccessfulCreate  Created pod: nginx-rqt58
+15s    15s    1  replication-controller      Normal    SuccessfulCreate  Created pod: nginx-qb3mr  
+```
 
 通过描述命令，我们可以了解 RC 的规范，也可以了解事件。在我们创建 `nginx` RC 时，它按规范启动了两个容器。然后我们通过另一个规范手动创建了另一个 pod，名为 `our-nginx`。RC 检测到该 pod 与其 pod 选择器匹配。然后数量超过了我们期望的数量，所以它将其驱逐。然后我们将副本扩展到了五个。RC 检测到它没有满足我们的期望状态，于是启动了三个 pods 来填补空缺。
 
 如果我们想要删除一个 RC，只需使用 `kubectl` 命令 `kubectl delete <resource> <resource_name>`。由于我们手头上有一个配置文件，我们也可以使用 `kubectl delete -f <configuration_file>` 来删除文件中列出的资源：
 
-[PRE33]
+```
+// delete a rc
+# kubectl delete rc nginx
+replicationcontroller "nginx" deleted
+// get pod status
+# kubectl get pods
+NAME          READY     STATUS        RESTARTS   AGE
+nginx-r3bg6   0/1       Terminating   0          29m  
+```
 
 相同的概念也适用于 ReplicaSet。以下是 `3-2-2.rc.yaml` 的 RS 版本。两个主要的区别是：
 
@@ -342,7 +756,34 @@ Pod 关联了一个 service account，为运行在 pod 中的进程提供身份�
 
 按照前面示例的相同步骤，RC 和 RS 之间应该完全相同。这只是一个例子；然而，我们不应该自己创建 RS，而应该始终由 Kubernetes `deployment` 对象管理。我们将在下一节中学到更多：
 
-[PRE34]
+```
+// RS version of 3-2-2_rc.yaml 
+# cat 3-2-2_rs.yaml
+apiVersion: extensions/v1beta1
+kind: ReplicaSet
+metadata:
+ name: nginx
+spec:
+ replicas: 2
+ selector:
+ matchLabels:
+ project: chapter3
+ matchExpressions:
+ - {key: version, operator: In, values: ["0.1", "0.2"]}
+   template:
+     metadata:
+       name: nginx
+        labels:
+         project: chapter3
+         service: web
+         version: "0.1"
+     spec:
+       containers:
+        - name: nginx
+          image: nginx
+          ports:
+         - containerPort: 80
+```
 
 # 部署
 
@@ -354,27 +795,96 @@ Pod 关联了一个 service account，为运行在 pod 中的进程提供身份�
 
 首先，我们可以使用`kubectl run`命令为我们创建一个`deployment`：
 
-[PRE35]
+```
+// using kubectl run to launch the Pods
+# kubectl run nginx --image=nginx:1.12.0 --replicas=2 --port=80
+deployment "nginx" created
+
+// check the deployment status
+# kubectl get deployments
+NAME      DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+nginx     2         2         2            2           4h  
+```
 
 在 Kubernetes 1.2 之前，`kubectl run`命令将创建 pod。
 
 部署时部署了两个 pod：
 
-[PRE36]
+```
+// check if pods match our desired count
+# kubectl get pods
+NAME                     READY     STATUS        RESTARTS   AGE
+nginx-2371676037-2brn5   1/1       Running       0          4h
+nginx-2371676037-gjfhp   1/1       Running       0          4h  
+```
 
 ![](img/00039.jpeg)部署、ReplicaSets 和 pod 之间的关系
 
 如果我们删除一个 pod，替换的 pod 将立即被调度和启动。这是因为部署在幕后创建了一个 ReplicaSet，它将确保副本的数量与我们的期望数量匹配。一般来说，部署管理 ReplicaSets，ReplicaSets 管理 pod。请注意，我们不应该手动操作部署管理的 ReplicaSets，就像如果它们由 ReplicaSets 管理，直接更改 pod 也是没有意义的：
 
-[PRE37]
+```
+// list replica sets
+# kubectl get rs
+NAME               DESIRED   CURRENT   READY     AGE
+nginx-2371676037   2         2         2         4h      
+```
 
 我们还可以通过`kubectl`命令为部署公开端口：
 
-[PRE38]
+```
+// expose port 80 to service port 80
+# kubectl expose deployment nginx --port=80 --target-port=80
+service "nginx" exposed
+
+// list services
+# kubectl get services
+NAME         CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+kubernetes   10.0.0.1     <none>        443/TCP   3d
+nginx        10.0.0.94    <none>        80/TCP    5s  
+```
 
 部署也可以通过 spec 创建。之前由 kubectl 启动的部署和服务可以转换为以下 spec：
 
-[PRE39]
+```
+// create deployments by spec
+# cat 3-2-3_deployments.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+ name: nginx
+spec:
+ replicas: 2
+ template:
+ metadata:
+ labels:
+ run: nginx
+ spec:
+ containers:
+ - name: nginx
+ image: nginx:1.12.0
+ ports:
+ - containerPort: 80
+---
+kind: Service
+apiVersion: v1
+metadata:
+ name: nginx
+ labels:
+ run: nginx
+spec:
+ selector:
+ run: nginx
+ ports:
+ - protocol: TCP
+ port: 80
+ targetPort: 80
+ name: http
+
+// create deployments and service
+# kubectl create -f 3-2-3_deployments.yaml
+deployment "nginx" created
+service "nginx" created  
+```
 
 为执行滚动更新，我们将不得不添加滚动更新策略。有三个参数用于控制该过程：
 
@@ -386,13 +896,50 @@ Pod 关联了一个 service account，为运行在 pod 中的进程提供身份�
 
 `minReadySeconds`是一个重要的设置。如果我们的应用程序在 pod 启动时不能立即使用，那么没有适当的等待，pod 将滚动得太快。尽管所有新的 pod 都已经启动，但应用程序可能仍在热身；有可能会发生服务中断。在下面的示例中，我们将把配置添加到`Deployment.spec`部分：
 
-[PRE40]
+```
+// add to Deployments.spec, save as 3-2-3_deployments_rollingupdate.yaml
+minReadySeconds: 3 
+strategy:
+ type: RollingUpdate
+ rollingUpdate:
+ maxSurge: 1
+ maxUnavailable: 1  
+```
 
 这表示我们允许一个 pod 每次不可用，并且在滚动 pod 时可以启动一个额外的 pod。在进行下一个操作之前的热身时间将为三秒。我们可以使用`kubectl edit deployments nginx`（直接编辑）或`kubectl replace -f 3-2-3_deployments_rollingupdate.yaml`来更新策略。
 
 假设我们想要模拟新软件的升级，从 nginx 1.12.0 到 1.13.1。我们仍然可以使用前面的两个命令来更改镜像版本，或者使用`kubectl set image deployment nginx nginx=nginx:1.13.1`来触发更新。如果我们使用`kubectl describe`来检查发生了什么，我们将看到部署已经通过删除/创建 pod 来触发了 ReplicaSets 的滚动更新：
 
-[PRE41]
+```
+// check detailed rs information
+# kubectl describe rs nginx-2371676037 
+Name:    nginx-2371676037 
+Namespace:  default
+Selector:  pod-template-hash=2371676037   ,run=nginx
+Labels:    pod-template-hash=2371676037 
+ run=nginx
+Annotations:  deployment.kubernetes.io/desired-replicas=2
+ deployment.kubernetes.io/max-replicas=3
+ deployment.kubernetes.io/revision=4
+ deployment.kubernetes.io/revision-history=2
+Replicas:  2 current / 2 desired
+Pods Status:  2 Running / 0 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+ Labels:  pod-template-hash=2371676037 
+ run=nginx
+Containers:
+nginx:
+Image:    nginx:1.13.1
+Port:    80/TCP
+...
+Events:
+FirstSeen  LastSeen  Count  From      SubObjectPath  Type    Reason      Message
+---------  --------  -----  ----      -------------  --------  ------      -------
+3m    3m    1  replicaset-controller      Normal    SuccessfulCreate  Created pod: nginx-2371676037-f2ndj
+3m    3m    1  replicaset-controller      Normal    SuccessfulCreate  Created pod: nginx-2371676037-9lc8j
+3m    3m    1  replicaset-controller      Normal    SuccessfulDelete  Deleted pod: nginx-2371676037-f2ndj
+3m    3m    1  replicaset-controller      Normal    SuccessfulDelete  Deleted pod: nginx-2371676037-9lc8j
+```
 
 ![](img/00040.jpeg)部署的示例
 
@@ -422,17 +969,108 @@ ClusterIP 是默认的服务类型。它在集群内部 IP 上公开服务。集
 
 在启动服务之前，我们想要创建图中显示的两组 RC：
 
-[PRE42]
+```
+// create RC 1 with nginx 1.12.0 version
+# cat 3-2-3_rc1.yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+ name: nginx-1.12
+spec:
+ replicas: 2
+ selector:
+ project: chapter3
+ service: web
+ version: "0.1"
+template:
+ metadata:
+ name: nginx
+ labels:
+ project: chapter3
+ service: web
+ version: "0.1"
+ spec:
+ containers:
+ - name: nginx
+ image: nginx:1.12.0
+ ports:
+ - containerPort: 80
+// create RC 2 with nginx 1.13.1 version
+# cat 3-2-3_rc2.yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+ name: nginx-1.13
+spec:
+ replicas: 2
+ selector:
+ project: chapter3
+ service: web
+ version: "0.2"
+ template:
+ metadata:
+ name: nginx
+ labels:
+ project: chapter3
+ service: web
+ version: "0.2"
+spec:
+ containers:
+- name: nginx
+ image: nginx:1.13.1
+ ports:
+ - containerPort: 80  
+```
 
 然后我们可以制定我们的 pod 选择器，以定位项目和服务标签：
 
-[PRE43]
+```
+// simple nginx service 
+# cat 3-2-3_service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+ name: nginx-service
+spec:
+ selector:
+ project: chapter3
+ service: web
+ ports:
+ - protocol: TCP
+ port: 80
+ targetPort: 80
+ name: http
+
+// create the RCs 
+# kubectl create -f 3-2-3_rc1.yaml
+replicationcontroller "nginx-1.12" created 
+# kubectl create -f 3-2-3_rc2.yaml
+replicationcontroller "nginx-1.13" created
+
+// create the service
+# kubectl create -f 3-2-3_service.yaml
+service "nginx-service" created  
+```
 
 由于`service`对象可能创建一个 DNS 标签，因此服务名称必须遵循字符 a-z、0-9 或-（连字符）的组合。标签开头或结尾的连字符是不允许的。
 
 然后我们可以使用`kubectl describe service <service_name>`来检查服务信息：
 
-[PRE44]
+```
+// check nginx-service information
+# kubectl describe service nginx-service
+Name:      nginx-service
+Namespace:    default
+Labels:      <none>
+Annotations:    <none>
+Selector:    project=chapter3,service=web
+Type:      ClusterIP
+IP:      10.0.0.188
+Port:      http  80/TCP
+Endpoints:    172.17.0.5:80,172.17.0.6:80,172.17.0.7:80 + 1 more...
+Session Affinity:  None
+Events:      <none>
+```
 
 一个服务可以公开多个端口。只需在服务规范中扩展`.spec.ports`列表。
 
@@ -440,7 +1078,13 @@ ClusterIP 是默认的服务类型。它在集群内部 IP 上公开服务。集
 
 当使用选择器创建服务时，Kubernetes 将创建相应的端点条目并进行更新，这将告诉目标服务路由到哪里：
 
-[PRE45]
+```
+// list current endpoints. Nginx-service endpoints are created and pointing to the ip of our 4 nginx pods.
+# kubectl get endpoints
+NAME            ENDPOINTS                                               AGE
+kubernetes      10.0.2.15:8443                                          2d
+nginx-service   172.17.0.5:80,172.17.0.6:80,172.17.0.7:80 + 1 more...   10s  
+```
 
 ClusterIP 可以在集群内定义，尽管大多数情况下我们不会显式使用 IP 地址来访问集群。使用`.spec.clusterIP`可以完成工作。
 
@@ -466,11 +1110,33 @@ ClusterIP 可以在集群内定义，尽管大多数情况下我们不会显式�
 
 然后我们将创建一个名为`clusterip-chk`的 pod，通过`nginx-service`访问 nginx 容器：
 
-[PRE46]
+```
+// access nginx service via ${NGINX_SERVICE_SERVICE_HOST}
+# cat 3-2-3_clusterip_chk.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: clusterip-chk
+spec:
+ containers:
+ - name: centos
+ image: centos
+ command: ["/bin/sh", "-c", "while : ;do curl    
+http://${NGINX_SERVICE_SERVICE_HOST}:80/; sleep 10; done"]  
+```
 
 我们可以通过`kubectl logs`命令来检查`cluserip-chk` pod 的`stdout`：
 
-[PRE47]
+```
+// check stdout, see if we can access nginx pod successfully
+# kubectl logs -f clusterip-chk
+% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                     Dload  Upload   Total   Spent    Left  Speed
+100   612  100   612    0     0   156k      0 --:--:-- --:--:-- --:--:--  199k
+ ...
+<title>Welcome to nginx!</title>
+    ...  
+```
 
 这种抽象级别解耦了 pod 之间的通信。Pod 是有寿命的。有了 RC 和 service，我们可以构建健壮的服务，而不必担心一个 pod 可能影响所有微服务。
 
@@ -480,7 +1146,27 @@ ClusterIP 可以在集群内定义，尽管大多数情况下我们不会显式�
 
 如果服务设置为 NodePort，Kubernetes 将在每个节点上分配一个特定范围内的端口。任何发送到该端口的节点的流量将被路由到服务端口。端口号可以由用户指定。如果未指定，Kubernetes 将在 30000 到 32767 范围内随机选择一个端口而不发生冲突。另一方面，如果指定了，用户应该自行负责管理冲突。NodePort 包括 ClusterIP 的功能。Kubernetes 为服务分配一个内部 IP。在下面的例子中，我们将看到如何创建一个 NodePort 服务并利用它：
 
-[PRE48]
+```
+// write a nodeport type service
+# cat 3-2-3_nodeport.yaml
+kind: Service
+apiVersion: v1
+metadata:
+ name: nginx-nodeport
+spec:
+ type: NodePort
+ selector:
+ project: chapter3
+ service: web
+ ports:
+ - protocol: TCP
+ port: 80
+ targetPort: 80
+
+// create a nodeport service
+# kubectl create -f 3-2-3_nodeport.yaml
+service "nginx-nodeport" created  
+```
 
 然后你应该能够通过`http://${NODE_IP}:80`访问服务。Node 可以是任何节点。`kube-proxy`会监视服务和端点的任何更新，并相应地更新 iptables 规则（如果使用默认的 iptables 代理模式）。
 
@@ -502,21 +1188,87 @@ ClusterIP 可以在集群内定义，尽管大多数情况下我们不会显式�
 
 配置文件与之前的类似，只是没有选择器部分：
 
-[PRE49]
+```
+// create a service without selectors
+# cat 3-2-3_service_wo_selector_srv.yaml
+kind: Service
+apiVersion: v1
+metadata:
+ name: google-proxy
+spec:
+ ports:
+ - protocol: TCP
+ port: 80
+ targetPort: 80
+
+// create service without selectors
+# kubectl create -f 3-2-3_service_wo_selector_srv.yaml
+service "google-proxy" created  
+```
 
 由于没有选择器，将不会创建任何 Kubernetes 终点。Kubernetes 不知道将流量路由到何处，因为没有选择器可以匹配 pod。我们必须自己创建。
 
 在`Endpoints`对象中，源地址不能是 DNS 名称，因此我们将使用`nslookup`从域中查找当前的 Google IP，并将其添加到`Endpoints.subsets.addresses.ip`中：
 
-[PRE50]
+```
+// get an IP from google.com
+# nslookup www.google.com
+Server:    192.168.1.1
+Address:  192.168.1.1#53
+
+Non-authoritative answer:
+Name:  google.com
+Address: 172.217.0.238
+
+// create endpoints for the ip from google.com
+# cat 3-2-3_service_wo_selector_endpoints.yaml
+kind: Endpoints
+apiVersion: v1
+metadata:
+ name: google-proxy
+subsets:
+ - addresses:
+ - ip: 172.217.0.238
+ ports:
+ - port: 80
+
+// create Endpoints
+# kubectl create -f 3-2-3_service_wo_selector_endpoints.yaml
+endpoints "google-proxy" created  
+```
 
 让我们在集群中创建另一个 pod 来访问我们的 Google 代理：
 
-[PRE51]
+```
+// pod for accessing google proxy
+# cat 3-2-3_proxy-chk.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: proxy-chk
+spec:
+ containers:
+ - name: centos
+ image: centos
+ command: ["/bin/sh", "-c", "while : ;do curl -L http://${GOOGLE_PROXY_SERVICE_HOST}:80/; sleep 10; done"]
+
+// create the pod
+# kubectl create -f 3-2-3_proxy-chk.yaml
+pod "proxy-chk" created  
+```
 
 让我们检查一下 pod 的`stdout`：
 
-[PRE52]
+```
+// get logs from proxy-chk
+# kubectl logs proxy-chk
+% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                     Dload  Upload   Total   Spent    Left  Speed
+100   219  100   219    0     0   2596      0 --:--:-- --:--:-- --:--:--  2607
+100   258  100   258    0     0   1931      0 --:--:-- --:--:-- --:--:--  1931
+<!doctype html><html itemscope="" itemtype="http://schema.org/WebPage" lang="en-CA">
+ ...  
+```
 
 万岁！我们现在可以确认代理起作用了。对服务的流量将被路由到我们指定的终点。如果不起作用，请确保您为外部资源的网络添加了适当的入站规则。
 
@@ -540,17 +1292,39 @@ docker-registry 类型的秘密也被称为**imagePullSecrets**，它用于在�
 
 我们将从一个通用类型的示例开始，以展示它是如何工作的：
 
-[PRE53]
+```
+// create a secret by command line
+# kubectl create secret generic mypassword --from-file=./mypassword.txt
+secret "mypassword" created  
+```
 
 基于目录和文字值创建秘密的选项与文件的选项非常相似。如果在`--from-file`后指定目录，那么目录中的文件将被迭代，文件名将成为秘密密钥（如果是合法的秘密名称），其他非常规文件将被忽略，如子目录、符号链接、设备、管道。另一方面，`--from-literal=<key>=<value>`是一个选项，如果你想直接从命令中指定纯文本，例如，`--from-literal=username=root`。
 
 在这里，我们从文件`mypassword.txt`创建一个名为`mypassword`的秘密。默认情况下，秘密的键是文件名，这相当于`--from-file=mypassword=./mypassword.txt`选项。我们也可以追加多个`--from-file`。使用`kubectl get secret` `<secret_name>` `-o yaml`命令可以查看秘密的详细信息：
 
-[PRE54]
+```
+// get the detailed info of the secret
+# kubectl get secret mypassword -o yaml
+apiVersion: v1
+data:
+ mypassword: bXlwYXNzd29yZA==
+kind: Secret
+metadata:
+ creationTimestamp: 2017-06-13T08:09:35Z
+ name: mypassword
+ namespace: default
+ resourceVersion: "256749"
+ selfLink: /api/v1/namespaces/default/secrets/mypassword
+ uid: a33576b0-500f-11e7-9c45-080027cafd37
+type: Opaque  
+```
 
 我们可以看到秘密的类型变为`Opaque`，因为文本已被 kubectl 加密。它是 base64 编码的。我们可以使用一个简单的 bash 命令来解码它：
 
-[PRE55]
+```
+# echo "bXlwYXNzd29yZA==" | base64 --decode
+mypassword  
+```
 
 Pod 检索秘密有两种方式。第一种是通过文件，第二种是通过环境变量。第一种方法是通过卷实现的。语法是在容器规范中添加`containers.volumeMounts`，并在卷部分添加秘密配置。
 
@@ -558,23 +1332,72 @@ Pod 检索秘密有两种方式。第一种是通过文件，第二种是通过�
 
 让我们先看看如何从 Pod 内的文件中读取秘密：
 
-[PRE56]
+```
+// example for how a Pod retrieve secret 
+# cat 3-2-3_pod_vol_secret.yaml 
+apiVersion: v1 
+kind: Pod 
+metadata: 
+  name: secret-access 
+spec: 
+  containers: 
+  - name: centos 
+    image: centos 
+    command: ["/bin/sh", "-c", "cat /secret/password-example; done"] 
+    volumeMounts: 
+      - name: secret-vol 
+        mountPath: /secret 
+        readOnly: true 
+  volumes: 
+    - name: secret-vol 
+      secret: 
+        secretName: mypassword 
+        # items are optional 
+        items: 
+        - key: mypassword  
+          path: password-example 
+
+// create the pod 
+# kubectl create -f 3-2-3_pod_vol_secret.yaml 
+pod "secret-access" created 
+```
 
 秘密文件将被挂载在`/<mount_point>/<secret_name>`中，而不指定`items``key`和`path`，或者在 Pod 中的`/<mount_point>/<path>`中。在这种情况下，它位于`/secret/password-example`下。如果我们描述 Pod，我们可以发现这个 Pod 中有两个挂载点。第一个是只读卷，存储我们的秘密，第二个存储与 API 服务器通信的凭据，这是由 Kubernetes 创建和管理的。我们将在第五章中学到更多内容，*网络和安全*。
 
-[PRE57]
+```
+# kubectl describe pod secret-access
+...
+Mounts:
+ /secret from secret-vol (ro)
+ /var/run/secrets/kubernetes.io/serviceaccount from default-token-jd1dq (ro)
+...  
+```
 
 我们可以使用`kubectl delete secret` `<secret_name>`命令删除秘密。
 
 描述完 Pod 后，我们可以找到`FailedMount`事件，因为卷不再存在：
 
-[PRE58]
+```
+# kubectl describe pod secret-access
+...
+FailedMount  MountVolume.SetUp failed for volume "kubernetes.io/secret/28889b1d-5015-11e7-9c45-080027cafd37-secret-vol" (spec.Name: "secret-vol") pod "28889b1d-5015-11e7-9c45-080027cafd37" (UID: "28889b1d-5015-11e7-9c45-080027cafd37") with: secrets "mypassword" not found
+...  
+```
 
 同样的想法，如果 Pod 在创建秘密之前生成，那么 Pod 也会遇到失败。
 
 现在我们将学习如何通过命令行创建秘密。接下来我们将简要介绍其规范格式：
 
-[PRE59]
+```
+// secret example # cat 3-2-3_secret.yaml 
+apiVersion: v1 
+kind: Secret 
+metadata:  
+  name: mypassword 
+type: Opaque 
+data:  
+  mypassword: bXlwYXNzd29yZA==
+```
 
 由于规范是纯文本，我们需要通过自己的`echo -n <password>` `| base64`来对秘密进行编码。请注意，这里的类型变为`Opaque`。按照这样做，它应该与我们通过命令行创建的那个相同。
 
@@ -584,7 +1407,29 @@ Pod 检索秘密有两种方式。第一种是通过文件，第二种是通过�
 
 秘密应该始终在需要它的 Pod 之前创建。否则，Pod 将无法成功启动。
 
-[PRE60]
+```
+// example to use environment variable to retrieve the secret
+# cat 3-2-3_pod_ev_secret.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: secret-access-ev
+spec:
+ containers:
+ - name: centos
+ image: centos
+ command: ["/bin/sh", "-c", "while : ;do echo $MY_PASSWORD; sleep 10; done"]
+ env:
+ - name: MY_PASSWORD
+ valueFrom:
+ secretKeyRef:
+ name: mypassword
+ key: mypassword
+
+// create the pod 
+# kubectl create -f 3-2-3_pod_ev_secret.yaml
+pod "secret-access-ev" created 
+```
 
 声明位于`spec.containers[].env[]`下。在这种情况下，我们需要秘密名称和密钥名称。两者都是`mypassword`。示例应该与通过文件检索的示例相同。
 
@@ -594,13 +1439,36 @@ ConfigMap 是一种能够将配置留在 Docker 镜像之外的方法。它将�
 
 与 secret 相同，ConfigMap 可以基于文件、目录或指定的文字值。与 secret 相似的语法/命令，ConfigMap 使用`kubectl create configmap`而不是：
 
-[PRE61]
+```
+// create configmap
+# kubectl create configmap example --from-file=config/app.properties --from-file=config/database.properties
+configmap "example" created  
+```
 
 由于两个`config`文件位于同一个名为`config`的文件夹中，我们可以传递一个`config`文件夹，而不是逐个指定文件。在这种情况下，创建等效命令是`kubectl create configmap example --from-file=config`。
 
 如果我们描述 ConfigMap，它将显示当前信息：
 
-[PRE62]
+```
+// check out detailed information for configmap
+# kubectl describe configmap example
+Name:    example
+Namespace:  default
+Labels:    <none>
+Annotations:  <none>
+
+Data
+====
+app.properties:
+----
+name=DevOps-with-Kubernetes
+port=4420
+
+database.properties:
+----
+endpoint=k8s.us-east-1.rds.amazonaws.com
+port=1521  
+```
 
 我们可以使用`kubectl edit configmap` `<configmap_name>`来更新创建后的配置。
 
@@ -612,7 +1480,34 @@ ConfigMap 是一种能够将配置留在 Docker 镜像之外的方法。它将�
 
 与 secret 部分中的先前示例类似，我们使用`configmap`语法挂载卷，并在容器模板中添加`volumeMounts`。在`centos`中，该命令将循环执行`cat ${MOUNTPOINT}/$CONFIG_FILENAME`。
 
-[PRE63]
+```
+cat 3-2-3_pod_vol_configmap.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: configmap-vol
+spec:
+ containers:
+ - name: configmap
+ image: centos
+ command: ["/bin/sh", "-c", "while : ;do cat /src/app/config/database.properties; sleep 10; done"]
+ volumeMounts:
+ - name: config-volume
+ mountPath: /src/app/config
+ volumes:
+ - name: config-volume
+ configMap:
+ name: example
+
+// create configmap
+# kubectl create -f 3-2-3_pod_vol_configmap.yaml
+pod "configmap-vol" created
+
+// check out the logs
+# kubectl logs -f configmap-vol
+endpoint=k8s.us-east-1.rds.amazonaws.com
+port=1521  
+```
 
 然后我们可以使用这种方法将我们的非敏感配置注入到 pod 中。
 
@@ -620,7 +1515,33 @@ ConfigMap 是一种能够将配置留在 Docker 镜像之外的方法。它将�
 
 要在 pod 内使用 ConfigMap，您必须在`env`部分中使用`configMapKeyRef`作为值来源。它将将整个 ConfigMap 对填充到环境变量中：
 
-[PRE64]
+```
+# cat 3-2-3_pod_ev_configmap.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: config-ev
+spec:
+ containers:
+ - name: centos
+ image: centos
+ command: ["/bin/sh", "-c", "while : ;do echo $DATABASE_ENDPOINT; sleep 10;    
+   done"]
+ env:
+ - name: MY_PASSWORD
+ valueFrom:
+ secretKeyRef:
+ name: mypassword
+ key: mypassword
+
+// create configmap
+# kubectl create -f 3-2-3_pod_ev_configmap.yaml
+pod "configmap-ev" created
+
+// check out the logs
+# kubectl logs configmap-ev
+endpoint=k8s.us-east-1.rds.amazonaws.com port=1521  
+```
 
 Kubernetes 系统本身也利用 ConfigMap 来进行一些认证。例如，kube-dns 使用它来放置客户端 CA 文件。您可以通过在描述 ConfigMaps 时添加`--namespace=kube-system`来检查系统 ConfigMap。
 
@@ -634,41 +1555,286 @@ Kubernetes 系统本身也利用 ConfigMap 来进行一些认证。例如，kube
 
 我们将首先启动 MySQL，因为记录器依赖于它。在创建 MySQL 之前，我们必须先创建相应的`secret`和`ConfigMap`。要创建`secret`，我们需要生成 base64 加密的数据：
 
-[PRE65]
+```
+// generate base64 secret for MYSQL_PASSWORD and MYSQL_ROOT_PASSWORD
+# echo -n "pass" | base64
+cGFzcw==
+# echo -n "mysqlpass" | base64
+bXlzcWxwYXNz
+```
 
 然后我们可以创建秘钥：
 
-[PRE66]
+```
+# cat secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+ name: mysql-user
+type: Opaque
+data:
+ password: cGFzcw==
+
+---
+# MYSQL_ROOT_PASSWORD
+apiVersion: v1
+kind: Secret
+metadata:
+ name: mysql-root
+type: Opaque
+data:
+ password: bXlzcWxwYXNz
+
+// create mysql secret
+# kubectl create -f secret.yaml --record
+secret "mysql-user" created
+secret "mysql-root" created
+```
 
 然后我们来到我们的 ConfigMap。在这里，我们将数据库用户和数据库名称作为示例放入：
 
-[PRE67]
+```
+# cat config.yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+ name: mysql-config
+data:
+ user: user
+ database: db
+
+// create ConfigMap
+# kubectl create -f config.yaml --record
+configmap "mysql-config" created  
+```
 
 然后是启动 MySQL 及其服务的时候：
 
-[PRE68]
+```
+// MySQL Deployment
+# cat mysql.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+ name: lmysql
+spec:
+ replicas: 1
+ template:
+ metadata:
+ labels:
+ tier: database
+ version: "5.7"
+ spec:
+ containers:
+ - name: lmysql
+ image: mysql:5.7
+ volumeMounts:
+ - mountPath: /var/lib/mysql
+ name: mysql-vol
+ ports:
+ - containerPort: 3306
+ env:
+ - name: MYSQL_ROOT_PASSWORD
+ valueFrom:
+ secretKeyRef:
+ name: mysql-root
+ key: password
+ - name: MYSQL_DATABASE
+ valueFrom:
+ configMapKeyRef:
+ name: mysql-config
+ key: database
+ - name: MYSQL_USER
+ valueFrom:
+ configMapKeyRef:
+ name: mysql-config
+ key: user
+ - name: MYSQL_PASSWORD
+ valueFrom:
+ secretKeyRef:
+ name: mysql-user
+ key: password
+ volumes:
+ - name: mysql-vol
+ hostPath:
+ path: /mysql/data
+---
+kind: Service
+apiVersion: v1
+metadata:
+ name: lmysql-service
+spec:
+ selector:
+ tier: database
+ ports:
+ - protocol: TCP
+ port: 3306
+ targetPort: 3306
+ name: tcp3306  
+```
 
 我们可以通过添加三个破折号作为分隔，将多个规范放入一个文件中。在这里，我们将`hostPath /mysql/data`挂载到具有路径`/var/lib/mysql`的 pod 中。在环境部分，我们通过`secretKeyRef`和`configMapKeyRef`利用秘钥和 ConfigMap 的语法。
 
 创建 MySQL 后，Redis 将是下一个很好的候选，因为它是其他的依赖，但它不需要先决条件：
 
-[PRE69]
+```
+// create Redis deployment
+# cat redis.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+ name: lcredis
+spec:
+ replicas: 1
+ template:
+ metadata:
+ labels:
+ tier: cache
+ version: "3.0"
+ spec:
+ containers:
+ - name: lcredis
+ image: redis:3.0
+ ports:
+ - containerPort: 6379
+minReadySeconds: 1
+strategy:
+ type: RollingUpdate
+ rollingUpdate:
+ maxSurge: 1
+ maxUnavailable: 1
+---
+kind: Service
+apiVersion: v1
+metadata:
+ name: lcredis-service
+spec:
+ selector:
+ tier: cache
+ ports:
+ - protocol: TCP
+ port: 6379
+ targetPort: 6379
+ name: tcp6379
+
+// create redis deployements and service
+# kubectl create -f redis.yaml
+deployment "lcredis" created
+service "lcredis-service" created  
+```
 
 然后现在是启动 kiosk 的好时机：
 
-[PRE70]
+```
+# cat kiosk-example.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+ name: kiosk-example
+spec:
+ replicas: 5
+ template:
+ metadata:
+ labels:
+ tier: frontend
+ version: "3"
+ annotations:
+ maintainer: cywu
+ spec:
+ containers:
+ - name: kiosk-example
+ image: devopswithkubernetes/kiosk-example
+ ports:
+ - containerPort: 5000
+ env:
+ - name: REDIS_HOST
+ value: lcredis-service.default
+ minReadySeconds: 5
+ strategy:
+ type: RollingUpdate
+ rollingUpdate:
+ maxSurge: 1
+ maxUnavailable: 1
+---
+kind: Service
+apiVersion: v1
+metadata:
+ name: kiosk-service
+spec:
+ type: NodePort
+ selector:
+ tier: frontend
+ ports:
+ - protocol: TCP
+ port: 80
+ targetPort: 5000
+ name: tcp5000
+
+// launch the spec
+# kubectl create -f kiosk-example.yaml
+deployment "kiosk-example" created
+service "kiosk-service" created    
+```
 
 在这里，我们将`lcredis-service.default`暴露给 kiosk pod 的环境变量，这是 kube-dns 为`Service`对象（在本章中称为 service）创建的 DNS 名称。因此，kiosk 可以通过环境变量访问 Redis 主机。
 
 最后，我们将创建录音机。录音机不向其他人公开任何接口，因此不需要`Service`对象：
 
-[PRE71]
+```
+# cat recorder-example.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+ name: recorder-example
+spec:
+ replicas: 3
+ template:
+ metadata:
+ labels:
+ tier: backend
+ version: "3"
+ annotations:
+ maintainer: cywu
+ spec:
+ containers:
+ - name: recorder-example
+ image: devopswithkubernetes/recorder-example
+ env:
+ - name: REDIS_HOST
+ value: lcredis-service.default
+ - name: MYSQL_HOST
+ value: lmysql-service.default
+ - name: MYSQL_USER
+ value: root
+ - name: MYSQL_ROOT_PASSWORD
+ valueFrom:
+ secretKeyRef:
+ name: mysql-root
+ key: password
+minReadySeconds: 3
+strategy:
+ type: RollingUpdate
+ rollingUpdate:
+ maxSurge: 1
+ maxUnavailable: 1
+// create recorder deployment
+# kubectl create -f recorder-example.yaml
+deployment "recorder-example" created  
+```
 
 录音机需要访问 Redis 和 MySQL。它使用通过秘密注入的根凭据。Redis 和 MySQL 的两个端点通过服务 DNS 名称`<service_name>.<namespace>`访问。
 
 然后我们可以检查`deployment`对象：
 
-[PRE72]
+```
+// check deployment details
+# kubectl get deployments
+NAME               DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+kiosk-example      5         5         5            5           1h
+lcredis            1         1         1            1           1h
+lmysql             1         1         1            1           1h
+recorder-example   3         3         3            3           1h  
+```
 
 不出所料，我们有四个`deployment`对象，每个对象都有不同的期望 pod 数量。
 
@@ -686,7 +1852,15 @@ Kubernetes 系统本身也利用 ConfigMap 来进行一些认证。例如，kube
 
 然后我们可以通过`POST`和`GET /tickets`创建和获取票据：
 
-[PRE73]
+```
+// post ticket
+# curl -XPOST -F 'value=100' http://192.168.99.100:30520/tickets
+SUCCESS
+
+// get ticket
+# curl -XGET http://192.168.99.100:30520/tickets
+100  
+```
 
 # 总结
 

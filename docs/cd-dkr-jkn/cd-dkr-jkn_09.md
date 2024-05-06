@@ -82,7 +82,22 @@ NoSQL 数据库通常没有任何限制模式，因此简化了持续交付过�
 
 为了将 Flyway 与 Gradle 一起使用，我们需要将以下内容添加到`build.gradle`文件中：
 
-[PRE0]
+```
+buildscript {
+   dependencies {
+       classpath('com.h2database:h2:1.4.191')
+    }
+}
+…
+plugins {
+   id "org.flywaydb.flyway" version "4.2.0"
+}
+…
+flyway {
+   url = 'jdbc:h2:file:/tmp/calculator'
+   user = 'sa'
+}
+```
 
 以下是对配置的快速评论：
 
@@ -96,7 +111,9 @@ NoSQL 数据库通常没有任何限制模式，因此简化了持续交付过�
 
 应用此配置后，我们应该能够通过执行以下命令来运行 Flyway 工具：
 
-[PRE1]
+```
+$ ./gradlew flywayMigrate -i
+```
 
 该命令在文件`/tmp/calculator.mv.db`中创建了数据库。显然，由于我们还没有定义任何内容，它没有模式。
 
@@ -106,11 +123,24 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 下一步是定义 SQL 文件，将计算表添加到数据库模式中。让我们创建`src/main/resources/db/migration/V1__Create_calculation_table.sql`文件，内容如下：
 
-[PRE2]
+```
+create table CALCULATION (
+   ID      int not null auto_increment,
+   A       varchar(100),
+   B       varchar(100),
+   RESULT  varchar(100),
+   primary key (ID)
+);
+```
 
 请注意迁移文件的命名约定，`<version>__<change_description>.sql`。SQL 文件创建了一个具有四列`ID`、`A`、`B`、`RESULT`的表。`ID`列是表的自动递增主键。现在，我们准备运行 Flyway 命令来应用迁移：
 
-[PRE3]
+```
+$ ./gradlew flywayMigrate -i
+…
+Successfully applied 1 migration to schema "PUBLIC" (execution time 00:00.028s).
+:flywayMigrate (Thread[Daemon worker Thread 2,5,main]) completed. Took 1.114 secs.
+```
 
 该命令自动检测到迁移文件并在数据库上执行了它。
 
@@ -122,27 +152,79 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 首先，让我们配置 Gradle 依赖项以使用 Spring Boot 项目中的 H2 数据库。我们可以通过将以下行添加到`build.gradle`文件中来实现这一点：
 
-[PRE4]
+```
+dependencies {
+   compile("org.springframework.boot:spring-boot-starter-data-jpa")
+   compile("com.h2database:h2")
+}
+```
 
 下一步是在`src/main/resources/application.properties`文件中设置数据库位置和启动行为：
 
-[PRE5]
+```
+spring.datasource.url=jdbc:h2:file:/tmp/calculator;DB_CLOSE_ON_EXIT=FALSE
+spring.jpa.hibernate.ddl-auto=validate
+```
 
 第二行意味着 Spring Boot 不会尝试从源代码模型自动生成数据库模式。相反，它只会验证数据库模式是否与 Java 模型一致。
 
 现在，让我们在新的`src/main/java/com/leszko/calculator/Calculation.java`文件中为计算创建 Java ORM 实体模型：
 
-[PRE6]
+```
+package com.leszko.calculator;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+@Entity
+public class Calculation {
+   @Id
+   @GeneratedValue(strategy= GenerationType.AUTO)
+   private Integer id;
+   private String a;
+   private String b;
+   private String result;
+
+   protected Calculation() {}
+
+   public Calculation(String a, String b, String result) {
+       this.a = a;
+       this.b = b;
+       this.result = result;
+   }
+}
+```
 
 实体类在 Java 代码中表示数据库映射。一个表被表示为一个类，每一列被表示为一个字段。下一步是创建用于加载和存储`Calculation`实体的存储库。
 
 让我们创建`src/main/java/com/leszko/calculator/CalculationRepository.java`文件：
 
-[PRE7]
+```
+package com.leszko.calculator;
+import org.springframework.data.repository.CrudRepository;
+
+public interface CalculationRepository extends CrudRepository<Calculation, Integer> {}
+```
 
 最后，我们可以使用`Calculation`和`CalculationRepository`类来存储计算历史。让我们将以下代码添加到`src/main/java/com/leszko/calculator/CalculatorController.java`文件中：
 
-[PRE8]
+```
+...
+class CalculatorController {
+   ...
+
+   @Autowired
+   private CalculationRepository calculationRepository;
+
+   @RequestMapping("/sum")
+   String sum(@RequestParam("a") Integer a, @RequestParam("b") Integer b) {
+       String result = String.valueOf(calculator.sum(a, b));
+       calculationRepository.save(new Calculation(a.toString(), b.toString(), result));
+       return result;
+   }
+}
+```
 
 现在，当我们启动服务并执行`/sum`端点时，每个求和操作都会记录到数据库中。
 
@@ -178,15 +260,24 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 让我们看一个向后兼容更改的例子。我们将创建一个模式更新，向计算表添加一个`created_at`列。迁移文件`src/main/resources/db/migration/V2__Add_created_at_column.sql`如下所示：
 
-[PRE9]
+```
+alter table CALCULATION
+add CREATED_AT timestamp;
+```
 
 除了迁移脚本，计算器服务还需要在`Calculation`类中添加一个新字段：
 
-[PRE10]
+```
+...
+private Timestamp createdAt;
+...
+```
 
 我们还需要调整它的构造函数，然后在`CalculatorController`类中使用它：
 
-[PRE11]
+```
+calculationRepository.save(new Calculation(a.toString(), b.toString(), result, Timestamp.from(Instant.now())));
+```
 
 运行服务后，计算历史记录将与`created_at`列一起存储。请注意，这个更改是向后兼容的，因为即使我们恢复 Java 代码并保留数据库中的`created_at`列，一切都会正常工作（恢复的代码根本不涉及新列）。
 
@@ -228,7 +319,10 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 假设我们需要将`result`列重命名为`sum`。第一步是添加一个将是重复的新列。我们必须创建一个`src/main/resources/db/migration/V3__Add_sum_column.sql`迁移文件：
 
-[PRE12]
+```
+alter table CALCULATION
+add SUM varchar(100);
+```
 
 因此，在执行迁移后，我们有两列：`result`和`sum`。
 
@@ -236,7 +330,24 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 下一步是在源代码模型中重命名列，并将两个数据库列用于设置和获取操作。我们可以在`Calculation`类中进行更改：
 
-[PRE13]
+```
+public class Calculation {
+    ...
+    private String sum;
+    ...
+    public Calculation(String a, String b, String sum, Timestamp createdAt) {
+        this.a = a;
+        this.b = b;
+        this.sum = sum;
+        this.result = sum;
+        this.createdAt = createdAt;
+    }
+
+    public String getSum() {
+        return sum != null ? sum : result;
+    }
+}
+```
 
 为了 100%准确，在`getSum()`方法中，我们应该比较类似最后修改列日期的内容（不一定总是首先使用新列）。
 
@@ -250,7 +361,11 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 这一步通常在发布稳定后的一段时间内完成。我们需要将旧的`result`列中的数据复制到新的`sum`列中。让我们创建一个名为`V4__Copy_result_into_sum_column.sql`的迁移文件：
 
-[PRE14]
+```
+update CALCULATION
+set CALCULATION.sum = CALCULATION.result
+where CALCULATION.sum is null;
+```
 
 我们仍然没有回滚的限制；然而，如果我们需要部署在第 2 步之前的版本，那么这个数据库迁移需要重复执行。
 
@@ -258,7 +373,23 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 此时，我们已经将所有数据存储在新列中，因此我们可以在数据模型中开始使用它，而不需要旧列。为了做到这一点，我们需要删除`Calculation`类中与`result`相关的所有代码，使其如下所示：
 
-[PRE15]
+```
+public class Calculation {
+    ...
+    private String sum;
+    ...
+    public Calculation(String a, String b, String sum, Timestamp createdAt) {
+        this.a = a;
+        this.b = b;
+        this.sum = sum;
+        this.createdAt = createdAt;
+    }
+
+    public String getSum() {
+        return sum;
+    }
+}
+```
 
 在此操作之后，我们不再在代码中使用`result`列。请注意，此操作仅向后兼容到第 2 步。如果我们需要回滚到第 1 步，那么我们可能会丢失此步骤之后存储的数据。
 
@@ -270,7 +401,10 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 让我们添加最终的迁移，`V5__Drop_result_column.sql`：
 
-[PRE16]
+```
+alter table CALCULATION
+drop column RESULT;
+```
 
 在这一步之后，我们终于完成了列重命名的过程。请注意，我们所做的一切只是稍微复杂了操作，以便将其延长。这减少了向后不兼容的数据库更改的风险，并允许零停机部署。
 
@@ -368,7 +502,26 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 让我们看看实际操作中是什么样子。如果我们想要并行运行两个步骤，Jenkinsfile 脚本应该如下所示：
 
-[PRE17]
+```
+pipeline {
+   agent any
+   stages {
+       stage('Stage 1') {
+           steps {
+               parallel (
+                       one: { echo "parallel step 1" },
+                       two: { echo "parallel step 2" }
+               )
+           }
+       }
+       stage('Stage 2') {
+           steps {
+               echo "run after both parallel steps are completed"   
+           }
+       }
+   }
+}
+```
 
 在`阶段 1`中，使用`parallel`关键字，我们执行两个并行步骤，`one`和`two`。请注意，只有在两个并行步骤都完成后，才会执行`阶段 2`。这就是为什么这样的解决方案非常安全地并行运行测试；我们始终可以确保只有在所有并行测试都已通过后，才会运行部署阶段。
 
@@ -392,7 +545,24 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 我们已经在第四章中提到，*持续集成管道*，管道可以有输入参数。我们可以使用它们来为相同的管道代码提供不同的用例。例如，让我们创建一个带有环境类型参数的管道：
 
-[PRE18]
+```
+pipeline {
+   agent any
+
+   parameters {
+       string(name: 'Environment', defaultValue: 'dev', description: 'Which 
+         environment (dev, qa, prod)?')
+   }
+
+   stages {
+       stage('Environment check') {
+           steps {
+               echo "Current environment: ${params.Environment}"   
+           }
+       }
+   }
+}
+```
 
 构建需要一个输入参数，`环境`。然后，在这一步中，我们所做的就是打印参数。我们还可以添加一个条件，以执行不同环境的不同代码。
 
@@ -420,7 +590,14 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 让我们创建一个`sayHello`步骤，它接受`name`参数并回显一个简单的消息。这应该存储在`vars/sayHello.groovy`文件中：
 
-[PRE19]
+```
+/
+* Hello world step.
+*/
+def call(String name) {   
+   echo "Hello $name!"
+}
+```
 
 共享库步骤的可读性描述可以存储在`*.txt`文件中。在我们的例子中，我们可以添加带有步骤文档的`vars/sayHello.txt`文件。
 
@@ -442,7 +619,18 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 让我们看一个例子：
 
-[PRE20]
+```
+pipeline {
+   agent any
+   stages {
+       stage("Hello stage") {
+           steps {
+           sayHello 'Rafal'
+         }
+       }
+   }
+}
+```
 
 如果在 Jenkins 配置中没有选中“隐式加载”，那么我们需要在 Jenkinsfile 脚本的开头添加"`@Library('example') _`"。
 
@@ -486,7 +674,13 @@ Flyway 可以作为命令行工具、通过 Java API 或作为流行构建工具
 
 Jenkins 语法提供了一个关键字`input`用于手动步骤：
 
-[PRE21]
+```
+stage("Release approval") {
+   steps {
+       input "Do you approve the release?"
+   }
+}
+```
 
 管道将在“输入”步骤上停止执行，并等待手动批准。
 

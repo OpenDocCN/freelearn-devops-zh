@@ -136,11 +136,17 @@ Docker 使用的执行驱动程序和内核功能（[`blog.docker.com/wp-content
 
 有多种方法可以控制 cgroups 的工作。最流行的两种方法是手动访问 cgroup 虚拟文件系统和使用`libcgroup`库访问它。要在 fedora 中使用`libcgroup`，运行以下命令安装所需的软件包：
 
-[PRE0]
+```
+$ sudo yum install libcgroup libcgroup-tools
+
+```
 
 安装后，您可以使用以下命令在伪文件系统中获取子系统及其挂载点的列表：
 
-[PRE1]
+```
+$ lssubsys -M
+
+```
 
 ![Cgroups](img/image00270.jpeg)
 
@@ -174,23 +180,41 @@ Docker 支持许多 Linux 平台，如 RHEL、Ubuntu、Fedora、CentOS、Debian�
 
 1.  Docker 不支持 32 位架构。要检查系统架构，请运行以下命令：
 
-[PRE2]
+```
+$ uname -i
+x86_64
+
+```
 
 1.  Docker 支持内核 3.8 或更高版本。它已经被后移至一些内核 2.6，如 RHEL 6.5 及以上版本。要检查内核版本，请运行以下命令：
 
-[PRE3]
+```
+$ uname -r
+3.18.7-200.fc21.x86_64
+
+```
 
 1.  运行的内核应支持适当的存储后端。其中一些是 VFS、DeviceMapper、AUFS、Btrfs 和 OverlayFS。
 
 大多数情况下，默认的存储后端或驱动程序是 devicemapper，它使用设备映射器薄配置模块来实现层。它应该默认安装在大多数 Linux 平台上。要检查设备映射器，您可以运行以下命令：
 
-[PRE4]
+```
+$ grep device-mapper /proc/devices
+253 device-mapper
+
+```
 
 在大多数发行版中，AUFS 需要一个修改过的内核。
 
 1.  对于 cgroups 和命名空间的支持已经在内核中有一段时间了，并且应该默认启用。要检查它们的存在，您可以查看正在运行的内核的相应配置文件。例如，在 Fedora 上，我可以做类似以下的事情：
 
-[PRE5]
+```
+$ grep -i namespaces /boot/config-3.18.7-200.fc21.x86_64
+CONFIG_NAMESPACES=y
+$ grep -i cgroups /boot/config-3.18.7-200.fc21.x86_64
+CONFIG_CGROUPS=y
+
+```
 
 ## 工作原理…
 
@@ -212,7 +236,10 @@ Docker 支持许多 Linux 平台，如 RHEL、Ubuntu、Fedora、CentOS、Debian�
 
 1.  使用 yum 安装 Docker：
 
-[PRE6]
+```
+$  yum -y install docker
+
+```
 
 ## 它是如何工作的...
 
@@ -224,23 +251,38 @@ Docker 支持许多 Linux 平台，如 RHEL、Ubuntu、Fedora、CentOS、Debian�
 
 +   启动服务：
 
-[PRE7]
+```
+$ systemctl start docker
+
+```
 
 +   验证安装：
 
-[PRE8]
+```
+$ docker info
+
+```
 
 +   更新软件包：
 
-[PRE9]
+```
+$ yum -y update docker
+
+```
 
 +   启用开机启动服务：
 
-[PRE10]
+```
+$ systemctl enable docker
+
+```
 
 +   停止服务：
 
-[PRE11]
+```
+$ systemctl stop docker
+
+```
 
 ## 另请参阅
 
@@ -258,11 +300,17 @@ Docker 支持许多 Linux 平台，如 RHEL、Ubuntu、Fedora、CentOS、Debian�
 
 1.  要拉取一个镜像，请运行以下命令：
 
-[PRE12]
+```
+$ docker pull fedora
+
+```
 
 1.  使用以下命令列出现有的镜像：
 
-[PRE13]
+```
+$ docker images
+
+```
 
 ![如何做到...](img/image00272.jpeg)
 
@@ -310,17 +358,26 @@ Docker 图像层([`docs.docker.com/terms/images/docker-filesystems-multilayer.pn
 
 1.  如果还没有，创建 Docker 组：
 
-[PRE14]
+```
+$ sudo group add docker
+
+```
 
 1.  创建要授予管理 Docker 权限的用户：
 
-[PRE15]
+```
+$ useradd dockertest
+
+```
 
 ## 如何做…
 
 运行以下命令以允许新创建的用户管理 Docker：
 
-[PRE16]
+```
+$ sudo  gpasswd -a dockertest docker
+
+```
 
 ## 它是如何工作的…
 
@@ -338,13 +395,20 @@ Docker 图像层([`docs.docker.com/terms/images/docker-filesystems-multilayer.pn
 
 Docker Machine 不会出现在默认安装中。您需要从其 GitHub 发布链接（[`github.com/docker/machine/releases`](https://github.com/docker/machine/releases)）下载它。请在下载之前检查最新版本和分发。作为 root 用户，下载二进制文件并使其可执行：
 
-[PRE17]
+```
+$ curl -L https://github.com/docker/machine/releases/download/v0.2.0/docker-machine_linux-amd64 > /usr/local/bin/docker-machine
+$ chmod a+x  /usr/local/bin/docker-machine
+
+```
 
 如果您在**Google Compute Engine**（**GCE**）上没有帐户，那么您可以注册免费试用（[`cloud.google.com/compute/docs/signup`](https://cloud.google.com/compute/docs/signup)）来尝试这个配方。我假设您在 GCE 上有一个项目，并且在下载 Docker Machine 二进制文件的系统上安装了 Google Cloud SDK。如果没有，那么您可以按照以下步骤操作：
 
 1.  在本地系统上设置 Google Cloud SDK：
 
-[PRE18]
+```
+$ curl https://sdk.cloud.google.com | bash
+
+```
 
 1.  在 GCE 上创建一个项目（[`console.developers.google.com/project`](https://console.developers.google.com/project)）并获取其项目 ID。请注意，项目名称和其 ID 是不同的。
 
@@ -354,15 +418,39 @@ Docker Machine 不会出现在默认安装中。您需要从其 GitHub 发布链
 
 1.  将我们收集到的项目 ID 分配给变量`GCE_PROJECT`：
 
-[PRE19]
+```
+$ export  GCE_PROJECT="<Your Project ID>"
+
+```
 
 1.  运行以下命令并输入弹出的网页浏览器上提供的代码：
 
-[PRE20]
+```
+$ docker-machine  create -d google --google-project=$GCE_PROJECT  --google-machine-type=n1-standard-2 --google-disk-size=50 cookbook
+INFO[0000] Opening auth URL in browser.
+.......
+......
+INFO[0015] Saving token in /home/nkhare/.docker/machine/machines/cookbook/gce_token
+
+INFO[0015] Creating host...
+INFO[0015] Generating SSH Key
+INFO[0015] Creating instance.
+INFO[0016] Creating firewall rule.
+INFO[0020] Waiting for Instance...
+INFO[0066] Waiting for SSH...
+INFO[0066] Uploading SSH Key
+INFO[0067] Waiting for SSH Key
+INFO[0224] "cookbook" has been created and is now the active machine.
+INFO[0224] To point your Docker client at it, run this in your shell: eval "$(docker-machine_linux-amd64 env cookbook)"
+
+```
 
 1.  列出 Docker Machine 管理的现有主机：
 
-[PRE21]
+```
+$ ./docker-machine_linux-amd64 ls
+
+```
 
 ![如何操作...](img/image00276.jpeg)
 
@@ -370,7 +458,10 @@ Docker Machine 不会出现在默认安装中。您需要从其 GitHub 发布链
 
 1.  显示设置 Docker 客户端环境的命令：
 
-[PRE22]
+```
+$  ./docker-machine_linux-amd64 env cookbook
+
+```
 
 ![如何操作...](img/image00277.jpeg)
 
@@ -378,7 +469,10 @@ Docker Machine 不会出现在默认安装中。您需要从其 GitHub 发布链
 
 1.  并且要指定 Docker 客户端使用我们新创建的机器，请运行以下命令：
 
-[PRE23]
+```
+$ eval "$(./docker-machine_linux-amd64 env  cookbook)"
+
+```
 
 从现在开始，所有 Docker 命令都将在我们在 GCE 上预配的机器上运行，直到设置前面的环境变量。
 
@@ -390,11 +484,17 @@ Docker Machine 连接到云提供商并设置带有 Docker Engine 的 Linux VM�
 
 Docker Machine 提供管理命令，如`create`、`start`、`stop`、`restart`、`kill`、`remove`、`ssh`和其他命令来管理机器。有关详细选项，请查找 Docker Machine 的帮助选项：
 
-[PRE24]
+```
+$ docker-machine  -h
+
+```
 
 您可以使用`--driver/-d`选项来选择部署的许多端点之一。例如，要使用 VirtualBox 设置环境，请运行以下命令：
 
-[PRE25]
+```
+$ docker-machine create --driver virtualbox dev
+
+```
 
 ![还有更多...](img/image00278.jpeg)
 
@@ -418,11 +518,18 @@ Docker 命令有很好的文档，可以在需要时进行参考。在线文档�
 
 1.  在基于 Linux 的系统上，您可以使用`man`命令查找帮助，如下所示：
 
-[PRE26]
+```
+$ man docker
+
+```
 
 1.  还可以使用以下任何命令找到特定子命令的帮助：
 
-[PRE27]
+```
+$ man docker ps
+$ man docker-ps
+
+```
 
 ## 工作原理…
 

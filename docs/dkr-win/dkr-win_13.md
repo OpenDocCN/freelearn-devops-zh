@@ -58,7 +58,10 @@ Gogs 是一个流行的开源 Git 服务器。它是用 Go 语言编写的，跨
 
 将 Gogs 打包到 Docker 镜像中非常简单。这是在 Dockerfile 中编写安装说明的情况，我已经为`dockeronwindows/ch10-gogs:2e`镜像完成了这个过程。该镜像使用多阶段构建，从 Windows Server Core 开始，下载 Gogs 发布并展开 ZIP 文件。
 
-[PRE0]
+```
+#escape=` FROM mcr.microsoft.com/windows/servercore:ltsc2019 as installer SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"] ARG GOGS_VERSION="0.11.86" RUN Write-Host "Downloading: $($env:GOGS_VERSION)"; `
+ Invoke-WebRequest -Uri "https://cdn.gogs.io/$($env:GOGS_VERSION)...zip" -OutFile 'gogs.zip'; RUN  Expand-Archive gogs.zip -DestinationPath C:\;
+```
 
 这里没有什么新东西，但有几点值得关注。Gogs 团队提供了一个 CDN 来发布他们的版本，并且 URL 使用相同的格式，所以我已经将版本号参数化为可下载。`ARG`指令使用默认的 Gogs 版本`0.11.86`，但我可以通过指定构建参数来安装不同的版本，而无需更改 Dockerfile。
 
@@ -66,17 +69,25 @@ Gogs 是一个流行的开源 Git 服务器。它是用 Go 语言编写的，跨
 
 最终镜像可以基于 Nano Server，因为 Gogs 是一个跨平台技术，但它依赖于难以在 Nano Server 中设置的 Git 工具。使用 Chocolatey 很容易安装依赖项，但在 Nano Server 中无法使用。我正在使用`sixeyed/chocolatey`作为基础应用程序镜像，这是 Docker Hub 上的一个公共镜像，在 Windows Server Core 上安装了 Chocolatey，然后我为 Gogs 设置了环境：
 
-[PRE1]
+```
+FROM sixeyed/chocolatey:windowsservercore-ltsc2019 ARG GOGS_VERSION="0.11.86" ARG GOGS_PATH="C:\gogs"
+
+ENV GOGS_VERSION=${GOGS_VERSION} `GOGS_PATH=${GOGS_PATH} EXPOSE 3000 VOLUME C:\data C:\logs C:\repositories CMD ["gogs", "web"]
+```
 
 我正在捕获 Gogs 版本和安装路径作为`ARG`指令，以便它们可以在构建时指定。构建参数不会存储在最终镜像中，所以我将它们复制到`ENV`指令中的环境变量中。Gogs 默认使用端口`3000`，我为所有数据、日志和存储库目录创建卷。
 
 Gogs 是一个 Git 服务器，但它的发布版本中不包括 Git，这就是为什么我使用了安装了 Chocolatey 的镜像。我使用`choco`命令行来安装`git`：
 
-[PRE2]
+```
+RUN choco install -y git
+```
 
 最后，我从安装程序阶段复制了扩展的`Gogs`目录，并从本地的`app.ini`文件中捆绑了一组默认配置：
 
-[PRE3]
+```
+WORKDIR ${GOGS_PATH} COPY app.ini ./custom/conf/app.ini COPY --from=installer ${GOGS_PATH} .
+```
 
 构建这个镜像给我一个可以在 Windows 容器中运行的 Git 服务器。
 
@@ -86,7 +97,15 @@ Gogs 是一个 Git 服务器，但它的发布版本中不包括 Git，这就是
 
 您可以像运行任何其他容器一样运行 Gogs：将其设置为分离状态，发布 HTTP 端口，并使用主机挂载将卷存储在容器之外已知位置：
 
-[PRE4]
+```
+> mkdir C:\gogs\data; mkdir C:\gogs\repos
+
+> docker container run -d -p 3000:3000 `
+    --name gogs `
+    -v C:\gogs\data:C:\data `
+    -v C:\gogs\repos:C:\gogs\repositories `
+    dockeronwindows/ch10-gogs:2e
+```
 
 Gogs 镜像内置了默认配置设置，但当您第一次运行应用程序时，您需要完成安装向导。我可以浏览到`http://localhost:3000`，保留默认值，并点击安装 Gogs 按钮：
 
@@ -100,13 +119,29 @@ Gogs 支持问题跟踪和拉取请求，除了通常的 Git 功能，因此它�
 
 我使用`gogs`作为容器名称，所以其他容器可以通过该名称访问 Git 服务器。我还在我的主机文件中添加了一个与本地机器指向相同名称的条目，这样我就可以在我的机器和容器内使用相同的`gogs`名称（这在`C:\Windows\System32\drivers\etc\hosts`中）：
 
-[PRE5]
+```
+#ch10 
+127.0.0.1  gogs
+```
 
 我倾向于经常这样做，将本地机器或容器 IP 地址添加到我的主机文件中。我设置了一个 PowerShell 别名，使这一过程更加简单，它可以获取容器 IP 地址并将该行添加到主机文件中。我在[`blog.sixeyed.com/your-must-have-powershell-aliases-for-docker`](https://blog.sixeyed.com/your-must-have-powershell-aliases-for-docker)上发表了这一点以及我使用的其他别名。
 
 现在，我可以像将源代码推送到 GitHub 或 GitLab 等其他远程 Git 服务器一样，从我的本地机器推送源代码到 Gogs。它在本地容器中运行，但对于我笔记本上的 Git 客户端来说是透明的。
 
-[PRE6]
+```
+> git remote add gogs http://gogs:3000/docker-on-windows.git
+
+> git push gogs second-edition
+Enumerating objects: 2736, done.
+Counting objects: 100% (2736/2736), done.
+Delta compression using up to 2 threads
+Compressing objects: 100% (2058/2058), done.
+Writing objects: 100% (2736/2736), 5.22 MiB | 5.42 MiB/s, done.
+Total 2736 (delta 808), reused 2089 (delta 487)
+remote: Resolving deltas: 100% (808/808), done.
+To http://gogs:3000/elton/docker-on-windows.git
+ * [new branch]      second-edition -> second-edition
+```
 
 Gogs 在 Docker 容器中是稳定且轻量的。我的实例在空闲时通常使用 50MB 的内存和少于 1%的 CPU。
 
@@ -120,13 +155,20 @@ Jenkins 是一个流行的自动化服务器，用于 CI/CD。它支持具有多
 
 在本章的源代码中，我有一个用于`dockersamples/ch10-jenkins-base:2e`映像的 Dockerfile。这个 Dockerfile 使用 Windows Server Core 在安装阶段下载 Jenkins web 存档文件，打包了一个干净的 Jenkins 安装。我使用一个参数来捕获 Jenkins 版本，安装程序还会下载下载的 SHA256 哈希并检查下载的文件是否已损坏：
 
-[PRE7]
+```
+WORKDIR C:\jenkins  RUN Write-Host "Downloading Jenkins version: $env:JENKINS_VERSION"; `
+ Invoke-WebRequest  "http://.../jenkins.war.sha256" -OutFile 'jenkins.war.sha256'; `
+   Invoke-WebRequest "http://../jenkins.war" -OutFile 'jenkins.war' RUN $env:JENKINS_SHA256=$(Get-Content -Raw jenkins.war.sha256).Split(' ')[0]; `
+    if ((Get-FileHash jenkins.war -Algorithm sha256).Hash.ToLower() -ne $env:JENKINS_SHA256) {exit 1}
+```
 
 检查下载文件的哈希值是一个重要的安全任务，以确保您下载的文件与发布者提供的文件相同。这是人们通常在手动安装软件时忽略的一步，但在 Dockerfile 中很容易自动化，并且可以为您提供更安全的部署。
 
 Dockerfile 的最后阶段使用官方的 OpenJDK 映像作为基础，设置环境，并从安装程序阶段复制下载的文件：
 
-[PRE8]
+```
+FROM openjdk:8-windowsservercore-1809 ARG JENKINS_VERSION="2.150.3" ENV JENKINS_VERSION=${JENKINS_VERSION} ` JENKINS_HOME="C:\data" VOLUME ${JENKINS_HOME} EXPOSE 8080 50000 WORKDIR C:\jenkins ENTRYPOINT java -jar C:\jenkins\jenkins.war COPY --from=installer C:\jenkins .
+```
 
 干净的 Jenkins 安装没有太多有用的功能；几乎所有功能都是在设置 Jenkins 之后安装的插件提供的。其中一些插件还会安装它们所需的依赖项，但其他一些则不会。对于我的 CI/CD 流水线，我需要在 Jenkins 中安装 Git 客户端，以便它可以连接到在 Docker 中运行的 Git 服务器，并且我还希望安装 Docker CLI，以便我可以在构建中使用 Docker 命令。
 
@@ -134,11 +176,15 @@ Dockerfile 的最后阶段使用官方的 OpenJDK 映像作为基础，设置环
 
 `dockeronwindows/ch10-jenkins:2e`的 Dockerfile 从基础开始，并从 Git 和 Docker CLI 映像中复制二进制文件：
 
-[PRE9]
+```
+# escape=` FROM dockeronwindows/ch10-jenkins-base:2e  WORKDIR C:\git COPY --from=sixeyed/git:2.17.1-windowsservercore-ltsc2019 C:\git . WORKDIR C:\docker COPY --from=sixeyed/docker-cli:18.09.0-windowsservercore-ltsc2019 ["C:\\Program Files\\Docker", "."]
+```
 
 最后一行只是将所有新的工具位置添加到系统路径中，以便 Jenkins 可以找到它们：
 
-[PRE10]
+```
+RUN $env:PATH = 'C:\docker;' + 'C:\git\cmd;C:\git\mingw64\bin;C:\git\usr\bin;' + $env:PATH; `   [Environment]::SetEnvironmentVariable('PATH', $env:PATH, [EnvironmentVariableTarget]::Machine)
+```
 
 使用公共 Docker 映像来获取依赖项，可以让我得到一个包含所有所需组件的最终 Jenkins 映像，但使用一组可重用的源映像编写一个可管理的 Dockerfile。现在，我可以在容器中运行 Jenkins，并通过安装插件完成设置。
 
@@ -146,11 +192,29 @@ Dockerfile 的最后阶段使用官方的 OpenJDK 映像作为基础，设置环
 
 Jenkins 使用端口`8080`用于 Web UI，因此您可以使用以下命令从本章的映像中运行它，该命令映射端口并挂载本地文件夹到 Jenkins 根目录：
 
-[PRE11]
+```
+mkdir C:\jenkins
+
+docker run -d -p 8080:8080 `
+ -v C:\jenkins:C:\data `
+ --name jenkins `
+ dockeronwindows/ch10-jenkins:2e
+```
 
 Jenkins 为每个新部署生成一个随机的管理员密码。我可以在浏览网站之前从容器日志中获取该密码：
 
-[PRE12]
+```
+> docker container logs jenkins
+...
+*******************************************************
+Jenkins initial setup is required. An admin user has been created and a password generated.
+Please use the following password to proceed to installation:
+
+6467e40d9c9b4d21916c9bdb2b05bba3
+
+This may also be found at: C:\data\secrets\initialAdminPassword
+*******************************************************
+```
 
 现在，我将浏览本地主机上的端口`8080`，输入生成的密码，并添加我需要的 Jenkins 插件。作为最简单的示例，我选择了自定义插件安装，并选择了文件夹、凭据绑定和 Git 插件，这样我就可以获得大部分所需的功能：
 
@@ -170,7 +234,13 @@ Jenkins 是一个很好的例子。您可以使用 Jenkins 自动安装插件，
 
 在 Windows 上，您需要停止容器才能提交它们，然后运行`docker container commit`，并提供容器的名称和要创建的新镜像标签：
 
-[PRE13]
+```
+> docker container stop jenkins
+jenkins
+
+> docker container commit jenkins dockeronwindows/ch10-jenkins:2e-final
+sha256:96dd3caa601c3040927459bd56b46f8811f7c68e5830a1d76c28660fa726960d
+```
 
 对于我的设置，我已经提交了 Jenkins 和 Gogs，并且有一个 Docker Compose 文件来配置它们，以及注册表容器。这些是基础设施组件，但这仍然是一个分布式解决方案。Jenkins 容器将访问 Gogs 和注册表容器。所有服务都具有相同的 SLA，因此在 Compose 文件中定义它们可以让我捕获并一起启动所有服务。
 
@@ -216,7 +286,17 @@ Jenkins 支持多种类型的构建触发器。在这种情况下，我将定期
 
 构建步骤使用 PowerShell 运行简单的脚本，因此不依赖于更复杂的 Jenkins 插件。有一些特定于 Docker 的插件，可以包装多个任务，比如构建镜像并将其推送到注册表，但我可以使用基本的 PowerShell 步骤和 Docker CLI 来完成我需要的一切。第一步构建所有的镜像：
 
-[PRE14]
+```
+cd .\ch10\ch10-nerd-dinner
+
+docker image build -t dockeronwindows/ch10-nerd-dinner-db:2e `
+                   -f .\docker\nerd-dinner-db\Dockerfile .
+docker image build -t dockeronwindows/ch10-nerd-dinner-index-handler:2e `
+                   -f .\docker\nerd-dinner-index-handler\Dockerfile .
+docker image build -t dockeronwindows/ch10-nerd-dinner-save-handler:2e `
+                   -f .\docker\nerd-dinner-save-handler\Dockerfile .
+...
+```
 
 使用`docker-compose build`和覆盖文件会更好，但是 Docker Compose CLI 存在一个未解决的问题，这意味着它在容器内部无法正确使用命名管道。当这个问题在未来的 Compose 版本中得到解决时，构建步骤将更简单。
 
@@ -228,13 +308,25 @@ Docker 使用多阶段 Dockerfile 构建镜像，构建的每个步骤在临时 
 
 Jenkins 中的下一个构建步骤将在本地部署解决方案，运行在 Docker 容器中，并验证构建是否正常工作。这一步是另一个 PowerShell 脚本，它首先通过`docker container run`命令部署应用程序：
 
-[PRE15]
+```
+docker container run -d `
+  --label ci ` --name nerd-dinner-db `
+ dockeronwindows/ch10-nerd-dinner-db:2e; docker container run -d `
+  --label ci `
+  -l "traefik.frontend.rule=Host:nerd-dinner-test;PathPrefix:/"  `
+  -l "traefik.frontend.priority=1"  `
+  -e "HomePage:Enabled=false"  `
+  -e "DinnerApi:Enabled=false"  `
+ dockeronwindows/ch10-nerd-dinner-web:2e; ... 
+```
 
 在构建中使用 Docker CLI 而不是 Compose 的一个优势是，我可以按特定顺序创建容器，这样可以给慢启动的应用程序（如 NerdDinner 网站）更多的时间准备好，然后再进行测试。我还给所有的容器添加了一个标签`ci`，以便稍后清理所有的测试容器，而不会删除其他容器。
 
 完成这一步后，所有的容器应该都在运行。在运行可能需要很长时间的端到端测试套件之前，我在构建中有另一个 PowerShell 步骤，运行一个简单的验证测试，以确保应用程序有响应。
 
-[PRE16]
+```
+Invoke-WebRequest  -UseBasicParsing http://nerd-dinner-test
+```
 
 请记住，这些命令是在 Jenkins 容器内运行的，这意味着它可以通过名称访问其他容器。我不需要发布特定的端口或检查容器以获取它们的 IP 地址。脚本使用名称`nerd-dinner-test`启动 Traefik 容器，并且所有前端容器在其 Traefik 规则中使用相同的主机名。Jenkins 作业可以访问该 URL，如果构建成功，应用程序将做出响应。
 
@@ -258,11 +350,23 @@ Jenkins 中的下一个构建步骤将在本地部署解决方案，运行在 Do
 
 如果这听起来像是要添加到您的测试基础设施中的大量技术，实际上这是一种非常巧妙的方式，可以对应用程序进行完整的集成测试，这些测试已经在使用人类语言的简单场景中指定了：
 
-[PRE17]
+```
+Feature: Nerd Dinner Homepage
+    As a Nerd Dinner user
+    I want to see a modern responsive homepage
+    So that I'm encouraged to engage with the app
+
+Scenario: Visit homepage
+    Given I navigate to the app at "http://nerd-dinner-test"
+    When I see the homepage 
+    Then the heading should contain "Nerd Dinner 2.0!"
+```
 
 我有一个 Dockerfile 来将测试项目构建成`dockeronwindows/ch10-nerd-dinner-e2e-tests:2e`镜像。它使用多阶段构建来编译测试项目，然后打包测试程序集。构建的最后阶段使用了 Docker Hub 上安装了 NUnit 控制台运行器的镜像，因此它能够通过控制台运行端到端测试。Dockerfile 设置了一个`CMD`指令，在容器启动时运行所有测试：
 
-[PRE18]
+```
+FROM sixeyed/nunit:3.9.0-windowsservercore-ltsc2019 WORKDIR /e2e-tests CMD nunit3-console NerdDinner.EndToEndTests.dll COPY --from=builder C:\e2e-tests .
+```
 
 我可以从这个镜像中运行一个容器，它将启动测试套件，连接到`http://nerd-dinner-test`，并断言响应中包含预期的标题文本。这个简单的测试实际上验证了我的新主页容器和反向代理容器都在运行，它们可以在 Docker 网络上相互访问，并且代理规则已经正确设置。
 
@@ -270,19 +374,48 @@ Jenkins 中的下一个构建步骤将在本地部署解决方案，运行在 Do
 
 Jenkins 构建的下一步是运行这些端到端测试。同样，这是一个简单的 PowerShell 脚本，它构建端到端 Docker 镜像，然后运行一个容器。测试容器将在与应用程序相同的 Docker 网络中执行，因此无头浏览器可以使用 URL 中的容器名称访问 Web 应用程序：
 
-[PRE19]
+```
+cd .\ch10\ch10-nerd-dinner docker image build ` -t dockeronwindows/ch10-nerd-dinner-e2e-tests:2e ` -f .\docker\nerd-dinner-e2e-tests\Dockerfile . $e2eId  = docker container run -d dockeronwindows/ch10-nerd-dinner-e2e-tests:2e
+```
 
 NUnit 生成一个包含测试结果的 XML 文件，将其添加到 Jenkins 工作空间中会很有用，这样在所有容器被移除后可以在 Jenkins UI 中查看。PowerShell 步骤使用`docker container cp`将该文件从容器复制到 Jenkins 工作空间的当前目录中，使用从运行命令中存储的容器 ID：
 
-[PRE20]
+```
+docker container cp "$($e2eId):C:\e2e-tests\TestResult.xml" .
+```
 
 在这一步中还有一些额外的 PowerShell 来从该文件中读取 XML 并确定测试是否通过（您可以在本章的源文件夹中的`ci\04_test.ps1`文件中找到完整的脚本）。当完成时，NUnit 的输出将被回显到 Jenkins 日志中：
 
-[PRE21]
+```
+[ch10-nerd-dinner] $ powershell.exe ...
+30bc931ca3941b3357e3b991ccbb4eaf71af03d6c83d95ca6ca06faeb8e46a33
+* E2E test results:
+type          : Assembly
+id            : 0-1002
+name          : NerdDinner.EndToEndTests.dll
+fullname      : NerdDinner.EndToEndTests.dll
+runstate      : Runnable
+testcasecount : 1
+result        : Passed
+start-time    : 2019-02-19 20:48:09Z
+end-time      : 2019-02-19 20:48:10Z
+duration      : 1.305796
+total         : 1
+passed        : 1
+failed        : 0
+warnings      : 0
+inconclusive  : 0
+skipped       : 0
+asserts       : 2
+
+* Overall: Passed
+```
 
 当测试完成时，数据库容器和所有其他应用程序容器将在测试步骤的最后部分被移除。这使用`docker container ls`命令列出所有具有`ci`标签的容器的 ID - 这些是由此作业创建的容器 - 然后强制性地将它们删除：
 
-[PRE22]
+```
+docker rm -f $(docker container ls --filter "label=ci" -q)
+```
 
 现在，我有一组经过测试并已知良好的应用程序图像。这些图像仅存在于构建服务器上，因此下一步是将它们推送到本地注册表。
 
@@ -294,7 +427,14 @@ NUnit 生成一个包含测试结果的 XML 文件，将其添加到 Jenkins 工
 
 对于我的示例 CI 作业，一旦测试通过，我将在每次成功构建后将其推送到本地注册表，使用 Jenkins 构建编号作为图像标签。标记和推送图像的构建步骤是另一个使用 Jenkins 的`BUILD_TAG`环境变量进行标记的 PowerShell 脚本。
 
-[PRE23]
+```
+$images = 'ch10-nerd-dinner-db:2e', 'ch10-nerd-dinner-index-handler:2e',  'ch10-nerd-dinner-save-handler:2e', ...  foreach ($image  in  $images) {
+   $sourceTag  =  "dockeronwindows/$image"
+   $targetTag  =  "registry:5000/dockeronwindows/$image-$($env:BUILD_TAG)"
+
+  docker image tag $sourceTag  $targetTag
+  docker image push $targetTag }
+```
 
 这个脚本使用一个简单的循环来为所有构建的图像应用一个新的标签。新标签包括我的本地注册表域，`registry:5000`，并将 Jenkins 构建标签作为后缀，以便我可以轻松地识别图像来自哪个构建。然后，它将所有图像推送到本地注册表 - 再次强调，这是在与 Jenkins 容器相同的 Docker 网络中运行的容器中，因此可以通过容器名称`registry`访问。
 
@@ -302,7 +442,14 @@ NUnit 生成一个包含测试结果的 XML 文件，将其添加到 Jenkins 工
 
 在完成了几次构建之后，我可以从开发笔记本上对注册表 API 进行 REST 调用，查询`dockeronwindows/nerd-dinner-index-handler`存储库的标签。API 将为我提供我的消息处理程序应用程序镜像的所有标签列表，以便我可以验证它们是否已由 Jenkins 使用正确的标签推送：
 
-[PRE24]
+```
+> Invoke-RestMethod http://registry:5000/v2/dockeronwindows/ch10-nerd-dinner-index-handler/tags/list |
+>> Select tags
+
+tags
+----
+{2e-jenkins-docker-on-windows-ch10-nerd-dinner-20, 2e-jenkins-docker-on-windows-ch10-nerd-dinner-21,2e-jenkins-docker-on-windows-ch10-nerd-dinner-22}
+```
 
 Jenkins 构建标签为我提供了创建镜像的作业的完整路径。我也可以使用 Jenkins 提供的`GIT_COMMIT`环境变量来为镜像打标签，标签中包含提交 ID。这样标签会更短，但 Jenkins 构建标签包括递增的构建编号，因此我可以通过对标签进行排序来找到最新版本。Jenkins web UI 显示每个构建的 Git 提交 ID，因此很容易从作业编号追溯到确切的源代码修订版。
 
@@ -322,7 +469,9 @@ Jenkins 构建标签为我提供了创建镜像的作业的完整路径。我也
 
 然后，我设置了命令配置，并在 PowerShell 构建步骤中使用`docker login`，指定了环境变量中的凭据：
 
-[PRE25]
+```
+docker login --username $env:DOCKER_HUB_USER --password "$env:DOCKER_HUB_PASSWORD"
+```
 
 注册表登录是使用 Docker CLI 执行的，但登录的上下文实际上存储在 Docker Engine 中。当我在 Jenkins 容器中运行此步骤时，运行该容器的主机使用 Jenkins 凭据登录到 Docker Hub。如果您遵循类似的流程，您需要确保作业在每次运行后注销，或者构建服务器运行的引擎是安全的，否则用户可能会访问该机器并以 Jenkins 帐户身份推送图像。
 
@@ -330,21 +479,48 @@ Jenkins 构建标签为我提供了创建镜像的作业的完整路径。我也
 
 此脚本使用 PowerShell 循环来拉取和推送所有图像：
 
-[PRE26]
+```
+$images  =  'ch10-nerd-dinner-db:2e',  'ch10-nerd-dinner-index-handler:2e',  'ch10-nerd-dinner-save-handler:2e',  ...  foreach ($image  in  $images) { 
+ $sourceTag  =  "registry:5000/dockeronwindows/$image...$($env:VERSION_NUMBER)"
+  $targetTag  =  "dockeronwindows/$image-$($env:VERSION_NUMBER)"
+
+ docker image pull $sourceTag docker image tag $sourceTag  $targetTag
+ docker image push $targetTag }
+```
 
 当此步骤完成时，图像将在 Docker Hub 上公开可用。现在，部署作业中的最后一步是使用这些公共图像在远程 Docker Swarm 上运行最新的应用程序版本。我需要生成一个包含图像标记中最新版本号的 Compose 文件，并且我可以使用`docker-compose config`与覆盖文件来实现：
 
-[PRE27]
+```
+cd .\ch10\ch10-nerd-dinner\compose
+
+docker-compose `
+  -f .\docker-compose.yml `
+  -f .\docker-compose.hybrid-swarm.yml `
+  -f .\docker-compose.latest.yml `
+  config > docker-stack.yml
+```
 
 `docker-compose.latest.yml`文件是添加的最后一个文件，并且使用`VERSION_NUMBER`环境变量，该变量由 Jenkins 填充以创建图像标签：
 
-[PRE28]
+```
+ services: nerd-dinner-db:
+     image: dockeronwindows/ch10-nerd-dinner-db:2e-${VERSION_NUMBER}
+
+   nerd-dinner-save-handler:
+     image: dockeronwindows/ch10-nerd-dinner-save-handler:2e-${VERSION_NUMBER} ...
+```
 
 `config`命令不受影响，无法使用 Docker Compose 在使用命名管道的容器内部署容器的问题。`docker-compose config`只是连接和解析文件，它不与 Docker Engine 通信。
 
 现在，我有一个 Docker Compose 文件，其中包含我混合使用最新版本的应用程序镜像从 Docker Hub 的 Linux 和 Windows Docker Swarm 的所有设置。最后一步使用`docker stack deploy`来实际在远程 swarm 上运行堆栈：
 
-[PRE29]
+```
+$config = '--host', 'tcp://dow2e-swarm.westeurope.cloudapp.azure.com:2376', '--tlsverify', `
+ '--tlscacert', $env:DOCKER_CA,'--tlscert', $env:DOCKER_CERT, '--tlskey', $env:DOCKER_KEY
+
+& docker $config `
+  stack deploy -c docker-stack.yml nerd-dinner
+```
 
 这个最后的命令使用安全的 TCP 连接到远程 swarm 管理器上的 Docker API。`$config`对象设置了 Docker CLI 需要的所有参数，以便建立连接：
 

@@ -34,15 +34,25 @@ Docker 的 UI 开发一直持续到 Docker 开始加速引入 Swarm 模式等功
 
 1.  首先，要从 Docker Hub 获取容器镜像，我们只需要运行以下命令：
 
-[PRE0]
+```
+$ docker image pull portainer/portainer
+$ docker image ls
+```
 
 1.  如您在运行`docker image ls`命令时所见，Portainer 镜像只有 58.7MB。要启动 Portainer，如果您正在运行 macOS 或 Linux，只需运行以下命令：
 
-[PRE1]
+```
+$ docker container run -d \
+ -p 9000:9000 \
+ -v /var/run/docker.sock:/var/run/docker.sock \
+ portainer/portainer
+```
 
 1.  Windows 用户需要运行以下命令：
 
-[PRE2]
+```
+$ docker container run -d -p 9000:9000 -v \\.\pipe\docker_engine:\\.\pipe\docker_engine portainer/portainer
+```
 
 如您刚刚运行的命令所示，我们正在挂载 Docker 引擎的套接字文件到我们的 Docker 主机机器上。这样做将允许 Portainer 完全无限制地访问主机上的 Docker 引擎。它需要这样做才能管理主机上的 Docker；但是，这也意味着您的 Portainer 容器可以完全访问您的主机机器，因此在如何授予其访问权限以及在远程主机上公开 Portainer 时要小心。
 
@@ -90,11 +100,46 @@ Docker 的 UI 开发一直持续到 Docker 开始加速引入 Swarm 模式等功
 
 Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义。例如，nginx 模板如下所示：
 
-[PRE3]
+```
+ {
+ "type": "container",
+ "title": "Nginx",
+ "description": "High performance web server",
+ "categories": ["webserver"],
+ "platform": "linux",
+ "logo": "https://portainer.io/images/logos/nginx.png",
+ "image": "nginx:latest",
+ "ports": [
+ "80/tcp",
+ "443/tcp"
+ ],
+ "volumes": ["/etc/nginx", "/usr/share/nginx/html"]
+ }
+```
 
 还有更多选项可以添加，例如 MariaDB 模板：
 
-[PRE4]
+```
+ {
+ "type": "container",
+ "title": "MariaDB",
+ "description": "Performance beyond MySQL",
+ "categories": ["database"],
+ "platform": "linux",
+ "logo": "https://portainer.io/images/logos/mariadb.png",
+ "image": "mariadb:latest",
+ "env": [
+ {
+ "name": "MYSQL_ROOT_PASSWORD",
+ "label": "Root password"
+ }
+ ],
+ "ports": [
+ "3306/tcp"
+ ],
+ "volumes": ["/var/lib/mysql"]
+ }
+```
 
 如您所见，模板看起来类似于 Docker Compose 文件；但是，这种格式仅由 Portainer 使用。在大多数情况下，选项都相当直观，但我们应该提及**名称**和**标签**选项。
 
@@ -104,7 +149,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 如您所见，我们有一个字段，我们可以在其中输入我们想要用于 MariaDB 容器的根密码。填写这个字段将获取该值并将其作为环境变量传递，构建以下命令来启动容器：
 
-[PRE5]
+```
+$ docker container run --name [Name of Container] -p 3306 -e MYSQL_ROOT_PASSWORD=[Root password] -d mariadb:latest
+```
 
 有关应用程序模板的更多信息，我建议查阅文档，本章的进一步阅读部分中可以找到链接。
 
@@ -140,7 +187,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 如您所见，有关容器的信息与您运行此命令时获得的信息相同：
 
-[PRE6]
+```
+$ docker container inspect cluster
+```
 
 您可以通过点击**检查**来查看此命令的完整输出。您还会注意到有**统计**、**日志**和**控制台**的按钮。
 
@@ -152,7 +201,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 如果您让页面保持打开状态，图表将自动刷新，刷新页面将清零图表并重新开始。这是因为 Portainer 正在使用以下命令从 Docker API 接收此信息：
 
-[PRE7]
+```
+$ docker container stats cluster
+```
 
 每次刷新页面时，该命令都会从头开始，因为 Portainer 目前不会在后台轮询 Docker 以记录每个运行容器的统计信息。
 
@@ -160,7 +211,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 接下来，我们有**日志**页面。这向您显示运行以下命令的结果：
 
-[PRE8]
+```
+$ docker container logs cluster
+```
 
 它显示`STDOUT`和`STDERR`日志：
 
@@ -168,7 +221,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 您还可以选择将时间戳添加到输出中；这相当于运行以下命令：
 
-[PRE9]
+```
+$ docker container logs --timestamps cluster
+```
 
 # 控制台
 
@@ -178,7 +233,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 这相当于运行以下命令以访问您的容器：
 
-[PRE10]
+```
+$ docker container exec -it cluster /bin/sh
+```
 
 从屏幕截图中可以看出，`bash`进程的 PID 为`15`。这个进程是由`docker container exec`命令创建的，一旦您从 shell 会话中断开，这将是唯一终止的进程。
 
@@ -190,11 +247,15 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 在页面顶部，您可以选择拉取图像。例如，只需在框中输入`amazonlinux`，然后点击**拉取**，将从 Docker Hub 下载 Amazon Linux 容器镜像的副本。Portainer 执行的命令将是这样的：
 
-[PRE11]
+```
+$ docker image pull amazonlinux
+```
 
 您可以通过单击图像 ID 查找有关每个图像的更多信息；这将带您到一个页面，该页面很好地呈现了运行此命令的输出：
 
-[PRE12]
+```
+$ docker image inspect russmckendrick/cluster
+```
 
 看一下以下屏幕截图：
 
@@ -224,13 +285,17 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 这相当于运行以下命令：
 
-[PRE13]
+```
+$ docker events --since '2018-09-27T16:30:00' --until '2018-09-28T16:30:00'
+```
 
 # 引擎
 
 最后一个条目只是简单地显示以下输出：
 
-[PRE14]
+```
+$ docker info
+```
 
 以下显示了命令的输出：
 
@@ -240,7 +305,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 在这一点上，我们将转而查看在 Docker Swarm 上运行的 Portainer，现在是一个很好的时机来删除正在运行的容器，以及在我们首次启动 Portainer 时创建的卷，您可以使用以下命令删除卷：
 
-[PRE15]
+```
+$ docker volume prune
+```
 
 # Portainer 和 Docker Swarm
 
@@ -250,33 +317,64 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 就像在 Docker Swarm 章节中一样，我们将使用 Docker Machine 在本地创建 Swarm；要做到这一点，请运行以下命令：
 
-[PRE16]
+```
+$ docker-machine create -d virtualbox swarm-manager
+$ docker-machine create -d virtualbox swarm-worker01
+$ docker-machine create -d virtualbox swarm-worker02
+```
 
 一旦三个实例启动，运行以下命令初始化 Swarm：
 
-[PRE17]
+```
+$ docker $(docker-machine config swarm-manager) swarm init \
+ --advertise-addr $(docker-machine ip swarm-manager):2377 \
+ --listen-addr $(docker-machine ip swarm-manager):2377
+```
 
 然后运行以下命令，插入您自己的令牌，以添加工作节点：
 
-[PRE18]
+```
+$ SWARM_TOKEN=SWMTKN-1-45acey6bqteiro42ipt3gy6san3kec0f8dh6fb35pnv1xz291v-4l89ei7v6az2b85kb5jnf7nku
+$ docker $(docker-machine config swarm-worker01) swarm join \
+ --token $SWARM_TOKEN \
+ $(docker-machine ip swarm-manager):2377
+$ docker $(docker-machine config swarm-worker02) swarm join \
+ --token $SWARM_TOKEN \
+ $(docker-machine ip swarm-manager):2377
+```
 
 现在我们已经形成了我们的集群，运行以下命令将本地 Docker 客户端指向管理节点：
 
-[PRE19]
+```
+$ eval $(docker-machine env swarm-manager)
+```
 
 最后，使用以下命令检查 Swarm 的状态：
 
-[PRE20]
+```
+$ docker node ls
+```
 
 # Portainer 服务
 
 现在我们有一个 Docker Swarm 集群，并且我们的本地客户端已配置为与管理节点通信，我们可以通过简单运行以下命令来启动 Portainer 服务：
 
-[PRE21]
+```
+$ docker service create \
+ --name portainer \
+ --publish 9000:9000 \
+ --constraint 'node.role == manager' \
+ --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+ portainer/portainer \
+ -H unix:///var/run/docker.sock
+```
 
 如您所见，这将在管理节点上启动 Portainer 作为服务，并使服务挂载管理节点的套接字文件，以便它能够看到 Swarm 的其余部分。您可以使用以下命令检查服务是否已启动而没有任何错误：
 
-[PRE22]
+```
+$ docker service ls 
+$ docker service inspect portainer --pretty
+```
 
 以下显示了输出：
 
@@ -284,7 +382,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 现在服务已启动，您可以在集群中任何节点的 IP 地址上的端口`9000`上访问 Portainer，或者运行以下命令：
 
-[PRE23]
+```
+$ open http://$(docker-machine ip swarm-manager):9000
+```
 
 当页面打开时，您将再次被要求为管理员用户设置密码；设置后，您将看到登录提示。登录后，您将直接进入仪表板。这是因为这次我们启动 Portainer 时，传递了参数`-H unix:///var/run/docker.sock`，这告诉 Portainer 选择我们在单主机上启动 Portainer 时手动选择的选项。 
 
@@ -316,7 +416,26 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 我们在左侧菜单中没有涵盖的一项是**堆栈**，从这里，您可以像我们在查看 Docker Swarm 时那样启动堆栈。实际上，让我们使用我们之前使用的 Docker Compose 文件，它看起来像下面这样：
 
-[PRE24]
+```
+version: "3"
+
+services:
+   redis:
+     image: redis:alpine
+     volumes:
+       - redis_data:/data
+     restart: always
+   mobycounter:
+     depends_on:
+       - redis
+     image: russmckendrick/moby-counter
+     ports:
+       - "8080:80"
+     restart: always
+
+volumes:
+    redis_data:
+```
 
 单击**+添加堆栈**按钮，然后将上面的内容粘贴到 Web 编辑器中，输入名称为`MobyCounter`，名称中不要添加任何空格或特殊字符，因为 Docker 会使用该名称，然后单击**部署堆栈**。
 
@@ -366,11 +485,16 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 要添加终端，我们需要知道终端 URL 并访问证书，以便 Portainer 可以对其自身进行身份验证，以针对节点上运行的 Docker 守护程序。幸运的是，由于我们使用 Docker Machine 启动了主机，这是一项简单的任务。要获取终端 URL，请运行以下命令： 
 
-[PRE25]
+```
+$ docker-machine ls
+```
 
 对我来说，两个终端 URL 分别是`192.168.99.101:2376`和`192.168.99.102:2376`；您的可能不同。我们需要上传的证书可以在您的机器上的`~/.docker/machine/certs/`文件夹中找到。我建议运行以下命令来在您的查找器中打开文件夹：
 
-[PRE26]
+```
+$ cd ~/.docker/machine/certs/
+$ open .
+```
 
 添加节点后，您将能够使用**设置/终端**页面中的**+添加终端**按钮切换到该节点。
 
@@ -396,7 +520,9 @@ Portainer 默认提供了大约 25 个模板。这些模板以 JSON 格式定义
 
 不要忘记通过运行以下命令来删除您的本地 Docker Swarm 集群：
 
-[PRE27]
+```
+$ docker-machine rm swarm-manager swarm-worker01 swarm-worker02
+```
 
 # 总结
 

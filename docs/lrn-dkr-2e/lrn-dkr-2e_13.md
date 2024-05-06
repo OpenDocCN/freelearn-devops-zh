@@ -86,7 +86,9 @@ Docker 桥接网络是我们将要详细查看的容器网络模型的第一个�
 
 要验证我们的主机上确实有一个名为`bridge`的`bridge`类型网络，我们可以使用以下命令列出主机上的所有网络：
 
-[PRE0]
+```
+$ docker network ls
+```
 
 这应该提供类似以下的输出：
 
@@ -96,7 +98,9 @@ Docker 桥接网络是我们将要详细查看的容器网络模型的第一个�
 
 现在，让我们更深入地了解一下这个桥接网络。为此，我们将使用 Docker 的`inspect`命令：
 
-[PRE1]
+```
+$ docker network inspect bridge
+```
 
 执行时，会输出有关所讨论网络的大量详细信息。这些信息应该如下所示：
 
@@ -118,29 +122,41 @@ Docker 桥接网络是我们将要详细查看的容器网络模型的第一个�
 
 我们不仅限于`bridge`网络，因为 Docker 允许我们定义自己的自定义桥接网络。这不仅是一个很好的功能，而且建议最佳实践是不要在同一个网络上运行所有容器。相反，我们应该使用额外的桥接网络来进一步隔离那些不需要相互通信的容器。要创建一个名为`sample-net`的自定义桥接网络，请使用以下命令：
 
-[PRE2]
+```
+$ docker network create --driver bridge sample-net
+```
 
 如果我们这样做，我们就可以检查 Docker 为这个新的自定义网络创建了什么子网，如下所示：
 
-[PRE3]
+```
+$ docker network inspect sample-net | grep Subnet
+```
 
 这将返回以下值：
 
-[PRE4]
+```
+"Subnet": "172.18.0.0/16",
+```
 
 显然，Docker 刚刚为我们的新自定义桥接网络分配了下一个空闲的 IP 地址块。如果出于某种原因，我们想要在创建网络时指定自己的子网范围，我们可以使用`--subnet`参数来实现：
 
-[PRE5]
+```
+$ docker network create --driver bridge --subnet "10.1.0.0/16" test-net
+```
 
 为了避免由于重复的 IP 地址而引起的冲突，请确保避免创建具有重叠子网的网络。
 
 现在我们已经讨论了桥接网络是什么，以及我们如何创建自定义桥接网络，我们想要了解如何将容器连接到这些网络。首先，让我们交互式地运行一个 Alpine 容器，而不指定要连接的网络：
 
-[PRE6]
+```
+$ docker container run --name c1 -it --rm alpine:latest /bin/sh
+```
 
 在另一个终端窗口中，让我们检查`c1`容器：
 
-[PRE7]
+```
+$ docker container inspect c1
+```
 
 在庞大的输出中，让我们集中一下提供与网络相关信息的部分。这可以在`NetworkSettings`节点下找到。我在以下输出中列出了它：
 
@@ -156,27 +172,44 @@ Docker 桥接网络是我们将要详细查看的容器网络模型的第一个�
 
 由于此时我们实际上对`eth0`以外的任何端点都不感兴趣，我们可以使用命令的更具体的变体，它将给我们以下内容：
 
-[PRE8]
+```
+/ # ip addr show eth0
+195: eth0@if196: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> mtu 1500 qdisc noqueue state UP
+ link/ether 02:42:ac:11:00:02 brd ff:ff:ff:ff:ff:ff
+ inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0
+ valid_lft forever preferred_lft forever
+```
 
 在输出中，我们还可以看到 Docker 将哪个 MAC 地址（`02:42:ac:11:00:02`）和哪个 IP（`172.17.0.2`）与该容器网络命名空间关联起来。
 
 我们还可以使用`ip route`命令获取有关请求路由的一些信息：
 
-[PRE9]
+```
+/ # ip route
+default via 172.17.0.1 dev eth0
+172.17.0.0/16 dev eth0 scope link src 172.17.0.2
+```
 
 此输出告诉我们，所有流向网关`172.17.0.1`的流量都通过`eth0`设备路由。
 
 现在，让我们在同一网络上运行另一个名为`c2`的容器：
 
-[PRE10]
+```
+$ docker container run --name c2 -d alpine:latest ping 127.0.0.1
+```
 
 由于我们没有指定任何其他网络，`c2`容器也将连接到`bridge`网络。它的 IP 地址将是子网中的下一个空闲地址，即`172.17.0.3`，我们可以轻松测试：
 
-[PRE11]
+```
+$ docker container inspect --format "{{.NetworkSettings.IPAddress}}" c2
+172.17.0.3
+```
 
 现在，我们有两个容器连接到`bridge`网络。我们可以再次尝试检查此网络，以在输出中找到所有连接到它的容器的列表：
 
-[PRE12]
+```
+$ docker network inspect bridge
+```
 
 这些信息可以在`Containers`节点下找到：
 
@@ -186,11 +219,18 @@ Docker 桥接网络是我们将要详细查看的容器网络模型的第一个�
 
 现在，让我们创建两个额外的容器`c3`和`c4`，并将它们附加到`test-net`。为此，我们将使用`--network`参数：
 
-[PRE13]
+```
+$ docker container run --name c3 -d --network test-net \
+ alpine:latest ping 127.0.0.1
+$ docker container run --name c4 -d --network test-net \
+ alpine:latest ping 127.0.0.1
+```
 
 让我们检查`network test-net`并确认`c3`和`c4`容器确实连接到它：
 
-[PRE14]
+```
+$ docker network inspect test-net
+```
 
 这将为`Containers`部分提供以下输出：
 
@@ -198,49 +238,87 @@ Docker 桥接网络是我们将要详细查看的容器网络模型的第一个�
 
 接下来我们要问自己的问题是，`c3`和`c4`容器是否可以自由通信。为了证明这确实是这种情况，我们可以`exec`进入`c3`容器：
 
-[PRE15]
+```
+$ docker container exec -it c3 /bin/sh
+```
 
 进入容器后，我们可以尝试通过名称和 IP 地址 ping 容器`c4`：
 
-[PRE16]
+```
+/ # ping c4
+PING c4 (10.1.0.3): 56 data bytes
+64 bytes from 10.1.0.3: seq=0 ttl=64 time=0.192 ms
+64 bytes from 10.1.0.3: seq=1 ttl=64 time=0.148 ms
+...
+```
 
 以下是使用`c4`的 IP 地址进行 ping 的结果：
 
-[PRE17]
+```
+/ # ping 10.1.0.3
+PING 10.1.0.3 (10.1.0.3): 56 data bytes
+64 bytes from 10.1.0.3: seq=0 ttl=64 time=0.200 ms
+64 bytes from 10.1.0.3: seq=1 ttl=64 time=0.172 ms
+...
+```
 
 在这两种情况下的答案都向我们确认，连接到同一网络的容器之间的通信正常工作。我们甚至可以使用要连接的容器的名称，这表明 Docker DNS 服务提供的名称解析在这个网络内部工作。
 
 现在，我们要确保`bridge`和`test-net`网络之间有防火墙。为了证明这一点，我们可以尝试从`c3`容器中 ping`c2`容器，无论是通过名称还是 IP 地址：
 
-[PRE18]
+```
+/ # ping c2
+ping: bad address 'c2'
+```
 
 以下是使用`c2`容器的 IP 地址进行 ping 的结果：
 
-[PRE19]
+```
+/ # ping 172.17.0.3
+PING 172.17.0.3 (172.17.0.3): 56 data bytes 
+^C
+--- 172.17.0.3 ping statistics ---
+43 packets transmitted, 0 packets received, 100% packet loss
+```
 
 前面的命令一直挂起，我不得不用*Ctrl*+*C*终止命令。从 ping`c2`的输出中，我们还可以看到名称解析在网络之间不起作用。这是预期的行为。网络为容器提供了额外的隔离层，因此增强了安全性。
 
 早些时候，我们了解到一个容器可以连接到多个网络。让我们同时将`c5`容器连接到`sample-net`和`test-net`网络：
 
-[PRE20]
+```
+$ docker container run --name c5 -d \
+ --network sample-net \
+ --network test-net \
+ alpine:latest ping 127.0.0.1
+```
 
 现在，我们可以测试`c5`是否可以从`c2`容器中访问，类似于我们测试`c4`和`c2`容器时的情况。结果将显示连接确实有效。
 
 如果我们想要删除一个现有的网络，我们可以使用`docker network rm`命令，但请注意我们不能意外地删除已连接到容器的网络：
 
-[PRE21]
+```
+$ docker network rm test-net
+Error response from daemon: network test-net id 863192... has active endpoints
+```
 
 在我们继续之前，让我们清理并删除所有的容器：
 
-[PRE22]
+```
+$ docker container rm -f $(docker container ls -aq)
+```
 
 现在，我们可以删除我们创建的两个自定义网络：
 
-[PRE23]
+```
+$ docker network rm sample-net
+$ docker network rm test-net 
+```
 
 或者，我们可以使用`prune`命令删除所有未连接到容器的网络：
 
-[PRE24]
+```
+$ docker network prune --force
+```
 
 我在这里使用了`--force`（或`-f`）参数，以防止 Docker 重新确认我是否真的要删除所有未使用的网络。
 
@@ -254,17 +332,35 @@ Docker 桥接网络是我们将要详细查看的容器网络模型的第一个�
 
 也就是说，*我们如何在主机的网络命名空间中运行容器呢？*只需将容器连接到`host`网络即可：
 
-[PRE25]
+```
+$ docker container run --rm -it --network host alpine:latest /bin/sh
+```
 
 如果我们使用`ip`工具从容器内部分析网络命名空间，我们会发现得到的结果与直接在主机上运行`ip`工具时完全相同。例如，如果我检查我的主机上的`eth0`设备，我会得到这样的结果：
 
-[PRE26]
+```
+/ # ip addr show eth0
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000
+    link/ether 02:50:00:00:00:01 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.65.3/24 brd 192.168.65.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::c90b:4219:ddbd:92bf/64 scope link
+       valid_lft forever preferred_lft forever
+```
 
 在这里，我可以看到`192.168.65.3`是主机分配的 IP 地址，这里显示的 MAC 地址也对应于主机的 MAC 地址。
 
 我们还可以检查路由，得到以下结果（缩短）：
 
-[PRE27]
+```
+/ # ip route
+default via 192.168.65.1 dev eth0 src 192.168.65.3 metric 202
+10.1.0.0/16 dev cni0 scope link src 10.1.0.1
+127.0.0.0/8 dev lo scope host
+172.17.0.0/16 dev docker0 scope link src 172.17.0.1
+...
+192.168.65.0/24 dev eth0 scope link src 192.168.65.3 metric 202
+```
 
 在让您继续阅读本章的下一部分之前，我再次要指出，使用`host`网络是危险的，如果可能的话应该避免使用。
 
@@ -272,15 +368,22 @@ Docker 桥接网络是我们将要详细查看的容器网络模型的第一个�
 
 有时候，我们需要运行一些不需要任何网络连接来执行任务的应用服务或作业。强烈建议您将这些应用程序运行在附加到`none`网络的容器中。这个容器将完全隔离，因此不会受到任何外部访问的影响。让我们运行这样一个容器：
 
-[PRE28]
+```
+$ docker container run --rm -it --network none alpine:latest /bin/sh
+```
 
 一旦进入容器，我们可以验证没有`eth0`网络端点可用：
 
-[PRE29]
+```
+/ # ip addr show eth0
+ip: can't find device 'eth0'
+```
 
 也没有可用的路由信息，我们可以使用以下命令来证明：
 
-[PRE30]
+```
+/ # ip route
+```
 
 这将返回空值。
 
@@ -300,27 +403,46 @@ Docker 为我们提供了另一种定义容器运行的网络命名空间的方�
 
 1.  首先，我们创建一个新的桥接网络：
 
-[PRE31]
+```
+$ docker network create --driver bridge test-net
+```
 
 1.  接下来，我们运行一个附加到这个网络的容器：
 
-[PRE32]
+```
+$ docker container run --name web -d \
+ --network test-net nginx:alpine
+```
 
 1.  最后，我们运行另一个容器并将其附加到我们的`web`容器的网络中：
 
-[PRE33]
+```
+$ docker container run -it --rm --network container:web \
+alpine:latest /bin/sh
+```
 
 特别要注意我们如何定义网络：`--network container:web`。这告诉 Docker 我们的新容器应该使用与名为`web`的容器相同的网络命名空间。
 
 1.  由于新容器与运行 nginx 的 web 容器在相同的网络命名空间中，我们现在可以在本地访问 nginx！我们可以通过使用 Alpine 容器的一部分的`wget`工具来证明这一点，以连接到 nginx。我们应该看到以下内容：
 
-[PRE34]
+```
+/ # wget -qO - localhost
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+...
+</html>
+```
 
 请注意，为了便于阅读，我们已经缩短了输出。还请注意，在运行附加到相同网络的两个容器和在相同网络命名空间中运行两个容器之间存在重要区别。在这两种情况下，容器可以自由地相互通信，但在后一种情况下，通信发生在本地主机上。
 
 1.  要清理容器和网络，我们可以使用以下命令：
 
-[PRE35]
+```
+$ docker container rm --force web
+$ docker network rm test-net
+```
 
 在下一节中，我们将学习如何在容器主机上公开容器端口。
 
@@ -338,11 +460,16 @@ Docker 为我们提供了另一种定义容器运行的网络命名空间的方�
 
 1.  首先，我们可以让 Docker 决定将我们的容器端口映射到哪个主机端口。Docker 将在 32xxx 范围内选择一个空闲的主机端口进行自动映射，这是通过使用`-P`参数完成的：
 
-[PRE36]
+```
+$ docker container run --name web -P -d nginx:alpine
+```
 
 上述命令在一个容器中运行了一个 nginx 服务器。nginx 在容器内部监听端口`80`。使用`-P`参数，我们告诉 Docker 将所有暴露的容器端口映射到 32xxx 范围内的一个空闲端口。我们可以通过使用`docker container port`命令找出 Docker 正在使用的主机端口：
 
-[PRE37]
+```
+$ docker container port web
+80/tcp -> 0.0.0.0:32768
+```
 
 nginx 容器只暴露端口`80`，我们可以看到它已经映射到主机端口`32768`。如果我们打开一个新的浏览器窗口并导航到`localhost:32768`，我们应该会看到以下屏幕：
 
@@ -352,17 +479,26 @@ nginx 的欢迎页面
 
 1.  找出 Docker 用于我们的容器的主机端口的另一种方法是检查它。主机端口是`NetworkSettings`节点的一部分：
 
-[PRE38]
+```
+$ docker container inspect web | grep HostPort
+32768
+```
 
 1.  最后，获取这些信息的第三种方法是列出容器：
 
-[PRE39]
+```
+$ docker container ls
+CONTAINER ID    IMAGE         ...   PORTS                  NAMES
+56e46a14b6f7    nginx:alpine  ...   0.0.0.0:32768->80/tcp  web
+```
 
 请注意，在上述输出中，`/tcp`部分告诉我们该端口已经为 TCP 协议通信打开，但未为 UDP 协议打开。TCP 是默认的，如果我们想指定为 UDP 打开端口，那么我们必须明确指定。映射中的`0.0.0.0`告诉我们，任何主机 IP 地址的流量现在都可以到达`web`容器的端口`80`。
 
 有时，我们想将容器端口映射到一个非常特定的主机端口。我们可以使用`-p`参数（或`--publish`）来实现这一点。让我们看看如何使用以下命令来实现这一点：
 
-[PRE40]
+```
+$ docker container run --name web2 -p 8080:80 -d nginx:alpine
+```
 
 `-p`参数的值的格式为`<主机端口>:<容器端口>`。因此，在上述情况中，我们将容器端口`80`映射到主机端口`8080`。一旦`web2`容器运行，我们可以通过浏览器导航到`localhost:8080`来测试它，我们应该会看到与处理自动端口映射的上一个示例中看到的相同的 nginx 欢迎页面。
 
@@ -384,7 +520,12 @@ nginx 的欢迎页面
 
 1.  在新的终端窗口中，导航到该文件夹，安装所需的依赖项，并运行应用程序：
 
-[PRE41]
+```
+$ cd ~/fod/ch10/e-shop/monolith
+$ pip install -r requirements.txt
+$ export FLASK_APP=main.py 
+$ flask run
+```
 
 应用程序将在`localhost`的`5000`端口上启动并监听：
 
@@ -394,13 +535,17 @@ nginx 的欢迎页面
 
 1.  我们可以使用`curl`来测试应用程序。使用以下命令来检索公司提供的所有自行车的列表：
 
-[PRE42]
+```
+$ curl localhost:5000/catalog?category=bicycles [{"id": 1, "name": "Mountanbike Driftwood 24\"", "unitPrice": 199}, {"id": 2, "name": "Tribal 100 Flat Bar Cycle Touring Road Bike", "unitPrice": 300}, {"id": 3, "name": "Siech Cycles Bike (58 cm)", "unitPrice": 459}]
+```
 
 您应该看到一个 JSON 格式的自行车类型列表。好吧，目前为止一切顺利。
 
 1.  现在，让我们更改`hosts`文件，为`acme.com`添加一个条目，并将其映射到`127.0.0.1`，即环回地址。这样，我们可以模拟一个真实的客户端使用 URL `http://acme.cnoteom/catalog?category=bicycles` 访问应用程序，而不是使用`localhost`。在 macOS 或 Linux 上，您需要使用 sudo 来编辑 hosts 文件。您应该在`hosts`文件中添加一行，看起来像这样：
 
-[PRE43]
+```
+127.0.0.1  acme.com  
+```
 
 1.  保存您的更改，并通过 ping `acme.com`来确认它是否正常工作：
 
@@ -412,21 +557,39 @@ nginx 的欢迎页面
 
 1.  我们可以通过修改应用程序并在`main.py`的末尾添加以下启动逻辑来轻松实现这一点：
 
-[PRE44]
+```
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+```
 
 然后，我们可以使用`python main.py`启动应用程序。
 
 1.  现在，在`monolith`文件夹中添加一个`Dockerfile`，内容如下：
 
-[PRE45]
+```
+FROM python:3.7-alpine
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 5000
+CMD python main.py
+```
 
 1.  在您的终端窗口中，从单体文件夹中执行以下命令，为应用程序构建 Docker 镜像：
 
-[PRE46]
+```
+$ docker image build -t acme/eshop:1.0 .
+```
 
 1.  构建完镜像后，尝试运行应用程序：
 
-[PRE47]
+```
+$ docker container run --rm -it \
+ --name eshop \
+ -p 5000:5000 \
+ acme/eshop:1.0
+```
 
 请注意，现在在容器内运行的应用程序的输出与在主机上直接运行应用程序时获得的输出是无法区分的。现在，我们可以使用两个`curl`命令来访问目录和结账逻辑，测试应用程序是否仍然像以前一样工作：
 
@@ -444,15 +607,21 @@ nginx 的欢迎页面
 
 1.  在您的终端窗口中，从`catalog`文件夹中构建这个新的微服务的 Docker 镜像：
 
-[PRE48]
+```
+$ docker image build -t acme/catalog:1.0 .
+```
 
 1.  然后，从您刚刚构建的新镜像中运行一个容器：
 
-[PRE49]
+```
+$ docker run --rm -it --name catalog -p 3000:3000 acme/catalog:1.0
+```
 
 1.  从另一个终端窗口中，尝试访问微服务并验证它返回与单体相同的数据：
 
-[PRE50]
+```
+$ curl http://acme.com:3000/catalog?type=bicycle
+```
 
 请注意与访问单体应用程序中相同功能时的 URL 的差异。在这里，我们正在访问端口`3000`上的微服务（而不是`5000`）。但是我们说过，我们不想改变访问我们电子商店应用程序的客户端。我们能做什么？幸运的是，有解决这类问题的解决方案。我们需要重新路由传入的请求。我们将在下一节中向您展示如何做到这一点。
 
@@ -468,7 +637,15 @@ Traefik 是一个云原生边缘路由器，它是开源的，这对我们来说
 
 1.  这是 Docker `run`命令：
 
-[PRE51]
+```
+$ docker container run --rm -d \
+ --name catalog \
+ --label traefik.enable=true \
+ --label traefik.port=3000 \
+ --label traefik.priority=10 \
+ --label traefik.http.routers.catalog.rule="Host(\"acme.com\") && PathPrefix(\"/catalog\")" \
+ acme/catalog:1.0
+```
 
 1.  让我们快速看一下我们定义的四个标签：
 
@@ -484,25 +661,46 @@ Traefik 是一个云原生边缘路由器，它是开源的，这对我们来说
 
 1.  现在，让我们看看如何运行`eshop`容器：
 
-[PRE52]
+```
+$ docker container run --rm -d \
+    --name eshop \
+    --label traefik.enable=true \
+    --label traefik.port=5000 \
+    --label traefik.priority=1 \
+    --label traefik.http.routers.eshop.rule="Host(\"acme.com\")" \
+    acme/eshop:1.0
+```
 
 在这里，我们将任何匹配的调用转发到端口`5000`，这对应于`eshop`应用程序正在监听的端口。请注意优先级设置为`1`（低）。这与`catalog`服务的高优先级结合起来，使我们能够过滤出所有以`/catalog`开头的 URL，并将其重定向到`catalog`服务，而所有其他 URL 将转到`eshop`服务。
 
 1.  现在，我们终于可以将 Traefik 作为边缘路由器运行，它将作为我们应用程序前面的反向代理。这是我们启动它的方式：
 
-[PRE53]
+```
+$ docker run -d \
+ --name traefik \
+ -p 8080:8080 \
+ -p 80:80 \
+ -v /var/run/docker.sock:/var/run/docker.sock \
+ traefik:v2.0 --api.insecure=true --providers.docker
+
+```
 
 注意我们如何将 Docker 套接字挂载到容器中，以便 Traefik 可以与 Docker 引擎交互。我们将能够将 Web 流量发送到 Traefik 的端口`80`，然后根据参与容器的元数据中的路由定义，根据我们的规则进行重定向。此外，我们可以通过端口`8080`访问 Traefik 的 Web UI。
 
 现在一切都在运行，即单体应用程序，第一个名为`catalog`的微服务和 Traefik，我们可以测试一切是否按预期工作。再次使用`curl`来测试：
 
-[PRE54]
+```
+$ curl http://acme.com/catalog?type=bicycles
+$ curl http://acme.com/checkout
+```
 
 正如我们之前提到的，现在我们将所有流量发送到端口`80`，这是 Traefik 正在监听的端口。然后，这个代理将把流量重定向到正确的目的地。
 
 在继续之前，请停止所有容器：
 
-[PRE55]
+```
+$ docker container rm -f traefik eshop catalog
+```
 
 这就是本章的全部内容。
 

@@ -100,7 +100,9 @@ Kubernetes 使用的一些默认污点（我们将在下一节中讨论）如下
 
 要为现有节点打标签，您可以使用`kubectl label`命令：
 
-[PRE0]
+```
+> kubectl label nodes node1 cpu_speed=fast
+```
 
 在这个例子中，我们使用标签`cpu_speed`和值`fast`来标记我们的`node1`节点。
 
@@ -108,7 +110,19 @@ Kubernetes 使用的一些默认污点（我们将在下一节中讨论）如下
 
 pod-with-node-selector.yaml
 
-[PRE1]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: speedy-app
+spec:
+  containers:
+  - name: speedy-app
+    image: speedy-app:latest
+    imagePullPolicy: IfNotPresent
+  nodeSelector:
+    cpu_speed: fast
+```
 
 当部署时，作为部署的一部分或单独部署，我们的`speedy-app` Pod 将只被调度到具有`cpu_speed`标签的节点上。
 
@@ -118,7 +132,18 @@ pod-with-node-selector.yaml
 
 pod-with-node-name.yaml
 
-[PRE2]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: speedy-app
+spec:
+  containers:
+  - name: speedy-app
+    image: speedy-app:latest
+    imagePullPolicy: IfNotPresent
+  nodeName: node1
+```
 
 正如您所看到的，这个选择器只允许 Pod 被调度到`node1`，所以如果它当前由于任何原因不接受 Pods，Pod 将不会被调度。
 
@@ -132,13 +157,17 @@ pod-with-node-name.yaml
 
 让我们使用污点和容忍度来应用与节点选择器相同的示例用例。由于这基本上是我们先前设置的反向，让我们首先使用`kubectl taint`命令给我们的节点添加一个污点：
 
-[PRE3]
+```
+> kubectl taint nodes node2 cpu_speed=slow:NoSchedule
+```
 
 让我们分解这个命令。我们给`node2`添加了一个名为`cpu_speed`的污点和一个值`slow`。我们还用一个效果标记了这个污点 - 在这种情况下是`NoSchedule`。
 
 一旦我们完成了我们的示例（如果您正在跟随命令进行操作，请不要立即执行此操作），我们可以使用减号运算符删除`taint`：
 
-[PRE4]
+```
+> kubectl taint nodes node2 cpu_speed=slow:NoSchedule-
+```
 
 `taint`效果让我们在调度器处理污点时增加了一些细粒度。有三种可能的效果值：
 
@@ -156,19 +185,55 @@ pod-with-node-name.yaml
 
 pod-without-speed-requirement.yaml
 
-[PRE5]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: slow-app
+spec:
+  containers:
+  - name: slow-app
+    image: slow-app:latest
+```
 
 现在，我们的`slow-app` Pod 将不会在任何具有污点的节点上运行。我们需要为这个 Pod 提供一个容忍度，以便它可以被调度到具有污点的节点上 - 我们可以这样做：
 
 pod-with-toleration.yaml
 
-[PRE6]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: slow-app
+spec:
+  containers:
+  - name: slow-app
+    image: slow-app:latest
+tolerations:
+- key: "cpu_speed"
+  operator: "Equal"
+  value: "slow"
+  effect: "NoSchedule"
+```
 
 让我们分解我们的`tolerations`条目，这是一个值数组。每个值都有一个`key`-与我们的污点名称相同。然后是一个`operator`值。这个`operator`可以是`Equal`或`Exists`。对于`Equal`，您可以使用`value`键，就像前面的代码中那样，配置污点必须等于的值，以便 Pod 容忍。对于`Exists`，污点名称必须在节点上，但不管值是什么都没有关系，就像这个 Pod 规范中一样：
 
 pod-with-toleration2.yaml
 
-[PRE7]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: slow-app
+spec:
+  containers:
+  - name: slow-app
+    image: slow-app:latest
+tolerations:
+- key: "cpu_speed"
+  operator: "Exists"
+  effect: "NoSchedule"
+```
 
 如您所见，我们已经使用了`Exists` `operator`值来允许我们的 Pod 容忍任何`cpu_speed`污点。
 
@@ -178,7 +243,22 @@ pod-with-toleration2.yaml
 
 pod-with-toleration3.yaml
 
-[PRE8]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: slow-app
+spec:
+  containers:
+  - name: slow-app
+    image: slow-app:latest
+tolerations:
+- key: "cpu_speed"
+  operator: "Equal"
+  Value: "slow"
+  effect: "NoExecute"
+  tolerationSeconds: 60
+```
 
 在这种情况下，当污点和容忍执行时，已经在具有`taint`的节点上运行的 Pod 将在重新调度到不同节点之前在节点上保留`60`秒。
 
@@ -202,7 +282,26 @@ pod-with-toleration3.yaml
 
 pod-with-node-affinity.yaml
 
-[PRE9]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: affinity-test
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: cpu_speed
+            operator: In
+            values:
+            - fast
+            - medium_fast
+  containers:
+  - name: speedy-app
+    image: speedy-app:latest
+```
 
 正如你所看到的，我们的`Pod` `spec`有一个`affinity`键，并且我们指定了一个`nodeAffinity`设置。有两种可能的节点亲和性类型：
 
@@ -244,7 +343,25 @@ pod-with-node-affinity.yaml
 
 pod-with-node-affinity2.yaml
 
-[PRE10]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: affinity-test
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: cpu_speed
+            operator: Gt
+            values:
+            - "5"
+  containers:
+  - name: speedy-app
+    image: speedy-app:latest
+```
 
 正如你所看到的，我们正在使用非常精细的`matchExpressions`选择器。现在，使用更高级的运算符匹配的能力使我们能够确保我们的`speedy-app`只安排在具有足够高时钟速度（在本例中为 5 GHz）的节点上。我们可以更加精细地规定，而不是将我们的节点分类为“慢”和“快”这样的广泛组别。
 
@@ -256,7 +373,26 @@ pod-with-node-affinity2.yaml
 
 pod-with-node-affinity3.yaml
 
-[PRE11]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: slow-app-affinity
+spec:
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: cpu_speed
+            operator: Lt
+            values:
+            - "3"
+  containers:
+  - name: slow-app
+    image: slow-app:latest
+```
 
 这看起来与我们的`required`语法有些不同。
 
@@ -266,7 +402,33 @@ pod-with-node-affinity3.yaml
 
 pod-with-node-affinity4.yaml
 
-[PRE12]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: speedy-app-prefers-affinity
+spec:
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 90
+        preference:
+          matchExpressions:
+          - key: cpu_speed
+            operator: Gt
+            values:
+            - "3"
+      - weight: 10
+        preference:
+          matchExpressions:
+          - key: memory_speed
+            operator: Gt
+            values:
+            - "4"
+  containers:
+  - name: speedy-app
+    image: speedy-app:latest
+```
 
 在确保我们的`speedy-app`在最佳节点上运行的过程中，我们决定只实现`soft`要求。如果没有快速节点存在，我们仍希望我们的应用程序被调度和运行。为此，我们指定了两个偏好 - 一个`cpu_speed`超过 3（3 GHz）和一个内存速度超过 4（4 GHz）的节点。
 
@@ -284,7 +446,29 @@ pod-with-node-affinity4.yaml
 
 pod-with-node-affinity5.yaml
 
-[PRE13]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: affinity-test
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: cpu_speed
+            operator: Gt
+            values:
+            - "5"
+          - key: memory_speed
+            operator: Gt
+            values:
+            - "4"
+  containers:
+  - name: speedy-app
+    image: speedy-app:latest
+```
 
 在这种情况下，如果一个节点的 CPU 速度为`5`，但不满足内存速度要求（或反之亦然），则 Pod 将不会被调度。
 
@@ -306,7 +490,27 @@ Pod 亲和性和反亲和性的工作方式有很大不同-让我们先单独看
 
 pod-with-pod-affinity.yaml
 
-[PRE14]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: not-hungry-app-affinity
+spec:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: hunger
+            operator: In
+            values:
+            - "1"
+            - "2"
+        topologyKey: rack
+  containers:
+  - name: not-hungry-app
+    image: not-hungry-app:latest
+```
 
 就像节点亲和性一样，Pod 亲和性让我们在两种类型之间进行选择：
 
@@ -332,7 +536,28 @@ pod-with-pod-affinity.yaml
 
 pod-with-pod-affinity2.yaml
 
-[PRE15]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: not-hungry-app-affinity
+spec:
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 50
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: hunger
+              operator: Lt
+              values:
+              - "3"
+          topologyKey: rack
+  containers:
+  - name: not-hungry-app
+    image: not-hungry-app:latest
+```
 
 与之前一样，在这个代码块中，我们有我们的`weight` - 在这种情况下是`50` - 和我们的表达式匹配 - 在这种情况下，使用小于（`Lt`）运算符。这种亲和性将促使调度器尽力将 Pod 调度到一个节点上，该节点上已经运行着一个`hunger`小于 3 的 Pod，或者与另一个在同一机架上运行着`hunger`小于 3 的 Pod。调度器使用`weight`来比较节点 - 正如在节点亲和性部分讨论的那样 - *使用节点亲和性控制 Pod*（参见`pod-with-node-affinity4.yaml`）。在这种特定情况下，`50`的权重并没有任何区别，因为亲和性列表中只有一个条目。
 
@@ -344,7 +569,29 @@ Pod 反亲和性允许您阻止 Pod 在与匹配选择器的 Pod 相同的拓扑
 
 pod-with-pod-anti-affinity.yaml
 
-[PRE16]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hungry-app
+spec:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: hunger
+              operator: In
+              values:
+              - "4"
+              - "5"
+          topologyKey: rack
+  containers:
+  - name: hungry-app
+    image: hungry-app
+```
 
 与 Pod 亲和性类似，我们使用`affinity`键来指定`podAntiAffinity`下的反亲和性的位置。与 Pod 亲和性一样，我们可以使用`preferredDuringSchedulingIgnoredDuringExecution`或`requireDuringSchedulingIgnoredDuringExecution`。我们甚至可以使用与 Pod 亲和性相同的选择器语法。
 
@@ -364,7 +611,36 @@ pod-with-pod-anti-affinity.yaml
 
 pod-with-both-antiaffinity-and-affinity.yaml
 
-[PRE17]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hungry-app-deployment
+# SECTION REMOVED FOR CONCISENESS  
+     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - other-hungry-app
+            topologyKey: "rack"
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - hungry-app-cache
+            topologyKey: "rack"
+      containers:
+      - name: hungry-app
+        image: hungry-app:latest
+```
 
 在这个代码块中，我们告诉调度器将我们的部署中的 Pod 视为这样：Pod 必须被调度到具有`rack`标签的节点上，以便它或具有相同值的`rack`标签的任何其他节点都有一个带有`app=hungry-label-cache`的 Pod。
 
@@ -394,7 +670,30 @@ Kubernetes 只允许您使用`kubernetes.io/hostname`标签，这基本上意味
 
 pod-with-anti-affinity-namespace.yaml
 
-[PRE18]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hungry-app
+spec:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: hunger
+              operator: In
+              values:
+              - "4"
+              - "5"
+          topologyKey: rack
+          namespaces: ["frontend", "backend", "logging"]
+  containers:
+  - name: hungry-app
+    image: hungry-app
+```
 
 在这个代码块中，调度器将在尝试匹配反亲和性时查看前端、后端和日志命名空间（如您在`podAffinityTerm`块中的`namespaces`键中所见）。这允许我们限制调度器在验证其规则时操作的命名空间。
 

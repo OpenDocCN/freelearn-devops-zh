@@ -108,7 +108,10 @@ Docker 引擎是建立在 Linux 内核之上的，并且广泛利用其功能。
 
 1.  安装 Ubuntu 打包版本的最佳做法是通过重新与 Ubuntu 软件包存储库同步开始安装过程。这一步将更新软件包存储库到最新发布的软件包，因此我们将确保始终使用此处显示的命令获取最新发布的版本：
 
-[PRE0]
+```
+$ sudo apt-get update
+
+```
 
 ### 提示
 
@@ -118,7 +121,10 @@ Docker 引擎是建立在 Linux 内核之上的，并且广泛利用其功能。
 
 1.  使用以下命令启动安装。此设置将安装 Docker 引擎以及一些支持文件，并立即启动`docker`服务：
 
-[PRE1]
+```
+$ sudo apt-get install -y docker.io
+
+```
 
 ### 注意
 
@@ -128,7 +134,10 @@ Docker 软件包被称为`docker.io`，因为 Ubuntu 软件包的旧版本被称
 
 1.  为了方便起见，你可以为`docker.io`创建一个名为`docker`的软链接。这将使你能够以`docker`而不是`docker.io`执行 Docker 命令。你可以使用以下命令来实现这一点：
 
-[PRE2]
+```
+$ sudo ln -sf /usr/bin/docker.io /usr/local/bin/docker
+
+```
 
 ### 注意
 
@@ -142,19 +151,34 @@ Docker 软件包被称为`docker.io`，因为 Ubuntu 软件包的旧版本被称
 
 1.  将 Docker 发布工具的存储库路径添加到你的 APT 源中，如下所示：
 
-[PRE3]
+```
+$ sudo sh -c "echo deb https://get.docker.io/ubuntu \
+ docker main > /etc/apt/sources.list.d/docker.list"
+
+```
 
 1.  通过运行以下命令导入 Docker 发布工具的公钥：
 
-[PRE4]
+```
+$ sudo apt-key adv --keyserver \
+ hkp://keyserver.ubuntu.com:80 --recv-keys \
+ 36A1D7869245C8950F966E92D8576A8BA88D21E9
+
+```
 
 1.  使用以下命令重新与软件包存储库同步：
 
-[PRE5]
+```
+$ sudo apt-get update
+
+```
 
 1.  安装`docker`，然后启动`docker`服务。
 
-[PRE6]
+```
+$ sudo apt-get install -y lxc-docker
+
+```
 
 ### 注意
 
@@ -164,11 +188,17 @@ Docker 社区通过隐藏这些细节在自动安装脚本中迈出了一步。�
 
 +   对于 curl 命令：
 
-[PRE7]
+```
+$ sudo curl -sSL https://get.docker.io/ | sh
+
+```
 
 +   对于 wget 命令：
 
-[PRE8]
+```
+$ sudo wget -qO- https://get.docker.io/ | sh
+
+```
 
 ### 注意
 
@@ -180,7 +210,19 @@ Docker 社区通过隐藏这些细节在自动安装脚本中迈出了一步。�
 
 让我们通过`docker version`子命令开始我们的`docker`之旅，如下所示：
 
-[PRE9]
+```
+$ sudo docker version
+Client version: 1.5.0
+Client API version: 1.17
+Go version (client): go1.4.1
+Git commit (client): a8a31ef
+OS/Arch (client): linux/amd64
+Server version: 1.5.0
+Server API version: 1.17
+Go version (server): go1.4.1
+Git commit (server): a8a31ef
+
+```
 
 尽管`docker version`子命令列出了许多文本行，作为 Docker 用户，你应该知道以下输出行的含义：
 
@@ -198,7 +240,31 @@ Docker 社区通过隐藏这些细节在自动安装脚本中迈出了一步。�
 
 让我们使用`docker info`子命令来了解更多关于 Docker 环境的信息：
 
-[PRE10]
+```
+$ sudo docker -D info
+Containers: 0
+Images: 0
+Storage Driver: aufs
+ Root Dir: /var/lib/docker/aufs
+ Backing Filesystem: extfs
+ Dirs: 0
+Execution Driver: native-0.2
+Kernel Version: 3.13.0-45-generic
+Operating System: Ubuntu 14.04.1 LTS
+CPUs: 4
+Total Memory: 3.908 GiB
+Name: dockerhost
+ID: ZNXR:QQSY:IGKJ:ZLYU:G4P7:AXVC:2KAJ:A3Q5:YCRQ:IJD3:7RON:IJ6Y
+Debug mode (server): false
+Debug mode (client): true
+Fds: 10
+Goroutines: 14
+EventsListeners: 0
+Init Path: /usr/bin/docker
+Docker Root Dir: /var/lib/docker
+WARNING: No swap limit support
+
+```
 
 正如您在新安装的 Docker 引擎的输出中所看到的，`容器`和`镜像`的数量始终为零。`存储驱动程序`已设置为`aufs`，并且目录已设置为`/var/lib/docker/aufs`位置。`执行驱动程序`已设置为`本机`模式。此命令还列出了详细信息，如`内核版本`、`操作系统`、`CPU`数量、`总内存`和`名称`，即新的 Docker 主机名。
 
@@ -210,17 +276,35 @@ Docker 社区通过隐藏这些细节在自动安装脚本中迈出了一步。�
 
 成功安装了 Docker 引擎后，下一个逻辑步骤是从 Docker 注册表中下载镜像。Docker 注册表是一个应用程序存储库，其中托管了一系列应用程序，从基本的 Linux 镜像到高级应用程序不等。`docker pull`子命令用于从注册表下载任意数量的镜像。在本节中，我们将使用以下命令下载一个名为`busybox`的小型 Linux 版本的镜像：
 
-[PRE11]
+```
+$ sudo docker pull busybox
+511136ea3c5a: Pull complete
+df7546f9f060: Pull complete
+ea13149945cb: Pull complete
+4986bf8c1536: Pull complete
+busybox:latest: The image you are pulling has been verified. Important: image verification is a tech preview feature and should not be relied on to provide security.
+Status: Downloaded newer image for busybox:latest
+
+```
 
 一旦镜像被下载，可以使用`docker images`子命令进行验证，如下所示：
 
-[PRE12]
+```
+$ sudo docker images
+REPOSITORY    TAG     IMAGE ID         CREATED      VIRTUAL SIZE
+busybox       latest  4986bf8c1536     12 weeks ago 2.433 MB
+
+```
 
 # 运行第一个 Docker 容器
 
 现在，您可以启动您的第一个 Docker 容器。以基本的*Hello World!*应用程序开始是标准做法。在下面的示例中，我们将使用已经下载的`busybox`镜像来回显`Hello World!`，如下所示：
 
-[PRE13]
+```
+$ sudo docker run busybox echo "Hello World!"
+"Hello World!"
+
+```
 
 很酷，不是吗？您已经在短时间内设置了您的第一个 Docker 容器。在上面的示例中，使用了`docker run`子命令来创建一个容器，并使用`echo`命令打印`Hello World!`。
 
@@ -262,7 +346,10 @@ AWS Elastic Beanstalk 服务支持以下内容：
 
 大多数情况下，安装 Docker 时不会遇到任何问题。然而，可能会发生意外故障。因此，有必要讨论突出的故障排除技术和技巧。让我们从本节讨论故障排除知识开始。第一个提示是使用以下命令检查 Docker 的运行状态：
 
-[PRE14]
+```
+$ sudo service docker status
+
+```
 
 但是，如果 Docker 是通过 Ubuntu 软件包安装的，则必须使用`docker.io`作为服务名称。如果`docker`服务正在运行，则此命令将打印状态为`start/running`以及其进程 ID。
 

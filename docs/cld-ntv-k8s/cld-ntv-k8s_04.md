@@ -80,13 +80,23 @@ Kubernetes 中的存储是一个独立的大主题，我们将在*第七章*中�
 
 在运行的集群中，您可以通过运行`kubectl get namespaces`或`kubectl get ns`来查看存在哪些命名空间，这应该会产生以下输出：
 
-[PRE0]
+```
+NAME          STATUS    AGE
+default       Active    1d
+kube-system   Active    1d
+kube-public   Active    1d
+```
 
 通过以下命令可以创建一个命名空间：`kubectl create namespace staging`，或者使用以下 YAML 资源规范运行`kubectl apply -f /path/to/file.yaml`：
 
 Staging-ns.yaml
 
-[PRE1]
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+```
 
 如您所见，`Namespace`规范非常简单。让我们继续讨论更复杂的内容 - PodSpec 本身。
 
@@ -96,7 +106,10 @@ Staging-ns.yaml
 
 `kubectl get pods`的输出如下：
 
-[PRE2]
+```
+NAME     READY   STATUS    RESTARTS   AGE
+my-pod   1/1     Running   0          9s
+```
 
 正如您所看到的，Pod 具有一个`STATUS`值，告诉我们 Pod 当前处于哪种状态。
 
@@ -120,7 +133,21 @@ Pod 状态的值如下：
 
 Simple-pod.yaml
 
-[PRE3]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+  namespace: dev
+  labels:
+    environment: dev
+  annotations:
+    customid1: 998123hjhsad 
+spec:
+  containers:
+  - name: my-app-container
+    image: busybox
+```
 
 这个 Pod YAML 文件比我们在第一章中看到的要复杂一些。它公开了一些新的 Pod 功能，我们将很快进行审查。
 
@@ -146,7 +173,22 @@ Simple-pod.yaml
 
 pod-with-annotations.yaml
 
-[PRE4]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+  namespace: dev
+  labels:
+    environment: dev
+  annotations:
+    customid1: 998123hjhsad
+    customid2: 1239808908sd 
+spec:
+  containers:
+  - name: my-app-container
+    image: busybox
+```
 
 通常，最好使用`labels`来进行 Kubernetes 特定功能和选择器的配置，同时使用`annotations`来添加数据或扩展功能 - 这只是一种惯例。
 
@@ -178,7 +220,23 @@ CPU 请求和限制可以通过使用`m`来配置，它对应于 1 毫 CPU，或
 
 pod-with-resource-limits.yaml
 
-[PRE5]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app-container
+    image: mydockername
+    resources:
+      requests:
+        memory: "50Mi"
+        cpu: "100m"
+      limits:
+        memory: "200Mi"
+        cpu: "500m"
+```
 
 在这个`Pod`中，我们有一个运行 Docker 镜像的容器，该容器在`cpu`和`memory`上都指定了请求和限制。在这种情况下，我们的容器镜像名称`mydockername`是一个占位符 - 但是如果您想在此示例中测试 Pod 资源限制，可以使用 busybox 镜像。
 
@@ -188,7 +246,18 @@ pod-with-resource-limits.yaml
 
 pod-with-start-command.yaml
 
-[PRE6]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app-container
+    image: mydockername
+    command: ["run"]
+    args: ["--flag", "T", "--run-type", "static"]
+```
 
 正如您所看到的，我们指定了一个命令以及作为字符串数组的参数列表，用逗号分隔空格。
 
@@ -204,7 +273,21 @@ pod-with-start-command.yaml
 
 pod-with-init-container.yaml
 
-[PRE7]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app
+    image: mydockername
+    command: ["run"]
+  initContainers:
+  - name: init-before
+    image: busybox
+    command: ['sh', '-c', 'until nslookup config-service; do echo config-service not up; sleep 2; done;']
+```
 
 重要提示
 
@@ -220,7 +303,24 @@ pod-with-init-container.yaml
 
 pod-with-multiple-init-containers.yaml
 
-[PRE8]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app
+    image: mydockername
+    command: ["run"]
+  initContainers:
+  - name: init-step-1
+    image: step1-image
+    command: ['start-command']
+  - name: init-step-2
+    image: step2-image
+    command: ['start-command']
+```
 
 例如，在这个`Pod` YAML 文件中，`step-1 init`容器需要在调用`init-step-2`之前成功，两者都需要在启动`my-app`容器之前显示成功。
 
@@ -238,7 +338,26 @@ Kubernetes 允许我们配置三种类型的探针-就绪、存活和启动。
 
 pod-with-readiness-probe.yaml
 
-[PRE9]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app
+    image: mydockername
+    command: ["run"]
+    ports:
+    - containerPort: 8080
+    readinessProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/thisfileshouldexist.txt
+      initialDelaySeconds: 5
+      periodSeconds: 5
+```
 
 首先，正如您所看到的，探针是针对每个容器而不是每个 Pod 定义的。Kubernetes 将对每个容器运行所有探针，并使用它来确定 Pod 的总体健康状况。
 
@@ -248,7 +367,27 @@ pod-with-readiness-probe.yaml
 
 pod-with-liveness-probe.yaml
 
-[PRE10]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app
+    image: mydockername
+    command: ["run"]
+    ports:
+    - containerPort: 8080
+    livenessProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/thisfileshouldexist.txt
+      initialDelaySeconds: 5
+      failureThreshold: 3
+      periodSeconds: 5
+```
 
 正如您所看到的，我们的活跃性探针与就绪性探针以相同的方式指定，只是增加了`failureThreshold`。
 
@@ -262,7 +401,27 @@ pod-with-liveness-probe.yaml
 
 pod-with-startup-probe.yaml
 
-[PRE11]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app
+    image: mydockername
+    command: ["run"]
+    ports:
+    - containerPort: 8080
+    startupProbe:
+      exec:
+        command:
+        - cat
+        - /tmp/thisfileshouldexist.txt
+      initialDelaySeconds: 5
+      successThreshold: 2
+      periodSeconds: 5
+```
 
 启动探针提供的好处不仅仅是延长活跃性或就绪性探针之间的时间 - 它们允许 Kubernetes 在启动后处理问题时保持快速反应，并且（更重要的是）防止启动缓慢的应用程序不断重新启动。如果您的应用程序需要多秒甚至一两分钟才能启动，您将更容易实现启动探针。
 
@@ -280,13 +439,51 @@ pod-with-startup-probe.yaml
 
 pod-with-get-probe.yaml
 
-[PRE12]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app
+    image: mydockername
+    command: ["run"]
+    ports:
+    - containerPort: 8080
+    livenessProbe:
+      httpGet:
+        path: /healthcheck
+        port: 8001
+        httpHeaders:
+        - name: My-Header
+          value: My-Header-Value
+        initialDelaySeconds: 3
+        periodSeconds: 3
+```
 
 最后，`tcpSocket`方法将尝试在容器上打开指定的套接字，并使用结果来决定成功或失败。`tcpSocket`配置如下：
 
 pod-with-tcp-probe.yaml
 
-[PRE13]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myApp
+spec:
+  containers:
+  - name: my-app
+    image: mydockername
+    command: ["run"]
+    ports:
+    - containerPort: 8080
+    readinessProbe:
+      tcpSocket:
+        port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 10
+```
 
 正如您所看到的，这种类型的探针接收一个端口，每次检查发生时都会对其进行 ping 测试。
 

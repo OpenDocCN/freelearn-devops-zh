@@ -22,7 +22,10 @@ Pipework 让您在任意复杂的场景中连接容器。
 
 Pipework 是一个 shell 脚本，安装它很简单：
 
-[PRE0]
+```
+#sudo wget -O /usr/local/bin/pipework https://raw.githubusercontent.com/jpetazzo/pipework/master/pipework && sudo chmod +x /usr/local/bin/pipework
+
+```
 
 以下图显示了使用 Pipework 进行容器通信：
 
@@ -30,19 +33,116 @@ Pipework 是一个 shell 脚本，安装它很简单：
 
 首先，创建两个容器：
 
-[PRE1]
+```
+#docker run -i -t --name c1 ubuntu:latest /bin/bash
+root@5afb44195a69:/# ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:11:00:10
+ inet addr:172.17.0.16  Bcast:0.0.0.0  Mask:255.255.0.0
+ inet6 addr: fe80::42:acff:fe11:10/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+ RX packets:13 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:9 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:1038 (1.0 KB)  TX bytes:738 (738.0 B)
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+#docker run -i -t --name c2 ubuntu:latest /bin/bash
+root@c94d53a76a9b:/# ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:11:00:11
+ inet addr:172.17.0.17  Bcast:0.0.0.0  Mask:255.255.0.0
+ inet6 addr: fe80::42:acff:fe11:11/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+ RX packets:8 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:9 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:648 (648.0 B)  TX bytes:738 (738.0 B)
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+```
 
 现在让我们使用 Pipework 来连接它们：
 
-[PRE2]
+```
+#sudo pipework brpipe c1 192.168.1.1/24
+
+```
 
 此命令在主机上创建一个桥接`brpipe`。它向容器`c1`添加一个`eth1`接口，IP 地址为`192.168.1.1`，并将接口连接到桥接如下：
 
-[PRE3]
+```
+root@5afb44195a69:/# ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:11:00:10
+ inet addr:172.17.0.16  Bcast:0.0.0.0  Mask:255.255.0.0
+ inet6 addr: fe80::42:acff:fe11:10/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+ RX packets:13 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:9 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:1038 (1.0 KB)  TX bytes:738 (738.0 B)
+eth1      Link encap:Ethernet  HWaddr ce:72:c5:12:4a:1a
+ inet addr:192.168.1.1  Bcast:0.0.0.0  Mask:255.255.255.0
+ inet6 addr: fe80::cc72:c5ff:fe12:4a1a/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+ RX packets:23 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:9 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:1000
+ RX bytes:1806 (1.8 KB)  TX bytes:690 (690.0 B)
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+#sudo pipework brpipe c2 192.168.1.2/24
+
+```
 
 此命令不会创建桥接`brpipe`，因为它已经存在。它将向容器`c2`添加一个`eth1`接口，并将其连接到桥接如下：
 
-[PRE4]
+```
+root@c94d53a76a9b:/# ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:11:00:11
+ inet addr:172.17.0.17  Bcast:0.0.0.0  Mask:255.255.0.0
+ inet6 addr: fe80::42:acff:fe11:11/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+ RX packets:8 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:9 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:648 (648.0 B)  TX bytes:738 (738.0 B)
+eth1      Link encap:Ethernet  HWaddr 36:86:fb:9e:88:ba
+ inet addr:192.168.1.2  Bcast:0.0.0.0  Mask:255.255.255.0
+ inet6 addr: fe80::3486:fbff:fe9e:88ba/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+ RX packets:8 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:9 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:1000
+ RX bytes:648 (648.0 B)  TX bytes:690 (690.0 B)
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+```
 
 现在容器已连接，将能够相互 ping 通，因为它们在同一个子网`192.168.1.0/24`上。Pipework 提供了向容器添加静态 IP 地址的优势。
 
@@ -52,7 +152,10 @@ Pipework 是一个 shell 脚本，安装它很简单：
 
 使用以下代码安装 Weave：
 
-[PRE5]
+```
+#sudo curl -L git.io/weave -o /usr/local/bin/weave
+#sudo chmod a+x /usr/local/bin/weave
+```
 
 以下图显示了使用 Weave 进行多主机通信：
 
@@ -60,23 +163,100 @@ Pipework 是一个 shell 脚本，安装它很简单：
 
 在`$HOST1`上，我们运行以下命令：
 
-[PRE6]
+```
+# weave launch
+# eval $(weave proxy-env)
+# docker run --name c1 -ti ubuntu
+
+```
 
 接下来，我们在`$HOST2`上重复类似的步骤：
 
-[PRE7]
+```
+# weave launch $HOST1
+# eval $(weave proxy-env)
+# docker run --name c2 -ti ubuntu
+
+```
 
 在`$HOST1`上启动的容器中，生成以下输出：
 
-[PRE8]
+```
+root@c1:/# ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:11:00:21
+ inet addr:172.17.0.33  Bcast:0.0.0.0  Mask:255.255.0.0
+ inet6 addr: fe80::42:acff:fe11:21/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+ RX packets:38 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:34 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:3166 (3.1 KB)  TX bytes:2299 (2.2 KB)
+ethwe     Link encap:Ethernet  HWaddr aa:99:8a:d5:4d:d4
+ inet addr:10.128.0.3  Bcast:0.0.0.0  Mask:255.192.0.0
+ inet6 addr: fe80::a899:8aff:fed5:4dd4/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:65535  Metric:1
+ RX packets:130 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:74 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:1000
+ RX bytes:11028 (11.0 KB)  TX bytes:6108 (6.1 KB)
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+```
 
 您可以使用`ifconfig`命令查看编织网络接口`ethwe`：
 
-[PRE9]
+```
+root@c2:/# ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:11:00:04
+ inet addr:172.17.0.4  Bcast:0.0.0.0  Mask:255.255.0.0
+ inet6 addr: fe80::42:acff:fe11:4/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+ RX packets:28 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:29 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:2412 (2.4 KB)  TX bytes:2016 (2.0 KB)
+ethwe     Link encap:Ethernet  HWaddr 8e:7c:17:0d:0e:03
+ inet addr:10.160.0.1  Bcast:0.0.0.0  Mask:255.192.0.0
+ inet6 addr: fe80::8c7c:17ff:fe0d:e03/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:65535  Metric:1
+ RX packets:139 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:74 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:1000
+ RX bytes:11718 (11.7 KB)  TX bytes:6108 (6.1 KB)
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+#root@c1:/# ping -c 1 -q c2
+PING c2.weave.local (10.160.0.1) 56(84) bytes of data.
+--- c2.weave.local ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 1.317/1.317/1.317/0.000 ms
+
+```
 
 同样，在`$HOST2`上启动的容器中，生成以下输出：
 
-[PRE10]
+```
+#root@c2:/# ping -c 1 -q c1
+PING c1.weave.local (10.128.0.3) 56(84) bytes of data.
+--- c1.weave.local ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 1.658/1.658/1.658/0.000 ms
+
+```
 
 所以我们有了—两个容器在不同的主机上愉快地交流。
 
@@ -90,11 +270,19 @@ Docker 默认使用 Linux 桥`docker0`。但是，在某些情况下，可能需
 
 使用此命令安装 OVS：
 
-[PRE11]
+```
+# sudo apt-get install openvswitch-switch
+
+```
 
 使用以下命令安装`ovs-docker`实用程序：
 
-[PRE12]
+```
+# cd /usr/bin
+# wget https://raw.githubusercontent.com/openvswitch/ovs/master/utilities/ovs-docker
+# chmod a+rwx ovs-docker
+
+```
 
 以下图显示了单主机 OVS：
 
@@ -104,25 +292,89 @@ Docker 默认使用 Linux 桥`docker0`。但是，在某些情况下，可能需
 
 在这里，我们将添加一个新的 OVS 桥并对其进行配置，以便我们可以在不同的网络上连接容器，如下所示：
 
-[PRE13]
+```
+# ovs-vsctl add-br ovs-br1
+# ifconfig ovs-br1 173.16.1.1 netmask 255.255.255.0 up
+
+```
 
 将一个端口从 OVS 桥添加到 Docker 容器，使用以下步骤：
 
 1.  创建两个 Ubuntu Docker 容器：
 
-[PRE14]
+```
+# docker run -I -t --name container1 ubuntu /bin/bash
+# docekr run -I -t --name container2 ubuntu /bin/bash
+
+```
 
 1.  将容器连接到 OVS 桥：
 
-[PRE15]
+```
+# ovs-docker add-port ovs-br1 eth1 container1 --ipaddress=173.16.1.2/24
+# ovs-docker add-port ovs-br1 eth1 container2 --ipaddress=173.16.1.3/24
+
+```
 
 1.  使用`ping`命令测试通过 OVS 桥连接的两个容器之间的连接。首先找出它们的 IP 地址：
 
-[PRE16]
+```
+# docker exec container1 ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:10:11:02
+ inet addr:172.16.17.2  Bcast:0.0.0.0  Mask:255.255.255.0
+ inet6 addr: fe80::42:acff:fe10:1102/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1472  Metric:1
+ RX packets:36 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:8 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:4956 (4.9 KB)  TX bytes:648 (648.0 B)
+
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+# docker exec container2 ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:10:11:03
+ inet addr:172.16.17.3  Bcast:0.0.0.0  Mask:255.255.255.0
+ inet6 addr: fe80::42:acff:fe10:1103/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1472  Metric:1
+ RX packets:27 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:8 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:4201 (4.2 KB)  TX bytes:648 (648.0 B)
+
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+```
 
 现在我们知道了`container1`和`container2`的 IP 地址，我们可以 ping 它们：
 
-[PRE17]
+```
+# docker exec container2 ping 172.16.17.2
+PING 172.16.17.2 (172.16.17.2) 56(84) bytes of data.
+64 bytes from 172.16.17.2: icmp_seq=1 ttl=64 time=0.257 ms
+64 bytes from 172.16.17.2: icmp_seq=2 ttl=64 time=0.048 ms
+64 bytes from 172.16.17.2: icmp_seq=3 ttl=64 time=0.052 ms
+
+# docker exec container1 ping 172.16.17.2
+PING 172.16.17.2 (172.16.17.2) 56(84) bytes of data.
+64 bytes from 172.16.17.2: icmp_seq=1 ttl=64 time=0.060 ms
+64 bytes from 172.16.17.2: icmp_seq=2 ttl=64 time=0.035 ms
+64 bytes from 172.16.17.2: icmp_seq=3 ttl=64 time=0.031 ms
+
+```
 
 ## 多主机 OVS
 
@@ -134,11 +386,20 @@ Docker 默认使用 Linux 桥`docker0`。但是，在某些情况下，可能需
 
 在两个主机上安装 Docker 和 Open vSwitch：
 
-[PRE18]
+```
+# wget -qO- https://get.docker.com/ | sh
+# sudo apt-get install openvswitch-switch
+
+```
 
 安装`ovs-docker`实用程序：
 
-[PRE19]
+```
+# cd /usr/bin
+# wget https://raw.githubusercontent.com/openvswitch/ovs/master/utilities/ovs-docker
+# chmod a+rwx ovs-docker
+
+```
 
 默认情况下，Docker 选择一个随机网络来运行其容器。它创建一个桥，`docker0`，并为其分配一个 IP 地址（`172.17.42.1`）。因此，**主机 1**和**主机 2**的`docker0`桥 IP 地址相同，这使得两个主机中的容器难以通信。为了克服这个问题，让我们为网络分配静态 IP 地址，即`192.168.10.0/24`。
 
@@ -146,35 +407,73 @@ Docker 默认使用 Linux 桥`docker0`。但是，在某些情况下，可能需
 
 在主机 1 上执行以下命令：
 
-[PRE20]
+```
+# service docker stop
+# ip link set dev docker0 down
+# ip addr del 172.17.42.1/16 dev docker0
+# ip addr add 192.168.10.1/24 dev docker0
+# ip link set dev docker0 up
+# ip addr show docker0
+# service docker start
+
+```
 
 添加`br0` OVS 桥：
 
-[PRE21]
+```
+# ovs-vsctl add-br br0
+
+```
 
 创建到其他主机的隧道并将其附加到：
 
-[PRE22]
+```
+# add-port br0 gre0 -- set interface gre0 type=gre options:remote_ip=30.30.30.8
+
+```
 
 将`br0`桥添加到`docker0`桥：
 
-[PRE23]
+```
+# brctl addif docker0 br0
+
+```
 
 在主机 2 上执行以下命令：
 
-[PRE24]
+```
+# service docker stop
+# iptables -t nat -F POSTROUTING
+# ip link set dev docker0 down
+# ip addr del 172.17.42.1/16 dev docker0
+# ip addr add 192.168.10.2/24 dev docker0
+# ip link set dev docker0 up
+# ip addr show docker0
+# service docker start
+
+```
 
 添加`br0` OVS 桥：
 
-[PRE25]
+```
+# ip link set br0 up
+# ovs-vsctl add-br br0
+
+```
 
 创建到其他主机的隧道并将其附加到：
 
-[PRE26]
+```
+# br0 bridge ovs-vsctl add-port br0 gre0 -- set interface gre0 type=gre options:remote_ip=30.30.30.7
+
+```
 
 将`br0`桥添加到`docker0`桥：
 
-[PRE27]
+```
+# brctl addif docker0 br0
+
+```
 
 `docker0`桥连接到另一个桥`br0`。这次是一个 OVS 桥。这意味着容器之间的所有流量也通过`br0`路由。
 
@@ -184,21 +483,47 @@ Docker 默认使用 Linux 桥`docker0`。但是，在某些情况下，可能需
 
 在主机 1 上，使用`ping`命令会生成以下输出：
 
-[PRE28]
+```
+# ping 192.168.10.2
+PING 192.168.10.2 (192.168.10.2) 56(84) bytes of data.
+64 bytes from 192.168.10.2: icmp_seq=1 ttl=64 time=0.088 ms
+64 bytes from 192.168.10.2: icmp_seq=2 ttl=64 time=0.032 ms
+^C
+--- 192.168.10.2 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 999ms
+rtt min/avg/max/mdev = 0.032/0.060/0.088/0.028 ms
+
+```
 
 在主机 2 上，使用`ping`命令会生成以下输出：
 
-[PRE29]
+```
+# ping 192.168.10.1
+PING 192.168.10.1 (192.168.10.1) 56(84) bytes of data.
+64 bytes from 192.168.10.1: icmp_seq=1 ttl=64 time=0.088 ms
+64 bytes from 192.168.10.1: icmp_seq=2 ttl=64 time=0.032 ms
+^C
+--- 192.168.10.1 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 999ms
+rtt min/avg/max/mdev = 0.032/0.060/0.088/0.028 ms
+
+```
 
 让我们看看如何在两台主机上创建容器。
 
 在主机 1 上，使用以下代码：
 
-[PRE30]
+```
+# docker run -t -i --name container1 ubuntu:latest /bin/bash
+
+```
 
 在主机 2 上，使用以下代码：
 
-[PRE31]
+```
+# docker run -t -i --name container2 ubuntu:latest /bin/bash
+
+```
 
 现在我们可以从`container1` ping 通`container2`。通过这种方式，我们使用 Open vSwitch 连接多台主机上的 Docker 容器。
 
@@ -210,7 +535,19 @@ Flannel 是提供给每个主机用于 Docker 容器的子网的虚拟网络层�
 
 如果需要，可以从 GitHub 克隆 Flannel 代码并在本地构建，如下所示，可以在不同版本的 Linux OS 上进行。它已经预装在 CoreOS 中：
 
-[PRE32]
+```
+# git clone https://github.com/coreos/flannel.git
+Cloning into 'flannel'...
+remote: Counting objects: 2141, done.
+remote: Compressing objects: 100% (19/19), done.
+remote: Total 2141 (delta 6), reused 0 (delta 0), pack-reused 2122
+Receiving objects: 100% (2141/2141), 4.
+Checking connectivity... done.
+
+# sudo docker run -v `pwd`:/opt/flannel -i -t google/golang /bin/bash -c "cd /opt/flannel && ./build"
+Building flanneld...
+
+```
 
 可以使用 Vagrant 和 VirtualBox 轻松配置 CoreOS 机器，如下链接中提到的教程：
 
@@ -218,33 +555,139 @@ Flannel 是提供给每个主机用于 Docker 容器的子网的虚拟网络层�
 
 创建并登录到机器后，我们将发现使用`etcd`配置自动创建了 Flannel 桥：
 
-[PRE33]
+```
+# ifconfig flannel0
+flannel0: flags=4305<UP,POINTOPOINT,RUNNING,NOARP,MULTICAST>  mtu 1472
+ inet 10.1.30.0  netmask 255.255.0.0  destination 10.1.30.0
+ unspec 00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00  txqueuelen 500 (UNSPEC)
+ RX packets 243  bytes 20692 (20.2 KiB)
+ RX errors 0  dropped 0  overruns 0  frame 0
+ TX packets 304  bytes 25536 (24.9 KiB)
+ TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
+
+```
 
 可以通过查看`subnet.env`来检查 Flannel 环境：
 
-[PRE34]
+```
+# cat /run/flannel/subnet.env
+FLANNEL_NETWORK=10.1.0.0/16
+FLANNEL_SUBNET=10.1.30.1/24
+FLANNEL_MTU=1472
+FLANNEL_IPMASQ=true
+
+```
 
 为了重新实例化 Flannel 桥的子网，需要使用以下命令重新启动 Docker 守护程序：
 
-[PRE35]
+```
+# source /run/flannel/subnet.env
+# sudo rm /var/run/docker.pid
+# sudo ifconfig docker0 ${FLANNEL_SUBNET}
+# sudo docker -d --bip=${FLANNEL_SUBNET} --mtu=${FLANNEL_MTU} & INFO[0000] [graphdriver] using prior storage driver "overlay"
+INFO[0000] Option DefaultDriver: bridge
+INFO[0000] Option DefaultNetwork: bridge
+INFO[0000] Listening for HTTP on unix (/var/run/docker.sock)
+INFO[0000] Firewalld running: false
+INFO[0000] Loading containers: start.
+..............
+INFO[0000] Loading containers: done.
+INFO[0000] Daemon has completed initialization
+INFO[0000] Docker daemon
+commit=cedd534-dirty execdriver=native-0.2 graphdriver=overlay version=1.8.3
+
+```
 
 也可以通过查看`subnet.env`来检查第二台主机的 Flannel 环境：
 
-[PRE36]
+```
+# cat /run/flannel/subnet.env
+FLANNEL_NETWORK=10.1.0.0/16
+FLANNEL_SUBNET=10.1.31.1/24
+FLANNEL_MTU=1472
+FLANNEL_IPMASQ=true
+
+```
 
 为第二台主机分配了不同的子网。也可以通过指向 Flannel 桥来重新启动此主机上的 Docker 服务：
 
-[PRE37]
+```
+# source /run/flannel/subnet.env
+# sudo ifconfig docker0 ${FLANNEL_SUBNET}
+# sudo docker -d --bip=${FLANNEL_SUBNET} --mtu=${FLANNEL_MTU} & INFO[0000] [graphdriver] using prior storage driver "overlay"
+INFO[0000] Listening for HTTP on unix (/var/run/docker.sock)
+INFO[0000] Option DefaultDriver: bridge
+INFO[0000] Option DefaultNetwork: bridge
+INFO[0000] Firewalld running: false
+INFO[0000] Loading containers: start.
+....
+INFO[0000] Loading containers: done.
+INFO[0000] Daemon has completed initialization
+INFO[0000] Docker daemon
+commit=cedd534-dirty execdriver=native-0.2 graphdriver=overlay version=1.8.3
+
+```
 
 Docker 容器可以在各自的主机上创建，并且可以使用`ping`命令进行测试，以检查 Flannel 叠加网络的连通性。
 
 对于主机 1，请使用以下命令：
 
-[PRE38]
+```
+#docker run -it ubuntu /bin/bash
+INFO[0013] POST /v1.20/containers/create
+INFO[0013] POST /v1.20/containers/1d1582111801c8788695910e57c02fdba593f443c15e2f1db9174ed9078db809/attach?stderr=1&stdin=1&stdout=1&stream=1
+INFO[0013] POST /v1.20/containers/1d1582111801c8788695910e57c02fdba593f443c15e2f1db9174ed9078db809/start
+INFO[0013] POST /v1.20/containers/1d1582111801c8788695910e57c02fdba593f443c15e2f1db9174ed9078db809/resize?h=44&w=80
+
+root@1d1582111801:/# ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:0a:01:1e:02
+ inet addr:10.1.30.2  Bcast:0.0.0.0  Mask:255.255.255.0
+ inet6 addr: fe80::42:aff:fe01:1e02/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1472  Metric:1
+ RX packets:11 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:6 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:969 (969.0 B)  TX bytes:508 (508.0 B)
+lo        Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+```
 
 对于主机 2，请使用以下命令：
 
-[PRE39]
+```
+# docker run -it ubuntu /bin/bash
+root@ed070166624a:/# ifconfig
+eth0       Link encap:Ethernet  HWaddr 02:42:0a:01:1f:02
+ inet addr:10.1.31.2  Bcast:0.0.0.0  Mask:255.255.255.0
+ inet6 addr: fe80::42:aff:fe01:1f02/64 Scope:Link
+ UP BROADCAST RUNNING MULTICAST  MTU:1472  Metric:1
+ RX packets:18 errors:0 dropped:2 overruns:0 frame:0
+ TX packets:7 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:1544 (1.5 KB)  TX bytes:598 (598.0 B)
+lo         Link encap:Local Loopback
+ inet addr:127.0.0.1  Mask:255.0.0.0
+ inet6 addr: ::1/128 Scope:Host
+ UP LOOPBACK RUNNING  MTU:65536  Metric:1
+ RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+ TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+ collisions:0 txqueuelen:0
+ RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+root@ed070166624a:/# ping 10.1.30.2
+PING 10.1.30.2 (10.1.30.2) 56(84) bytes of data.
+64 bytes from 10.1.30.2: icmp_seq=1 ttl=60 time=3.61 ms
+64 bytes from 10.1.30.2: icmp_seq=2 ttl=60 time=1.38 ms
+64 bytes from 10.1.30.2: icmp_seq=3 ttl=60 time=0.695 ms
+64 bytes from 10.1.30.2: icmp_seq=4 ttl=60 time=1.49 ms
+
+```
 
 因此，在上面的例子中，我们可以看到 Flannel 通过在每个主机上运行`flanneld`代理来减少的复杂性，该代理负责从预配置的地址空间中分配子网租约。Flannel 在内部使用`etcd`来存储网络配置和其他细节，例如主机 IP 和分配的子网。数据包的转发是使用后端策略实现的。
 

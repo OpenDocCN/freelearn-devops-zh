@@ -30,7 +30,9 @@ Docker 1.12 版本引入了 Docker Swarm 模式。这将所有独立的 Docker S
 
 由于您已经运行了内置 Docker Swarm 支持的 Docker 版本，因此您无需安装 Docker Swarm；您可以通过运行以下命令验证 Docker Swarm 是否可用于您的安装：
 
-[PRE0]
+```
+$ docker swarm --help
+```
 
 当运行以下命令时，您应该会看到类似以下终端输出：
 
@@ -76,15 +78,30 @@ Docker Swarm 涉及哪些角色？让我们来看看在 Docker Swarm 集群中�
 
 让我们从创建一个以 Swarm 管理器为起点的集群开始。由于我们将在本地机器上创建一个多节点集群，我们应该使用 Docker Machine 通过运行以下命令来启动一个主机：
 
-[PRE1]
+```
+$ docker-machine create \
+ -d virtualbox \
+ swarm-manager 
+```
 
 这里显示了您获得的输出的缩略版本：
 
-[PRE2]
+```
+(swarm-manager) Creating VirtualBox VM...
+(swarm-manager) Starting the VM...
+(swarm-manager) Check network to re-create if needed...
+(swarm-manager) Waiting for an IP...
+Waiting for machine to be running, this may take a few minutes...
+Checking connection to Docker...
+Docker is up and running!
+To see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: docker-machine env swarm-manager
+```
 
 Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以通过运行以下命令来确认：
 
-[PRE3]
+```
+$ docker-machine ls
+```
 
 您应该看到类似以下输出：
 
@@ -92,19 +109,32 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 现在，让我们将 Docker Machine 指向新的 Swarm 管理器。从我们创建 Swarm 管理器时的先前输出中，我们可以看到它告诉我们如何指向该节点：
 
-[PRE4]
+```
+$ docker-machine env swarm-manager
+```
 
 这将向您显示配置本地 Docker 客户端与我们新启动的 Docker 主机通信所需的命令。当我运行该命令时，以下代码块显示了返回的配置：
 
-[PRE5]
+```
+export DOCKER_TLS_VERIFY="1"
+export DOCKER_HOST="tcp://192.168.99.100:2376"
+export DOCKER_CERT_PATH="/Users/russ/.docker/machine/machines/swarm-manager"
+export DOCKER_MACHINE_NAME="swarm-manager"
+# Run this command to configure your shell:
+# eval $(docker-machine env swarm-manager)
+```
 
 在运行上一个命令后，我们被告知运行以下命令指向 Swarm 管理器：
 
-[PRE6]
+```
+$ eval $(docker-machine env swarm-manager)
+```
 
 现在，如果我们查看我们主机上有哪些机器，我们可以看到我们有 Swarm 主节点，以及它现在被设置为`ACTIVE`，这意味着我们现在可以在其上运行命令：
 
-[PRE7]
+```
+$ docker-machine ls
+```
 
 它应该向您显示类似以下内容：
 
@@ -112,11 +142,20 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 现在我们已经启动并运行了第一个主机，我们应该添加另外两个工作节点。要做到这一点，只需运行以下命令来启动另外两个 Docker 主机：
 
-[PRE8]
+```
+$ docker-machine create \
+ -d virtualbox \
+ swarm-worker01
+$ docker-machine create \
+ -d virtualbox \
+ swarm-worker02
+```
 
 一旦您启动了另外两个主机，您可以使用以下命令获取主机列表：
 
-[PRE9]
+```
+$ docker-machine ls
+```
 
 它应该向您显示类似以下内容：
 
@@ -130,11 +169,23 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 让我们引导我们的 Swarm 管理器。为此，我们将传递一些 Docker Machine 命令的结果给我们的主机。要创建我们的管理器的命令如下：
 
-[PRE10]
+```
+$ docker $(docker-machine config swarm-manager) swarm init \
+ --advertise-addr $(docker-machine ip swarm-manager):2377 \
+ --listen-addr $(docker-machine ip swarm-manager):2377
+```
 
 您应该收到类似于这样的消息：
 
-[PRE11]
+```
+Swarm initialized: current node (uxgvqhw6npr9glhp0zpabn4ha) is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+ docker swarm join --token SWMTKN-1-1uulmpx4j4hub2qmd8q2ozxmonzcehxcomt7cw92xarg3yrkx2-dfiqnfisl75bwwh8yk9pv3msh 192.168.99.100:2377
+
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+```
 
 从输出中可以看出，一旦初始化了您的管理器，您将获得一个唯一的令牌。在上面的示例中，完整的令牌是`SWMTKN-1-1uulmpx4j4hub2qmd8q2ozxmonzcehxcomt7cw92xarg3yrkx2-dfiqnfisl75bwwh8yk9pv3msh`。这个令牌将被工作节点用于验证自己并加入我们的集群。
 
@@ -142,33 +193,51 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 要将我们的两个工作节点添加到集群中，请运行以下命令。首先，让我们设置一个环境变量来保存我们的令牌，确保您用初始化自己管理器时收到的令牌替换它：
 
-[PRE12]
+```
+$ SWARM_TOKEN=SWMTKN-1-1uulmpx4j4hub2qmd8q2ozxmonzcehxcomt7cw92xarg3yrkx2-dfiqnfisl75bwwh8yk9pv3msh
+```
 
 现在我们可以运行以下命令将`swarm-worker01`添加到集群中：
 
-[PRE13]
+```
+$ docker $(docker-machine config swarm-worker01) swarm join \
+ --token $SWARM_TOKEN \
+ $(docker-machine ip swarm-manager):2377
+```
 
 对于`swarm-worker02`，您需要运行以下命令：
 
-[PRE14]
+```
+$ docker $(docker-machine config swarm-worker02) swarm join \
+ --token $SWARM_TOKEN \
+ $(docker-machine ip swarm-manager):2377
+```
 
 两次，您都应该得到确认，您的节点已加入集群：
 
-[PRE15]
+```
+This node joined a swarm as a worker.
+```
 
 # 列出节点
 
 您可以通过运行以下命令来检查 Swarm：
 
-[PRE16]
+```
+$ docker-machine ls
+```
 
 检查您的本地 Docker 客户端是否仍然配置为连接到 Swarm 管理节点，如果没有，请重新运行以下命令：
 
-[PRE17]
+```
+$ eval $(docker-machine env swarm-manager)
+```
 
 现在我们正在连接到 Swarm 管理节点，您可以运行以下命令：
 
-[PRE18]
+```
+$ docker node ls
+```
 
 这将连接到 Swarm 主节点并查询组成我们集群的所有节点。您应该看到我们的三个节点都被列出：
 
@@ -184,29 +253,128 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 正如我们已经看到的，我们可以使用我们的本地 Docker 客户端列出集群中的节点，因为它已经配置为连接到 Swarm 管理主机。我们只需输入：
 
-[PRE19]
+```
+$ docker info
+```
 
 这将为我们提供有关主机的大量信息，如您从下面的输出中所见，我已经截断了：
 
-[PRE20]
+```
+Containers: 0
+ Running: 0
+ Paused: 0
+ Stopped: 0
+Images: 0
+Plugins:
+ Volume: local
+ Network: bridge host macvlan null overlay
+ Log: awslogs fluentd gcplogs gelf journald json-file logentries splunk syslog
+Swarm: active
+ NodeID: uxgvqhw6npr9glhp0zpabn4ha
+ Is Manager: true
+ ClusterID: pavj3f2ym8u1u1ul5epr3c73f
+ Managers: 1
+ Nodes: 3
+ Orchestration:
+ Task History Retention Limit: 5
+ Raft:
+ Snapshot Interval: 10000
+ Number of Old Snapshots to Retain: 0
+ Heartbeat Tick: 1
+ Election Tick: 10
+ Dispatcher:
+ Heartbeat Period: 5 seconds
+ CA Configuration:
+ Expiry Duration: 3 months
+ Force Rotate: 0
+ Autolock Managers: false
+ Root Rotation In Progress: false
+ Node Address: 192.168.99.100
+ Manager Addresses:
+ 192.168.99.100:2377
+Runtimes: runc
+Default Runtime: runc
+Init Binary: docker-init
+containerd version: 468a545b9edcd5932818eb9de8e72413e616e86e
+runc version: 69663f0bd4b60df09991c08812a60108003fa340
+init version: fec3683
+Kernel Version: 4.9.93-boot2docker
+Operating System: Boot2Docker 18.06.1-ce (TCL 8.2.1); HEAD : c7e5c3e - Wed Aug 22 16:27:42 UTC 2018
+OSType: linux
+Architecture: x86_64
+CPUs: 1
+Total Memory: 995.6MiB
+Name: swarm-manager
+ID: NRV7:WAFE:FWDS:63PT:UMZY:G3KU:OU2A:RWRN:RC7D:5ESI:NWRN:NZRU
+```
 
 如您所见，在 Swarm 部分有关集群的信息；但是，我们只能针对当前客户端配置为通信的主机运行`docker info`命令。幸运的是，`docker node`命令是集群感知的，因此我们可以使用它来获取有关我们集群中每个节点的信息，例如以下内容：
 
-[PRE21]
+```
+$ docker node inspect swarm-manager --pretty
+```
 
 使用`docker node inspect`命令的`--pretty`标志来评估输出，将以易于阅读的格式呈现。如果省略`--pretty`，Docker 将返回包含`inspect`命令针对集群运行的查询结果的原始`JSON`对象。
 
 这应该提供了关于我们 Swarm 管理节点的以下信息：
 
-[PRE22]
+```
+ID: uxgvqhw6npr9glhp0zpabn4ha
+Hostname: swarm-manager
+Joined at: 2018-09-15 12:14:59.663920111 +0000 utc
+Status:
+ State: Ready
+ Availability: Active
+ Address: 192.168.99.100
+Manager Status:
+ Address: 192.168.99.100:2377
+ Raft Status: Reachable
+ Leader: Yes
+Platform:
+ Operating System: linux
+ Architecture: x86_64
+Resources:
+ CPUs: 1
+ Memory: 995.6MiB
+Plugins:
+ Log: awslogs, fluentd, gcplogs, gelf, journald, json-file, logentries, splunk, syslog
+ Network: bridge, host, macvlan, null, overlay
+ Volume: local
+Engine Version: 18.06.1-ce
+Engine Labels:
+ - provider=virtualbox
+```
 
 运行相同的命令，但这次是针对其中一个工作节点：
 
-[PRE23]
+```
+$ docker node inspect swarm-worker01 --pretty
+```
 
 这给我们提供了类似的信息：
 
-[PRE24]
+```
+ID: yhqj03rkfzurb4aqzk7duidf4
+Hostname: swarm-worker01
+Joined at: 2018-09-15 12:24:09.02346782 +0000 utc
+Status:
+ State: Ready
+ Availability: Active
+ Address: 192.168.99.101
+Platform:
+ Operating System: linux
+ Architecture: x86_64
+Resources:
+ CPUs: 1
+ Memory: 995.6MiB
+Plugins:
+ Log: awslogs, fluentd, gcplogs, gelf, journald, json-file, logentries, splunk, syslog
+ Network: bridge, host, macvlan, null, overlay
+ Volume: local
+Engine Version: 18.06.1-ce
+Engine Labels:
+ - provider=virtualbox
+```
 
 但是你会发现，它缺少了关于管理功能状态的信息。这是因为工作节点不需要知道管理节点的状态，它们只需要知道它们可以接收来自管理节点的指令。
 
@@ -218,15 +386,21 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 我们的本地三节点集群已经运行起来了，现在让我们把`swarm-worker01`提升为新的管理节点。要做到这一点，运行以下命令：
 
-[PRE25]
+```
+$ docker node promote swarm-worker01
+```
 
 执行命令后，你应该会收到一个确认你的节点已经被提升的消息：
 
-[PRE26]
+```
+Node swarm-worker01 promoted to a manager in the swarm.
+```
 
 通过运行这个命令来列出节点：
 
-[PRE27]
+```
+$ docker node ls
+```
 
 这应该显示你现在有两个节点在`MANAGER STATUS`列中显示了一些内容：
 
@@ -238,27 +412,39 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 你可能已经联想到了，要将管理节点降级为工作节点，你只需要运行这个命令：
 
-[PRE28]
+```
+$ docker node demote swarm-manager
+```
 
 同样，你将立即收到以下反馈：
 
-[PRE29]
+```
+Manager swarm-manager demoted in the swarm.
+```
 
 现在我们已经降级了我们的节点，你可以通过运行这个命令来检查集群中节点的状态：
 
-[PRE30]
+```
+$ docker node ls
+```
 
 由于你的本地 Docker 客户端仍然指向新降级的节点，你将收到以下消息：
 
-[PRE31]
+```
+Error response from daemon: This node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager.
+```
 
 正如我们已经学到的，使用 Docker Machine 很容易更新我们本地客户端配置以与其他节点通信。要将本地客户端指向新的管理节点，运行以下命令：
 
-[PRE32]
+```
+$ eval $(docker-machine env swarm-worker01)
+```
 
 现在我们的客户端又在与一个管理节点通信了，重新运行这个命令：
 
-[PRE33]
+```
+$ docker node ls
+```
 
 它应该列出节点，正如预期的那样：
 
@@ -268,7 +454,9 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 为了暂时从集群中移除一个节点，以便我们可以进行维护，我们需要将节点的状态设置为 Drain。让我们看看如何排水我们以前的管理节点。要做到这一点，我们需要运行以下命令：
 
-[PRE34]
+```
+$ docker node update --availability drain swarm-manager
+```
 
 这将停止任何新任务，比如新容器的启动或在我们排水的节点上执行。一旦新任务被阻止，所有正在运行的任务将从我们排水的节点迁移到具有`ACTIVE`状态的节点。
 
@@ -278,17 +466,24 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 现在我们的节点不再接受新任务，所有正在运行的任务都已迁移到我们剩下的两个节点，我们可以安全地进行维护，比如重新启动主机。要重新启动 Swarm 管理器，请运行以下两个命令，确保您连接到 Docker 主机（您应该看到`boot2docker`横幅，就像在命令后面的截图中一样）：
 
-[PRE35]
+```
+$ docker-machine ssh swarm-manager
+$ sudo reboot
+```
 
 ![](img/1cb99ead-ce1e-44aa-aee0-5ccf89af0c0a.png)
 
 主机重新启动后，运行此命令：
 
-[PRE36]
+```
+$ docker node ls
+```
 
 它应该显示节点的`AVAILABILITY`为`Drain`。要将节点重新添加到集群中，只需通过运行以下命令将`AVAILABILITY`更改为 active：
 
-[PRE37]
+```
+$ docker node update --availability active swarm-manager
+```
 
 如您从以下终端输出中所见，我们的节点现在处于活动状态，这意味着可以对其执行新任务：
 
@@ -300,11 +495,17 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 到目前为止，我们已经看过以下命令：
 
-[PRE38]
+```
+$ docker swarm <command>
+$ docker node <command>
+```
 
 这两个命令允许我们从一组现有的 Docker 主机引导和管理我们的 Docker Swarm 集群。我们接下来要看的两个命令如下：
 
-[PRE39]
+```
+$ docker service <command>
+$ docker stack <command>
+```
 
 `service`和`stack`命令允许我们执行任务，进而在我们的 Swarm 集群中启动、扩展和管理容器。
 
@@ -312,17 +513,27 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 `service`命令是启动利用 Swarm 集群的容器的一种方式。让我们来看看在我们的 Swarm 集群上启动一个非常基本的单容器服务。要做到这一点，运行以下命令：
 
-[PRE40]
+```
+$ docker service create \
+ --name cluster \
+ --constraint "node.role == worker" \
+ -p:80:80/tcp \
+ russmckendrick/cluster
+```
 
 这将创建一个名为 cluster 的服务，该服务由一个单个容器组成，端口`80`从容器映射到主机，它只会在具有工作节点角色的节点上运行。
 
 在我们查看如何处理服务之前，我们可以检查它是否在我们的浏览器上运行。为此，我们需要两个工作节点的 IP 地址。首先，我们需要通过运行此命令再次确认哪些是工作节点：
 
-[PRE41]
+```
+$ docker node ls
+```
 
 一旦我们知道哪个节点具有哪个角色，您可以通过运行此命令找到您节点的 IP 地址：
 
-[PRE42]
+```
+$ docker-machine ls
+```
 
 查看以下终端输出：
 
@@ -336,7 +547,9 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 现在我们的服务在集群上运行，我们可以开始了解更多关于它的信息。首先，我们可以通过运行以下命令再次列出服务：
 
-[PRE43]
+```
+$ docker service ls
+```
 
 在我们的情况下，这应该返回我们启动的单个名为 cluster 的服务：
 
@@ -344,7 +557,9 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 如您所见，这是一个`replicated`服务，有`1/1`个容器处于活动状态。接下来，您可以通过运行`inspect`命令深入了解有关服务的更多信息：
 
-[PRE44]
+```
+$ docker service inspect cluster --pretty
+```
 
 这将返回有关服务的详细信息：
 
@@ -354,7 +569,11 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 在我们查看如何扩展我们的服务之前，我们可以通过运行以下命令快速查看我们的单个容器正在哪个主机上运行：
 
-[PRE45]
+```
+$ docker node ps
+$ docker node ps swarm-manager
+$ docker node ps swarm-worker02
+```
 
 这将列出在每个主机上运行的容器。默认情况下，它将列出命令所针对的主机，我这里是`swarm-worker01`：
 
@@ -362,7 +581,12 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 让我们来看看将我们的服务扩展到六个应用程序容器实例。运行以下命令来扩展和检查我们的服务：
 
-[PRE46]
+```
+$ docker service scale cluster=6
+$ docker service ls
+$ docker node ps swarm-manager
+$ docker node ps swarm-worker02
+```
 
 我们只检查两个节点，因为我们最初告诉我们的服务在工作节点上启动。从以下终端输出中可以看出，我们现在在每个工作节点上运行了三个容器：
 
@@ -370,7 +594,9 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 在继续查看 stack 之前，让我们删除我们的服务。要做到这一点，请运行以下命令：
 
-[PRE47]
+```
+$ docker service rm cluster
+```
 
 这将删除所有容器，同时保留主机上下载的镜像。
 
@@ -380,7 +606,21 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 以下 Docker Compose 文件，应命名为`docker-compose.yml`，将创建与上一节中启动的相同服务：
 
-[PRE48]
+```
+version: "3"
+services:
+ cluster:
+ image: russmckendrick/cluster
+ ports:
+ - "80:80"
+ deploy:
+ replicas: 6
+ restart_policy:
+ condition: on-failure
+ placement:
+ constraints:
+ - node.role == worker
+```
 
 正如您所看到的，stack 可以由多个服务组成，每个服务在 Docker Compose 文件的`services`部分下定义。
 
@@ -390,21 +630,29 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 要启动我们的 stack，请将先前的内容复制到名为`docker-compose.yml`的文件中，然后运行以下命令：
 
-[PRE49]
+```
+$ docker stack deploy --compose-file=docker-compose.yml cluster
+```
 
 与使用 Docker Compose 启动容器时一样，Docker 将创建一个新网络，然后在其上启动您的服务。
 
 您可以通过运行此命令来检查您的`stack`的状态：
 
-[PRE50]
+```
+$ docker stack ls
+```
 
 这将显示已创建一个单一服务。您可以通过运行以下命令来获取由`stack`创建的服务的详细信息：
 
-[PRE51]
+```
+$ docker stack services cluster
+```
 
 最后，运行以下命令将显示`stack`中容器的运行位置：
 
-[PRE52]
+```
+$ docker stack ps cluster
+```
 
 查看终端输出：
 
@@ -412,7 +660,9 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 同样，您将能够使用节点的 IP 地址访问堆栈，并且将被路由到其中一个正在运行的容器。要删除一个堆栈，只需运行此命令：
 
-[PRE53]
+```
+$ docker stack rm cluster
+```
 
 这将在启动时删除堆栈创建的所有服务和网络。
 
@@ -420,7 +670,9 @@ Swarm 管理节点现在正在使用 VirtualBox 启动和运行。我们可以�
 
 在继续之前，因为我们不再需要它用于下一节，您可以通过运行以下命令删除您的 Swarm 集群：
 
-[PRE54]
+```
+$ docker-machine rm swarm-manager swarm-worker01 swarm-worker02
+```
 
 如果出于任何原因需要重新启动 Swarm 集群，只需按照本章开头的说明重新创建集群。
 

@@ -26,7 +26,11 @@
 
 本章中的所有命令都可以在 `06-grafana.sh` ([`gist.github.com/vfarcic/b94b3b220aab815946d34af1655733cb`](https://gist.github.com/vfarcic/b94b3b220aab815946d34af1655733cb)) Gist 中找到。
 
-[PRE0]
+```
+ 1  cd k8s-specs
+ 2
+ 3  git pull
+```
 
 要求与上一章相同。为了方便起见，Gists 在这里也是可用的。请随意使用它们来创建一个新的集群，或者验证您计划使用的集群是否符合要求。
 
@@ -58,29 +62,67 @@
 
 接下来你可能知道发生了什么。我们谷歌搜索“Grafana Helm”，希望社区已经创建了一个我们可以使用的图表。我将为您揭示，Helm 的*稳定*频道中有 Grafana。我们所要做的就是检查数值并选择我们将使用的数值。
 
-[PRE1]
+```
+ 1  helm inspect values stable/grafana
+```
 
 我不会列举我们可以使用的所有数值。我假设到现在为止，你已经是一个 Helm 忍者，可以自己探索它们。相反，我们将使用我已经定义的数值。
 
-[PRE2]
+```
+ 1  cat mon/grafana-values-bare.yml
+```
 
 输出如下。
 
-[PRE3]
+```
+ingress:
+  enabled: true
+persistence:
+  enabled: true
+  accessModes:
+  - ReadWriteOnce
+  size: 1Gi
+resources:
+  limits:
+    cpu: 20m
+    memory: 50Mi
+  requests:
+    cpu: 5m
+    memory: 25Mi
+```
 
 这些数值没有什么特别之处。我们启用了 Ingress，设置了`persistence`，并定义了`resources`。正如文件名所示，这是一个非常简单的设置，没有任何多余的东西。
 
 现在剩下的就是安装图表。
 
-[PRE4]
+```
+ 1  GRAFANA_ADDR="grafana.$LB_IP.nip.io"
+ 2    
+ 3  helm install stable/grafana \
+ 4      --name grafana \
+ 5      --namespace metrics \
+ 6      --version 1.17.5 \
+ 7      --set ingress.hosts="{$GRAFANA_ADDR}" \
+ 8      --values mon/grafana-values-bare.yml
+ 9
+10  kubectl -n metrics \
+11      rollout status deployment grafana
+```
 
 现在我们可以在您喜欢的浏览器中打开 Grafana。
 
-[PRE5]
+```
+ 1  open "http://$GRAFANA_ADDR"
+```
 
 你将看到登录界面。就像许多其他 Helm 图表一样，安装包括`admin`用户和密码存储为一个秘密。
 
-[PRE6]
+```
+ 1  kubectl -n metrics \
+ 2      get secret grafana \
+ 3      -o jsonpath="{.data.admin-password}" \
+ 4      | base64 --decode; echo
+```
 
 请返回到 Grafana 登录界面，输入`admin`作为用户名，并将上一个命令的输出粘贴为密码。
 
@@ -96,7 +138,9 @@ Grafana 不收集指标。相反，它使用其他数据源，因此我们的第
 
 数据源本身是无用的。我们需要以某种方式将它们可视化。我们可以通过创建自己的仪表板来实现这一点，但这可能不是 Grafana 的最佳（也不是最简单）介绍。相反，我们将导入一个现有的社区维护的仪表板。我们只需要选择一个适合我们需求的仪表板。
 
-[PRE7]
+```
+ 1  open "https://grafana.com/dashboards"
+```
 
 随意花一点时间探索可用的仪表板。
 
@@ -130,7 +174,22 @@ Grafana 不收集指标。相反，它使用其他数据源，因此我们的第
 
 该图表使用的查询（为了可读性而格式化）如下。
 
-[PRE8]
+```
+ 1  sum (
+ 2      container_fs_usage_bytes{
+ 3          device=~"^/dev/xvda.$",
+ 4          id="/",
+ 5          kubernetes_io_hostname=~"^$Node$"
+ 6      }
+ 7  ) / 
+ 8  sum (
+ 9      container_fs_limit_bytes{
+10          device=~"^/dev/xvda.$",
+11          id="/",
+12          kubernetes_io_hostname=~"^$Node$"
+13      }
+14  ) * 100
+```
 
 我们不会深入讨论该查询的细节。你现在应该熟悉 Prometheus 表达式。相反，我们将专注于问题的可能原因。我们可能没有名为`/dev/xvda`的文件系统设备（除非您使用 EKS 或在某些情况下使用 GKE）。如果这是问题，我们可以通过简单地将值更改为我们的设备来修复图表。但是，在我们继续之前，我们可能会探索 Grafana 变量。毕竟，如果我们甚至不知道我们的设备是什么，将一个硬编码值更改为另一个值对我们毫无好处。
 
@@ -150,7 +209,10 @@ Grafana 不收集指标。相反，它使用其他数据源，因此我们的第
 
 到目前为止，一切可能都是不言自明的。接下来的内容不是。我们需要查阅文档，了解如何编写用作变量值的 Grafana 查询。
 
-[PRE9]
+```
+ 1  open
+    "http://docs.grafana.org/features/datasources/prometheus/#query-variable"
+```
 
 让这成为一个练习。通过文档找出如何编写一个查询，以检索`container_fs_usage_bytes`指标中可用的`device`标签的所有不同值。
 
@@ -208,7 +270,19 @@ Grafana 仅支持四种类型的变量查询，因此我想您不会很难找出
 
 我们还需要两个变量。可能没有必要重复相同的说明，所以请使用以下信息来创建它们。
 
-[PRE10]
+```
+ 1  Name:  cpuReqPercentMin
+ 2  Type:  Constant
+ 3  Label: Min % of requested CPU
+ 4  Hide:  Variable
+ 5  Value: 50
+ 6
+ 7  Name:  cpuReqPercentMax
+ 8  Type:  Constant
+ 9  Label: Max % of requested CPU
+10  Hide:  Variable
+11  Value: 150
+```
 
 现在我们可以返回并定义我们的图表。请点击屏幕右上角的*返回仪表板*图标。
 
@@ -218,7 +292,11 @@ Grafana 仅支持四种类型的变量查询，因此我想您不会很难找出
 
 接下来，将`%实际 CPU 与保留 CPU`作为标题，以及后面的文本作为描述。
 
-[PRE11]
+```
+ 1  The percentage of actual CPU usage compared to reserved. The
+    calculation excludes Pods with reserved CPU equal to or smaller than
+    $minCpu. Those with less than $minCpu of requested CPU are ignored.
+```
 
 请注意描述中`$minCpu`变量的使用。当我们回到仪表板时，它将展开为其值。
 
@@ -228,7 +306,31 @@ Grafana 仅支持四种类型的变量查询，因此我想您不会很难找出
 
 为了方便起见，查询可在`grafana-actual-vs-reserved-cpu` ([`gist.github.com/vfarcic/1b027a1e2b2415e1d156687c1cf14012`](https://gist.github.com/vfarcic/1b027a1e2b2415e1d156687c1cf14012)) Gist 中找到。
 
-[PRE12]
+```
+ 1  sum(label_join(
+ 2      rate(
+ 3          container_cpu_usage_seconds_total{
+ 4              namespace!="kube-system",
+ 5              pod_name!=""
+ 6          }[5m]
+ 7      ),
+ 8      "pod",
+ 9      ",",
+10      "pod_name"
+11  )) by (pod) /
+12  sum(
+13      kube_pod_container_resource_requests_cpu_cores{
+14          namespace!="kube-system",
+15          namespace!="ingress-nginx"
+16      }
+17  ) by (pod) and 
+18  sum(
+19      kube_pod_container_resource_requests_cpu_cores{
+20          namespace!="kube-system",
+21          namespace!="ingress-nginx"
+22      }
+23  ) by (pod) > $minCpu
+```
 
 该查询几乎与我们在第三章中使用的查询之一几乎相同，*收集和查询指标并发送警报*。唯一的区别是使用了`$minCpu`变量。
 
@@ -296,7 +398,10 @@ Grafana 仅支持四种类型的变量查询，因此我想您不会很难找出
 
 将`Pods with <$cpuReqPercentMin%||>$cpuReqPercentMax% actual compared to reserved CPU`输入为标题，然后输入后面的文本为描述。
 
-[PRE13]
+```
+ 1  The number of Pods with less than $cpuReqPercentMin% or more than
+    $cpuReqPercentMax% actual compared to reserved CPU
+```
 
 这个单一统计将使用与我们之前制作的图表类似的查询。然而，虽然图表显示当前使用量与保留 CPU 相比，但该面板应该显示有多少个 Pod 的实际 CPU 使用量超出了基于保留 CPU 的边界。这反映在我们刚刚输入的标题和描述中。正如您所看到的，这一次我们依赖更多的变量来表达我们的意图。
 
@@ -304,7 +409,63 @@ Grafana 仅支持四种类型的变量查询，因此我想您不会很难找出
 
 为了您的方便，该查询可在`grafana-single-stat-actual-vs-reserved-cpu` ([`gist.github.com/vfarcic/078674efd3b379c211c4da2c9844f5bd`](https://gist.github.com/vfarcic/078674efd3b379c211c4da2c9844f5bd)) Gist 中找到。
 
-[PRE14]
+```
+ 1  sum(
+ 2      (
+ 3          sum(
+ 4              label_join(
+ 5                  rate(container_cpu_usage_seconds_total{
+ 6                      namespace!="kube-system",
+ 7                      pod_name!=""}[5m]),
+ 8                      "pod",
+ 9                      ",",
+10                      "pod_name"
+11              )
+12          ) by (pod) /
+13          sum(
+14              kube_pod_container_resource_requests_cpu_cores{
+15                  namespace!="kube-system",
+16                  namespace!="ingress-nginx"
+17              }
+18          ) by (pod) and
+19          sum(
+20              kube_pod_container_resource_requests_cpu_cores{
+21                  namespace!="kube-system",
+22                  namespace!="ingress-nginx"
+23              }
+24          ) by (pod) > $minCpu
+25      ) < bool ($cpuReqPercentMin / 100)
+26  ) +
+27  sum(
+28      (
+29          sum(
+30              label_join(
+31                  rate(
+32                      container_cpu_usage_seconds_total{
+33                          namespace!="kube-system",
+34                          pod_name!=""
+35                      }[5m]
+36                  ),
+37                  "pod",
+38                  ",",
+39                  "pod_name"
+40              )
+41          ) by (pod) /
+42          sum(
+43              kube_pod_container_resource_requests_cpu_cores{
+44                  namespace!="kube-system",
+45                  namespace!="ingress-nginx"
+46              }
+47          ) by (pod) and
+48          sum(
+49              kube_pod_container_resource_requests_cpu_cores{
+50                  namespace!="kube-system",
+51                  namespace!="ingress-nginx"
+52              }
+53          ) by (pod) > $minCpu
+54      ) > bool ($cpuReqPercentMax / 100)
+55  )
+```
 
 该查询类似于我们用作 Prometheus 警报的查询之一。更准确地说，它是两个 Prometheus 警报的组合。前半部分返回具有超过`$minCpu`（5 CPU 毫秒）的保留 CPU 和实际 CPU 使用低于`$cpuReqPercentMin`（50%）的 Pod 数量。后半部分与第一部分几乎相同，只是返回 CPU 使用高于`$cpuReqPercentMax`（150%）的 Pod。
 
@@ -410,7 +571,9 @@ Grafana 相对简单易用。如果您知道如何为连接到 Grafana 的数据
 
 就这样。如果集群专门用于本书，请销毁它；如果不是，或者您打算立即跳到下一章，那就保留它。如果要保留它，请通过执行以下命令删除`grafana`图表。如果我们在接下来的章节中需要它，我会确保它包含在 Gists 中。
 
-[PRE15]
+```
+ 1  helm delete grafana --purge
+```
 
 在离开之前，您可能希望复习本章的要点。
 

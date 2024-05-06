@@ -22,11 +22,29 @@
 
 容器镜像是一个文件，其中包含了微服务二进制文件、其依赖项、微服务的配置等。如今，应用程序开发人员不仅编写代码来构建微服务，还需要构建一个镜像来容器化应用程序。有时，应用程序开发人员可能不遵循安全最佳实践来编写代码，或者从未经认证的来源下载库。这意味着您自己的应用程序或应用程序依赖的包可能存在漏洞。但不要忘记您使用的基础镜像，其中可能包含另一组脆弱的二进制文件和软件包。因此，首先让我们看一下镜像的样子：
 
-[PRE0]
+```
+$ docker history kaizheh/anchore-cli
+IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
+76b8613d39bc        8 hours ago         /bin/sh -c #(nop) COPY file:92b27c0a57eddb63…   678B                
+38ea9049199d        10 hours ago        /bin/sh -c #(nop)  ENV PATH=/.local/bin/:/us…   0B                  
+525287c1340a        10 hours ago        /bin/sh -c pip install anchorecli               5.74MB              
+f0cbce9c40f4        10 hours ago        /bin/sh -c apt-get update && apt-get install…   423MB               
+a2a15febcdf3        7 months ago        /bin/sh -c #(nop)  CMD ["/bin/bash"]            0B                  
+<missing>           7 months ago        /bin/sh -c mkdir -p /run/systemd && echo 'do…   7B                  
+<missing>           7 months ago        /bin/sh -c set -xe   && echo '#!/bin/sh' > /…   745B                
+<missing>           7 months ago        /bin/sh -c [ -z "$(apt-get indextargets)" ]     987kB               
+<missing>           7 months ago        /bin/sh -c #(nop) ADD file:c477cb0e95c56b51e…   63.2MB       
+```
 
 上面的输出显示了镜像`kaizheh/anchore-cli`的文件层（使用`--no-trunc`标志显示完整命令）。您可能注意到每个文件层都有一个创建它的相应命令。每个命令之后都会创建一个新的文件层，这意味着镜像的内容已经逐层更新（基本上，Docker 是按写时复制工作的），您仍然可以看到每个文件层的大小。这很容易理解：当您安装新的软件包或向基础添加文件时，镜像的大小会增加。`missing`镜像 ID 是一个已知的问题，因为 Docker Hub 只存储叶层的摘要，而不是父镜像中的中间层。然而，上述镜像历史确实说明了镜像在 Dockerfile 中的情况，如下所示：
 
-[PRE1]
+```
+FROM ubuntu
+RUN apt-get update && apt-get install -y python-pip jq vim
+RUN pip install anchorecli
+ENV PATH="$HOME/.local/bin/:$PATH"
+COPY ./demo.sh /demo.sh
+```
 
 上述 Dockerfile 的工作原理描述如下：
 
@@ -144,11 +162,22 @@ Anchore Engine 是一个开源的图像扫描工具。它不仅分析 Docker 图
 
 要在 Kubernetes 集群中使用 Helm 部署 Anchore Engine——CNCF 项目，这是 Kubernetes 集群的软件包管理工具，请运行以下命令：
 
-[PRE2]
+```
+$ helm install anchore-demo stable/anchore-engine
+```
 
 Anchore Engine 由几个微服务组成。在 Kubernetes 集群中部署时，您会发现以下工作负载正在运行：
 
-[PRE3]
+```
+$ kubectl get deploy
+NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
+anchore-demo-anchore-engine-analyzer      1/1     1            1           3m37s
+anchore-demo-anchore-engine-api           1/1     1            1           3m37s
+anchore-demo-anchore-engine-catalog       1/1     1            1           3m37s
+anchore-demo-anchore-engine-policy        1/1     1            1           3m37s
+anchore-demo-anchore-engine-simplequeue   1/1     1            1           3m37s
+anchore-demo-postgresql                   1/1     1            1           3m37s
+```
 
 Anchore Engine 将图像扫描服务解耦为前面日志中显示的微服务：
 
@@ -178,51 +207,165 @@ Anchore Engine 支持从 RESTful API 和`anchore-cli`访问。`anchore-cli`在�
 
 一旦您成功配置了环境变量，您可以使用以下命令验证与 Anchore Engine 的连接：
 
-[PRE4]
+```
+root@anchore-cli:/# anchore-cli system status
+```
 
 输出应该如下所示：
 
-[PRE5]
+```
+Service analyzer (anchore-demo-anchore-engine-analyzer-5fd777cfb5-jtqp2, http://anchore-demo-anchore-engine-analyzer:8084): up
+Service apiext (anchore-demo-anchore-engine-api-6dd475cf-n24xb, http://anchore-demo-anchore-engine-api:8228): up
+Service policy_engine (anchore-demo-anchore-engine-policy-7b8f68fbc-q2dm2, http://anchore-demo-anchore-engine-policy:8087): up
+Service simplequeue (anchore-demo-anchore-engine-simplequeue-6d4567c7f4-7sll5, http://anchore-demo-anchore-engine-simplequeue:8083): up
+Service catalog (anchore-demo-anchore-engine-catalog-949bc68c9-np2pc, http://anchore-demo-anchore-engine-catalog:8082): up
+Engine DB Version: 0.0.12
+Engine Code Version: 0.6.1
+```
 
 `anchore-cli` 能够与 Kubernetes 集群中的 Anchore Engine 进行通信。现在让我们使用以下命令扫描一个镜像：
 
-[PRE6]
+```
+root@anchore-cli:/# anchore-cli image add kaizheh/nginx-docker
+```
 
 输出应该如下所示：
 
-[PRE7]
+```
+Image Digest: sha256:416b695b09a79995b3f25501bf0c9b9620e82984132060bf7d66d877 6c1554b7
+Parent Digest: sha256:416b695b09a79995b3f25501bf0c9b9620e82984132060bf7d66d877 6c1554b7
+Analysis Status: analyzed
+Image Type: docker
+Analyzed At: 2020-03-22T05:48:14Z
+Image ID: bcf644d78ccd89f36f5cce91d205643a47c8a5277742c5b311c9d9 6699a3af82
+Dockerfile Mode: Guessed
+Distro: debian
+Distro Version: 10
+Size: 1172316160
+Architecture: amd64
+Layer Count: 16
+Full Tag: docker.io/kaizheh/nginx-docker:latest
+Tag Detected At: 2020-03-22T05:44:38Z
+```
 
 您将从镜像中获得镜像摘要、完整标签等信息。根据镜像大小，Anchore Engine 分析镜像可能需要一些时间。一旦分析完成，您将看到 `Analysis Status` 字段已更新为 `analyzed`。使用以下命令检查镜像扫描状态：
 
-[PRE8]
+```
+root@anchore-cli:/# anchore-cli image get kaizheh/nginx-docker
+```
 
 输出应该如下所示：
 
-[PRE9]
+```
+Image Digest: sha256:416b695b09a79995b3f25501bf0c9b9620e82984132060bf7d66d877 6c1554b7
+Parent Digest: sha256:416b695b09a79995b3f25501bf0c9b9620e82984132060bf7d66d877 6c1554b7
+Analysis Status: analyzed
+Image Type: docker
+Analyzed At: 2020-03-22T05:48:14Z
+Image ID: bcf644d78ccd89f36f5cce91d205643a47c8a5277742c5b311c9d96699a3a f82
+Dockerfile Mode: Guessed
+Distro: debian
+Distro Version: 10
+Size: 1172316160
+Architecture: amd64
+Layer Count: 16
+Full Tag: docker.io/kaizheh/nginx-docker:latest
+Tag Detected At: 2020-03-22T05:44:38Z
+```
 
 我们之前简要提到了 Anchore Engine 策略；Anchore Engine 策略允许您根据漏洞的严重程度不同定义规则来处理漏洞。在默认的 Anchore Engine 策略中，您将在默认策略中找到以下两条规则。第一条规则如下：
 
-[PRE10]
+```
+{
+	"action": "WARN",
+	"gate": "vulnerabilities",
+	"id": "6063fdde-b1c5-46af-973a-915739451ac4",
+	"params": [{
+			"name": "package_type",
+			"value": "all"
+		},
+		{
+			"name": "severity_comparison",
+			"value": "="
+		},
+		{
+			"name": "severity",
+			"value": "medium"
+		}
+	],
+	"trigger": "package"
+},
+```
 
 第一条规则定义了任何具有中等级漏洞的软件包仍将将策略评估结果设置为通过。第二条规则如下：
 
-[PRE11]
+```
+ {
+ 	"action": "STOP",
+ 	"gate": "vulnerabilities",
+ 	"id": "b30e8abc-444f-45b1-8a37-55be1b8c8bb5",
+ 	"params": [{
+ 			"name": "package_type",
+ 			"value": "all"
+ 		},
+ 		{
+ 			"name": "severity_comparison",
+ 			"value": ">"
+ 		},
+ 		{
+ 			"name": "severity",
+ 			"value": "medium"
+ 		}
+ 	],
+ 	"trigger": "package"
+ },
+```
 
 第二条规则定义了任何具有高或关键漏洞的软件包将会将策略评估结果设置为失败。镜像分析完成后，使用以下命令检查策略：
 
-[PRE12]
+```
+root@anchore-cli:/# anchore-cli --json evaluate check sha256:416b695b09a79995b3f25501bf0c9b9620e82984132060bf7d66d877 6c1554b7 --tag docker.io/kaizheh/nginx-docker:latest
+```
 
 输出应该如下所示：
 
-[PRE13]
+```
+[
+    {
+        "sha256:416b695b09a79995b3f25501bf0c9b9620e82984132060 bf7d66d8776c1554b7": {
+            "docker.io/kaizheh/nginx-docker:latest": [
+                {
+                    "detail": {},
+                    "last_evaluation": "2020-03-22T06:19:44Z",
+                    "policyId": "2c53a13c-1765-11e8-82ef-235277 61d060",
+                    "status": "fail"
+                }
+            ]
+        }
+    }
+]
+```
 
 因此，镜像 `docker.io/kaizheh/nginx-docker:latest` 未通过默认策略评估。这意味着必须存在一些高或关键级别的漏洞。使用以下命令列出镜像中的所有漏洞：
 
-[PRE14]
+```
+root@anchore-cli:/# anchore-cli image vuln docker.io/kaizheh/nginx-docker:latest all
+```
 
 输出应该如下所示：
 
-[PRE15]
+```
+Vulnerability ID        Package                                                Severity          Fix                              CVE Refs                Vulnerability URL
+CVE-2019-9636           Python-2.7.16                                          Critical          None                             CVE-2019-9636           https://nvd.nist.gov/vuln/detail/CVE-2019-9636
+CVE-2020-7598           minimist-0.0.8                                         Critical          None                             CVE-2020-7598           https://nvd.nist.gov/vuln/detail/CVE-2020-7598
+CVE-2020-7598           minimist-1.2.0                                         Critical          None                             CVE-2020-7598           https://nvd.nist.gov/vuln/detail/CVE-2020-7598
+CVE-2020-8116           dot-prop-4.2.0                                         Critical          None                             CVE-2020-8116           https://nvd.nist.gov/vuln/detail/CVE-2020-8116
+CVE-2013-1753           Python-2.7.16                                          High              None                             CVE-2013-1753           https://nvd.nist.gov/vuln/detail/CVE-2013-1753
+CVE-2015-5652           Python-2.7.16                                          High              None                             CVE-2015-5652           https://nvd.nist.gov/vuln/detail/CVE-2015-5652
+CVE-2019-13404          Python-2.7.16                                          High              None                             CVE-2019-13404          https://nvd.nist.gov/vuln/detail/CVE-2019-13404
+CVE-2016-8660           linux-compiler-gcc-8-x86-4.19.67-2+deb10u1             Low               None                             CVE-2016-8660           https://security-tracker.debian.org/tracker/CVE-2016-8660
+CVE-2016-8660           linux-headers-4.19.0-6-amd64-4.19.67-2+deb10u1         Low               None                             CVE-2016-8660           https://security-tracker.debian.org/tracker/CVE-2016-8660
+```
 
 上述列表显示了镜像中的所有漏洞，包括 CVE ID、软件包名称、严重程度、是否有修复可用以及参考信息。Anchore Engine 策略基本上帮助您过滤掉较不严重的漏洞，以便您可以专注于更严重的漏洞。然后，您可以开始与安全团队进行漏洞分析。
 
@@ -262,7 +405,40 @@ Anchore Engine 支持从 RESTful API 和`anchore-cli`访问。`anchore-cli`在�
 
 以下是 GitHub 中定义的示例工作流程:
 
-[PRE16]
+```
+name: CI
+...
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+    - uses: actions/checkout@v2
+    # Runs a set of commands using the runners shell
+    - name: Build and Push
+      env:
+        DOCKER_SECRET: ${{ secrets.DOCKER_SECRET }} 
+      run: |
+        cd master/chapter9 && echo "Build Docker Image"
+        docker login -u kaizheh -p ${DOCKER_SECRET}
+        docker build -t kaizheh/anchore-cli . && docker push kaizheh/anchore-cli
+    - name: Scan
+      env:
+        ANCHORE_CLI_URL: ${{ secrets.ANCHORE_CLI_URL }} 
+        ANCHORE_CLI_USER:  ${{ secrets.ANCHORE_CLI_USER }}
+        ANCHORE_CLI_PASS:  ${{ secrets.ANCHORE_CLI_PASS }}
+      run: |      
+        pip install anchorecli            # install anchore-cli
+        export PATH="$HOME/.local/bin/:$PATH"       
+        img="kaizheh/anchore-cli"
+        anchore-cli image add $img        # add image
+        sha=$(anchore-cli --json --api-version=0.2.4 image get $img | jq .[0].imageDigest -r)                   # get sha value
+        anchore-cli image wait $img       # wait for image analyzed
+        anchore-cli --json evaluate check $sha --tag $img # evaluate       
+    - name: Post Scan
+      run: |
+        # Slack to notify developers scan result or invite new reviewer if failed
+        exit 1  # purposely ends here
+```
 
 在构建流水线的第一步中，我使用了`checkout` GitHub 操作来检出分支。GitHub 操作对于工作流程就像编程语言中的函数一样。它封装了您不需要知道的细节，但为您执行任务。它可以接受输入参数并返回结果。在第二步中，我们运行了一些命令来构建图像`kaizheh/anchore-cli`并将图像推送到注册表。在第三步中，我们使用`anchore-cli`来扫描图像（是的，我们使用 Anchore Engine 来扫描我们自己的`anchore-cli`图像）。
 
@@ -304,25 +480,67 @@ Anchore Engine 支持从 RESTful API 和`anchore-cli`访问。`anchore-cli`在�
 
 要部署图像扫描准入控制器，首先要检出 GitHub 存储库（[`github.com/sysdiglabs/image-scanning-admission-controller`](https://github.com/sysdiglabs/image-scanning-admission-controller)），然后运行以下命令：
 
-[PRE17]
+```
+$ make deploy
+```
 
 然后你应该找到 webhook 服务器和服务已经创建：
 
-[PRE18]
+```
+NAME                                              READY   STATUS    RESTARTS   AGE
+pod/image-scan-k8s-webhook-controller-manager-0   1/1     Running   1          16s
+NAME                                                        TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+service/image-scan-k8s-webhook-controller-manager-service   ClusterIP   100.69.225.172   <none>        443/TCP   16s
+service/webhook-server-service                              ClusterIP   100.68.111.117   <none>        443/TCP   8s
+NAME                                                         READY   AGE
+statefulset.apps/image-scan-k8s-webhook-controller-manager   1/1     16s
+```
 
 除了 webhook 服务器部署，该脚本还创建了一个`ValidatingWebhookConfiguration`对象来注册图像扫描准入 webhook 服务器，该对象在`generic-validatingewebhookconfig.yaml`中定义到`kube-apiserver`：
 
-[PRE19]
+```
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- name: validating-create-pods.k8s.io
+  clientConfig:
+    service:
+      namespace: image-scan-k8s-webhook-system
+      name: webhook-server-service
+      path: /validating-create-pods
+    caBundle: {{CA_BUNDLE}}
+  rules:
+  - operations:
+    - CREATE
+    apiGroups:
+    - ""
+    apiVersions:
+    - "v1"
+    resources:
+    - pods
+  failurePolicy: Fail
+```
 
 验证 webhook 配置对象基本上告诉`kube-apiserver`将任何 pod 创建请求转发到`image-scan-webhook-system`命名空间中的`webhook-server-service`，并使用`/validating-create-pod` URL 路径。
 
 您可以使用图像扫描准入控制器提供的测试用例来验证您的设置，如下所示：
 
-[PRE20]
+```
+$ make test
+```
 
 在测试中，将在 Kubernetes 集群中部署三个不同的 pod。其中一个存在关键漏洞，违反了图像扫描策略。因此，具有关键漏洞的工作负载将被拒绝。
 
-[PRE21]
+```
++ kubectl run --image=bitnami/nginx --restart=Never nginx
+pod/nginx created
++ kubectl run --image=kaizheh/apache-struts2-cve-2017-5638 --restart=Never apache-struts2
+Error from server (Image failed policy check: kaizheh/apache-struts2-cve-2017-5638): admission webhook "validating-create-pods.k8s.io" denied the request: Image failed policy check: kaizheh/apache-struts2-cve-2017-5638
++ kubectl run --image=alpine:3.2 --restart=Never alpine
+pod/alpine created
+```
 
 前面的输出显示，带有图像`kaizheh/apache-struts2-cve-2017-5638`的工作负载被拒绝了。该图像运行 Apache Struts 2 服务，其中包含一个 CVSS 评分为 10 的关键漏洞（[`nvd.nist.gov/vuln/detail/CVE-2017-5638`](https://nvd.nist.gov/vuln/detail/CVE-2017-5638)）。尽管测试中的 CVE 是旧的，但您应该能够在早期发现它。然而，新的漏洞将被发现，漏洞数据库将不断更新。为即将部署在 Kubernetes 集群中的任何工作负载设置一个门卫是至关重要的。图像扫描作为验证入场是 Kubernetes 部署的一个良好安全实践。现在，让我们谈谈在 Kubernetes 集群中运行时阶段的图像扫描。
 

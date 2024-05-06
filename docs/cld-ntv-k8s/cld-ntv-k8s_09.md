@@ -72,7 +72,22 @@ Kubernetes 支持许多不同类型的卷。大多数可以用于卷或持久卷
 
 pod-with-vol.yaml
 
-[PRE0]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-vol
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    volumeMounts:
+    - name: my-storage-volume
+      mountPath: /data
+  volumes:
+  - name: my-storage-volume
+    emptyDir: {}
+```
 
 这个 YAML 将创建一个带有`emptyDir`类型卷的 Pod。`emptyDir`类型的卷是使用分配给 Pod 的节点上已经存在的存储来配置的。如前所述，卷与 Pod 的生命周期相关，而不是与其容器相关。
 
@@ -80,7 +95,27 @@ pod-with-vol.yaml
 
 pod-with-multiple-containers.yaml
 
-[PRE1]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: busybox
+    image: busybox
+    volumeMounts:
+    - name: config-volume
+      mountPath: /shared-config
+  - name: busybox2
+    image: busybox
+    volumeMounts:
+    - name: config-volume
+      mountPath: /myconfig
+  volumes:
+  - name: config-volume
+    emptyDir: {}
+```
 
 在这个例子中，Pod 中的两个容器都可以访问卷数据，尽管路径不同。容器甚至可以通过共享卷中的文件进行通信。
 
@@ -94,7 +129,23 @@ pod-with-multiple-containers.yaml
 
 pod-with-ebs.yaml
 
-[PRE2]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-app
+spec:
+  containers:
+  - image: busybox
+    name: busybox
+    volumeMounts:
+    - mountPath: /data
+      name: my-ebs-volume
+  volumes:
+  - name: my-ebs-volume
+    awsElasticBlockStore:
+      volumeID: [INSERT VOLUME ID HERE]
+```
 
 只要您的集群正确设置了与 AWS 的身份验证，此 YAML 将把现有的 EBS 卷附加到 Pod 上。正如您所看到的，我们使用`awsElasticBlockStore`键来专门配置要使用的确切卷 ID。在这种情况下，EBS 卷必须已经存在于您的 AWS 帐户和区域中。使用 AWS **弹性 Kubernetes 服务**（**EKS**）会更容易，因为它允许我们从 Kubernetes 内部自动提供 EBS 卷。
 
@@ -110,7 +161,20 @@ Kubernetes 还包括 Kubernetes AWS 云提供程序中的功能，用于自动�
 
 pv.yaml
 
-[PRE3]
+```
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: my-pv
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/mydata"
+```
 
 现在让我们来分析一下。从规范中的第一行开始-`storageClassName`。
 
@@ -120,7 +184,19 @@ pv.yaml
 
 gp2-storageclass.yaml
 
-[PRE4]
+```
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: gp2Encrypted
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp2
+  encrypted: "true"
+  fsType: ext4
+```
 
 现在，我们可以使用`gp2Encrypted`存储类创建我们的`PersistentVolume`。但是，使用动态配置的 EBS（或其他云）卷创建`PersistentVolumes`有一个快捷方式。当使用动态配置的卷时，我们首先创建`PersistentVolumeClaim`，然后自动生成`PersistentVolume`。
 
@@ -132,7 +208,19 @@ gp2-storageclass.yaml
 
 pvc.yaml
 
-[PRE5]
+```
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-pv-claim
+spec:
+  storageClassName: gp2Encrypted
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
 
 在这个文件上运行`kubectl apply -f`应该会导致创建一个新的自动生成的**持久卷**（**PV**）。如果您的 AWS 云服务提供商设置正确，这将导致创建一个新的类型为 GP2 且启用加密的 EBS 卷。
 
@@ -154,25 +242,53 @@ pvc.yaml
 
 Pod-with-attachment.yaml
 
-[PRE6]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  volumes:
+    - name: my-pv
+      persistentVolumeClaim:
+        claimName: my-pv-claim
+  containers:
+    - name: my-container
+      image: busybox
+      volumeMounts:
+        - mountPath: "/usr/data"
+          name: my-pv
+```
 
 运行`kubectl apply -f pod-with-attachment.yaml`将创建一个 Pod，该 Pod 通过我们的声明将我们的`PersistentVolume`挂载到`/usr/data`。
 
 为了确认卷已成功创建，让我们`exec`到我们的 Pod 中，并在我们的卷被挂载的位置创建一个文件：
 
-[PRE7]
+```
+> kubectl exec -it shell-demo -- /bin/bash
+> cd /usr/data
+> touch myfile.txt
+```
 
 现在，让我们使用以下命令删除 Pod：
 
-[PRE8]
+```
+> kubectl delete pod my-pod
+```
 
 然后使用以下命令再次重新创建它：
 
-[PRE9]
+```
+> kubectl apply -f my-pod.yaml
+```
 
 如果我们做得对，当再次运行`kubectl exec`进入 Pod 时，我们应该能够看到我们的文件：
 
-[PRE10]
+```
+> kubectl exec -it my-pod -- /bin/bash
+> ls /usr/data
+> myfile.txt
+```
 
 成功！
 
@@ -194,23 +310,34 @@ Rook 是一个流行的开源 Kubernetes 存储抽象层。它可以通过各种
 
 1.  首先，让我们克隆 Rook 存储库：
 
-[PRE11]
+```
+> git clone --single-branch --branch master https://github.com/rook/rook.git
+> cd cluster/examples/kubernetes/ceph
+```
 
 1.  我们的下一步是创建所有相关的 Kubernetes 资源，包括几个**自定义资源定义**（**CRDs**）。我们将在后面的章节中讨论这些，但现在，请将它们视为特定于 Rook 的新 Kubernetes 资源，而不是典型的 Pods、Services 等。要创建常见资源，请运行以下命令：
 
-[PRE12]
+```
+> kubectl apply -f ./common.yaml
+```
 
 1.  接下来，让我们启动我们的 Rook 操作员，它将处理为特定的 Rook 提供程序（在本例中将是 Ceph）提供所有必要资源的规划：
 
-[PRE13]
+```
+> kubectl apply -f ./operator.yaml
+```
 
 1.  在下一步之前，请确保 Rook 操作员 Pod 实际上正在运行，使用以下命令：
 
-[PRE14]
+```
+> kubectl -n rook-ceph get pod
+```
 
 1.  一旦 Rook Pod 处于“运行”状态，我们就可以设置我们的 Ceph 集群！此 YAML 也在我们从 Git 克隆的文件夹中。使用以下命令创建它：
 
-[PRE15]
+```
+> kubectl create -f cluster.yaml
+```
 
 这个过程可能需要几分钟。Ceph 集群由几种不同的 Pod 类型组成，包括操作员、**对象存储设备**（**OSDs**）和管理器。
 
@@ -220,7 +347,19 @@ Rook 是一个流行的开源 Kubernetes 存储抽象层。它可以通过各种
 
 rook-toolbox-pod.yaml
 
-[PRE16]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rook-tools
+  namespace: rook
+spec:
+  dnsPolicy: ClusterFirstWithHostNet
+  containers:
+  - name: rook-tools
+    image: rook/toolbox:v0.7.1
+    imagePullPolicy: IfNotPresent
+```
 
 正如您所看到的，这个 Pod 使用了 Rook 提供的特殊容器映像。该映像预装了您需要调查 Rook 和 Ceph 的所有工具。
 
@@ -232,7 +371,36 @@ rook-toolbox-pod.yaml
 
 ceph-rook-combined.yaml
 
-[PRE17]
+```
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: host
+  replicated:
+    size: 3
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-ceph-block
+provisioner: rook-ceph.rbd.csi.ceph.com
+parameters:
+    clusterID: rook-ceph
+    pool: replicapool
+    imageFormat: "2"
+currently supports only `layering` feature.
+    imageFeatures: layering
+    csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+    csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+csi-provisioner
+    csi.storage.k8s.io/fstype: xfs
+reclaimPolicy: Delete
+```
 
 正如你所看到的，YAML 规范定义了我们的`StorageClass`和`CephBlockPool`资源。正如我们在本章前面提到的，`StorageClass`是我们告诉 Kubernetes 如何满足`PersistentVolumeClaim`的方式。另一方面，`CephBlockPool`资源告诉 Ceph 如何以及在哪里创建分布式存储资源-在这种情况下，要复制多少存储。
 
@@ -240,21 +408,56 @@ ceph-rook-combined.yaml
 
 rook-ceph-pvc.yaml
 
-[PRE18]
+```
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: rook-pvc
+spec:
+  storageClassName: rook-ceph-block
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+```
 
 我们的 PVC 是存储类`rook-ceph-block`，因此它将使用我们刚刚创建的新存储类。现在，让我们在 YAML 文件中将 PVC 分配给我们的 Pod：
 
 rook-ceph-pod.yaml
 
-[PRE19]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-rook-test-pod
+spec:
+  volumes:
+    - name: my-rook-pv
+      persistentVolumeClaim:
+        claimName: rook-pvc
+  containers:
+    - name: my-container
+      image: busybox
+      volumeMounts:
+        - mountPath: "/usr/rooktest"
+          name: my-rook-pv
+```
 
 当 Pod 被创建时，Rook 应该会启动一个新的持久卷并将其附加到 Pod 上。让我们查看一下 Pod，看看它是否正常工作：
 
-[PRE20]
+```
+> kubectl exec -it my-rook-test-pod -- /bin/bash
+> cd /usr/rooktest
+> touch myfile.txt
+> ls
+```
 
 我们得到了以下输出：
 
-[PRE21]
+```
+> myfile.txt
+```
 
 成功！
 
@@ -268,7 +471,24 @@ Rook 的 Ceph 块提供程序的缺点是一次只能由一个 Pod 进行写入�
 
 rook-ceph-fs.yaml
 
-[PRE22]
+```
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystem
+metadata:
+  name: ceph-fs
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    replicated:
+      size: 2
+  dataPools:
+    - replicated:
+        size: 2
+  preservePoolsOnDelete: true
+  metadataServer:
+    activeCount: 1
+    activeStandby: true
+```
 
 在这种情况下，我们正在复制元数据和数据到至少两个池，以确保可靠性，如在`metadataPool`和`dataPool`块中配置的那样。我们还使用`preservePoolsOnDelete`键在删除时保留池。
 
@@ -276,19 +496,73 @@ rook-ceph-fs.yaml
 
 rook-ceph-fs-storageclass.yaml
 
-[PRE23]
+```
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-cephfs
+provisioner: rook-ceph.cephfs.csi.ceph.com
+parameters:
+  clusterID: rook-ceph
+  fsName: ceph-fs
+  pool: ceph-fs-data0
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+reclaimPolicy: Delete
+```
 
 这个`rook-cephfs`存储类指定了我们之前创建的池，并描述了我们存储类的回收策略。最后，它使用了一些在 Rook/Ceph 文档中解释的注释。现在，我们可以通过 PVC 将其附加到一个部署中，而不仅仅是一个 Pod！看一下我们的 PV：
 
 rook-cephfs-pvc.yaml
 
-[PRE24]
+```
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: rook-ceph-pvc
+spec:
+  storageClassName: rook-cephfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+```
 
 这个持久卷引用了我们的新的`rook-cephfs`存储类，使用`ReadWriteMany`模式 - 我们要求`1 Gi`的数据。接下来，我们可以创建我们的`Deployment`：
 
 rook-cephfs-deployment.yaml
 
-[PRE25]
+```
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: my-rook-fs-test
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25% 
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+      spec:
+  	  volumes:
+    	  - name: my-rook-ceph-pv
+        persistentVolumeClaim:
+          claimName: rook-ceph-pvc
+  	  containers:
+    	  - name: my-container
+         image: busybox
+         volumeMounts:
+         - mountPath: "/usr/rooktest"
+           name: my-rook-ceph-pv
+```
 
 这个`Deployment`引用了我们的`ReadWriteMany`持久卷声明，使用`volumes`下的`persistentVolumeClaim`块。部署后，我们所有的 Pod 现在都可以读写同一个持久卷。
 

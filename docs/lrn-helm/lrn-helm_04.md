@@ -86,17 +86,23 @@ Helm Hub 是上游图表存储库的集中位置。由一个名为 **Monocular**
 
 +   要在 Helm Hub 或 Monocular 实例中搜索图表，请使用以下命令：
 
-[PRE0]
+```
+helm search hub
+```
 
 +   要在图表中搜索关键字，请使用以下命令：
 
-[PRE1]
+```
+helm search repo
+```
 
 如果之前没有添加存储库，用户应该运行`helm search hub`命令来查找所有公共图表存储库中可用的 Helm 图表。添加存储库后，用户可以运行`helm search repo`来搜索这些存储库中的图表。
 
 让我们在 Helm Hub 中搜索任何现有的 WordPress 图表。Helm Hub 中的每个图表都有一组关键字，可以针对其进行搜索。执行以下命令来查找包含`wordpress`关键字的图表：
 
-[PRE2]
+```
+$ helm search hub wordpress
+```
 
 运行此命令后，应显示类似以下的输出：
 
@@ -110,7 +116,9 @@ Helm Hub 是上游图表存储库的集中位置。由一个名为 **Monocular**
 
 尝试运行以下命令，包括`--max-col-width`标志，以查看表格格式中未截断的结果：
 
-[PRE3]
+```
+$ helm search hub wordpress  --max-col-width=0
+```
 
 结果以表格格式显示每个字段的完整内容，包括 URL 和描述。
 
@@ -134,7 +142,9 @@ URL 如下：
 
 尝试再次运行上一个命令，带上`--output yaml`标志：
 
-[PRE4]
+```
+$ helm search hub wordpress --output yaml
+```
 
 结果将以 YAML 格式显示，类似于此处显示的输出：
 
@@ -162,17 +172,25 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 1.  在命令行中运行以下命令：
 
-[PRE5]
+```
+$ helm repo add bitnami https://charts.bitnami.com
+```
 
 1.  通过运行`helm repo list`来验证图表是否已添加：
 
-[PRE6]
+```
+$ helm repo list
+NAME  	 URL 
+bitnami     https://charts.bitnami.com
+```
 
 现在我们已经添加了存储库，我们可以做更多事情。
 
 1.  运行以下命令来查看包含`bitnami`关键字的本地配置存储库中的图表：
 
-[PRE7]
+```
+$ helm search repo bitnami --output yaml
+```
 
 以下输出显示了返回的结果的缩短列表：
 
@@ -184,7 +202,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 为了确保您现在可以访问 WordPress 图表，请使用`wordpress`参数运行以下`helm search repo`命令：
 
-[PRE8]
+```
+$ helm search repo wordpress
+```
 
 输出将显示您在 Helm Hub 上找到并在浏览器中观察到的 WordPress 图表：
 
@@ -194,7 +214,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 斜杠（`/`）前的`NAME`字段中的值表示返回的 Helm 图表所在的存储库的名称。截至撰写本文时，`bitnami`存储库中 WordPress 图表的最新版本是`8.1.0`。这是将用于安装的版本。通过向`search`命令传递`--versions`标志可以观察以前的版本：
 
-[PRE9]
+```
+$ helm search repo wordpress --versions
+```
 
 然后，您应该看到每个可用 WordPress 图表的每个版本的新行：
 
@@ -210,25 +232,35 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 +   这个命令显示了图表的元数据（或图表定义）：
 
-[PRE10]
+```
+helm show chart
+```
 
 +   这个命令显示了图表的`README`文件：
 
-[PRE11]
+```
+helm show readme
+```
 
 +   这个命令显示了图表的值：
 
-[PRE12]
+```
+helm show values
+```
 
 +   这个命令显示了图表的定义、README 文件和值：
 
-[PRE13]
+```
+helm show all
+```
 
 让我们使用这些命令与 Bitnami WordPress 图表。在这些命令中，图表应该被引用为`bitnami/wordpress`。请注意，我们将传递`--version`标志来检索关于此图表版本`8.1.0`的信息。如果省略此标志，将返回图表最新版本的信息。
 
 运行`helm show chart`命令来检索图表的元数据：
 
-[PRE14]
+```
+$ helm show chart bitnami/wordpress --version 8.1.0
+```
 
 这个命令的结果将是 WordPress 图表的**图表定义**。图表定义描述了图表的版本、依赖关系、关键字和维护者等信息：
 
@@ -238,7 +270,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 运行`helm show readme`命令来从命令行查看图表的 README 文件：
 
-[PRE15]
+```
+$ helm show readme bitnami/wordpress --version 8.1.0
+```
 
 这个命令的结果可能看起来很熟悉，因为图表的 README 文件也显示在其 Helm Hub 页面上。利用这个选项从命令行提供了一种快速查看 README 文件的方式，而不必打开浏览器：
 
@@ -260,15 +294,21 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 1.  通过运行以下命令启动您的 Kubernetes 集群：
 
-[PRE16]
+```
+$ minikube start
+```
 
 1.  经过短暂的时间，您应该在输出中看到一行类似于以下内容的内容：
 
-[PRE17]
+```
+ Done! kubectl is now configured to use 'minikube'
+```
 
 1.  一旦 Minikube 集群启动并运行，为本章的练习创建一个专用命名空间。运行以下命令创建一个名为`chapter3`的命名空间：
 
-[PRE18]
+```
+$ kubectl create namespace chapter3
+```
 
 现在集群设置已经完成，让我们开始安装 WordPress 图表到您的 Kubernetes 集群。
 
@@ -282,7 +322,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 运行以下命令检查 WordPress 图表的值：
 
-[PRE19]
+```
+$ helm show values bitnami/wordpress --version 8.1.0
+```
 
 该命令的结果应该是一个可能值的长列表，其中许多已经设置了默认值：
 
@@ -302,7 +344,14 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 这些数值似乎对配置 WordPress 博客很重要。让我们通过创建一个`values`文件来覆盖它们。在你的机器上创建一个名为`wordpress-values.yaml`的新文件。在文件中输入以下内容：
 
-[PRE20]
+```
+wordpressUsername: helm-user
+wordpressPassword: my-pass
+wordpressEmail: helm-user@example.com
+wordpressFirstName: Helm_is
+wordpressLastName: Fun
+wordpressBlogName: Learn Helm!
+```
 
 如果你愿意，可以更有创意地使用这些数值。继续从`helm show values`中列出的数值列表中，还有一个重要的数值应该在开始安装之前添加到`values`文件中，如下所示：
 
@@ -314,11 +363,23 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 将这个数值添加到你的`wordpress-values.yaml`文件中：
 
-[PRE21]
+```
+service:
+  type: NodePort
+```
 
 一旦这个数值被添加到你的`values`文件中，你的完整的`values`文件应该如下所示：
 
-[PRE22]
+```
+wordpressUsername: helm-user
+wordpressPassword: my-pass
+wordpressEmail: helm-user@example.com
+wordpressFirstName: Helm_is
+wordpressLastName: Fun
+wordpressBlogName: Learn Helm!
+service:
+  type: NodePort
+```
 
 现在`values`文件已经完成，让我们开始安装。
 
@@ -326,7 +387,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 我们使用`helm install`来安装 Helm 图表。标准语法如下：
 
-[PRE23]
+```
+helm install [NAME] [CHART] [flags]
+```
 
 `NAME`参数是您想要给 Helm 发布的名称。**发布**捕获了使用图表安装的 Kubernetes 资源，并跟踪应用程序的生命周期。我们将在本章中探讨发布如何工作。
 
@@ -336,7 +399,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 现在，对于`helm install`的使用有了适当的理解，运行以下命令：
 
-[PRE24]
+```
+$ helm install wordpress bitnami/wordpress --values=wordpress-values.yaml --namespace chapter3 --version 8.1.0
+```
 
 此命令将使用`bitnami/wordpress` Helm 图表安装一个名为`wordpress`的新发布。它将使用`wordpress-values.yaml`文件中定义的值来自定义安装，并且图表将安装在`chapter3`命名空间中。它还将部署`8.1.0`版本，如`--version`标志所定义。没有此标志，Helm 将安装 Helm 图表的最新版本。
 
@@ -358,7 +423,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 运行以下命令以查看`chapter3`命名空间中的发布列表：
 
-[PRE25]
+```
+$ helm list --namespace chapter3
+```
 
 您应该只在此命名空间中看到一个发布，如下所示：
 
@@ -388,33 +455,47 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 +   要获取命名发布的所有钩子，请运行以下命令：
 
-[PRE26]
+```
+helm get hooks
+```
 
 +   要获取命名发布的清单，请运行以下命令：
 
-[PRE27]
+```
+helm get manifest
+```
 
 +   要获取命名发布的注释，请运行以下命令：
 
-[PRE28]
+```
+helm get notes
+```
 
 +   要获取命名发布的值，请运行以下命令：
 
-[PRE29]
+```
+helm get values
+```
 
 +   要获取有关命名发布的所有信息，请运行以下命令：
 
-[PRE30]
+```
+helm get all
+```
 
 前面列表中的第一个命令`helm get hooks`用于显示给定发布的钩子。在*第五章* *构建您的第一个 Helm 图表*和*第六章* *测试 Helm 图表*中，您将了解有关构建和测试 Helm 图表时更详细地探讨钩子。目前，钩子可以被视为 Helm 在应用程序生命周期的某些阶段执行的操作。
 
 运行以下命令以查看包含在此发布中的钩子：
 
-[PRE31]
+```
+$ helm get hooks wordpress --namespace chapter3
+```
 
 在输出中，您将找到两个带有以下注释的 Kubernetes Pod 清单：
 
-[PRE32]
+```
+'helm.sh/hook': test-success
+```
 
 此注释表示在执行`test`子命令期间运行的钩子，我们将在*第六章*中更详细地探讨，*测试 Helm 图表*。这些测试钩子为图表开发人员提供了一种确认图表是否按设计运行的机制，并且可以被最终用户安全地忽略。
 
@@ -422,7 +503,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 `helm get manifest`命令可用于获取作为安装的一部分创建的 Kubernetes 资源列表。请按照以下示例运行此命令：
 
-[PRE33]
+```
+$ helm get manifest wordpress --namespace chapter3
+```
 
 运行此命令后，您将看到以下 Kubernetes 清单：
 
@@ -454,11 +537,15 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 让我们继续下一个`get`命令。`helm get notes`命令用于显示 Helm 发布的注释。您可能还记得，安装 WordPress 图表时显示了发布说明。这些说明提供了有关访问应用程序的重要信息，可以通过运行以下命令再次显示：
 
-[PRE34]
+```
+$ helm get notes wordpress --namespace chapter3
+```
 
 `helm get values`命令对于回忆为给定发布使用的值非常有用。运行以下命令以查看在`wordpress`发布中提供的值：
 
-[PRE35]
+```
+$ helm get values wordpress --namespace chapter3
+```
 
 此命令的结果应该看起来很熟悉，因为它们应该与`wordpress-values.yaml`文件中指定的值匹配：
 
@@ -468,7 +555,9 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 虽然回忆用户提供的值很有用，但在某些情况下，可能需要返回发布使用的所有值，包括默认值。这可以通过传递额外的`--all`标志来实现，如下所示：
 
-[PRE36]
+```
+$ helm get values wordpress --all --namespace chapter3
+```
 
 对于此图表，输出将会很长。以下输出显示了前几个值：
 
@@ -478,11 +567,15 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 最后，Helm 提供了一个`helm get all`命令，可以用来聚合各种`helm get`命令的所有信息：
 
-[PRE37]
+```
+$ helm get all wordpress --namespace chapter3
+```
 
 除了 Helm 提供的命令之外，`kubectl` CLI 也可以用于更仔细地检查安装。例如，可以使用`kubectl`来缩小范围，仅查看一种类型的资源，如部署，而不是获取安装创建的所有 Kubernetes 资源。为了确保返回的资源属于 Helm 发布，可以在部署上定义一个标签，并将其提供给`kubectl`命令，以表示发布的名称。Helm 图表通常会在它们的 Kubernetes 资源上添加一个`app`标签。使用`kubectl` CLI 通过运行以下命令来检索包含此标签的部署：
 
-[PRE38]
+```
+$ kubectl get all -l app=wordpress --namespace chapter3
+```
 
 您会发现以下部署存在于`chapter3`命名空间中：
 
@@ -506,15 +599,21 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 +   您可以在 macOS 和 Linux 上设置变量如下：
 
-[PRE39]
+```
+$ export HELM_NAMESPACE=chapter3
+```
 
 +   Windows 用户可以通过在 PowerShell 中运行以下命令来设置此环境变量：
 
-[PRE40]
+```
+> $env:HELM_NAMESPACE = 'chapter3'
+```
 
 可以通过运行`helm env`命令来验证此变量的值：
 
-[PRE41]
+```
+$ helm env
+```
 
 您应该在结果输出中看到`HELM_NAMESPACE`变量。默认情况下，该变量设置为`default`。
 
@@ -526,11 +625,15 @@ Helm Hub 上的 WordPress 图表页面提供了许多详细信息，包括图表
 
 +   要从命令行中传递值，请使用以下命令：
 
-[PRE42]
+```
+--set
+```
 
 +   要在 YAML 文件或 URL 中指定值，请使用以下命令：
 
-[PRE43]
+```
+--values
+```
 
 在本书中，我们将把`--values`标志视为配置图表值的首选方法。原因是这种方式更容易配置多个值。维护一个`values`文件还将允许我们将这些资产保存在**源代码管理**（**SCM**）系统中，例如`git`，这样可以更容易地重现安装过程。请注意，诸如密码之类的敏感值不应存储在源代码控制存储库中。我们将在*第九章*中涵盖安全性问题，*Helm 安全性考虑*。目前，重要的是要记住不要将`secrets`推送到源代码控制存储库中。当需要在图表中提供 secrets 时，建议的方法是明确使用`--set`标志。
 
@@ -544,11 +647,21 @@ WordPress 图表的发布说明提供了四个命令，您可以运行这些命�
 
 +   对于 macOS 或 Linux，请运行以下命令：
 
-[PRE44]
+```
+$ export NODE_PORT=$(kubectl get --namespace chapter3 -o jsonpath="{.spec.ports[0].nodePort}" services wordpress)
+$ export NODE_IP=$(kubectl get nodes --namespace chapter3 -o jsonpath="{.items[0].status.addresses[0].address}")
+$ echo "WordPress URL: http://$NODE_IP:$NODE_PORT/"
+$ echo "WordPress Admin URL: http://$NODE_IP:$NODE_PORT/admin"
+```
 
 +   对于 Windows PowerShell，请运行以下命令：
 
-[PRE45]
+```
+> $NODE_PORT = kubectl get --namespace chapter3 -o jsonpath="{.spec.ports[0].nodePort}" services wordpress | Out-String
+> $NODE_IP = kubectl get nodes --namespace chapter3 -o jsonpath="{.items[0].status.addresses[0].address}" | Out-String
+> echo "WordPress URL: http://$NODE_IP:$NODE_PORT/"
+> echo "WordPress Admin URL: http://$NODE_IP:$NODE_PORT/admin"
+```
 
 根据一系列`kubectl`查询定义了两个环境变量后，结果的`echo`命令将显示访问 WordPress 的 URL。第一个 URL 是查看主页的 URL，访问者将通过该 URL 访问您的网站。第二个 URL 是到达管理控制台的 URL，网站管理员用于配置和管理站点内容。
 
@@ -570,7 +683,10 @@ WordPress 图表的发布说明提供了四个命令，您可以运行这些命�
 
 要登录到管理控制台，请输入安装过程中提供的`wordpressUsername`和`wordpressPassword`值。这些值可以通过查看本地的`wordpress-values.yaml`文件来查看。它们也可以通过运行 WordPress 图表注释中指定的以下命令来检索：
 
-[PRE46]
+```
+$ echo Username: helm-user
+$ echo Password: $(kubectl get secret --namespace chapter3 wordpress -o jsonpath='{.data.wordpress-password}' | base64 --decode)
+```
 
 验证后，管理控制台仪表板将显示如下：
 
@@ -604,7 +720,9 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 将以下行添加到您的`wordpress-values.yaml`文件中，将副本数从`1`增加到`2`：
 
-[PRE47]
+```
+replicaCount: 2
+```
 
 我们需要定义的第二个值是`resources` YAML 部分下的一组值：
 
@@ -614,11 +732,30 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 值可以缩进，就像`resources`部分一样，以提供逻辑分组。在`resources`部分下是一个`requests`部分，用于配置 Kubernetes 将分配给 WordPress 应用程序的`memory`和`cpu`值。让我们在升级过程中修改这些值，将内存请求减少到`256Mi`（256 mebibytes），将`cpu`请求减少到`100m`（100 millicores）。将这些修改添加到`wordpress-values.yaml`文件中，如下所示：
 
-[PRE48]
+```
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+```
 
 定义了这两个新值后，您的整个`wordpress-values.yaml`文件将如下所示：
 
-[PRE49]
+```
+wordpressUsername: helm-user
+wordpressPassword: my-pass
+wordpressEmail: helm-user@example.com
+wordpressFirstName: Helm
+wordpressLastName: User
+wordpressBlogName: Learn Helm!
+service:
+  type: NodePort
+replicaCount: 2
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 100m
+```
 
 一旦`values`文件使用这些新值进行了更新，您可以运行`helm upgrade`命令来升级发布，我们将在下一节讨论。
 
@@ -626,13 +763,17 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 `helm upgrade`命令在基本语法上几乎与`helm install`相同，如下例所示：
 
-[PRE50]
+```
+helm upgrade [RELEASE] [CHART] [flags]
+```
 
 虽然`helm install`希望您为新发布提供一个名称，但`helm upgrade`希望您提供应该升级的已存在发布的名称。
 
 在`values`文件中定义的值可以使用`--values`标志提供，与`helm install`命令相同。运行以下命令，使用一组新值升级 WordPress 发布：
 
-[PRE51]
+```
+$ helm upgrade wordpress bitnami/wordpress --values wordpress-values.yaml -n chapter3 --version 8.1.0
+```
 
 一旦执行命令，您应该看到类似于`helm install`的输出，如前面的部分所示：
 
@@ -642,7 +783,9 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 您还应该通过运行以下命令看到`wordpress` Pods 正在重新启动：
 
-[PRE52]
+```
+$ kubectl get pods -n chapter3
+```
 
 在 Kubernetes 中，当部署被修改时，会创建新的 Pod。在 Helm 中也可以观察到相同的行为。在升级过程中添加的值引入了 WordPress 部署的配置更改，并且创建了新的 WordPress Pods，因此使用更新后的配置。这些更改可以使用之前安装后使用的相同的`helm get` `manifest`和`kubectl get` `deployment`命令来观察。
 
@@ -662,11 +805,15 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 1.  再次运行`upgrade`命令，而不指定任何值：
 
-[PRE53]
+```
+$ helm upgrade wordpress bitnami/wordpress -n chapter3 --version 8.1.0
+```
 
 1.  运行`helm get values`命令来检查升级中使用的值：
 
-[PRE54]
+```
+$ helm get values wordpress -n chapter3
+```
 
 请注意，显示的值与先前的升级是相同的：
 
@@ -678,11 +825,15 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 1.  通过使用`--set`提供单个值再次进行升级： 
 
-[PRE55]
+```
+$ helm upgrade wordpress bitnami/wordpress --set replicaCount=1 -n chapter3 --version 8.1.0
+```
 
 1.  升级后，运行`helm get values`命令：
 
-[PRE56]
+```
+$ helm get values wordpress -n chapter3
+```
 
 输出将声明，唯一由用户提供的值是`replicaCount`的值：
 
@@ -706,25 +857,42 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 可以使用`kubectl`从`chapter3`命名空间获取秘密来观察修订秘密：
 
-[PRE57]
+```
+$ kubectl get secrets -n chapter3
+```
 
 这将返回所有的秘密，但您应该在输出中看到这四个：
 
-[PRE58]
+```
+sh.helm.release.v1.wordpress.v1
+Sh.helm.release.v1.wordpress.v2
+sh.helm.release.v1.wordpress.v3
+sh.helm.release.v1.wordpress.v4
+```
 
 这些秘密中的每一个都对应于发布的修订历史的条目，可以通过运行`helm history`命令来查看：
 
-[PRE59]
+```
+$ helm history wordpress -n chapter3
+```
 
 此命令将显示每个修订的表格，类似于以下内容（为了可读性，某些列已被省略）：
 
-[PRE60]
+```
+REVISION  ...  STATUS     ...  DESCRIPTION
+1              superseded      Install complete
+2              superseded      Upgrade complete
+3              superseded      Upgrade complete
+4              deployed        Upgrade complete     
+```
 
 在此输出中，每个修订都有一个编号，以及更新时间、状态、图表、升级的应用程序版本和升级的描述。状态为`superseded`的修订已经升级。状态为`deployed`的修订是当前部署的修订。其他状态包括`pending`和`pending_upgrade`，表示安装或升级当前正在进行中。`failed`指的是特定修订未能安装或升级，`unknown`对应于具有未知状态的修订。你不太可能遇到状态为`unknown`的发布。
 
 先前描述的`helm get`命令可以通过指定`--revision`标志针对修订号使用。对于此回滚，让我们确定具有完整所需值集的发布。您可能还记得，当前修订`修订 4`只包含`replicaCount`值，但`修订 3`应该包含所需的值。可以通过使用`--revision`标志运行`helm get values`命令来验证这一点：
 
-[PRE61]
+```
+$ helm get values wordpress --revision 3 -n chapter3
+```
 
 通过检查此修订，可以呈现完整的值列表：
 
@@ -740,25 +908,35 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 `helm rollback`命令具有以下语法：
 
-[PRE62]
+```
+helm rollback <RELEASE> [REVISION] [flags]
+```
 
 用户提供发布的名称和要回滚到的期望修订号，以将 Helm 发布回滚到以前的时间点。运行以下命令来执行将 WordPress 回滚到`修订 3`：
 
-[PRE63]
+```
+$ helm rollback wordpress 3 -n chapter3
+```
 
 `rollback`子命令提供了一个简单的输出，打印以下消息：
 
-[PRE64]
+```
+Rollback was a success! Happy Helming!
+```
 
 可以通过运行`helm` `history`命令在发布历史中观察到此回滚：
 
-[PRE65]
+```
+$ helm history wordpress -n chapter3
+```
 
 在发布历史中，您会注意到添加了第五个状态为`deployed`的修订版本，并且描述为`回滚到 3`。当应用程序回滚时，它会向发布历史中添加一个新的修订版本。这不应与升级混淆。最高的修订版本号仅表示当前部署的发布。请务必检查修订版本的描述，以确定它是由升级还是回滚创建的。
 
 您可以通过再次运行`helm get values`来获取此发布的值，以确保回滚现在使用所需的值：
 
-[PRE66]
+```
+$ helm get values wordpress -n chapter3
+```
 
 输出将显示最新稳定发布的值：
 
@@ -776,27 +954,40 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 `uninstall`命令的语法非常简单：
 
-[PRE67]
+```
+helm uninstall RELEASE_NAME [...] [flags]
+```
 
 通过运行`helm uninstall`命令卸载 WordPress 发布：
 
-[PRE68]
+```
+$ helm uninstall wordpress -n chapter3
+```
 
 卸载后，您将看到以下消息：
 
-[PRE69]
+```
+release 'wordpress' uninstalled
+```
 
 您还会注意到`wordpress`发布现在不再存在于`chapter3`命名空间中：
 
-[PRE70]
+```
+$ helm list -n chapter3
+```
 
 输出将是一个空表。您还可以通过尝试使用`kubectl`来获取 WordPress 部署来确认该发布不再存在：
 
-[PRE71]
+```
+$ kubectl get deployments -l app=wordpress -n chapter3
+No resources found in chapter3 namespace.
+```
 
 如预期的那样，不再有 WordPress 部署可用。
 
-[PRE72]
+```
+$ kubectl get pvc -n chapter3
+```
 
 但是，您会注意到在命名空间中仍然有一个`PersistentVolumeClaim`命令可用：
 
@@ -806,7 +997,9 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 这个`PersistentVolumeClaim`资源没有被删除，因为它是由`StatefulSet`在后台创建的。在 Kubernetes 中，如果删除了`StatefulSet`，则由`StatefulSet`创建的`PersistentVolumeClaim`资源不会自动删除。在`helm uninstall`过程中，`StatefulSet`被删除，但相关的`PersistentVolumeClaim`没有被删除。这是我们所期望的。可以使用以下命令手动删除`PersistentVolumeClaim`资源：
 
-[PRE73]
+```
+$ kubectl delete pvc -l release=wordpress -n chapter3
+```
 
 现在我们已经安装并卸载了 WordPress，让我们清理一下您的 Kubernetes 环境，以便在本书后面的章节中进行练习时有一个干净的设置。
 
@@ -814,11 +1007,15 @@ Helm 图表通常会公开值来配置应用程序的实例数量及其相关的
 
 要清理您的 Kubernetes 环境，可以通过运行以下命令删除本章的命名空间：
 
-[PRE74]
+```
+$ kubectl delete namespace chapter3
+```
 
 删除`chapter3`命名空间后，您还可以停止 Minikube 虚拟机：
 
-[PRE75]
+```
+$ minikube stop
+```
 
 这将关闭虚拟机，但将保留其状态，以便您可以在下一个练习中快速开始工作。
 

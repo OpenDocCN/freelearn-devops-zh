@@ -60,23 +60,57 @@ EC2 实例可以手动部署，并且可以在其上配置 Docker，但 ECS 是�
 
 使用`pip`软件包管理器安装 AWS CLI：
 
-[PRE0]
+```
+ $ pip install awscl
+
+```
 
 使用`aws configure`命令并提供 AWS 访问密钥 ID 和 AWS 秘密访问密钥进行登录：
 
-[PRE1]
+```
+ $ aws configure 
+        AWS Access Key ID [None]:  
+        AWS Secret Access Key [None]: 
+        Default region name [None]:  
+        Default output format [None]:
+
+```
 
 获取`docker login`命令，以便将本地 Docker 客户端认证到私有 AWS 注册表：
 
-[PRE2]
+```
+ $ aws ecr get-login --region us-east-1 
+        docker login -u AWS -p 
+        Key...
+
+```
 
 使用生成的链接作为前述命令的输出，该链接将配置 Docker 客户端以便与部署在 AWS 中的私有仓库一起工作：
 
-[PRE3]
+```
+ $ docker login -u AWS -p Key... 
+        Flag --email has been deprecated, will be removed in 1.13\. 
+        Login Succeeded
+
+```
 
 现在我们将使用 AWS 私有仓库名称标记 nginx 基本容器镜像，以便将其推送到私有仓库：
 
-[PRE4]
+```
+ $ docker images 
+        REPOSITORY  TAG     IMAGE ID      CREATED     SIZE 
+        nginx       latest  19146d5729dc  6 days ago  181.6 MB 
+
+        $ docker tag nginx:latest private-repo.amazonaws.com/sample:latest 
+
+        $ docker push private-repo.amazonaws.com/sample:latest 
+        The push refers to a repository [private-repo.amazonaws.com/sample] 
+        e03d01018b72: Pushed  
+        ee3b1534c826: Pushing [==>] 2.674 MB/58.56 MB 
+        b6ca02dfe5e6: Pushing [>] 1.064 MB/123.1 MB  
+        ... Image successfully pushed
+
+```
 
 1.  将镜像推送到私有 Docker 仓库后，我们将创建一个任务定义，定义以下内容：
 
@@ -170,7 +204,10 @@ Microsoft Azure 容器架构
 
 1.  我们需要创建一个 RSA 密钥，在部署步骤中将被请求。该密钥将需要用于登录到安装后的部署机器：
 
-[PRE5]
+```
+ $ ssh-keygen
+
+```
 
 一旦生成，密钥可以在`~/root/id_rsa`中找到
 
@@ -196,7 +233,10 @@ Microsoft Azure 容器架构
 
 以下是连接到 swarm-master 的 SSH 命令：
 
-[PRE6]
+```
+ ssh <DNS_FROM_FIELD> -A -p 2200 -i <PUB_FILE_LOCATION>
+
+```
 
 一旦连接到主服务器，可以执行基本的 Docker Swarm 命令，并且可以在部署在 Microsoft Azure 上的 Swarm 集群上部署容器。
 
@@ -242,23 +282,82 @@ Docker for AWS 使用*CloudFormation*模板并创建以下对象：
 
 AWS 生成的 SSH 密钥可用于 SSH 到管理节点并管理部署的 Docker Swarm 实例：
 
-[PRE7]
+```
+ $ ssh -i <path-to-ssh-key> docker@<ssh-host> 
+Welcome to Docker!
+
+```
 
 `docker info`命令将提供有关 Swarm 集群的信息。可以使用以下命令列出 Swarm 节点：
 
-[PRE8]
+```
+ $ docker info  
+Containers: 5 
+ Running: 4 
+ Paused: 0 
+ Stopped: 1 
+Images: 5 
+Server Version: 1.13.0-rc4 
+Storage Driver: overlay2 
+ Backing Filesystem: extfs 
+
+$ docker node ls 
+ID                           HOSTNAME                       STATUS  AVAILABILITY  MANAGER STATUS 
+koewopxooyp5ftf6tn5wypjtd    ip-172-31-37-122.ec2.internal  Ready   Active         
+qs9swn3uv67v4vhahxrp4q24g    ip-172-31-2-43.ec2.internal    Ready   Active         
+ubkzv527rlr08fjjgvweu0k6t *  ip-172-31-1-137.ec2.internal   Ready   Active        Leader
+
+```
 
 SSH 连接也可以直接连接到领导节点，并部署基本的 Docker 容器：
 
-[PRE9]
+```
+ $ ssh docker@ip-172-31-37-122.ec2.internal 
+
+$ docker run hello-world 
+Unable to find image 'hello-world:latest' locally 
+latest: Pulling from library/hello-world 
+c04b14da8d14: Pull complete  
+Digest: sha256:0256e8a36e2070f7bf2d0b0763dbabdd67798512411de4cdcf9431a1feb60fd9 
+Status: Downloaded newer image for hello-world:latest 
+
+Hello from Docker!
+
+```
 
 服务可以按照以下方式为先前部署的容器创建：
 
-[PRE10]
+```
+ $ docker service create --replicas 1 --name helloworld alpine ping docker.com
+ xo7byk0wyx5gim9y7etn3o6kz
+ $ docker service ls
+ ID            NAME        MODE        REPLICAS   IMAGE
+ xo7byk0wyx5g  helloworld  replicated  1/1        alpine:latest
+ $ docker service inspect --pretty helloworld
+ ID:           xo7byk0wyx5gim9y7etn3o6kz
+ Name:         helloworld
+ Service Mode: Replicated
+
+```
 
 可以按照以下方式在 Swarm 集群中扩展和移除服务：
 
-[PRE11]
+```
+ $ docker service scale helloworld=5 
+helloworld scaled to 5 
+
+$ docker service ps helloworld 
+ID            NAME          IMAGE          NODE                           DESIRED STATE  CURRENT STATE               ERROR  PORTS 
+9qu8q4equobn  helloworld.1  alpine:latest  ip-172-31-37-122.ec2.internal  Running        Running about a minute ago          
+tus2snjwqmxm  helloworld.2  alpine:latest  ip-172-31-37-122.ec2.internal  Running        Running 6 seconds ago               
+cxnilnwa09tl  helloworld.3  alpine:latest  ip-172-31-2-43.ec2.internal    Running        Running 6 seconds ago               
+cegnn648i6b2  helloworld.4  alpine:latest  ip-172-31-1-137.ec2.internal   Running        Running 6 seconds ago               
+sisoxrpxxbx5  helloworld.5  alpine:latest  ip-172-31-1-137.ec2.internal   Running        Running 6 seconds ago               
+
+$ docker service rm helloworld 
+helloworld
+
+```
 
 # 摘要
 

@@ -32,11 +32,21 @@ Minikube 工具源代码和所有文档都可以在 GitHub 上找到[`github.com
 
 以下命令序列将下载`minikube`二进制文件，设置可执行标志并将其复制到`/usr/local/bin`文件夹，这将使其在 macOS shell 中可用：
 
-[PRE0]
+```
+$ curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.12.2/minikube-darwin-amd64
+
+$ chmod +x minikube
+
+$ sudo mv minikube /usr/local/bin/
+
+```
 
 或者，如果您使用 Homebrew 软件包管理器（可以在[`brew.sh`](https://brew.sh)免费获得），这是非常方便和推荐的，您可以通过输入以下命令来安装`minikube`：
 
-[PRE1]
+```
+$ brew cask install minikube
+
+```
 
 # 在 Windows 上安装
 
@@ -46,7 +56,10 @@ Windows 上的 Minikube 也只是一个可执行文件。您可以在 Minikube �
 
 在 Linux 上的安装过程与 macOS 相同。唯一的区别是可执行文件的名称。以下命令将下载最新的 Minikube 版本，设置可执行位，并将其移动到`/usr/local/bin`目录中：
 
-[PRE2]
+```
+$ curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && chmod +x minikube && sudo mv minikube /usr/local/bin/
+
+```
 
 就是这样，一个 Minikube 和 Docker 就足以启动本地集群。是时候让它活起来了：
 
@@ -54,17 +67,26 @@ Windows 上的 Minikube 也只是一个可执行文件。您可以在 Minikube �
 
 我们正在使用`minikube`提供的本地 Kubernetes 集群。使用以下命令启动您的集群：
 
-[PRE3]
+```
+$ minikube start
+
+```
 
 Minikube 在自己的虚拟机上运行。根据您的主机操作系统，您可以在几个虚拟化驱动程序之间进行选择。目前支持的有`virtualbox`，`vmwarefusion`，`xhyve`，`hyperv`和`kvm`（基于内核的虚拟机）。默认的 VM 驱动程序是 virtual box。您可以覆盖此选项。这是使用`xhyve`的 macOS 启动命令行的示例：
 
-[PRE4]
+```
+$ minikube start --vm-driver=xhyve
+
+```
 
 首次启动 Minikube 时，您会看到它正在下载 Minikube ISO，因此该过程将需要更长一点时间。不过，这是一次性操作。Minikube 配置将保存在您的`home`目录中的`.minikube`文件夹中，例如在 Linux 或 macOS 上为`~/.minikube`。在第一次运行时，Minikube 还将配置`kubectl`命令行工具（我们将在短时间内回到它）以使用本地的`minikube`集群。此设置称为`kubectl`上下文。它确定`kubectl`正在与哪个集群交互。所有可用的上下文都存在于`~/.kube/config`文件中。
 
 由于集群现在正在运行，并且我们默认启用了`dashboard`插件，您可以使用以下命令查看（仍然为空的）Kubernetes 仪表板：
 
-[PRE5]
+```
+$ minikube dashboard
+
+```
 
 它将用集群仪表板的 URL 打开您的默认浏览器：
 
@@ -84,15 +106,30 @@ Minikube 在自己的虚拟机上运行。根据您的主机操作系统，您�
 
 以下命令序列将下载`kubectl`二进制文件，设置可执行标志并将其复制到`/usr/local/bin`文件夹中，这将使其在 macOS shell 中可用：
 
-[PRE6]
+```
+$ curl -O https://storage.googleapis.com/kubernetes-release/release/v1.5.2
+
+/bin/darwin/amd64/kubectl
+
+$ chmod +x kubectl
+
+$ sudo cp kubectl /usr/local/bin
+
+```
 
 Homebrew 提供了安装`kubectl`并保持其最新的最便捷方式。要安装，请使用此命令：
 
-[PRE7]
+```
+$ brew install kubectl
+
+```
 
 要更新，请使用以下命令：
 
-[PRE8]
+```
+$ brew upgrade kubectl
+
+```
 
 # 在 Windows 上安装
 
@@ -102,11 +139,23 @@ Homebrew 提供了安装`kubectl`并保持其最新的最便捷方式。要安�
 
 安装过程与 macOS 非常相似。以下命令将获取`kubectl`二进制文件，给予可执行标志，然后将其移动到`/usr/local/bin`中，以便在 shell 中使用：
 
-[PRE9]
+```
+$ curl -O https://storage.googleapis.com/kubernetes-release/release/v1.5.2
+
+/bin/linux/amd64/kubectl
+
+$ chmod +x kubectl
+
+$ sudo cp kubectl /usr/local/bin/kubectl
+
+```
 
 要验证您的本地集群是否已启动并且`kubectl`已正确配置，请执行以下命令：
 
-[PRE10]
+```
+$ kubectl cluster-info 
+
+```
 
 在输出中，您将获得有关集群的基本信息，包括其 IP 地址和运行的 Minikube 插件（我们将在本章后面再回到插件）：
 
@@ -114,7 +163,10 @@ Homebrew 提供了安装`kubectl`并保持其最新的最便捷方式。要安�
 
 要列出我们集群中正在运行的节点，执行`get nodes`命令：
 
-[PRE11]
+```
+$ kubectl get nodes
+
+```
 
 当然，这只是一个单节点集群，所以在上一个命令的输出中没有什么意外：
 
@@ -130,11 +182,47 @@ Homebrew 提供了安装`kubectl`并保持其最新的最便捷方式。要安�
 
 默认情况下，每个 Pod 只能在 Kubernetes 集群内部通过其内部 IP 地址访问。为了使容器可以从 Kubernetes 虚拟网络外部访问，我们需要将 Pod 公开为 Kubernetes 服务。要创建一个服务，我们将使用简单的`.yaml`文件，其中包含服务清单。YAML 是一种人类可读的数据序列化语言，通常用于配置文件。我们的 Java `rest-example`的示例服务清单可能看起来与以下内容相同：
 
-[PRE12]
+```
+apiVersion: v1
+
+kind: Service
+
+metadata:
+
+ name: rest-example
+
+ labels:
+
+ app: rest-example
+
+ tier: backend
+
+spec:
+
+ type: NodePort
+
+ ports:
+
+ - port: 8080
+
+ selector:
+
+ app: rest-example
+
+ tier: backend
+
+```
 
 请注意，服务的清单不涉及 Docker 镜像。这是因为，正如您从第七章 *Kubernetes 简介*中记得的那样，Kubernetes 中的服务只是一个提供网络连接给一个或多个 Pod 的抽象。每个服务都有自己的 IP 地址和端口，其在服务的生命周期内保持不变。每个 Pod 都需要具有特定的标签，以便服务发现，服务使用和标签`selectors`来分组查找 Pods。在我们之前的示例中，`selector`将挑选出所有具有标签`app`值为`rest-example`和标签名为`tier`值为`backend`的 Pods：
 
-[PRE13]
+```
+selector:
+
+ app: rest-example
+
+ tier: backend
+
+```
 
 正如您在第七章中所记得的，*Kubernetes 简介*，Kubernetes 集群中的每个节点都运行一个 kube-proxy 进程。kube-proxy 在 Kubernetes 服务中扮演着至关重要的角色。它的目的是为它们公开虚拟 IP。自 Kubernetes 1.2 以来，iptables 代理是默认设置。您可以使用两种选项来设置代理：用户空间和 iptables。这些设置指的是实际处理连接转发的内容。在两种情况下，都会安装本地 iptables 规则来拦截具有与服务关联的目标 IP 地址的出站 TCP 连接。这两种模式之间有一个重要的区别：
 
@@ -154,7 +242,10 @@ Homebrew 提供了安装`kubectl`并保持其最新的最便捷方式。要安�
 
 准备好我们的`service.yml`文件后，我们可以通过执行以下`kubectl`命令来创建我们的第一个 Kubernetes 服务：
 
-[PRE14]
+```
+$ kubectl create -f service.yml
+
+```
 
 要查看我们的服务是否正确创建，我们可以执行`kubectl get services`命令：
 
@@ -162,11 +253,17 @@ Homebrew 提供了安装`kubectl`并保持其最新的最便捷方式。要安�
 
 我们还可以通过添加`--all-namespaces`开关来列出其他服务（包括`minikube`集群本身提供的服务，如果您感兴趣）。
 
-[PRE15]
+```
+$ kubectl get services --all-namespaces
+
+```
 
 查看特定服务的详细信息，我们使用`describe`命令。执行以下命令以查看我们的`rest-example` Java 服务的详细信息：
 
-[PRE16]
+```
+$ kubectl describe service rest-example
+
+```
 
 在输出中，我们呈现了最有用的服务属性，特别是端点（我们的内部容器 IP 和端口，在这种情况下只有一个，因为我们有一个 Pod 在服务中运行），服务内部端口和代理的 NodePort：
 
@@ -174,7 +271,10 @@ Homebrew 提供了安装`kubectl`并保持其最新的最便捷方式。要安�
 
 将所有设置放在`.yaml`文件中非常方便。但有时，需要以更动态的方式创建服务；例如在一些自动化流程中。在这种情况下，我们可以通过向`kubectl`命令本身提供所有参数和选项，手动创建服务，而不是首先创建`.yaml`文件。但在执行此操作之前，您需要先创建部署，因为手动创建服务只是使用`kubectl`命令公开部署。毕竟，服务是一个公开的部署，实际上只是一组 Pod。这样公开的示例，将导致服务创建，看起来与这个相同：
 
-[PRE17]
+```
+$ kubectl expose deployment rest-example--type="NodePort"
+
+```
 
 # 创建部署
 
@@ -192,41 +292,113 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 
 在本地构建图像时，与本地 Kubernetes 集群一起工作会有点棘手。Minikube 在单独的 VM 中运行，因此它不会看到您在本地使用 Docker 在计算机上构建的图像。有一个解决方法。您可以执行以下命令：
 
-[PRE18]
+```
+$ eval $(minikube docker-env)
+
+```
 
 先前的命令实际上将利用在`minikube`上运行的 Docker 守护程序，并在 Minikube 的 Docker 上构建您的图像。这样，本地构建的图像将可供 Minikube 使用，而无需从外部注册表中提取。这并不是很方便，将 Docker 图像推送到`远程`注册表肯定更容易。让我们将我们的 rest-example 图像推送到`DockerHub`注册表。
 
 1.  首先，我们需要登录：
 
-[PRE19]
+```
+$ docker login
+
+```
 
 1.  然后，我们将使用`docker tag`命令标记我们的图像（请注意，您需要提供自己的 DockerHub 用户名，而不是`$DOCKER_HUB_USER`）：
 
-[PRE20]
+```
+$ docker tag 54529c0ebed7 $DOCKER_HUB_USER/rest-example
+
+```
 
 1.  最后一步将是使用`docker push`命令将我们的图像推送到 Docker Hub：
 
-[PRE21]
+```
+$ docker push $DOCKER_HUB_USER/rest-example
+
+```
 
 1.  现在我们在注册表中有一个可用的图像，我们需要一个部署清单。这又是一个`.yaml`文件，看起来可能与此相同：
 
-[PRE22]
+```
+ apiVersion: extensions/v1beta1
+
+kind: Deployment
+
+metadata:
+
+  name: rest-example
+
+spec:
+
+  replicas: 1
+
+  template:
+
+    metadata:
+
+      labels:
+
+        app: rest-example
+
+        tier: backend
+
+    spec:
+
+      containers:
+
+      - name: rest-example
+
+        image: jotka/rest-example
+
+        imagePullPolicy: IfNotPresent
+
+        resources:
+
+          requests:
+
+            cpu: 100m
+
+            memory: 100Mi
+
+        env:
+
+        - name: GET_HOSTS_FROM
+
+          value: dns
+
+        ports:
+
+        - containerPort: 8080
+
+```
 
 在集群上使用`kubectl`创建此部署，您需要执行以下命令，与创建服务时完全相同，只是文件名不同：
 
-[PRE23]
+```
+$ kubectl create -f deployment.yml
+
+```
 
 ！[](Image00089.jpg)
 
 您可以查看部署属性：
 
-[PRE24]
+```
+$ kubectl describe deployment rest-service
+
+```
 
 ！[](Image00090.jpg)
 
 如您所见，已创建一个 Pod 以及一个 ReplicaSet 和默认的滚动更新策略。您还可以查看 Pods：
 
-[PRE25]
+```
+$ kubectl get pods
+
+```
 
 `get pods`命令的输出将给出部署中运行的 Pod 的名称。稍后这将很重要，因为如果要与特定的 Pod 交互，您需要知道其名称：
 
@@ -234,7 +406,10 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 
 作为`.yaml`文件中部署描述符的替代方案，您可以使用`kubectl run`命令和选项从命令行创建部署，如下例所示：
 
-[PRE26]
+```
+$ kubectl run rest-example --image=jotka/rest-example --replicas=1 --port=8080 --labels="app:rest-example;tier:backend" --expose 
+
+```
 
 让我们总结一下与创建资源和获取有关它们的信息相关的`kubectl`命令，以及一些示例，放在表中：
 
@@ -258,15 +433,24 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 | `kubectl get nodes` | 列出所有集群节点 |
 | `kubectl explain node` | 显示指定节点的详细信息 |
 
-[PRE27]
+```
+ Calling the service
+
+```
 
 正如我们在`kubectl describe service rest-example`命令输出中所看到的，我们的`rest-example service`可以通过端口`8080`和域名`rest-example`在集群内部访问。在我们的情况下，端点的完整 URL 将是`http://rest-example:8080`。然而，为了能够从外部世界执行服务，我们使用了`NodePort`映射，并且我们知道它被赋予了端口`31141`。我们所需要的只是集群的 IP 来调用服务。我们可以使用以下命令获取它：
 
-[PRE28]
+```
+$ minikube ip
+
+```
 
 有一个快捷方式可以了解外部可访问的服务 URL 和端口号。我们可以使用`minikube service`命令来告诉我们确切的服务地址：
 
-[PRE29]
+```
+$ minikube service rest-example --url
+
+```
 
 上一个命令的输出将是带有映射端口号的服务 URL。如果您跳过`--url`开关，`minikube`将只是使用您的默认 Web 浏览器打开服务的 URL。这有时很方便。
 
@@ -282,7 +466,10 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 
 假设我们已经使用浏览器或 curl 向我们的新 Web 服务发送了请求，现在应该能够看到一些日志。在此之前，我们需要有一个 Pod 的名称，在部署过程中会自动创建。要获取 Pod 的名称，请使用`kubectl get pods`命令。之后，您可以显示指定 Pod 的日志：
 
-[PRE30]
+```
+$ kubectl logs rest-example-3660361385-gkzb8
+
+```
 
 如您在以下截图中所见，我们将访问来自 Pod 中运行的服务的著名 Spring Boot 横幅：
 
@@ -290,7 +477,10 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 
 查看日志并不是我们可以对特定 Pod 进行的唯一操作。与 Docker 类似（实际上，Pod 正在运行 Docker），我们可以使用`kubectl exec`命令与容器进行交互。例如，要获取正在运行的容器的 shell：
 
-[PRE31]
+```
+$ kubectl exec -it rest-example-3660361385-gkzb8 -- /bin/bash
+
+```
 
 上一个命令将把您的 shell 控制台附加到正在运行的容器中的 shell，您可以与之交互，例如列出进程，就像您在以下截图中所见的那样：
 
@@ -298,7 +488,10 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 
 `kubectl exec`命令的语法与 Docker 中的`exec`命令非常相似，只有一个小差别，正如您从第七章中所记得的，*Kubernetes 简介*，一个 Pod 可以运行多个容器。在这种情况下，我们可以使用`--container`或`-c`命令开关来指定`kubectl exec`命令中的容器。例如，假设我们有一个名为`rest-example-3660361385-gkzb8`的 Pod。这个 Pod 有两个名为 service 和 database 的容器。以下命令将打开一个 shell 到 service 容器：
 
-[PRE32]
+```
+$ kubectl exec -it rest-example-3660361385-gkzb8 --container service -- /bin/bash
+
+```
 
 拥有查看日志和与容器交互的可能性为您提供了很大的灵活性，可以准确定位您在运行 Pod 时可能遇到的问题。让我们总结与查看日志和与 Pod 交互相关的 `kubectl` 命令表：
 
@@ -325,11 +518,19 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 
 当然，我们的 Java `rest-example`服务将数据保存在内存中，因此它不是无状态的，因此它可能不是扩展的最佳示例；如果另一个实例被启动，它将拥有自己的数据。但是，它是一个 Kubernetes 服务，因此我们可以使用它来演示扩展。要将我们的`rest-example`部署从一个扩展到三个 Pod，请执行以下`kubectl scale`命令：
 
-[PRE33]
+```
+$ kubectl scale deployment rest-example --replicas=3
+
+```
 
 过一段时间，为了检查，执行以下命令，您将看到部署中现在运行着三个 Pod：
 
-[PRE34]
+```
+$ kubectl get deployments
+
+$ kubectl get pods
+
+```
 
 在下表中，您可以看到与手动扩展相关的一些`kubectl`命令的更多示例：
 
@@ -356,7 +557,10 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 
 此外，还有一个特殊的`kubectl autoscale`命令，用于轻松创建水平 Pod 自动缩放器。一个示例可能是：
 
-[PRE35]
+```
+$ kubectl autoscale deployment rest-example --cpu-percent=50 --min=1 --max=10
+
+```
 
 上一个命令将为我们的`rest-example`部署创建一个自动缩放器，目标 CPU 利用率设置为`50%`，`副本`数量在`1`和`10`之间。
 
@@ -366,7 +570,10 @@ Kubernetes 使用与 Docker 本身相同的图像语法，包括私有注册表�
 
 查看集群事件，请输入以下命令：
 
-[PRE36]
+```
+$ kubectl get events
+
+```
 
 它将呈现一个巨大的表格，其中包含集群上注册的所有事件：
 
@@ -422,7 +629,10 @@ Kubernetes 仪表板是 Kubernetes 集群的通用、基于 Web 的 UI。它允�
 
 Minikube 带有几个插件，例如 Kubernetes 仪表板，Kubernetes DNS 等。我们可以通过执行以下命令列出可用的插件：
 
-[PRE37]
+```
+$ minikube addons list
+
+```
 
 上一个命令的输出将列出可用的插件及其当前状态，例如：
 
@@ -430,21 +640,37 @@ Minikube 带有几个插件，例如 Kubernetes 仪表板，Kubernetes DNS 等�
 
 要启用或禁用插件，我们使用`minikube addons disable`或`minikube addons enable`，例如：
 
-[PRE38]
+```
+$ minikube addons disable dashboard
+
+$ minikube addons enable heapster
+
+```
 
 如果插件已启用，我们可以通过执行`addon open`命令打开相应的 Web 用户界面，例如：
 
-[PRE39]
+```
+$ minikube addons open heapster
+
+```
 
 # 清理
 
 如果您完成了部署和服务的操作，或者想要从头开始，您可以通过删除部署或服务来清理集群：
 
-[PRE40]
+```
+$ kubectl delete deployment rest-example
+
+$ kubectl delete service rest-example
+
+```
 
 这段代码也可以合并成一个命令，例如：
 
-[PRE41]
+```
+$ kubectl delete service,deployment rest-example
+
+```
 
 `kubectl delete`支持标签`selectors`和命名空间。让我们在表中看一些命令的其他示例：
 
@@ -456,11 +682,17 @@ Minikube 带有几个插件，例如 Kubernetes 仪表板，Kubernetes DNS 等�
 
 要停止`minikube`集群，只需发出：
 
-[PRE42]
+```
+$ minikube stop
+
+```
 
 如果您想要删除当前的`minikube`集群，可以发出以下命令来执行：
 
-[PRE43]
+```
+$ minikube delete
+
+```
 
 # 总结
 

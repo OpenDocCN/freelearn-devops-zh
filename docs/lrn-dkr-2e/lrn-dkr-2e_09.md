@@ -28,39 +28,67 @@
 
 假设您需要从文件中删除所有前导空格，并且您找到了以下方便的 Perl 脚本来做到这一点：
 
-[PRE0]
+```
+$ cat sample.txt | perl -lpe 's/^\s*//'
+```
 
 事实证明，您的工作机器上没有安装 Perl。你能做什么？在机器上安装 Perl 吗？嗯，这当然是一个选择，这也是大多数开发人员或系统管理员所做的。但等一下，您已经在机器上安装了 Docker。我们不能使用 Docker 来规避安装 Perl 的需要吗？是的，我们可以。这就是我们要做的：
 
 1.  创建一个名为`ch07/simple-task`的文件夹，并导航到它：
 
-[PRE1]
+```
+$ mkdir -p ~/fod/ch07/simple-task && cd ~/fod/ch07/simple-task
+```
 
 1.  从这个文件夹中打开 VS Code：
 
-[PRE2]
+```
+$ code .
+```
 
 1.  在这个文件夹中，创建一个名为`sample.txt`的文件，内容如下：
 
-[PRE3]
+```
+1234567890
+  This is some text
+   another line of text
+ more text
+     final line
+```
 
 请注意每行开头的空格。保存文件。
 
 1.  现在，我们可以运行一个安装了 Perl 的容器。幸运的是，Docker Hub 上有一个官方的 Perl 镜像。我们将使用镜像的 slim 版本：
 
-[PRE4]
+```
+$ docker container run --rm -it \
+ -v $(pwd):/usr/src/app \
+ -w /usr/src/app \
+ perl:slim sh -c "cat sample.txt | perl -lpe 's/^\s*//'"
+```
 
 上面的命令以交互方式运行了一个 Perl 容器（`perl:slim`），将当前文件夹的内容映射到容器的`/usr/src/app`文件夹，并将容器内的工作文件夹设置为`/usr/src/app`。在容器内运行的命令是`sh -c "cat sample.txt | perl -lpe 's/^\s*//'"`，基本上是生成一个 Bourne shell 并执行我们想要的 Perl 命令。
 
 上面的命令生成的输出应该如下所示：
 
-[PRE5]
+```
+1234567890
+This is some text
+another line of text
+more text
+final line
+```
 
 1.  无需在我们的机器上安装 Perl，我们就能实现我们的目标。
 
 如果这还不能说服你，因为如果你在 macOS 上，你已经安装了 Perl，那么请考虑一下，你想要运行一个名为`your-old-perl-script.pl`的 Perl 脚本，它是旧的，不兼容你系统上已安装的最新版本的 Perl。你会尝试在你的机器上安装多个版本的 Perl 并可能破坏一些东西吗？不，你只需运行一个与你的脚本兼容的（旧）Perl 版本的容器，就像这个例子：
 
-[PRE6]
+```
+$ docker container run -it --rm \
+-v $(pwd):/usr/src/app \
+ -w /usr/src/app \
+ perl:<old-version> perl your-old-perl-script.pl
+```
 
 这里，`<old-version>`对应于你需要运行你的脚本的 Perl 版本的标签。好处是，脚本运行后，容器将从你的系统中删除，不会留下任何痕迹，因为我们在`docker container run`命令中使用了`--rm`标志。
 
@@ -68,15 +96,47 @@
 
 1.  在`ch07/simple-task`文件夹中添加一个`stats.py`文件，并添加以下内容：
 
-[PRE7]
+```
+import sys
+
+fname = sys.argv[1]
+lines = 0
+words = 0
+letters = 0
+
+for line in open(fname):
+    lines += 1
+    letters += len(line)
+
+    pos = 'out'
+    for letter in line:
+        if letter != ' ' and pos == 'out':
+            words += 1
+            pos = 'in'
+        elif letter == ' ':
+            pos = 'out'
+
+print("Lines:", lines)
+print("Words:", words)
+print("Letters:", letters)
+```
 
 1.  保存文件后，您可以使用以下命令运行它：
 
-[PRE8]
+```
+$ docker container run --rm -it \
+ -v $(pwd):/usr/src/app \
+ -w /usr/src/app \
+ python:3.7.4-alpine python stats.py sample.txt
+```
 
 请注意，在这个例子中，我们重用了之前的`sample.txt`文件。在我的情况下，输出如下：
 
-[PRE9]
+```
+Lines: 5
+Words: 13
+Letters: 81
+```
 
 这种方法的美妙之处在于，这个 Python 脚本现在可以在任何安装了任何操作系统的计算机上运行，只要这台机器是一个 Docker 主机，因此可以运行容器。
 
@@ -132,39 +192,89 @@ Express JS 应用程序的集成测试
 
 1.  让我们首先准备我们的项目文件夹结构。我们创建项目根目录并导航到它：
 
-[PRE10]
+```
+$ mkdir ~/fod/ch07/integration-test-node && \
+    cd ~/fod/ch07/integration-test-node
+```
 
 1.  在这个文件夹中，我们创建三个子文件夹，`tests`，`api`和`database`：
 
-[PRE11]
+```
+$ mkdir tests api database
+```
 
 1.  现在，我们从项目根目录打开 VS Code：
 
-[PRE12]
+```
+$ code .
+```
 
 1.  在`database`文件夹中，添加一个`init-script.sql`文件，内容如下：
 
-[PRE13]
+```
+CREATE TABLE hobbies(
+ hobby_id serial PRIMARY KEY,
+ hobby VARCHAR (255) UNIQUE NOT NULL
+);
+
+insert into hobbies(hobby) values('swimming');
+insert into hobbies(hobby) values('diving');
+insert into hobbies(hobby) values('jogging');
+insert into hobbies(hobby) values('dancing');
+insert into hobbies(hobby) values('cooking');
+```
 
 上述脚本将在我们的 Postgres 数据库中创建一个`hobbies`表，并填充一些种子数据。保存文件。
 
 1.  现在我们可以启动数据库。当然，我们将使用官方的 Docker 镜像来运行 Postgres 数据库。但首先，我们将创建一个 Docker 卷，数据库将在其中存储其文件。我们将称该卷为`pg-data`：
 
-[PRE14]
+```
+$ docker volume create pg-data
+```
 
 1.  现在，是时候运行数据库容器了。从项目根目录（`integration-test-node`）中运行以下命令：
 
-[PRE15]
+```
+$ docker container run -d \
+ --name postgres \
+ -p 5432:5432 \
+ -v $(pwd)/database:/docker-entrypoint-initdb.d \
+ -v pg-data:/var/lib/postgresql/data \
+ -e POSTGRES_USER=dbuser \
+ -e POSTGRES_DB=sample-db \
+ postgres:11.5-alpine
+```
 
 请注意，运行上述命令的文件夹很重要，因为我们在数据库初始化脚本`init-script.sql`中使用了卷挂载。还要注意，我们正在使用环境变量来定义 Postgres 中数据库的名称和用户，并且我们正在将 Postgres 的端口`5432`映射到主机上的等效端口。
 
 1.  在启动数据库容器后，通过检索其日志来双重检查它是否按预期运行：
 
-[PRE16]
+```
+$ docker container logs postgres
+```
 
 你应该看到类似于这样的东西：
 
-[PRE17]
+```
+...
+server started
+CREATE DATABASE
+
+/usr/local/bin/docker-entrypoint.sh: running /docker-entrypoint-initdb.d/init-db.sql
+CREATE TABLE
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+INSERT 0 1
+
+...
+
+PostgreSQL init process complete; ready for start up.
+
+2019-09-07 17:22:30.056 UTC [1] LOG: listening on IPv4 address "0.0.0.0", port 5432
+...
+```
 
 注意，我们已经缩短了输出以便更好地阅读。前面输出的重要部分是前几行，我们可以看到数据库已经接受了我们的初始化脚本，创建了`hobbies`表并用五条记录进行了填充。最后一行也很重要，告诉我们数据库已经准备好工作。当解决问题时，容器日志总是你的第一站！
 
@@ -172,15 +282,31 @@ Express JS 应用程序的集成测试
 
 1.  在终端窗口中，导航到`api`文件夹：
 
-[PRE18]
+```
+$ cd ~/fod/ch07/integration-test-node/api
+```
 
 1.  然后，运行`npm init`来初始化 API 项目。只接受所有默认值：
 
-[PRE19]
+```
+$ npm init
+```
 
 生成的`package.json`文件应该是这样的：
 
-[PRE20]
+```
+{
+  "name": "api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
+```
 
 1.  修改上述文件的`scripts`节点，使其包含一个启动命令：
 
@@ -188,7 +314,9 @@ Express JS 应用程序的集成测试
 
 1.  然后我们需要安装 Express JS，可以使用以下命令来完成：
 
-[PRE21]
+```
+$ npm install express --save
+```
 
 这将安装库及其所有依赖项，并在我们的`package.json`文件中添加一个类似于这样的依赖项节点：
 
@@ -206,23 +334,33 @@ Express JS 应用程序的集成测试
 
 1.  现在我们可以使用`npm start`启动 API，然后使用`curl`测试主页端点，例如：
 
-[PRE22]
+```
+$ curl localhost:3000
+Sample API
+```
 
 经过所有这些步骤，我们已经准备好搭建测试环境了。
 
 1.  我们将使用`jasmine`来编写我们的测试。导航到`tests`文件夹并运行`npm init`来初始化测试项目：
 
-[PRE23]
+```
+$ cd ~/fod/ch07/integration-test-node/tests && \
+    npm init
+```
 
 接受所有默认值。
 
 1.  接下来，将`jasmine`添加到项目中：
 
-[PRE24]
+```
+$ npm install --save-dev jasmine
+```
 
 1.  然后为这个项目初始化`jasmine`：
 
-[PRE25]
+```
+$ node node_modules/jasmine/bin/jasmine init
+```
 
 1.  我们还需要更改我们的`package.json`文件，使得脚本块看起来像这样：
 
@@ -238,11 +376,22 @@ Express JS 应用程序的集成测试
 
 1.  现在在项目的`spec/support`子文件夹中，让我们创建一个`jasmine.json`文件。这将包含`jasmine`测试框架的配置设置。将以下代码片段添加到此文件并保存：
 
-[PRE26]
+```
+{
+  "spec_dir": "spec",
+  "spec_files": [
+    "**/*[sS]pec.js"
+  ],
+  "stopSpecOnExpectationFailure": false,
+  "random": false
+}
+```
 
 1.  由于我们将要编写集成测试，我们希望通过其公共接口访问 SUT，而在我们的情况下，这是一个 RESTful API。因此，我们需要一个客户端库来允许我们这样做。我的选择是 Requests 库。让我们将其添加到我们的项目中：
 
-[PRE27]
+```
+$ npm install request --save-dev
+```
 
 1.  在项目的`spec`子文件夹中添加一个`api-spec.js`文件。它将包含我们的测试函数。让我们从第一个开始：
 
@@ -266,17 +415,60 @@ API 的示例测试套件
 
 1.  让我们从 API 开始。在`api`文件夹中，添加一个`Dockerfile`文件，内容如下：
 
-[PRE28]
+```
+FROM node:alpine
+WORKDIR /usr/src/app
+COPY package.json ./
+RUN npm install
+COPY . .
+EXPOSE 3000
+CMD npm start
+```
 
 这只是创建一个基于 Node.js 的应用程序的容器镜像的非常标准的方法。这里没有什么特别的。
 
 1.  将`tests`文件夹中添加一个具有以下内容的 Dockerfile：
 
-[PRE29]
+```
+FROM node:alpine
+WORKDIR /usr/src/app
+COPY package.json ./
+RUN npm install
+COPY . .
+CMD npm test
+```
 
 1.  现在，我们准备按正确的顺序运行所有三个容器。为了简化这个任务，让我们创建一个 shell 脚本来做到这一点。将`test.sh`文件添加到`integration-test-node`文件夹中，我们的项目根文件夹。将以下内容添加到这个文件中并保存：
 
-[PRE30]
+```
+docker image build -t api-node api
+docker image build -t tests-node tests
+
+docker network create test-net
+
+docker container run --rm -d \
+ --name postgres \
+ --net test-net \
+ -v $(pwd)/database:/docker-entrypoint-initdb.d \
+ -v pg-data:/var/lib/postgresql/data \
+ -e POSTGRES_USER=dbuser \
+ -e POSTGRES_DB=sample-db \
+ postgres:11.5-alpine
+
+docker container run --rm -d \
+ --name api \
+ --net test-net \
+api-node
+
+echo "Sleeping for 5 sec..."
+sleep 5
+
+docker container run --rm -it \
+ --name tests \
+ --net test-net \
+ -e BASE_URL="http://api:3000" \
+ tests-node
+```
 
 在脚本的前两行，我们确保 API 和测试的两个容器镜像都使用最新的代码构建。然后，我们创建一个名为`test-net`的 Docker 网络，我们将在这个网络上运行所有三个容器。暂时不用担心这个的细节，因为我们将在第十章中详细解释网络，*单主机网络*。暂且可以说，如果所有容器都在同一个网络上运行，那么在这些容器内运行的应用程序可以像在主机上本地运行一样看到彼此，并且它们可以通过名称相互调用。
 
@@ -284,19 +476,44 @@ API 的示例测试套件
 
 1.  使用以下命令将此文件设置为可执行文件：
 
-[PRE31]
+```
+$ chmod +x ./test.sh 
+```
 
 1.  现在你可以运行它：
 
-[PRE32]
+```
+$ ./test.sh
+```
 
 如果一切按预期运行，你应该看到类似以下内容的东西（为了便于阅读而缩短）：
 
-[PRE33]
+```
+...
+Successfully built 44e0900aaae2
+Successfully tagged tests-node:latest
+b4f233c3578898ae851dc6facaa310b014ec86f4507afd0a5afb10027f10c79d
+728eb5a573d2c3c1f3a44154e172ed9565606af8e7653afb560ee7e99275ecf6
+0474ea5e0afbcc4d9cd966de17e991a6e9a3cec85c53a934545c9352abf87bc6
+Sleeping for 10 sec...
+
+> tests@1.0.0 test /usr/src/app
+> jasmine
+
+Started
+..
+
+2 specs, 0 failures
+Finished in 0.072 seconds
+```
 
 1.  我们还可以创建一个在测试后进行清理的脚本。为此，添加一个名为`cleanup.sh`的文件，并以与`test.sh`脚本相同的方式将其设置为可执行文件。将以下代码片段添加到这个文件中：
 
-[PRE34]
+```
+docker container rm -f postgres api
+docker network rm test-net
+docker volume rm pg-data
+```
 
 第一行删除`postgres`和`api`容器。第 2 行删除我们用于第三个容器的网络，最后，第 3 行删除 Postgres 使用的卷。在每次测试运行后，使用`./cleanup.sh`执行此文件。
 
@@ -314,7 +531,9 @@ API 的示例测试套件
 
 1.  首先创建一个`testcontainer-node`文件夹并导航到它：
 
-[PRE35]
+```
+$ mkdir ~/fod/ch07/testcontainer-node && cd ~/fod/ch07/testcontainer-node
+```
 
 1.  接下来，使用`code .`从该文件夹中打开 VS Code。在同一文件夹中创建三个子文件夹，`database`，`api`和`tests`。向`api`文件夹中添加一个`package.json`文件，并添加以下内容：
 
@@ -340,7 +559,10 @@ API 的 Dockerfile
 
 1.  在您的终端中，导航到我们之前创建的`tests`文件夹，并使用`npm init`将其初始化为一个 Node.js 项目。接受所有默认值。接下来，使用`npm`安装`request`库和`testcontainers`库：
 
-[PRE36]
+```
+$ npm install request --save-dev
+$ npm install testcontainers --save-dev
+```
 
 其结果是一个`package.json`文件，应该看起来类似于这样：
 
@@ -350,7 +572,17 @@ API 的 Dockerfile
 
 1.  现在，在`tests`文件夹中，创建一个`tests.js`文件，并添加以下代码片段：
 
-[PRE37]
+```
+const request = require("request");
+const path = require('path');
+const dns = require('dns');
+const os = require('os');
+const { GenericContainer } = require("testcontainers");
+
+(async () => {
+ // TODO
+})();
+```
 
 注意我们正在请求一个新对象，比如`request`对象，它将帮助我们访问示例 API 组件的 RESTful 接口。我们还从`testcontainers`库请求`GenericContainer`对象，它将允许我们构建和运行任何容器。
 
@@ -358,65 +590,131 @@ API 的 Dockerfile
 
 1.  作为非常重要的一步，我们想使用`testcontainers`库来创建一个带有必要种子数据的 Postgres 容器。让我们在`//TODO`之后添加这段代码片段：
 
-[PRE38]
+```
+const localPath = path.resolve(__dirname, "../database");
+const dbContainer = await new GenericContainer("postgres")
+ .withName("postgres")
+ .withExposedPorts(5432)
+ .withEnv("POSTGRES_USER", "dbuser")
+ .withEnv("POSTGRES_DB", "sample-db")
+ .withBindMount(localPath, "/docker-entrypoint-initdb.d")
+ .withTmpFs({ "/temp_pgdata": "rw,noexec,nosuid,size=65536k" })
+ .start();
+```
 
 前面的代码片段与 Docker 的`run`命令有一些相似之处。这并非偶然，因为我们正在指示`testcontainers`库做的正是这样，为我们运行一个 PostgreSQL 实例。
 
 1.  接下来，我们需要找出暴露端口`5432`映射到哪个主机端口。我们可以用以下逻辑来做到这一点：
 
-[PRE39]
+```
+const dbPort = dbContainer.getMappedPort(5432);
+```
 
 我们将需要这些信息，因为 API 组件将需要通过这个端口访问 Postgres。
 
 1.  我们还需要知道主机在容器内可达的 IP 地址是哪个——注意，本地主机在容器内不起作用，因为这将映射到容器自己网络堆栈的环回适配器。我们可以这样获取主机 IP 地址：
 
-[PRE40]
+```
+const myIP4 = await lookupPromise();
+```
 
 `lookupPromise`函数是一个包装函数，使正常的异步`dns.lookup`函数返回一个 promise，这样我们就可以`await`它。这是它的定义：
 
-[PRE41]
+```
+async function lookupPromise(){
+ return new Promise((resolve, reject) => {
+ dns.lookup(os.hostname(), (err, address, family) => {
+ if(err) throw reject(err);
+ resolve(address);
+ });
+ });
+};
+```
 
 1.  现在，有了这些信息，我们准备指示`testcontainer`库首先为 API 构建容器镜像，然后从该镜像运行容器。让我们从构建开始：
 
-[PRE42]
+```
+const buildContext = path.resolve(__dirname, "../api");
+const apiContainer = await GenericContainer
+ .fromDockerfile(buildContext)
+ .build();
+```
 
 注意这个命令如何使用我们在`api`子文件夹中定义的 Dockerfile。
 
 1.  一旦我们有了引用新镜像的`apiContainer`变量，我们就可以使用它来从中运行一个容器：
 
-[PRE43]
+```
+const startedApiContainer = await apiContainer
+ .withName("api")
+ .withExposedPorts(3000)
+ .withEnv("DB_HOST", myIP4)
+ .withEnv("DB_PORT", dbPort)
+ .start();
+```
 
 1.  再一次，我们需要找出 API 组件的暴露端口`3000`映射到哪个主机端口。`testcontainer`库使这变得轻而易举：
 
-[PRE44]
+```
+const apiPort = startedApiContainer.getMappedPort(3000);
+```
 
 1.  通过这最后一行，我们已经完成了测试设置代码，现在终于可以开始实现一些测试了。我们首先定义要访问的 API 组件的基本 URL。然后，我们使用`request`库向`/hobbies`端点发出 HTTP GET 请求：
 
-[PRE45]
+```
+const base_url = `http://localhost:${apiPort}`
+request.get(base_url + "/hobbies", (error, response, body) => {
+ //Test code here...
+})
+```
 
 1.  现在让我们在`//Test code here...`注释之后实现一些断言：
 
-[PRE46]
+```
+console.log("> expecting status code 200");
+if(response.statusCode != 200){
+ logError(`Unexpected status code ${response.statusCode}`);
+}
+```
 
 首先，当运行测试时，我们将我们的期望记录到控制台作为反馈。然后，我们断言返回的状态码是`200`，如果不是，我们会记录一个错误。`logError`辅助函数只是将给定的消息以红色写入控制台，并在前面加上`***ERR`。这是这个函数的定义：
 
-[PRE47]
+```
+function logError(message){
+ console.log('\x1b[31m%s\x1b[0m', `***ERR: ${message}`);
+}
+```
 
 1.  让我们再添加两个断言：
 
-[PRE48]
+```
+const hobbies = JSON.parse(body);
+console.log("> expecting length of hobbies == 5");
+if(hobbies.length != 5){
+ logError(`${hobbies.length} != 5`);
+}
+console.log("> expecting first hobby == swimming");
+if(hobbies[0].hobby != "swimming"){
+ logError(`${hobbies[0].hobby} != swimming`);
+}
+```
 
 我把确切的断言做什么留给你，亲爱的读者，去找出来。
 
 1.  在断言结束时，我们必须进行清理，以便为下一次运行做好准备：
 
-[PRE49]
+```
+await startedApiContainer.stop()
+await dbContainer.stop();
+```
 
 我们要做的就是停止 API 和数据库容器。这将自动将它们从内存中删除。
 
 1.  现在我们可以使用以下命令在`tests`子文件夹中运行这个测试套件：
 
-[PRE50]
+```
+$ node tests.js 
+```
 
 在我的情况下，输出看起来是这样的（注意，我在代码中添加了一些`console.log`语句，以更容易地跟踪到底在某个时间点发生了什么）：
 
@@ -440,23 +738,65 @@ API 的 Dockerfile
 
 一个简单的`Jenkinsfile`与`Build`、`Test`、`Deploy to Staging`和`Deploy to Production`阶段可能是这样的：
 
-[PRE51]
+```
+pipeline {
+    agent any
+    options {
+        skipStagesAfterUnstable()
+    }
+    stages {
+        stage('Build') {
+            steps {
+                echo 'Building'
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Testing'
+            }
+        }
+        stage('Deploy to Staging') {
+            steps {
+                echo 'Deploying to Staging'
+            }
+        }
+        stage('Deploy to Production') {
+            steps {
+                echo 'Deploying to Production'
+            }
+        }
+    }
+}
+```
 
 当然，前面的流水线只是在每个阶段输出一条消息，什么也不做。尽管如此，它作为一个起点是有用的，可以从中构建我们的流水线。
 
 1.  创建一个名为`jenkins-pipeline`的项目文件夹并导航到它：
 
-[PRE52]
+```
+$ mkdir ~/fod/ch07/jenkins-pipeline && cd ~/fod/ch07/jenkins-pipeline
+```
 
 1.  现在，让我们在 Docker 容器中运行 Jenkins。使用以下命令来执行：
 
-[PRE53]
+```
+$ docker run --rm -d \
+ --name jenkins \
+ -u root \
+-p 8080:8080 \
+-v jenkins-data:/var/jenkins_home \
+ -v /var/run/docker.sock:/var/run/docker.sock \
+ -v "$HOME":/home \
+ jenkinsci/blueocean
+```
 
 请注意，我们正在作为容器内的`root`用户运行，并且我们正在将 Docker 套接字挂载到容器中（`-v /var/run/docker.sock:/var/run/docker.sock`），以便 Jenkins 可以从容器内访问 Docker。Jenkins 生成和使用的数据将存储在 Docker 卷`jenkins-data`中。
 
 1.  我们可以使用以下命令自动由 Jenkins 生成的初始管理员密码：
 
-[PRE54]
+```
+$ docker container exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+```
 
 在我的情况下，这将输出`7f449293de5443a2bbcb0918c8558689`。保存这个密码，因为您将在下一步中使用它。
 
@@ -490,31 +830,109 @@ API 的 Dockerfile
 
 1.  现在我们已经准备好了 Jenkins，我们可以开始集成我们的示例应用程序。让我们从构建步骤开始。首先，我们将`jenkins-pipeline`项目文件夹初始化为 Git 项目：
 
-[PRE55]
+```
+$ cd ~/fod/ch07/jenkins-pipeline && git init
+```
 
 1.  向此文件夹添加一个`package.json`文件，内容如下：
 
-[PRE56]
+```
+{
+  "name": "jenkins-pipeline",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jasmine"
+  },
+  "dependencies": {
+    "express": "⁴.17.1"
+  },
+  "devDependencies": {
+    "jasmine": "³.4.0"
+  }
+}
+```
 
 在这个文件中没有什么特别的，除了通常的外部依赖列表，这种情况下是`express`和`jasmine`。还要注意我们为`npm`定义的两个脚本`start`和`test`。
 
 1.  向项目添加一个`hobbies.js`文件，该文件实现了作为 JavaScript 模块`hobbies`调用的爱好检索逻辑：
 
-[PRE57]
+```
+const hobbies = ["jogging","cooking","diving","swimming","reading"];
+
+exports.getHobbies = () => {
+    return hobbies;
+}
+
+exports.getHobby = id => {
+    if(id<1 || id > hobbies.length)
+        return null;
+    return hobbies[id-1];
+}
+```
 
 这段代码显然是通过提供存储在`hobbies`数组中的预先准备好的数据来模拟数据库。我们之所以这样做是为了简单起见。
 
 1.  接下来，在文件夹中添加一个`server.js`文件，该文件定义了一个具有三个端点`GET /`、`GET /hobbies`和`GET /hobbies/:id`的 RESTful API。该代码使用`hobbies`模块中定义的逻辑来检索数据：
 
-[PRE58]
+```
+const hobbies = require('./hobbies');
+const express = require('express');
+const app = express();
+
+app.listen(3000, '0.0.0.0', () => {
+    console.log('Application listening at 0.0.0.0:3000');
+})
+
+app.get('/', (req, res) => {
+    res.send('Sample API');
+})
+
+app.get('/hobbies', async (req, res) => {
+    res.send(hobbies.getHobbies());
+})
+
+app.get('/hobbies/:id', async (req, res) => {
+    const id = req.params.id;
+    const hobby = hobbies.getHobby(id);
+    if(!hobby){
+        res.status(404).send("Hobby not found");
+        return;
+    }
+    res.send();
+})
+```
 
 1.  现在我们需要定义一些单元测试。在项目中创建一个`spec`子文件夹，并向其中添加`hobbies-spec.js`文件，其中包含以下代码，用于测试`hobbies`模块：
 
-[PRE59]
+```
+const hobbies = require('../hobbies');
+describe("API unit test suite", () => {
+    describe("getHobbies", () => {
+        const list = hobbies.getHobbies();
+        it("returns 5 hobbies", () => {
+            expect(list.length).toEqual(5);
+        });
+        it("returns 'jogging' as first hobby", () => {
+            expect(list[0]).toBe("jogging");
+        });
+    })
+})
+```
 
 1.  最后一步是添加一个`support/jasmine.json`文件来配置我们的测试框架 Jasmine。添加以下代码片段：
 
-[PRE60]
+```
+{
+    "spec_dir": "spec",
+    "spec_files": [
+      "**/*[sS]pec.js"
+    ],
+    "stopSpecOnExpectationFailure": false,
+    "random": false
+}
+```
 
 这是我们目前所需要的所有代码。
 
@@ -522,11 +940,15 @@ API 的 Dockerfile
 
 1.  使用以下命令提交本地创建的代码：
 
-[PRE61]
+```
+$ git add -A && git commit -m "First commit"
+```
 
 1.  为了避免所有的 node 模块都保存到 GitHub 上，向项目的`root`文件夹中添加一个`.gitignore`文件，并包含以下内容：
 
-[PRE62]
+```
+node_modules
+```
 
 1.  现在，我们需要在 GitHub 上定义一个存储库。在[`github.com`](https://github.com)上登录您的 GitHub 帐户。
 
@@ -538,7 +960,10 @@ API 的 Dockerfile
 
 1.  在您点击了绿色按钮“创建存储库”之后，回到您的项目，并在项目的`root`文件夹中执行以下两个命令：
 
-[PRE63]
+```
+$ git remote add origin https://github.com/gnschenker/jenkins-pipeline.git
+$ git push -u origin master
+```
 
 确保您在第一行中用您自己的 GitHub 帐户名替换`gnschenker`。完成此步骤后，您的代码将可在 GitHub 上供进一步使用。其中一个用户将是 Jenkins，它将从该存储库中拉取代码，我们将很快展示。
 
@@ -556,23 +981,94 @@ API 的 Dockerfile
 
 1.  我们已经定义了`Jenkinsfile`需要在项目的`根目录`中。这是**Pipeline-as-Code**的基础，因为流水线定义文件将与其余代码一起提交到 GitHub 存储库中。因此，请在`jenkins-pipeline`文件夹中添加一个名为`Jenkinsfile`的文件，并将以下代码添加到其中：
 
-[PRE64]
+```
+pipeline {
+    environment {
+        registry = "gnschenker/jenkins-docker-test"
+        DOCKER_PWD = credentials('docker-login-pwd')
+    }
+    agent {
+        docker {
+            image 'gnschenker/node-docker'
+            args '-p 3000:3000'
+            args '-w /app'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
+    options {
+        skipStagesAfterUnstable()
+    }
+    stages {
+        stage("Build"){
+            steps {
+                sh 'npm install'
+            }
+        }
+        stage("Test"){
+            steps {
+                sh 'npm test'
+            }
+        }
+        stage("Build & Push Docker image") {
+            steps {
+                sh 'docker image build -t $registry:$BUILD_NUMBER .'
+                sh 'docker login -u gnschenker -p $DOCKER_PWD'
+                sh 'docker image push $registry:$BUILD_NUMBER'
+                sh "docker image rm $registry:$BUILD_NUMBER"
+            }
+        }
+    }
+}
+```
 
 好的，让我们一次解决这个文件的一部分。在顶部，我们定义了两个环境变量，它们将在流水线的每个阶段中都可用。我们将在`Build & Push Docker image`阶段中使用这些变量：
 
-[PRE65]
+```
+environment {
+    registry = "gnschenker/jenkins-docker-test"
+    DOCKER_PWD = credentials('docker-login-pwd')
+}
+```
 
 第一个变量`registry`只包含我们最终将生成并推送到 Docker Hub 的容器镜像的完整名称。用您自己的 GitHub 用户名替换`gnschenker`。第二个变量`DOCKER_PWD`更有趣一些。它将包含登录到我的 Docker Hub 帐户的密码。当然，我不想在这里将值硬编码在代码中，因此，我使用 Jenkins 的凭据功能，它让我访问存储在 Jenkins 中名称为`docker-login-pwd`的秘密。
 
 接下来，我们定义要在其上运行 Jenkins 流水线的代理。在我们的情况下，它是基于 Docker 镜像的。我们使用`gnschenker/node-docker`镜像来实现这一目的。这是一个基于`node:12.10-alpine`的镜像，其中安装了 Docker 和`curl`，因为我们将在某些阶段需要这两个工具：
 
-[PRE66]
+```
+agent {
+    docker {
+        image 'gnschenker/node-docker'
+        args '-v /var/run/docker.sock:/var/run/docker.sock'
+    }
+}
+```
 
 通过`args`参数，我们还将 Docker 套接字映射到容器中，以便我们可以在代理内部使用 Docker。
 
 暂时忽略选项部分。然后我们定义了三个阶段：
 
-[PRE67]
+```
+stages {
+    stage("Build"){
+        steps {
+            sh 'npm install'
+        }
+    }
+    stage("Test"){
+        steps {
+            sh 'npm test'
+        }
+    }
+    stage("Build & Push Docker image") {
+        steps {
+            sh 'docker image build -t $registry:$BUILD_NUMBER .'
+            sh 'docker login -u gnschenker -p $DOCKER_PWD'
+            sh 'docker image push $registry:$BUILD_NUMBER'
+            sh "docker image rm $registry:$BUILD_NUMBER"
+        }
+    }
+}
+```
 
 第一个阶段`Build`只是运行`npm install`，以确保我们应用程序的所有外部依赖项都可以安装。例如，如果这是一个 Java 应用程序，我们可能还会在这一步中编译和打包应用程序。
 
@@ -592,13 +1088,55 @@ API 的 Dockerfile
 
 让我们在流水线中再添加两个阶段。第一个看起来像这样：
 
-[PRE68]
+```
+stage('Deploy and smoke test') {
+    steps{
+        sh './jenkins/scripts/deploy.sh'
+    }
+}
+```
 
 将其添加到`构建和推送 Docker 镜像`阶段之后。这个阶段只是执行位于`jenkins/scripts`子文件夹中的`deploy.sh`脚本。我们的项目中还没有这样的文件。
 
 因此，请将这个文件添加到你的项目中，并包含以下内容：
 
-[PRE69]
+```
+#!/usr/bin/env sh
+
+echo "Removing api container if it exists..."
+docker container rm -f api || true
+echo "Removing network test-net if it exists..."
+docker network rm test-net || true
+
+echo "Deploying app ($registry:$BUILD_NUMBER)..."
+docker network create test-net
+
+docker container run -d \
+    --name api \
+    --net test-net \
+    $registry:$BUILD_NUMBER
+
+# Logic to wait for the api component to be ready on port 3000
+
+read -d '' wait_for << EOF
+echo "Waiting for API to listen on port 3000..."
+while ! nc -z api 3000; do 
+  sleep 0.1 # wait for 1/10 of the second before check again
+  printf "."
+done
+echo "API ready on port 3000!"
+EOF
+
+docker container run --rm \
+    --net test-net \
+    node:12.10-alpine sh -c "$wait_for"
+
+echo "Smoke tests..."
+docker container run --name tester \
+    --rm \
+    --net test-net \
+    gnschenker/node-docker sh -c "curl api:3000"
+```
 
 好的，所以这段代码做了以下几件事。首先，它试图移除可能残留在之前失败的流水线运行中的任何残留物。然后，它创建了一个名为`test-net`的 Docker 网络。接下来，它从我们在上一步中构建的镜像中运行一个容器。这个容器是我们的 Express JS API，相应地被称为`api`。
 
@@ -608,19 +1146,33 @@ API 的 Dockerfile
 
 1.  在你的`Jenkinsfile`中添加以下片段作为最后一个阶段：
 
-[PRE70]
+```
+stage('Cleanup') {
+    steps{
+        sh './jenkins/scripts/cleanup.sh'
+    }
+}
+```
 
 再次，这个`Cleanup`阶段使用了位于`jenkins/script`子文件夹中的脚本。
 
 1.  请向你的项目添加一个包含以下内容的文件：
 
-[PRE71]
+```
+#!/usr/bin/env sh
+
+docker rm -f api
+docker network rm test-net
+```
 
 该脚本删除了我们用来运行容器的`api`容器和 Docker 网络`test-net`。
 
 1.  现在，我们准备好了。使用`git`提交您的更改并将其推送到您的存储库：
 
-[PRE72]
+```
+$ git -a . && git commit -m "Defined code based Pipeline"
+$ git push origin master
+```
 
 代码推送到 GitHub 后，返回 Jenkins。
 

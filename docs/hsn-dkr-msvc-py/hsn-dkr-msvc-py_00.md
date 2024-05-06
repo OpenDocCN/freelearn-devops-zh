@@ -118,15 +118,27 @@
 
 代码块设置如下：
 
-[PRE0]
+```py
+class ThoughtModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50))
+    text = db.Column(db.String(250))
+    timestamp = db.Column(db.DateTime, server_default=func.now())
+```
 
 当我们希望引起您对代码块的特定部分的注意时，相关行或项目会以粗体显示：
 
-[PRE1]
+```py
+# Create a new thought
+new_thought = ThoughtModel(username=username, text=text, timestamp=datetime.utcnow())
+db.session.add(new_thought)
+```
 
 任何命令行输入或输出都以以下方式书写：
 
-[PRE2]
+```py
+$ openssl rsa -in key.pem -outform PEM -pubout -out key.pub
+```
 
 **粗体**：表示新术语、重要单词或屏幕上看到的单词。例如，菜单或对话框中的单词会以这种方式出现在文本中。这是一个例子：“从管理面板中选择系统信息。”
 

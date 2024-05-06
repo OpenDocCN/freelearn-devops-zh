@@ -68,7 +68,18 @@ Docker Swarm 支持开箱即用的滚动更新。其他两种部署类型需要�
 
 现在，让我们看看如何实际指示 Swarm 执行应用服务的滚动更新。当我们在堆栈文件中声明一个服务时，我们可以定义在这种情况下相关的多个选项。让我们看一个典型堆栈文件的片段：
 
-[PRE0]
+```
+version: "3.5"
+services:
+ web:
+   image: nginx:alpine
+   deploy:
+     replicas: 10
+     update_config:
+       parallelism: 2
+       delay: 10s
+...
+```
 
 在这个片段中，我们可以看到一个名为`update_config`的部分，其中包含`parallelism`和`delay`属性。`parallelism`定义了在滚动更新期间一次要更新多少个副本的批处理大小。`delay`定义了 Docker Swarm 在更新单个批次之间要等待多长时间。在前面的例子中，我们有`10`个副本，每次更新两个实例，并且在每次成功更新之间，Docker Swarm 等待`10`秒。
 
@@ -78,11 +89,15 @@ Docker Swarm 支持开箱即用的滚动更新。其他两种部署类型需要�
 
 1.  首先，我们需要确保我们的终端窗口已配置，以便我们可以访问我们集群的主节点之一。让我们选择领导者，即`node-1`：
 
-[PRE1]
+```
+$ eval $(docker-machine env node-1)
+```
 
 1.  现在，我们可以使用堆栈文件部署服务：
 
-[PRE2]
+```
+$ docker stack deploy -c stack.yaml web
+```
 
 上述命令的输出如下：
 
@@ -90,7 +105,9 @@ Docker Swarm 支持开箱即用的滚动更新。其他两种部署类型需要�
 
 1.  服务部署后，我们可以使用以下命令对其进行监视：
 
-[PRE3]
+```
+$ watch docker stack ps web
+```
 
 我们将看到以下输出：
 
@@ -100,7 +117,9 @@ Docker Swarm 支持开箱即用的滚动更新。其他两种部署类型需要�
 
 现在，我们需要打开第二个终端，并为我们的 Swarm 的管理节点配置远程访问。一旦我们完成了这一步，我们可以执行`docker`命令，它将更新堆栈的`web`服务的镜像，也称为`web`：
 
-[PRE4]
+```
+$ docker service update --image nginx:1.13-alpine web_web
+```
 
 上述命令导致以下输出，指示滚动更新的进度：
 
@@ -126,11 +145,19 @@ Docker Swarm 支持开箱即用的滚动更新。其他两种部署类型需要�
 
 完成后，我们可以使用以下命令拆除堆栈：
 
-[PRE5]
+```
+$ docker stack rm web
+```
 
 虽然使用堆栈文件来定义和部署应用程序是推荐的最佳实践，但我们也可以在服务`create`语句中定义更新行为。如果我们只想部署单个服务，这可能是做事情的首选方式。让我们看看这样一个`create`命令：
 
-[PRE6]
+```
+$ docker service create --name web \
+ --replicas 10 \
+ --update-parallelism 2 \
+ --update-delay 10s \
+ nginx:alpine
+```
 
 这个命令定义了与前面的堆栈文件相同的期望状态。我们希望服务以`10`个副本运行，并且我们希望滚动更新以每次两个任务的批次进行，并且在连续批次之间间隔 10 秒。
 
@@ -142,7 +169,16 @@ Docker Swarm 支持开箱即用的滚动更新。其他两种部署类型需要�
 
 在这里，我故意写了一些东西，稍后我们会看到原因：
 
-[PRE7]
+```
+FROM alpine:3.6
+...
+HEALTHCHECK --interval=30s \
+    --timeout=10s
+    --retries=3
+    --start-period=60s
+    CMD curl -f http://localhost:3000/health || exit 1
+...
+```
 
 在来自 Dockerfile 的前面的片段中，我们可以看到关键字 HEALTHCHECK。它有一些选项或参数和一个实际的命令，即 CMD。让我们讨论一下选项：
 
@@ -180,7 +216,19 @@ SwarmKit 将后两者视为相同。这是编排器告诉我们相应的任务�
 
 我们刚刚学习了如何在服务的镜像的`Dockerfile`中定义健康检查。但这并不是我们可以做到这一点的唯一方式。我们还可以在用于将我们的应用程序部署到 Docker Swarm 中的堆栈文件中定义健康检查。以下是这样一个堆栈文件的简短片段：
 
-[PRE8]
+```
+version: "3.5"
+services:
+  web:
+    image: example/web:1.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+...
+```
 
 在上述片段中，我们可以看到健康检查相关信息是如何在堆栈文件中定义的。首先，首先要意识到的是，我们必须为每个服务单独定义健康检查。没有应用程序或全局级别的健康检查。
 
@@ -188,11 +236,24 @@ SwarmKit 将后两者视为相同。这是编排器告诉我们相应的任务�
 
 现在，让我们尝试使用一个定义了健康检查的服务。在我们的 `lab` 文件夹中，有一个名为 `stack-health.yaml` 的文件，内容如下：
 
-[PRE9]
+```
+version: "3.5"
+services:
+  web:
+    image: nginx:alpine
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "-", "http://localhost"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 15s
+```
 
 让我们部署这个：
 
-[PRE10]
+```
+$ docker stack deploy -c stack-health.yaml myapp
+```
 
 我们可以使用 `docker stack ps myapp` 命令找出单个任务部署到了哪里。在特定的节点上，我们可以列出所有容器，找到我们的其中一个堆栈。在我的例子中，任务已经部署到了 `node-3`：
 
@@ -208,7 +269,29 @@ SwarmKit 将后两者视为相同。这是编排器告诉我们相应的任务�
 
 与更新行为一样，我们可以在堆栈文件或 Docker 服务 `create` 命令中声明系统在需要执行回滚时应该如何行为。在这里，我们有之前使用的堆栈文件，但这次有一些与回滚相关的属性：
 
-[PRE11]
+```
+version: "3.5"
+services:
+  web:
+    image: nginx:1.12-alpine
+    ports:
+      - 80:80
+    deploy:
+      replicas: 10
+      update_config:
+        parallelism: 2
+        delay: 10s
+
+        failure_action: rollback
+        monitor: 10s
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "-", "http://localhost"]
+      interval: 2s
+      timeout: 2s
+      retries: 3
+      start_period: 2s
+```
 
 在这个堆栈文件中，我们定义了关于滚动更新、健康检查和回滚期间行为的详细信息。健康检查被定义为，在初始等待时间为`2`秒后，编排器开始每`2`秒在`http://localhost`上轮询服务，并在考虑任务不健康之前重试`3`次。
 
@@ -252,21 +335,46 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 1.  首先，我们从一个简单的字符串值开始：
 
-[PRE12]
+```
+$ echo "Hello world" | docker config create hello-config - rrin36epd63pu6w3gqcmlpbz0
+```
 
 上面的命令创建了`Hello world`配置值，并将其用作名为`hello-config`的配置的输入。此命令的输出是存储在 swarm 中的这个新配置的唯一`ID`。
 
 1.  让我们看看我们得到了什么，并使用列表命令来这样做：
 
-[PRE13]
+```
+$ docker config ls ID                         NAME           CREATED              UPDATED
+rrin36epd63pu6w3gqcmlpbz0  hello-config   About a minute ago   About a minute ago
+```
 
 列表命令的输出显示了我们刚刚创建的配置的`ID`和`NAME`，以及其`CREATED`和（最后）更新时间。但由于配置是非机密的，我们可以做更多的事情，甚至输出配置的内容，就像这样：
 
-[PRE14]
+```
+$ docker config docker config inspect hello-config
+[
+    {
+        "ID": "rrin36epd63pu6w3gqcmlpbz0",
+        "Version": {
+            "Index": 11
+        },
+        "CreatedAt": "2019-11-30T07:59:20.6340015Z",
+        "UpdatedAt": "2019-11-30T07:59:20.6340015Z",
+        "Spec": {
+            "Name": "hello-config",
+            "Labels": {},
+            "Data": "SGVsbG8gd29ybGQK"
+        }
+    }
+]
+```
 
 嗯，有趣。在前面的 JSON 格式输出的`Spec`子节点中，我们有一个`Data`键，其值为`SGVsbG8gd29ybGQK`。我们不是刚说过配置数据在静止状态下没有加密吗？原来这个值只是我们的字符串编码为`base64`，我们可以很容易地验证：
 
-[PRE15]
+```
+$ echo 'SGVsbG8gd29ybGQK' | base64 -d
+Hello world
+```
 
 到目前为止，一切都很好。
 
@@ -274,47 +382,92 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 1.  让我们创建一个名为`my-app.properties`的文件，并将以下内容添加到其中：
 
-[PRE16]
+```
+username=pguser
+database=products
+port=5432
+dbhost=postgres.acme.com
+```
 
 1.  保存文件并从中创建一个名为`app.properties`的 Docker 配置：
 
-[PRE17]
+```
+$ docker config create app.properties ./my-app.properties
+2yzl73cg4cwny95hyft7fj80u
+```
 
 现在，我们可以使用这个（有些牵强的）命令来获取我们刚刚创建的配置的明文值：
 
-[PRE18]
+```
+$ docker config inspect app.properties | jq .[].Spec.Data | xargs echo | base64 -d username=pguser
+database=products
+port=5432
+dbhost=postgres.acme.com
+```
 
 这正是我们预期的。
 
 1.  现在，让我们创建一个使用前述配置的 Docker 服务。为简单起见，我们将使用 nginx 镜像来实现：
 
-[PRE19]
+```
+$ docker service create \
+ --name nginx \
+ --config source=app.properties,target=/etc/my-app/conf/app.properties,mode=0440 \
+ nginx:1.13-alpine
+
+p3f686vinibdhlnrllnspqpr0
+overall progress: 1 out of 1 tasks
+1/1: running [==================================================>]
+verify: Service converged
+```
 
 在前面的服务`create`命令中有趣的部分是包含`--config`的那一行。通过这一行，我们告诉 Docker 使用名为`app.properties`的配置，并将其挂载为一个文件到容器内的`/etc/my-app/conf/app.properties`。此外，我们希望该文件具有`0440`的模式。
 
 让我们看看我们得到了什么：
 
-[PRE20]
+```
+$ docker service ps nginx
+ID            NAME     IMAGE              NODE DESIRED    STATE    CURRENT STATE ...
+b8lzzwl3eg6y  nginx.1  nginx:1.13-alpine  node-1  Running  Running 2 minutes ago
+```
 
 在前面的输出中，我们可以看到服务的唯一实例正在节点`node-1`上运行。在这个节点上，我现在可以列出容器以获取 nginx 实例的`ID`：
 
-[PRE21]
+```
+$ docker container ls
+CONTAINER ID   IMAGE               COMMAND                  CREATED         STATUS         PORTS ...
+bde33d92cca7   nginx:1.13-alpine   "nginx -g 'daemon of…"   5 minutes ago   Up 5 minutes   80/tcp ...
+```
 
 最后，我们可以`exec`进入该容器并输出`/etc/my-app/conf/app.properties`文件的值：
 
-[PRE22]
+```
+$ docker exec bde33 cat /etc/my-app/conf/app.properties
+username=pguser
+database=products
+port=5432
+dbhost=postgres.acme.com
+```
 
 毫无意外；这正是我们预期的。
 
 当然，Docker 配置也可以从集群中移除，但前提是它们没有被使用。如果我们尝试移除之前使用过的配置，而没有先停止和移除服务，我们会得到以下输出：
 
-[PRE23]
+```
+$ docker config rm app.properties
+Error response from daemon: rpc error: code = InvalidArgument desc = config 'app.properties' is in use by the following service: nginx
+```
 
 我们收到了一个错误消息，其中 Docker 友好地告诉我们该配置正在被我们称为`nginx`的服务使用。这种行为与我们在使用 Docker 卷时所习惯的有些相似。
 
 因此，首先我们需要移除服务，然后我们可以移除配置：
 
-[PRE24]
+```
+$ docker service rm nginx
+nginx
+$ docker config rm app.properties
+app.properties
+```
 
 需要再次注意的是，Docker 配置绝不应该用于存储诸如密码、秘钥或访问密钥等机密数据。在下一节中，我们将讨论如何处理机密数据。
 
@@ -328,13 +481,17 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 首先，让我们看看我们实际上如何创建一个秘密：
 
-[PRE25]
+```
+$ echo "sample secret value" | docker secret create sample-secret - 
+```
 
 这个命令创建了一个名为`sample-secret`的秘密，其值为`sample secret value`。请注意`docker secret create`命令末尾的连字符。这意味着 Docker 期望从标准输入获取秘密的值。这正是我们通过将`sample secret value`值传输到`create`命令中所做的。
 
 或者，我们可以使用文件作为秘密值的来源：
 
-[PRE26]
+```
+$ docker secret create other-secret ~/my-secrets/secret-value.txt
+```
 
 在这里，具有名称`other-secret`的秘密的值是从名为`~/my-secrets/secret-value.txt`的文件中读取的。一旦创建了一个秘密，就没有办法访问它的值。例如，我们可以列出所有的秘密来获取以下输出：
 
@@ -350,13 +507,20 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 秘密被用于在集群中运行的服务。通常，秘密在创建服务时分配。因此，如果我们想要运行一个名为`web`的服务并分配一个名为`api-secret-key`的秘密，语法如下：
 
-[PRE27]
+```
+$ docker service create --name web \
+ --secret api-secret-key \
+ --publish 8000:8000 \
+ fundamentalsofdocker/whoami:latest
+```
 
 该命令基于`fundamentalsofdocker/whoami:latest`镜像创建了一个名为`web`的服务，将容器端口`8000`发布到所有集群节点的端口`8000`，并分配了名为`api-secret-key`的秘密。
 
 只有在集群中定义了名为`api-secret-key`的秘密时，这才有效；否则，将生成一个带有文本`secret not found: api-secret-key`的错误。因此，让我们现在创建这个秘密：
 
-[PRE28]
+```
+$ echo "my secret key" | docker secret create api-secret-key -
+```
 
 现在，如果我们重新运行服务`create`命令，它将成功：
 
@@ -364,11 +528,15 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 现在，我们可以使用`docker service ps web`来找出唯一服务实例部署在哪个节点上，然后`exec`进入这个容器。在我的情况下，该实例已部署到`node-3`，所以我需要`SSH`进入该节点：
 
-[PRE29]
+```
+$ docker-machine ssh node-3
+```
 
 然后，我列出该节点上的所有容器，找到属于我的服务的一个实例并复制其`容器 ID`。然后，我们可以运行以下命令，确保秘密确实在容器内以明文形式的预期文件名中可用：
 
-[PRE30]
+```
+$ docker exec -it <container ID> cat /run/secrets/api-secret-key
+```
 
 再次强调，在我的情况下，这看起来是这样的：
 
@@ -376,7 +544,13 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 如果由于某种原因，Docker 在容器内部挂载秘密的默认位置不可接受，您可以定义一个自定义位置。在下面的命令中，我们将秘密挂载到`/app/my-secrets`：
 
-[PRE31]
+```
+$ docker service create --name web \
+ --name web \
+ -p 8000:8000 \
+ --secret source=api-secret-key,target=/run/my-secrets/api-secret-key \
+ fundamentalsofdocker/whoami:latest
+```
 
 在这个命令中，我们使用了扩展语法来定义一个包括目标文件夹的秘密。
 
@@ -386,21 +560,34 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 假设我们在本地工作站上有一个名为`./dev-secrets`的文件夹。对于每个秘密，我们都有一个与秘密名称相同且具有未加密值的文件作为文件内容。例如，我们可以通过在工作站上执行以下命令来模拟一个名为`demo-secret`的秘密，其秘密值为`demo secret value`：
 
-[PRE32]
+```
+$ echo "demo secret value" > ./dev-secrets/sample-secret
+```
 
 然后，我们可以创建一个容器，挂载这个文件夹，就像这样：
 
-[PRE33]
+```
+$ docker container run -d --name whoami \
+ -p 8000:8000 \
+ -v $(pwd)/dev-secrets:/run/secrets \
+ fundamentalsofdocker/whoami:latest
+```
 
 容器内运行的进程将无法区分这些挂载的文件和来自秘密的文件。因此，例如，`demo-secret`在容器内作为名为`/run/secrets/demo-secret`的文件可用，并具有预期值`demo secret value`。让我们在以下步骤中更详细地看一下这个情况：
 
 1.  为了测试这一点，我们可以在前面的容器中`exec`一个 shell：
 
-[PRE34]
+```
+$ docker container exec -it whoami /bin/bash
+```
 
 1.  现在，我们可以导航到`/run/secrets`文件夹，并显示`demo-secret`文件的内容：
 
-[PRE35]
+```
+/# cd /run/secrets
+/# cat demo-secret
+demo secret value
+```
 
 接下来，我们将研究秘密和遗留应用程序。
 
@@ -410,17 +597,32 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 在这种情况下，定义一个在容器启动时运行的脚本是有帮助的（称为入口点或启动脚本）。这个脚本将从相应的文件中读取秘密值，并定义一个与文件名相同的环境变量，将新变量赋予从文件中读取的值。对于一个名为`demo-secret`的秘密，其值应该在名为`DEMO_SECRET`的环境变量中可用，这个启动脚本中必要的代码片段可能如下所示：
 
-[PRE36]
+```
+export DEMO_SECRET=$(cat /run/secrets/demo-secret)
+```
 
 类似地，假设我们有一个旧应用程序，它期望将秘密值作为一个条目存在于位于`/app/bin`文件夹中的一个名为`app.config`的 YAML 配置文件中，其相关部分如下所示：
 
-[PRE37]
+```
+...
+```
 
-[PRE38]
+```
+
+secrets:
+  demo-secret: "<<demo-secret-value>>"
+  other-secret: "<<other-secret-value>>"
+  yet-another-secret: "<<yet-another-secret-value>>"
+...
+```
 
 我们的初始化脚本现在需要从`secret`文件中读取秘密值，并用`secret`值替换配置文件中的相应占位符。对于`demo-secret`，这可能看起来像这样：
 
-[PRE39]
+```
+file=/app/bin/app.conf
+demo_secret=$(cat /run/secret/demo-secret)
+sed -i "s/<<demo-secret-value>>/$demo_secret/g" "$file"
+```
 
 在上面的片段中，我们使用`sed`工具来替换占位符为实际值。我们可以使用相同的技术来处理配置文件中的其他两个秘密。
 
@@ -430,37 +632,65 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 1.  我们可以在本地机器上定义一个名为`whoami.conf`的文件，其中包含以下内容：
 
-[PRE40]
+```
+database:
+  name: demo
+  db_password: "<<db_password_value>>"
+others:
+  val1=123
+  val2="hello world"
+```
 
 这个片段的第 3 行是重要的部分。它定义了启动脚本必须放置秘密值的位置。
 
 1.  让我们在本地文件夹中添加一个名为`entrypoint.sh`的文件，其中包含以下内容：
 
-[PRE41]
+```
+file=/app/whoami.conf
+db_pwd=$(cat /run/secret/db-password)
+sed -i "s/<<db_password_value>>/$db_pwd/g" "$file"
+
+/app/http
+```
 
 上述脚本中的最后一行源自于原始`Dockerfile`中使用的启动命令。
 
 1.  现在，将此文件的模式更改为可执行：
 
-[PRE42]
+```
+$ sudo chmod +x ./entrypoint.sh
+```
 
 现在，我们定义一个继承自`fundamentalsofdocker/whoami:latest`镜像的`Dockerfile`。
 
 1.  在当前文件夹中添加一个名为`Dockerfile`的文件，其中包含以下内容：
 
-[PRE43]
+```
+FROM fundamentalsofdocker/whoami:latest
+COPY ./whoami.conf /app/
+COPY ./entrypoint.sh /
+CMD ["/entrypoint.sh"]
+```
 
 1.  让我们从这个`Dockerfile`构建镜像：
 
-[PRE44]
+```
+$ docker image build -t secrets-demo:1.0 .
+```
 
 1.  构建完镜像后，我们可以从中运行一个服务。但在这之前，我们需要在 Swarm 中定义秘密：
 
-[PRE45]
+```
+$ echo "passw0rD123" | docker secret create demo-secret -
+```
 
 1.  现在，我们可以创建一个使用以下秘密的服务：
 
-[PRE46]
+```
+$ docker service create --name demo \
+ --secret demo-secret \
+ secrets-demo:1.0
+```
 
 # 更新秘密
 
@@ -470,19 +700,32 @@ Docker Swarm 中的服务发现和负载均衡是如何工作的
 
 首先，在 Swarm 中创建一个新的秘密。建议在这样做时使用版本控制策略。在我们的例子中，我们使用版本作为秘密名称的后缀。我们最初使用名为`db-password`的秘密，现在这个秘密的新版本被称为`db-password-v2`：
 
-[PRE47]
+```
+$ echo "newPassw0rD" | docker secret create db-password-v2 -
+```
 
 让我们假设使用该秘密的原始服务是这样创建的：
 
-[PRE48]
+```
+$ docker service create --name web \
+ --publish 80:80
+ --secret db-password
+ nginx:alpine
+```
 
 容器内运行的应用程序能够访问`/run/secrets/db-password`处的秘密。现在，SwarmKit 不允许我们在运行中的服务中更新现有的秘密，因此我们必须删除现在过时的秘密版本，然后添加新的秘密。让我们从以下命令开始删除：
 
-[PRE49]
+```
+$ docker service update --secret-rm db-password web
+```
 
 现在，我们可以使用以下命令添加新的秘密：
 
-[PRE50]
+```
+$ docker service update \
+ --secret-add source=db-password-v2,target=db-password \
+ web
+```
 
 请注意`--secret-add`的扩展语法，其中包括`source`和`target`参数。
 

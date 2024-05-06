@@ -96,7 +96,10 @@ Swarmkit 在集群上生成任务的方式称为**调度**。调度程序是一�
 
 我使用`awsctl`来设置这些密钥。只需从*brew*（Mac）安装它，或者如果您使用 Linux 或 Windows，则从您的打包系统安装它，并进行配置：
 
-[PRE0]
+```
+aws configure
+
+```
 
 在需要时通过粘贴密钥来回答提示问题。配置中，您可以指定例如一个喜爱的 AWS 区域（如`us-west-1`）存储在`~/.aws/config`中，而凭据存储在`~/.aws/credentials`中。这样，密钥会被 Docker Machine 自动配置和读取。
 
@@ -114,19 +117,46 @@ Swarmkit 在集群上生成任务的方式称为**调度**。调度程序是一�
 
 克隆存储库[`github.com/fsoppelsa/ansible-swarmkit`](https://github.com/fsoppelsa/ansible-swarmkit)，并开始设置 SwarmKit Manager 节点：
 
-[PRE1]
+```
+ansible-playbook aws_provision_master.yml
+
+```
 
 ![使用 Ansible 配置 SwarmKit 集群](img/image_03_005.jpg)
 
 经过一些 docker-machine 的设置后，playbook 将在 Manager 主机上启动一个容器，充当 SwarmKit Manager。以下是 play 片段：
 
-[PRE2]
+```
+- name: Run the Swarmkit Master 
+  docker: 
+  name: swarmkit-master 
+  image: "fsoppelsa/swarmkit" 
+  command: swarmd --listen-remote-api 0.0.0.0:4242 
+  expose: 
+    - "4242" 
+  ports: 
+    - "0.0.0.0:4242:4242/tcp" 
+  volumes: 
+    - "/var/run/docker.sock:/var/run/docker.sock" 
+  detach: yes 
+  docker_url: "{{ dhost }}" 
+  use_tls: encrypt 
+  tls_ca_cert: "{{ dcert }}/ca.pem" 
+  tls_client_cert: "{{ dcert }}/cert.pem" 
+  tls_client_key: "{{ dcert }}/key.pem" 
+
+```
 
 在主机上，名为`swarmkit-master`的容器从图像`fsoppelsa/swarmkit`中运行`swarmd`以管理模式运行（它在`0.0.0.0:4242`处监听）。`swarmd`二进制文件直接使用主机上的 Docker Engine，因此 Engine 的套接字被挂载到容器内。容器将端口`4242`映射到主机端口`4242`，以便从属节点可以通过连接到主机`4242`端口直接访问`swarmd`。
 
 实际上，这相当于以下 Docker 命令：
 
-[PRE3]
+```
+docker run -d -v /var/run/docker.sock:/var/run/docker.sock -p 
+    4242:4242 fsoppelsa/swarmkit swarmd --listen-remote-api  
+    0.0.0.0:4242
+
+```
 
 此命令以分离模式（`-d`）运行，通过卷（`-v`）将 Docker 机器 Docker 套接字传递到容器内部，将容器中的端口`4242`暴露到主机（`-p`），并通过将容器本身放在任何地址上的端口`4242`上运行`swarmd`，使其处于监听模式。
 
@@ -136,27 +166,56 @@ Swarmkit 在集群上生成任务的方式称为**调度**。调度程序是一�
 
 现在是加入一些从属节点的时候了。要启动一个从属节点，您可以，猜猜看，只需运行：
 
-[PRE4]
+```
+ansible-playbook aws_provision_slave.yml
+
+```
 
 但由于我们希望至少加入几个节点到 SwarmKit 集群中，我们使用一点 shell 脚本：
 
-[PRE5]
+```
+for i in $(seq 5); do ansible-playbook aws_provision_slave.yml; 
+    done
+
+```
 
 此命令运行五次 playbook，从而创建五个工作节点。playbook 在创建名为`swarmkit-RANDOM`的机器后，将启动一个`fsoppelsa/swarmkit`容器，执行以下操作：
 
-[PRE6]
+```
+- name: Join the slave to the Swarmkit cluster
+  docker:
+    name: "{{machine_uuid}}"
+    image: "fsoppelsa/swarmkit"
+    command: swarmd --join-addr "{{ masterip }}":4242
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    detach: yes
+    docker_url: "{{ shost }}"
+```
 
 在这里，swarmd 以加入模式运行，并通过连接到端口`4242/tcp`加入在 Master 上启动的集群。这相当于以下 docker 命令：
 
-[PRE7]
+```
+docker run -d -v /var/run/docker.sock:/var/run/docker.sock 
+    fsoppelsa/swarmkit swarmd --join-addr $(docker-machine ip swarmkit- 
+    master):4242
+
+```
 
 ansible 的`loop`命令将需要一些时间来完成，这取决于有多少工作节点正在启动。当 playbook 完成后，我们可以使用`swarmctl`来控制集群是否正确创建。如果您还没有提供`swarmkit-master`机器凭据，现在是时候了：
 
-[PRE8]
+```
+eval $(docker-machine env swarmkit-master)
+
+```
 
 现在我们使用 exec 来调用运行 swarmd 主节点的容器：
 
-[PRE9]
+```
+docker exec -ti 79d9be555dab swarmctl -s /swarmkitstate/swarmd.sock 
+    node ls
+
+```
 
 ![使用 Ansible 配置 SwarmKit 集群](img/image_03_007.jpg)
 
@@ -172,7 +231,11 @@ ansible 的`loop`命令将需要一些时间来完成，这取决于有多少工
 
 所以我们准备好开始了，使用这个命令：
 
-[PRE10]
+```
+docker exec -ti 79d9be555dab swarmctl service create --name web --
+    image nginx --replicas 5
+
+```
 
 ![在 SwarmKit 上创建服务](img/image_03_009.jpg)
 
@@ -253,15 +316,29 @@ SwarmKit 和 Swarm 模式的主要区别在于，Swarm 模式集成到了 Docker
 
 +   `join-token`：这用于管理`join-tokens`。`join-tokens`是用于使管理者或工作节点加入的特殊令牌秘密（管理者和工作节点具有不同的令牌值）。此命令是使 Swarm 打印加入管理者或工作节点所需命令的便捷方式：
 
-[PRE11]
+```
+docker swarm join-token worker
+
+```
 
 要将工作节点添加到此 Swarm，请运行以下命令：
 
-[PRE12]
+```
+docker swarm join \ --token SWMTKN-1-  
+        36gj6glgi3ub2i28ekm1b1er8aa51vltv00760t7umh3wmo1sc- 
+        aucj6a94tqhhn2k0iipnc6096 \ 192.168.65.2:2377
+docker swarm join-token manager
+
+```
 
 要将管理者添加到此 Swarm，请运行以下命令：
 
-[PRE13]
+```
+docker swarm join \ --token SWMTKN-1- 
+        36gj6glgi3ub2i28ekm1b1er8aa51vltv00760t7umh3wmo1sc- 
+        98glton0ot50j1yn8eci48rvq \ 192.168.65.2:2377
+
+```
 
 +   `update`：这将通过更改一些值来更新集群，例如，您可以使用它来指定证书端点的新 URL
 
@@ -319,7 +396,10 @@ Iptables 是 Linux 默认使用的数据包过滤防火墙，而 IPVS 是在 Lin
 
 例如，如果我们有一个包含三个工作节点的集群，每个节点都运行 nginx（在名为`nginx-service`的服务上），我们可以将它们的目标端口暴露给负载均衡器：
 
-[PRE14]
+```
+docker service update --port-add 80 nginx-service
+
+```
 
 这将在集群的任何节点上创建一个映射，将发布端口`30000`与`nginx`容器（端口 80）关联起来。如果您连接到端口`30000`的任何节点，您将看到 Nginx 的欢迎页面。
 
@@ -357,7 +437,10 @@ Swarm 工作负载的核心被划分为服务。服务只是一个将任意数�
 
 使用`docker service scale`命令，您可以命令 Swarm 确保集群中同时运行一定数量的副本。例如，您可以从运行在集群上的 10 个容器开始执行一些*任务*，然后当您需要将它们的大小扩展到 30 时，只需执行：
 
-[PRE15]
+```
+docker service scale myservice=30
+
+```
 
 Swarm 被命令安排调度 20 个新容器，因此它会做出适当的决策来实现负载平衡、DNS 和网络的一致性。如果一个*任务*的容器关闭，使副本因子等于 29，Swarm 将在另一个集群节点上重新安排另一个容器（它将具有新的 ID）以保持因子等于 30。
 

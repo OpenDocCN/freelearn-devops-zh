@@ -114,27 +114,165 @@ JAX-RS 中最重要的注解列在下表中：
 
 注释名称一开始可能不够清晰或不够自解释。让我们看一下示例 REST 端点实现，它将变得更加清晰。应用程序本身带有`@ApplicationPath`注释。默认情况下，在启动符合 JEE 的服务器时，JAX-RS 将扫描 Java 应用程序存档中的所有资源，以查找公开的端点。我们可以重写`getClasses()`方法，手动向 JAX-RS 运行时注册应用程序中的`resource`类。您可以在以下示例中看到它：
 
-[PRE0]
+```
+package pl.finsys.jaxrs_example 
+@ApplicationPath("/myApp") 
+public class MyApplication extends Application { 
+   @Override 
+   public Set<Class<?>> getClasses() { 
+      final Set<Class<?>> classes = new HashSet<>(); 
+      classes.add(MyBeansExposure.class); 
+      return classes; 
+   } 
+} 
+```
 
 在前面的示例中，我们只是注册了一个 REST 应用程序，给它了`/myApp`基本 URI 路径。只有一个`REST`方法处理程序（端点），即`MyBeansExposure`类，我们在 REST 应用程序中注册它。在单独的 Java 类中实现的简化 REST 端点可以看起来与此相同：
 
-[PRE1]
+```
+package pl.finsys.jaxrs_example 
+import javax.annotation.PostConstruct; 
+import javax.enterprise.context.ApplicationScoped; 
+import javax.ws.rs.DELETE; 
+import javax.ws.rs.GET; 
+import javax.ws.rs.POST; 
+import javax.ws.rs.Path; 
+import javax.ws.rs.PathParam; 
+import javax.ws.rs.container.ResourceContext; 
+import javax.ws.rs.core.Context; 
+import javax.ws.rs.core.Response; 
+
+@ApplicationScoped 
+@Path("beans") 
+public class MyBeansExposure { 
+    @Context ResourceContext rc; 
+    private Map<String, Bean> myBeans; 
+
+    @GET 
+    @Produces("application/json") 
+    public Collection<Bean> allBeans() { 
+        return Response.status(200).entity(myBeans.values()).build(); 
+    } 
+
+    @GET 
+    @Produces("application/json") 
+    @Path("{id}") 
+    public Bean singleBean(@PathParam("id") String id) { 
+        return Response.status(200).entity(myBeans.get(id)).build(); 
+    } 
+
+    @POST 
+    @Consumes("application/json") 
+    public Response add(Bean bean) { 
+        if (bean != null) { 
+            myBeans.put(bean.getName(), bean); 
+        } 
+        final URI id = URI.create(bean.getName()); 
+        return Response.created(id).build(); 
+    } 
+
+    @DELETE 
+    @Path("{id}") 
+    public void remove(@PathParam("id") String id) { 
+        myBeans.remove(id); 
+    } 
+
+} 
+```
 
 正如你在上一个例子中所看到的，我们有类级别的`@Path`注解。每个标记有`@GET`，`@PUT`，`@DELETE`或`@POST`注解的方法都将响应于以基本`@Path`开头的 URI 的调用。此外，我们可以在方法级别上使用`@Path`注解；它将扩展特定方法响应的 URI 路径。在我们的例子中，使用 URI 路径`myApp/beans`执行的`HTTP GET`将调用`allBeans()`方法，以 JSON 格式返回豆子集合。使用`myApp/beans/12` URI 路径执行的`GET`方法将调用`singleBean()`方法，并且由于`@PathParam`注解，`{id}`参数将被传递给方法。在`myApp|beans|12` URI 上调用`HTTP DELETE`方法将执行`remove()`方法，参数值为`12`。为了给你几乎无限的灵活性，`@Path`注解支持正则表达式。考虑以下例子：
 
-[PRE2]
+```
+package pl.finsys.jaxrs_example 
+import javax.ws.rs.GET; 
+import javax.ws.rs.Path; 
+import javax.ws.rs.PathParam; 
+import javax.ws.rs.core.Response; 
+
+@Stateless 
+@Path("/books") 
+public class BookResource { 
+
+   @GET 
+   @Path("{title : [a-zA-Z][a-zA-Z_0-9]}") 
+    public Response getBookByTitle(@PathParam("title") String title) { 
+      return Response.status(200).entity("getBookByTitle is called, title : " + title).build(); 
+   } 
+
+   @GET 
+   @Path("{isbn : \\d+}") 
+   public Response getBookByISBN(@PathParam("isbn") String isbn) { 
+      return Response.status(200).entity("getBookByISBN is called, isbn : " + isbn).build(); 
+   } 
+} 
+```
 
 在上一个例子中，我们有两个`@GET`映射，每个映射都有相同的`/books/`路径映射。第一个映射，带有`/{title : [a-zA-Z][a-zA-Z_0-9]}`参数，只会对字母和数字做出反应。第二个映射，带有`/{isbn : \\d+}`参数，只有在调用 URI 时提供数字时才会执行。正如你所看到的，我们映射了两个相同的路径，但每个路径都会对不同类型的传入路径参数做出反应。
 
 除了使用`@PathParam`，我们还可以使用`@QueryParams`来使用请求参数提供参数。看看下面的例子：
 
-[PRE3]
+```
+package pl.finsys.jaxrs_example 
+import java.util.List; 
+import javax.ws.rs.GET; 
+import javax.ws.rs.Path; 
+import javax.ws.rs.core.Context; 
+import javax.ws.rs.core.Response; 
+import javax.ws.rs.core.UriInfo; 
+
+@Stateless 
+@Path("/users") 
+public class UserResource { 
+   @EJB private UserService userService; 
+   @GET 
+   @Path("/query") 
+   @Produces("application/json") 
+   public Response getUsers( 
+      @QueryParam("from") int from, 
+      @QueryParam("to") int to, 
+      @QueryParam("orderBy") List<String> orderBy)) { 
+      List<User> users = userService.getUsers(from, to, orderBy); 
+      return Response.status(200).entity(users).build(); 
+   } 
+} 
+```
 
 在上一个例子中，当在`/users/query?from=1&to=100&orderBy=name`上调用`HTTP GET`时，JAX-RS 将把 URI 参数传递给`getUsers()`方法参数，并调用注入的`userService`来获取数据（例如，从数据库中）。
 
 要打包 JAX-RS 应用程序，我们当然需要一个 Maven `pom.xml`文件。在其最简单的形式中，它可以看起来与以下内容相同：
 
-[PRE4]
+```
+<?xml version="1.0" encoding="UTF-8"?> 
+<project  
+
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"> 
+    <modelVersion>4.0.0</modelVersion> 
+
+    <groupId>pl.finsys</groupId> 
+    <artifactId>jee7-rest</artifactId> 
+    <packaging>war</packaging> 
+    <version>1.0-SNAPSHOT</version> 
+
+    <dependencies> 
+        <dependency> 
+            <groupId>javax</groupId> 
+            <artifactId>javaee-api</artifactId> 
+            <version>7.0</version> 
+            <scope>provided</scope> 
+        </dependency> 
+    </dependencies> 
+    <build> 
+        <finalName>jee7-rest</finalName> 
+    </build> 
+
+    <properties> 
+        <maven.compiler.source>1.8</maven.compiler.source> 
+        <maven.compiler.target>1.8</maven.compiler.target> 
+        <failOnMissingWebXml>false</failOnMissingWebXml> 
+    </properties> 
+</project> 
+
+```
 
 创建 JEE7 REST 服务非常简单，不是吗？通过构建项目并将其部署到符合 JEE 标准的应用服务器，我们有一些端点准备好等待通过`HTTP`调用。但还有一种更简单和更快的方法。在微服务时代，我们希望以最小的开销更快地创建单独的组件。这就是 Spring Boot 的用武之地。现在让我们来看看它。
 
@@ -209,7 +347,88 @@ Spring 本身是一个非常受欢迎的基于 Java 的框架，用于构建 Web
 
 启动器是为不同目的定制的简化的依赖描述符。例如，`spring-boot-starter-web`是用于使用 Spring MVC 构建 Web 和 RESTful 应用程序的启动器。它使用 Tomcat 作为默认的嵌入式容器。我们还包括了 Spring Boot Maven 插件，它允许我们在原地运行应用程序，而无需构建 JAR 或 WAR，或准备 JAR 或 WAR 文件以供将来部署。我们完整的`pom.xml`应该与这个一样：
 
-[PRE5]
+```
+<?xml version="1.0" encoding="UTF-8"?> 
+<project   
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"> 
+    <modelVersion>4.0.0</modelVersion> 
+
+    <groupId>pl.finsys</groupId> 
+    <artifactId>rest-example</artifactId> 
+    <version>0.1.0</version> 
+
+    <parent> 
+        <groupId>org.springframework.boot</groupId> 
+        <artifactId>spring-boot-starter-
+
+ parent</artifactId> 
+        <version>1.5.2.RELEASE</version> 
+    </parent> 
+
+    <dependencies> 
+        <dependency> 
+            <groupId>org.springframework.boot</groupId> 
+            <artifactId>spring-boot-starter-
+
+ web</artifactId> 
+        </dependency> 
+        <dependency> 
+            <groupId>org.springframework.boot</groupId> 
+            <artifactId>spring-boot-starter-data-
+
+ jpa</artifactId> 
+        </dependency> 
+        <dependency> 
+            <groupId>org.hibernate</groupId> 
+            <artifactId>hibernate-validator</artifactId> 
+        </dependency> 
+        <dependency> 
+            <groupId>org.hsqldb</groupId> 
+            <artifactId>hsqldb</artifactId> 
+            <scope>runtime</scope> 
+        </dependency> 
+
+        <!--test dependencies--> 
+        <dependency> 
+            <groupId>org.springframework.boot</groupId> 
+            <artifactId>spring-boot-starter-test</artifactId> 
+            <scope>test</scope> 
+        </dependency> 
+        <dependency> 
+            <groupId>com.jayway.jsonpath</groupId> 
+            <artifactId>json-path</artifactId> 
+            <scope>test</scope> 
+        </dependency> 
+    </dependencies> 
+
+    <properties> 
+        <java.version>1.8</java.version> 
+    </properties> 
+
+    <build> 
+        <plugins> 
+            <plugin> 
+                <groupId>org.springframework.boot</groupId> 
+                <artifactId>spring-boot-maven-plugin</artifactId> 
+            </plugin> 
+        </plugins> 
+    </build> 
+
+    <repositories> 
+        <repository> 
+            <id>spring-releases</id> 
+            <url>https://repo.spring.io/libs-release</url> 
+        </repository> 
+    </repositories> 
+    <pluginRepositories> 
+        <pluginRepository> 
+            <id>spring-releases</id> 
+            <url>https://repo.spring.io/libs-release</url> 
+        </pluginRepository> 
+    </pluginRepositories> 
+</project> 
+
+```
 
 首先，在`pom.xml`文件中，我们定义了父 Maven artifact。由于我们的应用是 Spring Boot 应用程序，我们从`spring-boot-starter-parent` artifact 继承我们的`pom.xml`。这为我们提供了所有 Spring Boot 的好处，例如启动机制，依赖注入等。通过将`spring-boot-starter-data-jpa`作为依赖项添加，我们将能够使用所有与数据库相关的功能，例如 JDBC 事务管理，用于实体类的 JPA 注解等。有了准备好的`pom.xml`，让我们继续定义微服务的入口点。
 
@@ -217,7 +436,20 @@ Spring 本身是一个非常受欢迎的基于 Java 的框架，用于构建 Web
 
 我们的应用程序入口点将被命名为`BookStoreApplication`，并且将是`BookstoreApplication.java`：
 
-[PRE6]
+```
+package pl.finsys.example; 
+
+import org.springframework.boot.SpringApplication; 
+import org.springframework.boot.autoconfigure.SpringBootApplication; 
+
+@SpringBootApplication 
+public class BookstoreApplication { 
+
+    public static void main(final String[] args) { 
+        SpringApplication.run(BookstoreApplication.class, args); 
+    } 
+} 
+```
 
 就是这样。整个代码只有九行，不包括空行。它不能再简洁了。`@SpringBootApplication`是一种快捷注解，非常方便。它替代了以下所有注解：
 
@@ -235,13 +467,82 @@ Spring 本身是一个非常受欢迎的基于 Java 的框架，用于构建 Web
 
 我们服务中的领域模型将是一个`Book`类，在`Book.java`文件中定义：
 
-[PRE7]
+```
+package pl.finsys.example.domain; 
+
+import javax.persistence.Column; 
+import javax.persistence.Entity; 
+import javax.persistence.Id; 
+import javax.validation.constraints.NotNull; 
+import javax.validation.constraints.Size; 
+
+@Entity 
+public class Book { 
+
+    @Id 
+    @NotNull 
+    @Column(name = "id", nullable = false, updatable = false) 
+    private Long id; 
+
+    @NotNull 
+    @Size(max = 64) 
+    @Column(name = "author", nullable = false) 
+    private String author; 
+
+    @NotNull 
+    @Size(max = 64) 
+    @Column(name = "title", nullable = false) 
+    private String title; 
+
+    public Book() { 
+    } 
+
+    public Book(final Long id, final String author, final String title) { 
+        this.id = id; 
+        this.title = title; 
+        this.author = author; 
+    } 
+
+    public Long getId() { 
+        return id; 
+    } 
+
+    public String getAuthor() { 
+        return author; 
+    } 
+
+    public String getTitle() { 
+        return title; 
+    } 
+
+    public void setTitle(String title) { 
+        this.title = title; 
+    } 
+
+    @Override 
+    public String toString() { 
+        return "Book{" + 
+                "id=" + id + 
+                ", author='" + author + '\'' + 
+                ", title='" + title + '\'' + 
+                '}'; 
+    } 
+} 
+```
 
 正如您在前面的清单中所看到的，`Book`类是一个简单的 POJO，带有一些注解、属性和 getter 和 setter。`@Entity`注解来自`javax.persistence`包，并将 POJO 标记为数据库实体，以便 JPA 可以从 H2 数据库中存储或检索它。`@Column`注解指定了数据库列的名称，对应的书籍属性将被存储在其中。`@NotNull`和`@Size`注解将确保我们的实体在进入数据库之前填入了适当的值。
 
 我们已经定义了我们的实体；现在是时候有一个机制来读取和存储它在数据库中。我们将使用 Spring 的`JpaRepository`来实现这个目的。我们的仓库的名称将在`BookRepository.java`文件中为`BookRepository`：
 
-[PRE8]
+```
+package pl.finsys.example.repository; 
+
+import pl.finsys.example.domain.Book; 
+import org.springframework.data.jpa.repository.JpaRepository; 
+
+public interface BookRepository extends JpaRepository<Book, Long> { 
+} 
+```
 
 Spring Data JPA 提供了一个仓库编程模型，它从每个受管领域对象的接口开始。定义这个接口有两个目的。首先，通过扩展`JPARepository`接口，我们可以在我们的类型中获得一堆通用的 CRUD 方法，允许保存我们的实体，删除它们等等。例如，以下方法是可用的（声明在我们正在扩展的`JPARepository`接口中）：
 
@@ -279,11 +580,86 @@ Spring Data JPA 提供了一个仓库编程模型，它从每个受管领域对�
 
 没有 SQL 编码，没有 JPA-QL 查询，什么都没有。只需扩展 Spring 的`JPARepository`接口，所有这些方法都可以随时使用。当然，我们不局限于这些。我们可以在我们的接口中声明自己的方法，比如`findByTitle(String title)`。它将在运行时被 Spring 捕获，并通过标题找到一本书。我强烈建议阅读 Spring Data 项目文档并进一步实验；它非常方便使用。直接从控制器使用`entity`存储库通常不是很好的做法，所以现在是时候有一个书籍服务了。它将是一个`BookService`接口，在`BookService.java`中定义：
 
-[PRE9]
+```
+package pl.finsys.example.service; 
+
+import pl.finsys.example.domain.Book; 
+import javax.validation.Valid; 
+import javax.validation.constraints.NotNull; 
+import java.util.List; 
+
+public interface BookService { 
+    Book saveBook(@NotNull @Valid final Book book); 
+    List<Book> getList(); 
+    Book getBook(Long bookId); 
+    void deleteBook(final Long bookId); 
+} 
+```
 
 实现，在`BookServiceImpl.java`中可以看起来与以下内容相同：
 
-[PRE10]
+```
+package pl.finsys.example.service; 
+
+import org.springframework.beans.factory.annotation.Autowired; 
+import pl.finsys.example.domain.Book; 
+import pl.finsys.example.repository.BookRepository; 
+import pl.finsys.example.service.exception.BookAlreadyExistsException; 
+import org.slf4j.Logger; 
+import org.slf4j.LoggerFactory; 
+import org.springframework.stereotype.Service; 
+import org.springframework.transaction.annotation.Transactional; 
+import org.springframework.validation.annotation.Validated; 
+
+import javax.validation.Valid; 
+import javax.validation.constraints.NotNull; 
+import java.util.List; 
+
+@Service 
+@Validated 
+public class BookServiceImpl implements BookService { 
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BookServiceImpl.class); 
+    private final BookRepository repository; 
+
+    @Autowired 
+    public BookServiceImpl(final BookRepository repository) { 
+        this.repository = repository; 
+    } 
+
+    @Override 
+    @Transactional 
+    public Book saveBook(@NotNull @Valid final Book book) { 
+        LOGGER.debug("Creating {}", book); 
+        Book existing = repository.findOne(book.getId()); 
+        if (existing != null) { 
+            throw new BookAlreadyExistsException( 
+                    String.format("There already exists a book with id=%s", book.getId())); 
+        } 
+        return repository.save(book); 
+    } 
+
+    @Override 
+    @Transactional(readOnly = true) 
+    public List<Book> getList() { 
+        LOGGER.debug("Retrieving the list of all users"); 
+        return repository.findAll(); 
+    } 
+
+    @Override 
+    public Book getBook(Long bookId) { 
+        return repository.findOne(bookId); 
+    } 
+
+    @Override 
+    @Transactional 
+    public void deleteBook(final Long bookId) { 
+        LOGGER.debug("deleting {}", bookId); 
+        repository.delete(bookId); 
+    } 
+
+} 
+```
 
 前面的清单介绍了`BookService`的实现。请注意，我们已经在构造函数中注入了`BookRepository`。所有实现方法，如`saveBook()`，`getBook()`，`deleteBook()`和`getList()`都将使用注入的`BookRepository`来操作数据库中的书籍实体。现在是最后一个类的时候，实际的控制器将把所有前面的类连接在一起。
 
@@ -291,7 +667,62 @@ Spring Data JPA 提供了一个仓库编程模型，它从每个受管领域对�
 
 REST 控制器定义了服务将要响应的 URI 路径。它声明了路径和相应的`HTTP`方法，每个控制器方法都应该对其做出反应。我们使用注解来定义所有这些。这种方法与 Jersey 的 JAX-RS 非常相似。我们的服务只有一个`book`资源，所以我们首先只会有一个控制器。它将是`BookController`类，在`BookController.java`中定义：
 
-[PRE11]
+```
+package pl.finsys.example.controller; 
+
+import org.springframework.beans.factory.annotation.Autowired; 
+import pl.finsys.example.domain.Book; 
+import pl.finsys.example.service.BookService; 
+import pl.finsys.example.service.exception.BookAlreadyExistsException; 
+import org.slf4j.Logger; 
+import org.slf4j.LoggerFactory; 
+import org.springframework.http.HttpStatus; 
+import org.springframework.web.bind.annotation.*; 
+
+import javax.validation.Valid; 
+import java.util.List; 
+
+@RestController 
+public class BookController { 
+
+   private static final Logger LOGGER =     LoggerFactory.getLogger(BookController.class); 
+private final BookService bookService; 
+
+    @Autowired 
+    public BookController(final BookService bookService) { 
+        this.bookService = bookService; 
+    } 
+
+@RequestMapping(value = "/books", method = RequestMethod.POST, consumes={"application/json"}) 
+    public Book saveBook(@RequestBody @Valid final Book book) { 
+        LOGGER.debug("Received request to create the {}", book); 
+        return bookService.saveBook(book); 
+    } 
+
+@RequestMapping(value = "/books", method = RequestMethod.GET, produces={"application/json"}) 
+    public List<Book> listBooks() {             
+        LOGGER.debug("Received request to list all books"); 
+        return bookService.getList(); 
+    } 
+
+@RequestMapping(value = "/books/{id}", method = RequestMethod.GET, produces={"application/json"}) 
+    public Book singleBook(@PathVariable Long id) { 
+        LOGGER.debug("Received request to list a specific book"); 
+        return bookService.getBook(id); 
+    } 
+
+@RequestMapping(value = "/books/{id}", method = RequestMethod.DELETE) 
+    public void deleteBook(@PathVariable Long id) { 
+        LOGGER.debug("Received request to delete a specific book"); 
+        bookService.deleteBook(id); 
+    } 
+    @ExceptionHandler 
+    @ResponseStatus(HttpStatus.CONFLICT) 
+   public String handleUserAlreadyExistsException(BookAlreadyExistsException e) { 
+        return e.getMessage(); 
+    } 
+} 
+```
 
 正如您在前面的示例中所看到的，该类使用`@RestController`注解进行了标注。这实际上是使其成为控制器的原因。事实上，这是一个方便的注解，它本身带有`@Controller`和`@ResponseBody`注解。`@Controller`表示一个被注解的类是一个控制器（Web 控制器），还允许通过 Spring 的类路径扫描自动检测实现类。控制器中应该对特定 URI 的调用做出响应的每个方法都使用`@RequestMapping`注解进行映射。`@RequestMapping`接受参数，其中最重要的是：
 
@@ -313,11 +744,46 @@ REST 控制器定义了服务将要响应的 URI 路径。它声明了路径和�
 
 在客户端可以使用服务之前，它需要一个服务合同。服务合同定义了有关服务的所有细节；例如，服务如何被调用，服务的 URI 是什么，请求和响应格式是什么。您的客户端需要知道如何与您的 API 进行交互。在过去几年中，Swagger 得到了许多主要供应商的支持。Swagger 的规范以 JSON 格式呈现了服务资源和操作的所有细节。规范的格式被称为 OpenAPI 规范（Swagger RESTful API 文档规范）。它既可以被人类阅读，也可以被机器阅读，易于解析、传输和在集成中使用。`SpringFox`库可用于从 RESTful 服务代码生成 Swagger 文档。而且，还有一个名为 Swagger UI 的精彩工具，当集成到应用程序中时，提供人类可读的文档。在本节中，我们将为我们的服务生成 Swagger 文档。`SpringFox`库可在 GitHub 上找到[`springfox.github.io/springfox/`](http://springfox.github.io/springfox/)，并且在 Maven 中央库中也可以找到，它是一个用于自动构建 Spring 构建的 API 的 JSON API 文档的工具。更好的是，该库提供了 Swagger UI 工具。该工具将与您的服务一起部署，并且可以以非常便捷的方式浏览生成的 API 文档。让我们向我们的服务介绍 Swagger。我们首先要向我们的服务的`pom.xml`文件添加所需的依赖项：
 
-[PRE12]
+```
+<dependency> 
+   <groupId>io.springfox</groupId> 
+   <artifactId>springfox-swagger2</artifactId> 
+   <version>2.6.1</version> 
+</dependency> 
+
+<dependency> 
+   <groupId>io.springfox</groupId> 
+   <artifactId>springfox-swagger-ui</artifactId> 
+   <version>2.5.0</version> 
+</dependency> 
+
+```
 
 在我们的应用程序的类路径中有了该库后，我们需要将其打开。接下来的步骤将是添加配置类以启用和生成 Swagger 文档。我们可以通过创建一个使用 Spring `@Configuration`注解的类来实现，就像下面的例子一样：
 
-[PRE13]
+```
+package pl.finsys.example.configuration; 
+
+import org.springframework.context.annotation.Bean; 
+import org.springframework.context.annotation.Configuration; 
+import springfox.documentation.builders.PathSelectors; 
+import springfox.documentation.builders.RequestHandlerSelectors; 
+import springfox.documentation.spi.DocumentationType; 
+import springfox.documentation.spring.web.plugins.Docket; 
+import springfox.documentation.swagger2.annotations.EnableSwagger2; 
+
+@Configuration 
+@EnableSwagger2 
+public class SwaggerConfig { 
+    @Bean 
+    public Docket api() { 
+        return new Docket(DocumentationType.SWAGGER_2) 
+                .select() 
+                .apis(RequestHandlerSelectors.any()) 
+                .paths(PathSelectors.any()).build(); 
+    } 
+} 
+```
 
 在这里解释一下。`@Configuration`表示被注释的类定义了一个 Spring 配置，`@EnableSwagger2`关闭了 Swagger 支持。`Docket`是一个构建器类，用于配置生成 Swagger 文档，配置为`DocumentationType.SWAGGER_2`以生成兼容 Swagger 2 的 API 文档。在`Docket`实例上调用的`select()`方法返回一个`ApiSelectorBuilder`，它提供了`apis()`和`paths()`方法，用于使用字符串谓词过滤要记录的控制器和方法。在我们的例子中，我们希望记录所有控制器和所有映射的路径；这就是为什么我们使用`.apis(RequestHandlerSelectors.any()).paths(PathSelectors.any())`。
 
@@ -339,7 +805,21 @@ REST 控制器定义了服务将要响应的 URI 路径。它声明了路径和�
 
 Swagger UI 是一组 HTML、JavaScript 和 CSS 资源，可以根据符合 Swagger 的 API 动态生成美观的文档。它列出了您的服务操作以及其请求和响应格式。最重要的是，您可以使用此工具测试您的服务，执行特定的请求。实际上，这是一个快速测试您的服务的好工具。我们的文档并不是非常描述性的。当然，我们列出了我们的暴露端点及其输入和输出描述。如果我们能用一些更具体的细节增强文档就更好了。我们可以做到这一点，我们可以在服务的代码中使用 Java 注解来增强生成的文档。这些注解来自 Swagger-annotation 包，如果您在项目中使用`springfox-swagger2`库，它将可用。例如，考虑以下代码片段：
 
-[PRE14]
+```
+@ApiOperation(value = "Retrieve a list of books.",
+
+responseContainer = "List")
+
+@RequestMapping(value = "/books", method = RequestMethod.GET, produces = {"application/json"})
+
+public List<Book> listBooks() {
+
+LOGGER.debug("Received request to list all books");
+
+return bookService.getList();
+
+}
+```
 
 在前面的代码中，我们使用`@ApiOperation`注解提供了对操作的更详细描述。还有更多：`@ApiImplicitParam`用于描述参数，`@Authorization`提供要在此资源/操作上使用的授权方案的名称，`@License`提供有关许可证的信息，等等。所有这些注解都将被`springfox-swagger2`捕获并用于增强生成的文档。我强烈建议查看 swagger-annotations 的 JavaDoc；你将能够以详细、专业的方式记录你的 API。
 
@@ -349,7 +829,10 @@ Swagger UI 是一组 HTML、JavaScript 和 CSS 资源，可以根据符合 Swagg
 
 因为我们已经在`pom.xml`构建文件中定义了 Spring Boot 插件，所以现在可以使用 Maven 启动应用程序。你只需要在系统路径上有 Maven，但作为 Java 开发人员，你可能已经有了。要运行应用程序，请在命令行（MacOS 上的终端或 Windows 上的`cmd.exe`）中执行以下操作：
 
-[PRE15]
+```
+$ mvn spring-boot:run
+
+```
 
 过一会儿，Spring 的启动日志将出现在控制台上，你的微服务将准备好接受`HTTP`请求。很快，在第五章，*使用 Java 应用程序创建图像*，我们的目标将是从 Docker 容器中看到相同的情况：
 
@@ -365,7 +848,25 @@ Swagger UI 是一组 HTML、JavaScript 和 CSS 资源，可以根据符合 Swagg
 
 如果你需要从另一个服务调用服务，你将需要一个`HTTP`客户端。Spring 提供了非常有用的`RestTemplate`类。它为你提供了同步的客户端端`HTTP`访问，简化了与 HTTP 服务器的通信，并强制执行 RESTful 原则。它处理 HTTP 连接，让应用程序代码提供 URL（可能带有模板变量）并提取结果。默认情况下，`RestTemplate`依赖于标准的 JDK 设施来建立 HTTP 连接。你可以通过其`setRequestFactory()`方法切换到你选择的不同的 HTTP 库，比如 Apache `HttpComponents`，`Netty`和`OkHttp`。调用`REST`资源以获取`ID = 1`的书可以简单地如下所示：
 
-[PRE16]
+```
+package pl.finsys.example.client; 
+
+import org.springframework.http.ResponseEntity; 
+import org.springframework.web.client.RestTemplate; 
+import pl.finsys.example.domain.Book; 
+
+public class ExampleClient { 
+    public static void main(String[] args) { 
+        try { 
+            RestTemplate restTemplate = new RestTemplate(); 
+            ResponseEntity<Book> response = restTemplate.getForEntity("http://localhost:8080/books/1", Book.class); 
+            System.out.println(response.getBody()); 
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        } 
+    } 
+} 
+```
 
 当然，这只是一个简化的客户端示例，来向你展示这个想法。你可以使用`RestTemplate`来创建更复杂的客户端调用 REST 资源。
 

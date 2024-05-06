@@ -32,25 +32,52 @@ Docker 容器不同于远程机器，但它们可以被设置为允许从这些�
 
 IIS Web 管理控制台是一个完美的例子。在 Windows 基础映像中，默认情况下不允许远程访问，但您可以使用一个简单的 PowerShell 脚本进行配置。首先，需要安装 Web 管理功能：
 
-[PRE0]
+```
+Import-Module servermanager
+Add-WindowsFeature web-mgmt-service
+```
 
 然后，您需要使用注册表设置启用远程访问，并启动 Web 管理 Windows 服务：
 
-[PRE1]
+```
+Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\WebManagement\Server -Name EnableRemoteManagement -Value 1
+Start-Service wmsvc
+```
 
 您还需要在 Dockerfile 中添加一个`EXPOSE`指令，以允许流量进入预期端口`8172`的管理服务。这将允许您连接，但 IIS 管理控制台需要远程机器的用户凭据。为了支持这一点，而不必将容器连接到**Active Directory**（**AD**），您可以在设置脚本中创建用户和密码：
 
-[PRE2]
+```
+net user iisadmin "!!Sadmin*" /add
+net localgroup "Administrators" "iisadmin" /add
+```
 
 这里存在安全问题。您需要在镜像中创建一个管理帐户，公开一个端口，并运行一个额外的服务，所有这些都会增加应用程序的攻击面。与其在 Dockerfile 中运行设置脚本，不如附加到一个容器并交互式地运行脚本，如果您需要远程访问。
 
 我已经在一个镜像中设置了一个简单的 Web 服务器，并在`dockeronwindows/ch08-iis-with-management:2e`的 Dockerfile 中打包了一个脚本以启用远程管理。我将从这个镜像中运行一个容器，发布 HTTP 和 IIS 管理端口：
 
-[PRE3]
+```
+docker container run -d -p 80 -p 8172 --name iis dockeronwindows/ch08-iis-with-management:2e
+```
 
 当容器运行时，我将在容器内执行`EnableIisRemoteManagement.ps1`脚本，该脚本设置了 IIS 管理服务的远程访问：
 
-[PRE4]
+```
+> docker container exec iis powershell \EnableIisRemoteManagement.ps1
+The command completed successfully.
+The command completed successfully.
+
+Success Restart Needed Exit Code      Feature Result
+------- -------------- ---------      --------------
+True    No             Success        {ASP.NET 4.7, Management Service, Mana...
+
+Windows IP Configuration
+Ethernet adapter vEthernet (Ethernet):
+   Connection-specific DNS Suffix  . : localdomain
+   Link-local IPv6 Address . . . . . : fe80::583a:2cc:41f:f2e4%14
+   IPv4 Address. . . . . . . . . . . : 172.27.56.248
+   Subnet Mask . . . . . . . . . . . : 255.255.240.0
+   Default Gateway . . . . . . . . . : 172.27.48.1
+```
 
 安装脚本最后运行`ipconfig`，所以我可以看到容器的内部 IP 地址（我也可以从`docker container inspect`中看到这一点）。
 
@@ -72,7 +99,12 @@ SSMS 更为直接，因为它使用标准的 SQL 客户端端口`1433`。您不�
 
 此命令运行 SQL Server 2019 Express Edition 容器，将端口`1433`发布到主机，并指定`sa`凭据：
 
-[PRE5]
+```
+docker container run -d -p 1433:1433 `
+ -e sa_password=DockerOnW!nd0ws `
+ --name sql `
+ dockeronwindows/ch03-sql-server:2e
+```
 
 这将发布标准的 SQL Server 端口`1433`，因此您有三种选项可以连接到容器内部的 SQL Server。
 
@@ -92,13 +124,18 @@ SSMS 更为直接，因为它使用标准的 SQL 客户端端口`1433`。您不�
 
 我为一个简单的示例数据库做了这个，将架构和数据导出到一个名为`init-db.sql`的单个文件中。`dockeronwindows/ch08-mssql-with-schema:2e`的 Dockerfile 将 SQL 脚本打包到一个新的镜像中，并使用一个引导 PowerShell 脚本在创建容器时部署数据库：
 
-[PRE6]
+```
+# escape=` FROM dockeronwindows/ch03-sql-server:2e SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"] ENV sa_password DockerOnW!nd0ws VOLUME C:\mssql  WORKDIR C:\init
+COPY . . CMD ./InitializeDatabase.ps1 -sa_password $env:sa_password -Verbose HEALTHCHECK CMD powershell -command ` try { ` $result = invoke-sqlcmd -Query 'SELECT TOP 1 1 FROM Authors' -Database DockerOnWindows; ` if ($result[0] -eq 1) {return 0} ` else {return 1}; ` } catch { return 1 }
+```
 
 这里的 SQL Server 镜像中有一个`HEALTHCHECK`，这是一个好的做法——它让 Docker 检查数据库是否正常运行。在这种情况下，如果架构尚未创建，测试将失败，因此在架构部署成功完成之前，容器将不会报告为健康状态。
 
 我可以以通常的方式从这个镜像运行一个容器：
 
-[PRE7]
+```
+docker container run -d -p 1433 --name db dockeronwindows/ch08-mssql-with-schema:2e
+```
 
 通过发布端口`1433`，数据库容器可以在主机上的随机端口上使用，因此我可以使用 SQL 客户端连接到数据库，并从脚本中查看架构和数据。
 
@@ -118,7 +155,15 @@ SSMS 更为直接，因为它使用标准的 SQL 客户端端口`1433`。您不�
 
 如果您只想读取事件日志，可以针对正在运行的容器执行 PowerShell cmdlet 以获取日志条目。此命令从我的数据库容器中读取 SQL Server 应用程序的两个最新事件日志条目：
 
-[PRE8]
+```
+> docker exec db powershell `
+ "Get-EventLog -LogName Application -Source MSSQL* -Newest 2 | Format-Table TimeWritten,Message"
+
+TimeWritten          Message
+-----------          -------
+6/27/2017 5:14:49 PM Setting database option READ_WRITE to ON for database '...
+6/27/2017 5:14:49 PM Setting database option query_store to off for database...
+```
 
 如果您遇到无法以其他方式诊断的容器问题，读取事件日志可能会很有用。但是，当您有数十个或数百个容器运行时，这种方法并不适用。最好将感兴趣的事件日志中继到控制台，以便 Docker 平台收集它们，并且您可以使用 `docker container logs` 或可以访问 Docker API 的管理工具来读取它们。
 
@@ -126,7 +171,15 @@ SSMS 更为直接，因为它使用标准的 SQL 客户端端口`1433`。您不�
 
 这对于作为 Windows 服务运行的应用程序非常有用，这也是 Microsoft 在 SQL Server Windows 映像中使用的方法。Dockerfile 使用 PowerShell 脚本作为 `CMD`，该脚本以循环结束，调用相同的 `Get-EventLog` cmdlet 将日志中继到控制台：
 
-[PRE9]
+```
+$lastCheck = (Get-Date).AddSeconds(-2) 
+while ($true) { 
+ Get-EventLog -LogName Application -Source "MSSQL*" -After $lastCheck | `
+ Select-Object TimeGenerated, EntryType, Message 
+ $lastCheck = Get-Date 
+ Start-Sleep -Seconds 2 
+}
+```
 
 该脚本每 2 秒读取一次事件日志，获取自上次读取以来的任何条目，并将它们写入控制台。该脚本在 Docker 启动的进程中运行，因此日志条目被捕获并可以通过 Docker API 公开。
 
@@ -138,23 +191,45 @@ SSMS 更为直接，因为它使用标准的 SQL 客户端端口`1433`。您不�
 
 就像 IIS 一样，您可以向镜像添加一个启用访问的脚本，这样您可以在需要时运行它。这比在镜像中始终启用远程访问更安全。该脚本只需要添加一个用户，配置服务器以允许管理员帐户进行远程访问，并确保**Windows 远程管理**（**WinRM**）服务正在运行：
 
-[PRE10]
+```
+net user serveradmin "s3rv3radmin*" /add
+net localgroup "Administrators" "serveradmin" /add
+
+New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System `
+ -Name LocalAccountTokenFilterPolicy -Type DWord -Value 1
+Start-Service winrm
+```
 
 我有一个示例镜像展示了这种方法，`dockeronwindows/ch08-iis-with-server-manager:2e`。它基于 IIS，并打包了一个脚本来启用服务器管理器的远程访问。Dockerfile 还公开了 WinRM 使用的端口`5985`和`5986`。我可以启动一个在后台运行 IIS 的容器，然后启用远程访问：
 
-[PRE11]
+```
+> > docker container run -d -P --name iis2 dockeronwindows/ch08-iis-with-server-manager:2e
+9c097d80c08b5fc55cfa27e40121d240090a1179f67dbdde653c1f93d3918370
+
+PS> docker exec iis2 powershell .\EnableRemoteServerManagement.ps1
+The command completed successfully.
+... 
+```
 
 您可以使用容器的 IP 地址连接到服务器管理器，但容器没有加入域。服务器管理器将尝试通过安全通道进行身份验证并失败，因此您将收到 WinRM 身份验证错误。要添加一个未加入域的服务器，您需要将其添加为受信任的主机。受信任的主机列表需要使用容器的主机名，而不是 IP 地址，所以首先我会获取容器的主机名：
 
-[PRE12]
+```
+> docker exec iis2 hostname
+9c097d80c08b
+```
 
 我将在我的服务器的`hosts`文件中添加一个条目，位于`C:\Windows\system32\drivers\etc\hosts`：
 
-[PRE13]
+```
+#ch08 
+172.27.59.5  9c097d80c08b
+```
 
 现在，我可以将容器添加到受信任的列表中。此命令需要在主机上运行，而不是在容器中运行。您正在将容器的主机名添加到本地计算机的受信任服务器列表中。我在我的 Windows Server 2019 主机上运行此命令：
 
-[PRE14]
+```
+Set-Item wsman:\localhost\Client\TrustedHosts 9c097d80c08b -Concatenate -Force
+```
 
 我正在运行 Windows Server 2019，但您也可以在 Windows 10 上使用服务器管理器。安装**远程服务器管理工具**（**RSAT**），您可以在 Windows 10 上以相同的方式使用服务器管理器。
 
@@ -186,7 +261,14 @@ Docker 平台为在容器中运行的任何类型的应用程序提供了一致�
 
 我在 Azure 中为本章部署了一个混合 Docker Swarm，其中包括一个 Linux 管理节点，两个 Linux 工作节点和两个 Windows 工作节点。我可以在管理节点上将可视化工具作为 Linux 容器运行，通过部署绑定到 Docker Engine API 的服务：
 
-[PRE15]
+```
+docker service create `
+  --name=viz `
+  --publish=8000:8080/tcp `
+  --constraint=node.role==manager `
+  --mount=type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock `
+  dockersamples/visualizer
+```
 
 该约束条件确保容器仅在管理节点上运行，由于我的管理节点运行在 Linux 上，我可以使用`mount`选项让容器与 Docker API 进行通信。在 Linux 中，您可以将套接字视为文件系统挂载，因此容器可以使用 API 套接字，而无需将其公开到**传输控制协议**（**TCP**）上。
 
@@ -206,7 +288,22 @@ Portainer 是 Docker 的轻量级管理 UI。它作为一个容器运行，可�
 
 Portainer 有两个部分：您需要在每个节点上运行一个代理，然后运行管理 UI。所有这些都在容器中运行，因此您可以使用 Docker Compose 文件，例如本章源代码中的`ch08-portainer`中的文件。Compose 文件定义了一个全局服务，即 Portainer 代理，在集群中的每个节点上都在容器中运行。然后是 Portainer UI：
 
-[PRE16]
+```
+portainer:
+  image: portainer/portainer
+  command: -H tcp://tasks.agent:9001 --tlsskipverify
+  ports:
+   - "8000:9000"
+  volumes:
+   - portainer_data:/data
+  networks:
+   - agent_network
+  deploy: 
+    mode: replicated
+    replicas: 1
+    placement:
+      constraints: [node.role == manager]
+```
 
 Docker Hub 上的`portainer/portainer`镜像是一个多架构镜像，这意味着您可以在 Linux 和 Windows 上使用相同的镜像标签，Docker 将使用与主机操作系统匹配的镜像。您无法在 Windows 上挂载 Docker 套接字，但 Portainer 文档会向您展示如何在 Windows 上访问 Docker API。
 
@@ -348,7 +445,14 @@ Docker 支持一种特殊类型的 Swarm 网络，称为**入口网络**。入�
 
 要使服务使用 Linux 容器而不是 Windows，只有两个更改：镜像名称和部署约束，以确保容器被安排在 Linux 节点上运行。以下是文件`docker-compose.hybrid-swarm.yml`中 NATS 消息队列的覆盖：
 
-[PRE17]
+```
+message-queue:
+  image: nats:1.4.1-linux
+  deploy:
+    placement:
+      constraints: 
+       - node.platform.os == linux
+```
 
 我使用了与第七章相同的方法，*使用 Docker Swarm 编排分布式解决方案*，使用`docker-compose config`将覆盖文件连接在一起并将它们导出到`docker-swarm.yml`中。我可以将我的 Docker CLI 连接到集群并使用`docker stack deploy`部署应用程序，或者我可以使用 UCP UI。从堆栈视图中，在共享资源下，我可以点击创建堆栈，并选择编排器并上传一个 compose YML 文件：
 

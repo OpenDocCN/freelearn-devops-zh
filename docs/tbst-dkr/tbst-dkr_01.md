@@ -112,15 +112,24 @@ VM 和 Docker 架构
 
 1.  使用包含打包所需的所有命令的 Dockerfile 构建 Docker 镜像。可以以以下方式运行：
 
-[PRE0]
+```
+Docker build
+
+```
 
 标签名称可以以以下方式添加：
 
-[PRE1]
+```
+Docker build -t username/my-imagename .
+
+```
 
 如果 Dockerfile 存在于不同的路径，则可以通过提供`-f`标志来执行 Docker `build`命令：
 
-[PRE2]
+```
+Docker build -t username/my-imagename -f /path/Dockerfile
+
+```
 
 1.  在创建镜像之后，可以使用`Docker run`来部署容器。可以使用`Docker ps`命令来检查正在运行的容器，该命令列出当前活动的容器。还有两个要讨论的命令：
 
@@ -138,7 +147,12 @@ Docker 生命周期
 
 这里列出了八个 Docker 设计模式及其示例。Dockerfile 是我们定义 Docker 镜像的基本结构，它包含了组装镜像的所有命令。使用`Docker build`命令，我们可以创建一个自动化构建，执行所有前面提到的命令行指令来创建一个镜像：
 
-[PRE3]
+```
+$ Docker build
+Sending build context to Docker daemon 6.51 MB
+...
+
+```
 
 这里列出的设计模式可以帮助创建在卷中持久存在的 Docker 镜像，并提供各种灵活性，以便可以随时轻松地重新创建或替换它们。
 
@@ -146,7 +160,23 @@ Docker 生命周期
 
 为了创建基于 web 的应用程序或博客，我们可以创建一个基础镜像，可以共享并帮助轻松部署应用程序。这种模式有助于将所有所需的服务打包到一个基础镜像之上，以便这个 web 应用程序博客镜像可以在任何地方重复使用：
 
-[PRE4]
+```
+    FROM debian:wheezy 
+    RUN apt-get update 
+    RUN apt-get -y install ruby ruby-dev build-essential git 
+    # For debugging 
+    RUN apt-get install -y gdb strace 
+    # Set up my user 
+    RUN useradd -u 1000 -ms /bin/bash vkohli 
+       RUN gem install -n /usr/bin bundler 
+    RUN gem install -n /usr/bin rake 
+    WORKDIR /home/vkohli/ 
+    ENV HOME /home/vkohli 
+    VOLUME ["/home"] 
+    USER vkohli 
+    EXPOSE 8080 
+
+```
 
 前面的 Dockerfile 显示了创建基于应用程序的镜像的标准方式。
 
@@ -160,17 +190,50 @@ Docker 镜像是一个压缩文件，是基础镜像中所有配置参数以及�
 
 在主机级别共享卷允许其他容器获取它们所需的共享内容。这有助于更快地重建 Docker 镜像，或者在添加、修改或删除依赖项时。例如，如果我们正在创建前面提到的博客的主页部署，唯一需要共享的目录是`/home/vkohli/src/repos/homepage`目录，通过以下方式通过 Dockerfile 与这个 web 应用容器共享：
 
-[PRE5]
+```
+  FROM vkohli/devbase 
+          WORKDIR /home/vkohli/src/repos/homepage 
+          ENTRYPOINT bin/homepage web 
+
+```
 
 为了创建博客的开发版本，我们可以共享`/home/vkohli/src/repos/blog`文件夹，其中所有相关的开发者文件可以驻留。并且为了创建开发版本镜像，我们可以从预先创建的`devbase`中获取基础镜像：
 
-[PRE6]
+```
+FROM vkohli/devbase 
+WORKDIR / 
+USER root 
+# For Graphivz integration 
+RUN apt-get update 
+RUN apt-get -y install graphviz xsltproc imagemagick 
+       USER vkohli 
+         WORKDIR /home/vkohli/src/repos/blog 
+         ENTRYPOINT bundle exec rackup -p 8080 
+
+```
 
 ### 开发工具容器
 
 为了开发目的，我们在开发和生产环境中有不同的依赖关系，这些依赖关系很容易在某个时候混合在一起。容器可以通过将它们分开打包来帮助区分依赖关系。如下所示，我们可以从基本映像中派生开发工具容器映像，并在其上安装开发依赖，甚至允许`ssh`连接，以便我们可以处理代码：
 
-[PRE7]
+```
+FROM vkohli/devbase 
+RUN apt-get update 
+RUN apt-get -y install openssh-server emacs23-nox htop screen 
+
+# For debugging 
+RUN apt-get -y install sudo wget curl telnet tcpdump 
+# For 32-bit experiments 
+RUN apt-get -y install gcc-multilib  
+# Man pages and "most" viewer: 
+RUN apt-get install -y man most 
+RUN mkdir /var/run/sshd 
+ENTRYPOINT /usr/sbin/sshd -D 
+VOLUME ["/home"] 
+EXPOSE 22 
+EXPOSE 8080 
+
+```
 
 如前面的代码所示，安装了基本工具，如`wget`、`curl`和`tcpdump`，这些工具在开发过程中是必需的。甚至安装了 SSHD 服务，允许在开发容器中进行`ssh`连接。
 
@@ -178,7 +241,12 @@ Docker 镜像是一个压缩文件，是基础镜像中所有配置参数以及�
 
 在不同的环境中测试代码总是有助于简化流程，并有助于在隔离中发现更多的错误。我们可以创建一个 Ruby 环境在一个单独的容器中生成一个新的 Ruby shell，并用它来测试代码库。
 
-[PRE8]
+```
+FROM vkohli/devbase 
+RUN apt-get update 
+RUN apt-get -y install ruby1.8 git ruby1.8-dev 
+
+```
 
 在列出的 Dockerfile 中，我们使用`devbase`作为基本映像，并借助一个`docker run`命令，可以轻松地使用从该 Dockerfile 创建的映像创建一个新的环境来测试代码。
 
@@ -186,7 +254,15 @@ Docker 镜像是一个压缩文件，是基础镜像中所有配置参数以及�
 
 我们的应用程序中涉及一些耗费时间的构建步骤。为了克服这一点，我们可以创建一个单独的构建容器，该容器可以使用构建过程中所需的依赖项。以下 Dockerfile 可用于运行单独的构建过程：
 
-[PRE9]
+```
+FROM sampleapp 
+RUN apt-get update 
+RUN apt-get install -y build-essential [assorted dev packages for libraries] 
+VOLUME ["/build"] 
+WORKDIR /build 
+CMD ["bundler", "install","--path","vendor","--standalone"] 
+
+```
 
 `/build`目录是共享目录，可用于提供已编译的二进制文件，还可以将容器中的`/build/source`目录挂载到提供更新的依赖项。因此，通过使用构建容器，我们可以将构建过程和最终打包过程分离开来。它仍然通过将前面的过程分解为单独的容器来封装过程和依赖关系。
 
@@ -196,7 +272,11 @@ Docker 镜像是一个压缩文件，是基础镜像中所有配置参数以及�
 
 显示了将安装脚本打包到 Docker 映像中的示例 Dockerfile：
 
-[PRE10]
+```
+ADD installer /installer 
+CMD /installer.sh 
+
+```
 
 `installer.sh` 可以包含特定的安装命令，在生产环境中部署容器，并提供代理设置和 DNS 条目，以便部署一致的环境。
 
@@ -204,17 +284,54 @@ Docker 镜像是一个压缩文件，是基础镜像中所有配置参数以及�
 
 为了在一个容器中部署完整的应用程序，我们可以捆绑多个服务以提供完整的部署容器。在这种情况下，我们将 Web 应用程序、API 服务和数据库捆绑在一个容器中。这有助于简化各种独立容器之间的互联的痛苦。
 
-[PRE11]
+```
+services: 
+  web: 
+    git_url: git@github.com:vkohli/sampleapp.git 
+    git_branch: test 
+    command: rackup -p 3000 
+    build_command: rake db:migrate 
+    deploy_command: rake db:migrate 
+    log_folder: /usr/src/app/log 
+    ports: ["3000:80:443", "4000"] 
+    volumes: ["/tmp:/tmp/mnt_folder"] 
+    health: default 
+  api: 
+    image: quay.io/john/node 
+    command: node test.js 
+    ports: ["1337:8080"] 
+    requires: ["web"] 
+databases: 
+  - "mysql" 
+  - "redis" 
+
+```
 
 ### 基础设施容器
 
 正如我们在开发环境中讨论过的容器使用，还有一个重要的类别缺失-用于基础设施服务的容器的使用，比如代理设置，它提供了一个连贯的环境，以便提供对应用程序的访问。在下面提到的 Dockerfile 示例中，我们可以看到安装了`haproxy`并提供了其配置文件的链接：
 
-[PRE12]
+```
+FROM debian:wheezy 
+ADD wheezy-backports.list /etc/apt/sources.list.d/ 
+RUN apt-get update 
+RUN apt-get -y install haproxy 
+ADD haproxy.cfg /etc/haproxy/haproxy.cfg 
+CMD ["haproxy", "-db", "-f", "/etc/haproxy/haproxy.cfg"] 
+EXPOSE 80 
+EXPOSE 443 
+
+```
 
 `haproxy.cfg`文件是负责对用户进行身份验证的配置文件：
 
-[PRE13]
+```
+backend test 
+    acl authok http_auth(adminusers) 
+    http-request auth realm vkohli if !authok 
+    server s1 192.168.0.44:8084 
+
+```
 
 # Unikernels
 

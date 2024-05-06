@@ -60,7 +60,10 @@ Docker Compose（[`docs.docker.com/compose/`](http://docs.docker.com/compose/)�
 
 确保系统上安装了 Docker 版本 1.3 或更高版本。要安装 Docker Compose，请运行以下命令：
 
-[PRE0]
+```
+$ sudo pip install docker-compose
+
+```
 
 ## 如何做…
 
@@ -70,7 +73,10 @@ Docker Compose（[`docs.docker.com/compose/`](http://docs.docker.com/compose/)�
 
 1.  在应用程序目录中，运行以下命令构建应用程序：
 
-[PRE1]
+```
+$ docker-compose up
+
+```
 
 1.  构建完成后，从`http://localhost:8080`或`http://<host-ip>:8080`访问 WordPress 安装页面。
 
@@ -104,37 +110,65 @@ Docker Swarm ([`docs.docker.com/swarm/`](http://docs.docker.com/swarm/))是 Dock
 
 1.  下载并设置 Docker Machine。在 Fedora x86_64 上，运行以下命令：
 
-[PRE2]
+```
+$ wget  https://github.com/docker/machine/releases/download/v0.2.0/docker-machine_linux-amd64
+$ sudo mv  docker-machine_linux-amd64 /usr/local/bin/docker-machine
+$ chmod a+x  /usr/local/bin/docker-machine
+
+```
 
 ## 操作方法…
 
 1.  使用 Swarm 发现服务，我们首先需要创建一个 Swarm 令牌来唯一标识我们的集群。除了默认的托管发现服务外，Swarm 还支持不同类型的发现服务，如 etcd、consul 和 zookeeper。有关更多详细信息，请访问[`docs.docker.com/swarm/discovery/`](https://docs.docker.com/swarm/discovery/)。要使用默认的托管发现服务创建令牌，我们将首先在 VM 上使用 Docker Machine 设置 Docker 主机，然后获取令牌：
 
-[PRE3]
+```
+$ docker-machine create -d virtualbox local
+
+```
 
 1.  要从本地 Docker 客户端访问我们刚创建的 Docker，请运行以下命令：
 
-[PRE4]
+```
+$ eval "$(docker-machine env local)"
+
+```
 
 1.  要获取令牌，请运行以下命令：
 
-[PRE5]
+```
+$ docker run swarm create
+7c3a21b42708cde81d99884116d68fa1
+
+```
 
 1.  使用前一步骤中创建的令牌，设置 Swarm 主节点：
 
-[PRE6]
+```
+$ docker-machine create  -d virtualbox  --swarm  --swarm-master  --swarm-discovery token://7c3a21b42708cde81d99884116d68fa1  swarm-master
+
+```
 
 1.  同样，让我们创建两个 Swarm 节点：
 
-[PRE7]
+```
+$ docker-machine create -d virtualbox  --swarm  --swarm-discovery token://7c3a21b42708cde81d99884116d68fa1 swarm-node-1
+$ docker-machine create -d virtualbox  --swarm  --swarm-discovery token://7c3a21b42708cde81d99884116d68fa1 swarm-node-2
+
+```
 
 1.  现在，从本地 Docker 客户端连接到 Docker Swarm：
 
-[PRE8]
+```
+$ eval "$(docker-machine env swarm-master)"
+
+```
 
 1.  Swarm API 与 Docker 客户端 API 兼容。让我们运行`docker info`命令来查看 Swarm 的当前配置/设置：
 
-[PRE9]
+```
+$ docker info
+
+```
 
 ![操作方法…](img/image00380.jpeg)
 
@@ -200,7 +234,24 @@ CoreOS（[`coreos.com/`](https://coreos.com/)）是一种经过重新架构以�
 
 Systemd 管理单元文件。示例单元文件如下：
 
-[PRE10]
+```
+[Unit] 
+Description=Docker Application Container Engine 
+Documentation=http://docs.docker.com 
+After=network.target docker.socket
+Requires=docker.socket
+
+[Service] 
+Type=notify 
+EnvironmentFile=-/etc/sysconfig/docker 
+EnvironmentFile=-/etc/sysconfig/docker-storage 
+ExecStart=/usr/bin/docker -d -H fd:// $OPTIONS $DOCKER_STORAGE_OPTIONS
+LimitNOFILE=1048576 
+LimitNPROC=1048576 
+
+[Install] 
+WantedBy=multi-user.target 
+```
 
 此单元文件在 Fedora 21 上使用`ExecStart`中提到的命令启动 Docker 守护程序。Docker 守护程序将在`network target`和`docker socket`服务之后启动。`docker socket`是 Docker 守护程序启动的先决条件。Systemd 目标是将进程分组以便它们可以同时启动的方式。`multi-user`是前面单元文件注册的目标之一。有关更多详细信息，您可以查看 Systemd 的上游文档[`www.freedesktop.org/wiki/Software/systemd/`](http://www.freedesktop.org/wiki/Software/systemd/)。
 
@@ -218,21 +269,34 @@ Systemd 管理单元文件。示例单元文件如下：
 
 1.  克隆`coreos-vagrant`存储库：
 
-[PRE11]
+```
+$ git clone https://github.com/coreos/coreos-vagrant.git
+$ cd coreos-vagrant
+
+```
 
 1.  将示例文件`user-data.sample`复制到`user-data`并设置引导集群的令牌：
 
-[PRE12]
+```
+$ cp user-data.sample user-data
+
+```
 
 1.  当我们使用多个节点配置 CoreOS 集群时，我们需要一个令牌来引导集群以选择初始的 etcd 领导者。这项服务由 CoreOS 团队免费提供。我们只需要在浏览器中打开`https://discovery.etcd.io/new`来获取令牌，并在`user-data`文件中更新如下：![准备就绪](img/image00381.jpeg)
 
 1.  将`config.rb.sample`复制到`config.rb`并更改以下行：
 
-[PRE13]
+```
+$num_instances=1
+
+```
 
 现在应该是这样的：
 
-[PRE14]
+```
+$num_instances=3
+
+```
 
 这将要求 Vagrant 设置三个节点集群。默认情况下，Vagrant 配置为从 alpha 版本获取 VM 映像。我们可以通过在 Vagrantfile 中更新`$update_channel`参数将其更改为 beta 或 stable。对于这个示例，我选择了 stable。
 
@@ -240,7 +304,10 @@ Systemd 管理单元文件。示例单元文件如下：
 
 1.  运行以下命令设置集群：
 
-[PRE15]
+```
+$ vagrant up
+
+```
 
 现在，使用以下截图中显示的命令检查状态：
 
@@ -248,17 +315,40 @@ Systemd 管理单元文件。示例单元文件如下：
 
 1.  使用 SSH 登录到其中一个 VM，查看服务状态，并列出集群中的机器：
 
-[PRE16]
+```
+$ vagrant ssh core-01
+$ systemctl status etcd fleet
+$ fleetctl list-machines
+
+```
 
 ![操作步骤如下…](img/image00383.jpeg)
 
 1.  创建一个名为`myapp.service`的服务单元文件，内容如下：
 
-[PRE17]
+```
+[Unit] 
+Description=MyApp 
+After=docker.service 
+Requires=docker.service 
+
+[Service] 
+TimeoutStartSec=0 
+ExecStartPre=-/usr/bin/docker kill busybox1 
+ExecStartPre=-/usr/bin/docker rm busybox1 
+ExecStartPre=/usr/bin/docker pull busybox 
+ExecStart=/usr/bin/docker run --name busybox1 busybox /bin/sh -c "while true; do echo Hello World; sleep 1; done" 
+ExecStop=/usr/bin/docker stop busybox1
+```
 
 1.  现在让我们提交服务进行调度并启动服务：
 
-[PRE18]
+```
+$ fleetctl submit myapp.service
+$ fleetctl start myapp.service
+$ fleetctl list-units
+
+```
 
 ![操作步骤如下…](img/image00384.jpeg)
 
@@ -310,23 +400,46 @@ Project Atomic 使用 Kubernetes ([`kubernetes.io/`](http://kubernetes.io/))在�
 
 1.  下载图像：
 
-[PRE19]
+```
+$ wget http://download.fedoraproject.org/pub/fedora/linux/releases/test/22_Beta/Cloud/x86_64/Images/Fedora-Cloud-Atomic-22_Beta-20150415.x86_64.raw.xz
+
+```
 
 我已经下载了 Fedora 22 云图像*用于容器*的测试版图像。您应该在[`getfedora.org/en/cloud/download/`](https://getfedora.org/en/cloud/download/)上寻找最新的云图像*用于容器*。
 
 1.  使用以下命令解压此图像：
 
-[PRE20]
+```
+$ xz -d Fedora-Cloud-Atomic-22_Beta-20150415.x86_64.raw.xz
+
+```
 
 ## 如何做到这一点…
 
 1.  我们下载了一个没有为默认用户`fedora`设置任何密码的云镜像。在启动虚拟机时，我们必须通过一个云配置文件来自定义虚拟机。为此，我们需要创建两个文件，`meta-data`和`user-data`，如下所示：
 
-[PRE21]
+```
+$ cat  meta-data
+instance-id: iid-local01
+local-hostname: atomichost
+
+$ cat user-data
+#cloud-config
+password: atomic
+ssh_pwauth: True
+chpasswd: { expire: False }
+
+ssh_authorized_keys:
+- ssh-rsa AAAAB3NzaC1yc.........
+
+```
 
 在上面的代码中，我们需要提供完整的 SSH 公钥。然后，我们需要创建一个包含这些文件的 ISO 镜像，我们将使用它来引导虚拟机。由于我们使用的是云镜像，我们的设置将在引导过程中应用于虚拟机。这意味着主机名将设置为`atomichost`，密码将设置为`atomic`，依此类推。要创建 ISO，请运行以下命令：
 
-[PRE22]
+```
+$ genisoimage -output init.iso -volid cidata -joliet -rock user-data meta-data
+
+```
 
 1.  启动 virt-manager。
 
@@ -346,7 +459,10 @@ Project Atomic 使用 Kubernetes ([`kubernetes.io/`](http://kubernetes.io/))在�
 
 +   登录后，您可以像往常一样运行 Docker 命令：
 
-[PRE23]
+```
+$sudo docker run -it fedora bash
+
+```
 
 ## 另请参阅
 
@@ -372,7 +488,10 @@ Project Atomic 使用 Kubernetes ([`kubernetes.io/`](http://kubernetes.io/))在�
 
 1.  启动后，运行以下命令：
 
-[PRE24]
+```
+$ atomic host status
+
+```
 
 您将看到有关当前正在使用的部署的详细信息。
 
@@ -388,7 +507,10 @@ Project Atomic 使用 Kubernetes ([`kubernetes.io/`](http://kubernetes.io/))在�
 
 1.  要回滚，请运行以下命令：
 
-[PRE25]
+```
+$ sudo atomic host rollback
+
+```
 
 如果我们想使用旧的位，我们将不得不再次重启。
 
@@ -430,11 +552,19 @@ Atomic 主机是一个最小的发行版，因此以 6GB 的镜像分发，以�
 
 1.  由于新添加的磁盘是`/dev/sdb`，因此创建一个名为`/etc/sysconfig/docker-storage-setup`的文件，并包含以下内容：
 
-[PRE26]
+```
+DEVS="/dev/sdb"
+[fedora@atomichost ~]$ cat /etc/sysconfig/docker-storage-setup
+DEVS="/dev/sdb"
+
+```
 
 1.  运行`docker-storage-setup`命令将`/dev/sdb`添加到现有卷中：
 
-[PRE27]
+```
+$ sudo docker-storage-setup
+
+```
 
 ![如何操作...](img/image00392.jpeg)
 
@@ -476,7 +606,10 @@ Cockpit ([`cockpit-project.org/`](http://cockpit-project.org/))是一个服务�
 
 1.  运行以下命令启动 Cockpit 容器：
 
-[PRE28]
+```
+[fedora@atomichost ~]$ sudo atomic run stefwalter/cockpit-ws
+
+```
 
 ![如何操作…](img/image00394.jpeg)
 
@@ -486,7 +619,11 @@ Cockpit ([`cockpit-project.org/`](http://cockpit-project.org/))是一个服务�
 
 在这里，我们使用`atomic`命令而不是`docker`命令来启动容器。让我们看看 Cockpit Dockerfile([`github.com/fedora-cloud/Fedora-Dockerfiles/blob/master/cockpit-ws/Dockerfile`](https://github.com/fedora-cloud/Fedora-Dockerfiles/blob/master/cockpit-ws/Dockerfile))，看看为什么我们这样做。在 Dockerfile 中，您将看到一些指令：
 
-[PRE29]
+```
+LABEL INSTALL /usr/bin/docker run -ti --rm --privileged -v /:/host IMAGE /container/atomic-install
+LABEL UNINSTALL /usr/bin/docker run -ti --rm --privileged -v /:/host IMAGE /cockpit/atomic-uninstall
+LABEL RUN /usr/bin/docker run -d --privileged --pid=host -v /:/host IMAGE /container/atomic-run --local-ssh
+```
 
 如果您回忆起第二章中的*使用 Docker 容器*和第三章中的*使用 Docker 镜像*，我们可以使用标签为镜像和容器分配元数据。这里的标签是`INSTALL`、`UNINSTALL`和`RUN`。`atomic`命令是 Project Atomic 特有的命令，它读取这些标签并执行操作。由于容器作为 SPC 运行，因此不需要从主机到容器的端口转发。有关`atomic`命令的更多详细信息，请访问[`developerblog.redhat.com/2015/04/21/introducing-the-atomic-command/`](https://developerblog.redhat.com/2015/04/21/introducing-the-atomic-command/)。
 
@@ -552,7 +689,12 @@ Kubernetes 可以安装在虚拟机、物理机和云上。要查看完整的矩
 
 1.  运行以下命令在 Vagrant 虚拟机上设置 Kubernetes：
 
-[PRE30]
+```
+$ export KUBERNETES_PROVIDER=vagrant
+$ export VAGRANT_DEFAULT_PROVIDER=virtualbox
+$ curl -sS https://get.k8s.io | bash
+
+```
 
 ## 它是如何工作的...
 
@@ -566,27 +708,45 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 +   获取节点列表：
 
-[PRE31]
+```
+$ ./cluster/kubectl.sh get nodes
+
+```
 
 +   获取 pod 的列表：
 
-[PRE32]
+```
+$ ./cluster/kubectl.sh get pods
+
+```
 
 +   获取服务列表：
 
-[PRE33]
+```
+$ ./cluster/kubectl.sh get services
+
+```
 
 +   获取复制控制器的列表：
 
-[PRE34]
+```
+$ ./cluster/kubectl.sh get replicationControllers
+
+```
 
 +   销毁 vagrant 集群：
 
-[PRE35]
+```
+$ ./cluster/kube-down.sh
+
+```
 
 +   然后恢复 vagrant 集群：
 
-[PRE36]
+```
+$ ./cluster/kube-up.sh
+
+```
 
 您将看到一些列出的`pods`，`services`和`replicationControllers`，因为 Kubernetes 为内部使用创建它们。
 
@@ -610,17 +770,26 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  启动带有 3 个副本计数的`nginx`容器：
 
-[PRE37]
+```
+$ ./cluster/kubectl.sh run-container my-nginx --image=nginx --replicas=3 --port=80
+
+```
 
 ![如何做…](img/image00397.jpeg)
 
 这将启动`nginx`容器的三个副本。列出 pod 以获取状态：
 
-[PRE38]
+```
+$  ./cluster/kubectl.sh get pods
+
+```
 
 1.  获取复制控制器配置：
 
-[PRE39]
+```
+$ ./cluster/kubectl.sh get replicationControllers
+
+```
 
 ![如何做…](img/image00398.jpeg)
 
@@ -628,13 +797,20 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  请求复制控制器服务将副本缩减为 1 并更新复制控制器：
 
-[PRE40]
+```
+$ ./cluster/kubectl.sh resize rc my-nginx –replicas=1
+$ ./cluster/kubectl.sh get rc
+
+```
 
 ![如何做…](img/image00399.jpeg)
 
 1.  获取 pod 列表以进行验证；您应该只看到一个`nginx`的 pod：
 
-[PRE41]
+```
+$  ./cluster/kubectl.sh get pods
+
+```
 
 ## 工作原理…
 
@@ -644,7 +820,10 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 获取服务：
 
-[PRE42]
+```
+$ ./cluster/kubectl.sh get services
+
+```
 
 ![还有更多…](img/image00400.jpeg)
 
@@ -666,7 +845,12 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 +   在安装过程中下载的`kubernetes`目录中，您将找到一个包含许多示例的 examples 目录。让我们转到`mysql-wordpress-pd`目录：
 
-[PRE43]
+```
+$ cd kubernetes/examples/mysql-wordpress-pd
+$  ls *.yaml
+mysql-service.yaml mysql.yaml wordpress-service.yaml  wordpress.yaml
+
+```
 
 +   这些`.yaml`文件分别描述了`mysql`和`wordpress`的 pod 和服务。
 
@@ -678,7 +862,11 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  通过 SSH 登录到 master 节点并查看正在运行的 pod：
 
-[PRE44]
+```
+$ vagrant ssh master
+$ kubectl get pods
+
+```
 
 ![操作步骤…](img/image00402.jpeg)
 
@@ -688,7 +876,11 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  从主节点创建`mysql` pod 并检查运行中的 pod：
 
-[PRE45]
+```
+$ kubectl create -f /vagrant/examples/mysql-wordpress-pd/mysql.yaml
+$ kubectl get pods
+
+```
 
 ![如何做…](img/image00403.jpeg)
 
@@ -696,7 +888,11 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  现在让我们为`mysql`创建服务并查看所有服务：
 
-[PRE46]
+```
+$ kubectl create -f /vagrant/examples/mysql-wordpress-pd/mysql-service.yaml
+$ kubectl get services
+
+```
 
 ![如何做…](img/image00404.jpeg)
 
@@ -704,7 +900,10 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  类似于`mysql`，让我们为`wordpress`创建一个 pod：
 
-[PRE47]
+```
+$ kubectl create -f /vagrant/examples/mysql-wordpress-pd/wordpress.yaml
+
+```
 
 使用这个命令，后台会发生一些事情：
 
@@ -718,11 +917,16 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  启动 pod 后，这里的最后一步是设置`wordpress`服务。在默认示例中，你会在服务文件`(/vagrant/examples/mysql-wordpress-pd/mysql-service.yaml)`中看到类似以下的条目：
 
-[PRE48]
+```
+createExternalLoadBalancer: true
+```
 
 这篇文章是为了记住这个示例将在 Google Compute Engine 上运行。所以这里不适用。我们需要做的是像下面这样做一个条目：
 
-[PRE49]
+```
+publicIPs: 
+    - 10.245.1.3
+```
 
 我们用节点的公共 IP 替换了负载均衡器的条目，这在我们的情况下就是节点（minion）的 IP 地址。因此，`wordpress`文件看起来会像下面这样：
 
@@ -730,7 +934,10 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  要启动`wordpress`服务，请从主节点上运行以下命令：
 
-[PRE50]
+```
+$ kubectl create -f /vagrant/examples/mysql-wordpress-pd/wordpress-service.yaml
+
+```
 
 ![如何操作...](img/image00407.jpeg)
 
@@ -738,7 +945,11 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 1.  要验证一切是否正常工作，我们可以在主节点上安装 links 软件包，通过它我们可以通过命令行浏览 URL 并连接到我们提到的公共 IP：
 
-[PRE51]
+```
+$ sudo yum install links -y
+$ links 10.245.1.3
+
+```
 
 有了这些，你应该能看到`wordpress`安装页面。
 
@@ -750,7 +961,11 @@ Vagrant 在`~/.kubernetes_vagrant_auth`中创建一个凭据文件进行身份�
 
 +   在这个示例设置中，我们只有一个节点（minion）。如果你登录进去，你会看到所有正在运行的容器：
 
-[PRE52]
+```
+$ vagrant ssh minion-1
+$ sudo docker ps
+
+```
 
 +   在这个示例中，我们没有配置复制控制器。我们可以通过创建它们来扩展这个示例。
 

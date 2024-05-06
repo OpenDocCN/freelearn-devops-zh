@@ -96,11 +96,38 @@ Linux namespaces 是 Linux 内核的一个特性，用于分隔资源以进行�
 
 当您尝试配置工作负载以使用主机命名空间时，请问自己一个问题：为什么您必须这样做？当使用主机命名空间时，Pod 在同一工作节点中对其他 Pod 的活动有完全的了解，但这也取决于为容器分配了哪些 Linux 功能。总的来说，事实是，您正在削弱其他微服务的安全边界。让我举个快速的例子。这是容器内可见的进程列表：
 
-[PRE0]
+```
+root@nginx-2:/# ps aux
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.1  0.0  32648  5256 ?        Ss   23:47   0:00 nginx: master process nginx -g daemon off;
+nginx          6  0.0  0.0  33104  2348 ?        S    23:47   0:00 nginx: worker process
+root           7  0.0  0.0  18192  3248 pts/0    Ss   23:48   0:00 bash
+root          13  0.0  0.0  36636  2816 pts/0    R+   23:48   0:00 ps aux
+```
 
 正如您所看到的，在`nginx`容器内，只有`nginx`进程和`bash`进程从容器中可见。这个`nginx` Pod 没有使用主机 PID 命名空间。让我们看看如果一个 Pod 使用主机 PID 命名空间会发生什么：
 
-[PRE1]
+```
+root@gke-demo-cluster-default-pool-c9e3510c-tfgh:/# ps axu
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.2  0.0  99660  7596 ?        Ss   22:54   0:10 /usr/lib/systemd/systemd noresume noswap cros_efi
+root          20  0.0  0.0      0     0 ?        I<   22:54   0:00 [netns]
+root          71  0.0  0.0      0     0 ?        I    22:54   0:01 [kworker/u4:2]
+root         101  0.0  0.1  28288  9536 ?        Ss   22:54   0:01 /usr/lib/systemd/systemd-journald
+201          293  0.2  0.0  13688  4068 ?        Ss   22:54   0:07 /usr/bin/dbus-daemon --system --address=systemd: --nofork --nopidfile 
+274          297  0.0  0.0  22520  4196 ?        Ss   22:54   0:00 /usr/lib/systemd/systemd-networkd
+root         455  0.0  0.0      0     0 ?        I    22:54   0:00 [kworker/0:3]
+root        1155  0.0  0.0   9540  3324 ?        Ss   22:54   0:00 bash /home/kubernetes/bin/health-monitor.sh container-runtime
+root        1356  4.4  1.5 1396748 118236 ?      Ssl  22:56   2:30 /home/kubernetes/bin/kubelet --v=2 --cloud-provider=gce --experimental
+root        1635  0.0  0.0 773444  6012 ?        Sl   22:56   0:00 containerd-shim -namespace moby -workdir /var/lib/containerd/io.contai
+root        1660  0.1  0.4 417260 36292 ?        Ssl  22:56   0:03 kube-proxy --master=https://35.226.122.194 --kubeconfig=/var/lib/kube-
+root        2019  0.0  0.1 107744  7872 ?        Ssl  22:56   0:00 /ip-masq-agent --masq-chain=IP-MASQ --nomasq-all-reserved-ranges
+root        2171  0.0  0.0  16224  5020 ?        Ss   22:57   0:00 sshd: gke-1a5c3c1c4d5b7d80adbc [priv]
+root        3203  0.0  0.0   1024     4 ?        Ss   22:57   0:00 /pause
+root        5489  1.3  0.4  48008 34236 ?        Sl   22:57   0:43 calico-node -felix
+root        6988  0.0  0.0  32648  5248 ?        Ss   23:01   0:00 nginx: master process nginx -g daemon off;
+nginx       7009  0.0  0.0  33104  2584 ?        S    23:01   0:00 nginx: worker process
+```
 
 前面的输出显示了在`nginx`容器中运行的进程。在这些进程中有系统进程，如`sshd`、`kubelet`、`kube-proxy`等等。除了 Pod 使用主机 PID 命名空间外，您还可以向其他微服务的进程发送信号，比如向一个进程发送`SIGKILL`来终止它。
 
@@ -140,7 +167,22 @@ Linux 功能是从传统的 Linux 权限检查演变而来的概念：特权和�
 
 对于大多数微服务来说，这些功能应该足以执行它们的日常任务。您应该放弃所有功能，只添加所需的功能。与主机命名空间类似，授予额外的功能可能会削弱其他微服务的安全边界。当您在容器中运行`tcpdump`命令时，以下是一个示例输出：
 
-[PRE2]
+```
+root@gke-demo-cluster-default-pool-c9e3510c-tfgh:/# tcpdump -i cali01fb9a4e4b4 -v
+tcpdump: listening on cali01fb9a4e4b4, link-type EN10MB (Ethernet), capture size 262144 bytes
+23:18:36.604766 IP (tos 0x0, ttl 64, id 27472, offset 0, flags [DF], proto UDP (17), length 86)
+    10.56.1.14.37059 > 10.60.0.10.domain: 35359+ A? www.google.com.default.svc.cluster.local. (58)
+23:18:36.604817 IP (tos 0x0, ttl 64, id 27473, offset 0, flags [DF], proto UDP (17), length 86)
+    10.56.1.14.37059 > 10.60.0.10.domain: 35789+ AAAA? www.google.com.default.svc.cluster.local. (58)
+23:18:36.606864 IP (tos 0x0, ttl 62, id 8294, offset 0, flags [DF], proto UDP (17), length 179)
+    10.60.0.10.domain > 10.56.1.14.37059: 35789 NXDomain 0/1/0 (151)
+23:18:36.606959 IP (tos 0x0, ttl 62, id 8295, offset 0, flags [DF], proto UDP (17), length 179)
+    10.60.0.10.domain > 10.56.1.14.37059: 35359 NXDomain 0/1/0 (151)
+23:18:36.607013 IP (tos 0x0, ttl 64, id 27474, offset 0, flags [DF], proto UDP (17), length 78)
+    10.56.1.14.59177 > 10.60.0.10.domain: 7489+ A? www.google.com.svc.cluster.local. (50)
+23:18:36.607053 IP (tos 0x0, ttl 64, id 27475, offset 0, flags [DF], proto UDP (17), length 78)
+    10.56.1.14.59177 > 10.60.0.10.domain: 7915+ AAAA? www.google.com.svc.cluster.local. (50)
+```
 
 前面的输出显示，在容器内部，有`tcpdump`在网络接口`cali01fb9a4e4b4`上监听，该接口是为另一个 Pod 的网络通信创建的。通过授予主机网络命名空间和`CAP_NET_ADMIN`，您可以在容器内部从整个工作节点嗅探网络流量。一般来说，对容器授予的功能越少，对其他微服务的安全边界就越安全。
 
@@ -158,7 +200,42 @@ Kubernetes 网络策略定义了不同组的 Pod 之间允许通信的规则。�
 
 如前一章所述，根据网络模型的要求，集群内的 Pod 可以相互通信。但从安全角度来看，您可能希望将您的微服务限制为只能被少数服务访问。我们如何在 Kubernetes 中实现这一点呢？让我们快速看一下以下 Kubernetes 网络策略示例：
 
-[PRE3]
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: test-network-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - ipBlock:
+        cidr: 172.17.0.0/16
+        except:
+        - 172.17.1.0/24
+    - namespaceSelector:
+        matchLabels:
+          project: myproject
+    - podSelector:
+        matchLabels:
+          role: frontend
+    ports:
+    - protocol: TCP
+      port: 6379
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 10.0.0.0/24
+    ports:
+    - protocol: TCP
+      port: 5978
+```
 
 `NetworkPolicy`策略命名为`test-network-policy`。网络策略规范中值得一提的一些关键属性列在这里，以帮助您了解限制是什么：
 
@@ -188,7 +265,26 @@ Kubernetes 网络策略定义了不同组的 Pod 之间允许通信的规则。�
 
 为了从网络方面加强微服务的信任边界，您可能希望要么指定来自外部的允许的`ipBlock`，要么允许来自特定命名空间的微服务。以下是另一个示例，通过使用`namespaceSelector`和`podSelector`来限制来自特定 Pod 和命名空间的入口源：
 
-[PRE4]
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-good
+spec:
+  podSelector:
+    matchLabels:
+      app: web
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          from: good
+      podSelector:
+        matchLabels:
+          from: good
+```
 
 请注意，在`podSelector`属性前面没有`-`。这意味着入口源只能是具有标签`from: good`的命名空间中的 Pod。这个网络策略保护了默认命名空间中具有标签`app: web`的 Pod：
 

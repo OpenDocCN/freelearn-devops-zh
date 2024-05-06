@@ -78,7 +78,10 @@ Swarm 集群的目标是运行服务，例如，由大量容器组成的大规�
 
 为了使大型集群，如 Swarm2k 或 Swarm3k 稳定，所有管理者的可用性必须设置为“排水”状态，以便所有任务不会被安排在它们上面，只会在工作节点上，具体为：
 
-[PRE0]
+```
+ docker node update --availability drain node-name
+
+```
 
 ## 管理者拓扑结构
 
@@ -113,23 +116,38 @@ Swarm 集群的目标是运行服务，例如，由大量容器组成的大规�
 
 首先，我们使用以下命令为 DigitalOcean 创建了一个名为`swarm2k`的集群模板：
 
-[PRE1]
+```
+ $ belt cluster new --driver digitalocean swarm2k
+
+```
 
 上述命令在当前目录中创建了一个名为`.belt/swarm2k/config.yml`的配置模板文件。这是我们定义其他属性的起点。
 
 我们通过运行以下命令来检查我们的集群是否已定义：
 
-[PRE2]
+```
+ $ belt cluster ls
+ CLUSTER       ACTIVE    LEADER    MASTERS    #NODES
+ swarm2k       -         -         -          0 / 0
+
+```
 
 使用该命令，我们可以切换并使用可用的`swarm2k`集群，如下所示：
 
-[PRE3]
+```
+ $ belt use swarm2k
+ swarm2k
+
+```
 
 在这一点上，我们完善了`swarm2k`模板的属性。
 
 通过发出以下命令将 DigitalOcean 的实例区域设置为`sgp1`：
 
-[PRE4]
+```
+ $ belt cluster update region=sgp1
+
+```
 
 Belt 需要使用该命令定义所有必要的值。以下是我们在`config.yml`中指定的 DigitalOcean 驱动程序所需的模板键列表：
 
@@ -149,33 +167,78 @@ Belt 需要使用该命令定义所有必要的值。以下是我们在`config.y
 
 配置就绪后，我们通过运行以下代码验证了当前的模板属性：
 
-[PRE5]
+```
+ $ belt cluster config
+ digitalocean:
+ image: "123456"
+ region: sgp1
+ ssh_key_fingerprint: "800000"
+ ssh_user: root
+
+```
 
 现在，我们使用以下语法创建了一组 3 个 512MB 的管理节点，分别称为 mg0、mg1 和 mg2：
 
-[PRE6]
+```
+ $ belt create 8192MB mg[0:2]
+ NAME   IPv4         MEMORY  REGION  IMAGE       STATUS
+ mg2    128.*.*.11   8192     sgp1   Ubuntu docker-1.12.1 new
+ mg1    128.*.*.220  8192     sgp1   Ubuntu docker-1.12.1 new
+ mg0    128.*.*.21   8192     sgp1   Ubuntu docker-1.12.1 new
+
+```
 
 所有新节点都被初始化并进入新状态。
 
 我们可以使用以下命令等待所有 3 个节点变为活动状态：
 
-[PRE7]
+```
+ $ belt status --wait active=3
+ STATUS  #NODES  NAMES
+ new         3   mg2, mg1, mg0
+ STATUS  #NODES  NAMES
+ new         3   mg2, mg1, mg0
+ STATUS  #NODES  NAMES
+ new         3   mg2, mg1, mg0
+ STATUS  #NODES  NAMES
+ active      3   mg2, mg1, mg0
+
+```
 
 然后，我们将 node1 设置为活动的管理主机，我们的 Swarm 将准备好形成。通过运行 active 命令可以设置活动主机，如下所示：
 
-[PRE8]
+```
+ $ belt active mg0
+ swarm2k/mg0
+
+```
 
 在这一点上，我们已经形成了一个 Swarm。我们将 mg0 初始化为管理者领导者，如下所示：
 
-[PRE9]
+```
+ $ belt docker swarm init --advertise-addr 128.*.*.220
+ Swarm initialized: current node (24j7sytbomhshtayt74lf7njo) is now 
+    a manager.
+
+```
 
 前面的命令输出了要复制和粘贴以加入其他管理者和工作者的字符串，例如，看一下以下命令：
 
-[PRE10]
+```
+ docker swarm join \
+ --token SWMTKN-1-1wwyxnfcgqt...fwzc1in3 \
+ 128.*.*.220:2377
+
+```
 
 Belt 提供了一个方便的快捷方式来加入节点，使用以下语法，这就是我们用来加入 mg1 和 mg2 到 Swarm 的方法：
 
-[PRE11]
+```
+ $ belt --host mg[1:2] docker swarm join \
+ --token --token SWMTKN-1-1wwyxnfcgqt...fwzc1in3 \
+ 128.*.*.220:2377
+
+```
 
 现在，我们已经配置好了 mg0、mg1 和 mg2 管理者，并准备好获取工作者的 Swarm。
 
@@ -195,11 +258,56 @@ Docker Machine 如何为我们工作？首先，Docker Machine 通过 SSH 连接
 
 然后，我们使用 Docker Machine 在 mg0、mg1 和 mg2 上生成了 Engine 的根 CA，并配置了 TLS 连接。然后，我们稍后使用 Docker 客户端进一步控制 Swarm，而无需使用较慢的 SSH。
 
-[PRE12]
+```
+ $ docker-machine create \
+ --driver generic \
+ --generic-ip-address=$(belt ip mg0) mg0
+ Running pre-create checks...
+ Creating machine...
+ (mg0) No SSH key specified. Assuming an existing key at the default 
+    location.
+ Waiting for machine to be running, this may take a few minutes...
+ Detecting operating system of created instance...
+ Waiting for SSH to be available...
+ Detecting the provisioner...
+ Provisioning with ubuntu(systemd)...
+ Installing Docker...
+ Copying certs to the local machine directory...
+ Copying certs to the remote machine...
+ Setting Docker configuration on the remote daemon...
+ Checking connection to Docker...
+ Then we can test our working swarm with `docker info`. We grep only 
+    15 lines for the brevity.
+ $ docker $(docker-machine config mg0) info | grep -A 15 Swarm
+ Swarm: active
+ NodeID: 24j7sytbomhshtayt74lf7njo
+ Is Manager: true
+ ClusterID: 8rshkwfq4hsil2tdb3idpqdeg
+ Managers: 3
+ Nodes: 3
+ Orchestration:
+ Task History Retention Limit: 5
+ Raft:
+ Snapshot Interval: 10000
+ Heartbeat Tick: 1
+ Election Tick: 3
+ Dispatcher:
+ Heartbeat Period: 5 seconds
+ CA Configuration:
+ Expiry Duration: 3 months
+
+```
 
 此外，`docker node ls`将在这个设置中正常工作。我们现在验证了 3 个管理者组成了初始的 Swarm，并且能够接受一堆工作节点：
 
-[PRE13]
+```
+ $ docker $(docker-machine config mg0) node ls
+ ID                       HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+ 24j7sytbomhshtayt74lf7njo *  mg0       Ready   Active        Leader
+ 2a4jcvp32aoa6olaxlelthkws    mg1       Ready   Active        Reachable
+ 94po1ln0j0g5fgjnjfvm1w02r    mg2       Ready   Active        Reachable
+
+```
 
 ### 提示
 
@@ -211,21 +319,48 @@ Docker Machine 如何为我们工作？首先，Docker Machine 通过 SSH 连接
 
 此时，我们通过创建一个带有 3 个副本的 nginx 服务来检查 Swarm 是否可操作：
 
-[PRE14]
+```
+ $ eval $(docker-machine env mg0)
+ $ docker service create --name nginx --replicas 3 nginx
+ du2luca34cmy
+
+```
 
 之后，我们找到了运行 Nginx 的 net 命名空间 ID。我们通过 SSH 连接到 mg0。Swarm 的路由网格的网络命名空间是具有与特殊网络命名空间`1-5t4znibozx`相同时间戳的命名空间。在这个例子中，我们要找的命名空间是`fe3714ca42d0`。
 
-[PRE15]
+```
+ root@mg0:~# ls /var/run/docker/netns -al
+ total 0
+ drwxr-xr-x 2 root root 120 Aug 22 15:38 .
+ drwx------ 5 root root 100 Aug 22 13:39 ..
+ -r--r--r-- 1 root root   0 Aug 22 15:17 1-5t4znibozx
+ -r--r--r-- 1 root root   0 Aug 22 15:36 d9ef48834a31
+ -r--r--r-- 1 root root   0 Aug 22 15:17 fe3714ca42d0
+
+```
 
 我们可以使用 ipvsadm 找出我们的 IPVS 条目，并使用 nsenter 工具（[`github.com/jpetazzo/nsenter`](https://github.com/jpetazzo/nsenter)）在 net 命名空间内运行它，如下所示：
 
-[PRE16]
+```
+ root@node1:~# nsenter --net=/var/run/docker/netns/fe3714ca42d0 ipvsadm -L
+ IP Virtual Server version 1.2.1 (size=4096)
+ Prot LocalAddress:Port Scheduler Flags
+ -> RemoteAddress:Port           Forward Weight ActiveConn InActConn
+ FWM  259 rr
+ -> 10.255.0.8:0                 Masq    1      0          2
+
+```
 
 在这里，我们可以注意到有一个活动的轮询 IPVS 条目。IPVS 是内核级负载均衡器，与 iptables 一起用于 Swarm 来平衡流量，iptables 用于转发和过滤数据包。
 
 清理 nginx 测试服务（`docker service rm nginx`）后，我们将设置管理者为 Drain 模式，以避免它们接受任务：
 
-[PRE17]
+```
+ $ docker node update --availability drain mg0
+ $ docker node update --availability drain mg1
+ $ docker node update --availability drain mg2
+
+```
 
 现在，我们准备在 Twitter 和 Github 上宣布我们的管理者的可用性，并开始实验！
 
@@ -253,35 +388,77 @@ Docker Machine 如何为我们工作？首先，Docker Machine 通过 SSH 连接
 
 使用奇数作为法定人数，安全地将管理器降级进行维护。
 
-[PRE18]
+```
+ $ docker node ls
+ ID                  HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+ 4viybni..h24zxde    mg1       Ready   Active        Reachable
+ 6xxwumb..j6zvtyg *  mg0       Ready   Active        Leader
+ f1vs2e3..abdehnh    mg2       Ready   Active
+
+```
 
 在这里，我们将 mg1 作为可达的管理器，并使用以下语法将其降级为工作节点：
 
-[PRE19]
+```
+ $ docker node demote mg1
+ Manager mg1 demoted in the swarm.
+
+```
 
 我们可以看到当 mg1 成为工作节点时，`mg1`的`Reachable`状态从节点列表输出中消失。
 
-[PRE20]
+```
+ $ docker node ls
+ ID                  HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+ 4viybni..h24zxde    mg1       Ready   Active
+ 6xxwumb..j6zvtyg *  mg0       Ready   Active        Leader
+ f1vs2e3..abdehnh    mg2       Ready   Active
+
+```
 
 当节点不再是管理器时，可以安全地关闭它，例如，使用 DigitalOcean CLI，就像我们做的那样：
 
-[PRE21]
+```
+ $ doctl compute droplet-action shutdown 23362382
+
+```
 
 列出节点时，我们注意到 mg1 已经宕机了。
 
-[PRE22]
+```
+ $ docker node ls
+ ID                   HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+ 4viybni0ud2gjpay6ih24zxde    mg1       Down    Active
+ 6xxwumbdac34bbgh6hj6zvtyg *  mg0       Ready   Active        Leader
+ f1vs2e3hjiqjaukmjqabdehnh    mg2       Ready   Active
+
+```
 
 我们将其资源升级为 16G 内存，然后再次启动该机器：
 
-[PRE23]
+```
+ $ doctl -c .doctlcfg compute droplet-action power-on 23362382
+
+```
 
 在列出这个时间时，我们可以预期一些延迟，因为 mg1 正在重新加入集群。
 
-[PRE24]
+```
+ $ docker node ls
+ ID                  HOSTNAME  STATUS  AVAILABILITY  MANAGER STATUS
+ 4viybni..h24zxde    mg1       Ready   Active
+ 6xxwumb..j6zvtyg *  mg0       Ready   Active        Leader
+ f1vs2e3..abdehnh    mg2       Ready   Active
+
+```
 
 最后，我们可以将其重新提升为管理器，如下所示：
 
-[PRE25]
+```
+ $ docker node promote mg1
+ Node mg1 promoted to a manager in the swarm.
+
+```
 
 一旦完成这个操作，集群就正常运行了。所以，我们对 mg0 和 mg2 重复了这个操作。
 
@@ -309,15 +486,48 @@ Telegraf Swarm 插件收集数据并创建以下系列，其中包含我们认�
 
 要启用 Telegraf Swarm 插件，我们需要通过添加以下配置来调整`telegraf.conf`：
 
-[PRE26]
+```
+ # Read metrics about swarm tasks and services
+ [[inputs.swarm]]
+   # Docker Endpoint
+   #   To use TCP, set endpoint = "tcp://[ip]:[port]"
+ #   To use environment variables (ie, docker-machine), set endpoint =
+ "ENV"
+   endpoint = "unix:///var/run/docker.sock"
+   timeout = “10s”
+
+```
 
 首先，按以下方式设置 InfluxDB 实例：
 
-[PRE27]
+```
+ $ docker run -d \
+ -p 8083:8083 \
+ -p 8086:8086 \
+ --expose 8090 \
+ --expose 8099 \
+ -e PRE_CREATE_DB=telegraf \
+ --name influxsrv
+ tutum/influxdb
+
+```
 
 然后，按以下方式设置 Grafana：
 
-[PRE28]
+```
+ docker run -d \
+ -p 80:3000 \
+ -e HTTP_USER=admin \
+ -e HTTP_PASS=admin \
+ -e INFLUXDB_HOST=$(belt ip influxdb) \
+ -e INFLUXDB_PORT=8086 \
+ -e INFLUXDB_NAME=telegraf \
+ -e INFLUXDB_USER=root \
+ -e INFLUXDB_PASS=root \
+ --name grafana \
+ grafana/grafana
+
+```
 
 在设置 Grafana 实例后，我们可以从以下 JSON 配置创建仪表板：
 
@@ -325,7 +535,23 @@ Telegraf Swarm 插件收集数据并创建以下系列，其中包含我们认�
 
 要将仪表板连接到 InfluxDB，我们将不得不定义默认数据源并将其指向 InfluxDB 主机端口`8086`。以下是定义数据源的 JSON 配置。将`$INFLUX_DB_IP`替换为您的 InfluxDB 实例。
 
-[PRE29]
+```
+ {
+ "name":"telegraf",
+ "type":"influxdb",
+ "access":"proxy",
+ "url":"http://$INFLUX_DB_IP:8086",
+ "user":"root",
+ "password":"root",
+ "database":"telegraf",
+ "basicAuth":true,
+ "basicAuthUser":"admin",
+ "basicAuthPassword":"admin",
+ "withCredentials":false,
+ "isDefault":true
+ }
+
+```
 
 将所有内容链接在一起后，我们将看到一个像这样的仪表板：
 
@@ -363,29 +589,72 @@ Sematext 是唯一一家允许我们将监控代理部署为全局 Docker 服务
 
 打算使用 25 个节点形成一个 MySQL 集群。首先，我们创建了一个 overlay 网络`mydb`：
 
-[PRE30]
+```
+ $ docker network create -d overlay mydb
+
+```
 
 然后，我们准备了以下`entrypoint.sh`脚本：
 
-[PRE31]
+```
+ #!/bin/bash
+ ETCD_SUBNET=${ETCD_SUBNET:-10.0.0.0}
+ ETCD_HOST=$(ip route get $ETCD_SUBNET | awk 'NR==1 {print $NF}')
+ /usr/local/bin/etcd \
+ -name etcd0 \
+ -advertise-client-urls 
+       http://${ETCD_HOST}:2379,http://${ETCD_HOST}:4001 \
+ -listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+ -initial-advertise-peer-urls http://${ETCD_HOST}:2380 \
+ -listen-peer-urls http://0.0.0.0:2380 \
+ -initial-cluster-token etcd-cluster-1 \
+ -initial-cluster etcd0=http://${ETCD_HOST}:2380 \
+ -initial-cluster-state new
+
+```
 
 然后，我们将为我们特殊版本的 Etcd 准备一个新的 Dockerfile，如下所示：
 
-[PRE32]
+```
+ FROM quay.io/coreos/etcd
+ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+ RUN  chmod +x /usr/local/bin/entrypoint.sh
+ ENTRYPOINT ['/usr/local/bin/entrypoint.sh']
+
+```
 
 在开始使用之前，不要忘记使用`$ docker build -t chanwit/etcd.`来构建它。
 
 第三，我们启动了一个 Etcd 节点作为 MySQL 集群的中央发现服务，如下所示：
 
-[PRE33]
+```
+ $ docker service create --name etcd --network mydb chanwit/etcd
+
+```
 
 通过检查 Etcd 的虚拟 IP，我们将得到以下服务 VIP：
 
-[PRE34]
+```
+ $ docker service inspect etcd -f "{{ .Endpoint.VirtualIPs }}"
+ [{... 10.0.0.2/24}]
+
+```
 
 有了这些信息，我们创建了我们的`mysql`服务，可以在任何程度上进行扩展。看看以下示例：
 
-[PRE35]
+```
+ docker service create \
+ --name mysql \
+ -p 3306:3306 \
+ --network mydb \
+ --env MYSQL_ROOT_PASSWORD=mypassword \
+ --env DISCOVERY_SERVICE=10.0.0.2:2379 \
+ --env XTRABACKUP_PASSWORD=mypassword \
+ --env CLUSTER_NAME=galera \
+ --mount "type=bind,src=/var/lib/mysql,dst=/var/lib/mysql" \
+ perconalab/percona-xtradb-cluster:5.6
+
+```
 
 由于 Libnetwork 的一个 bug，我们在 mynet 和 ingress 网络中遇到了一些 IP 地址问题；请查看[`github.com/docker/docker/issues/24637`](https://github.com/docker/docker/issues/24637)获取更多信息。我们通过将集群绑定到一个*单一*overlay 网络`mydb`来解决了这个 bug。
 
@@ -395,7 +664,12 @@ Sematext 是唯一一家允许我们将监控代理部署为全局 Docker 服务
 
 从这个问题中我们还学到，覆盖网络的性能在很大程度上取决于每个主机上网络配置的正确调整。正如一位 Docker 工程师建议的那样，当有太多的 ARP 请求（当网络非常大时）并且每个主机无法回复时，我们可能会遇到“邻居表溢出”错误。这些是我们在 Docker 主机上增加的可调整项，以修复以下行为：
 
-[PRE36]
+```
+ net.ipv4.neigh.default.gc_thresh1 = 30000 
+    net.ipv4.neigh.default.gc_thresh2 = 32000    
+    net.ipv4.neigh.default.gc_thresh3 = 32768
+
+```
 
 在这里，`gc_thresh1`是预期的主机数量，`gc_thresh2`是软限制，`gc_thresh3`是硬限制。
 

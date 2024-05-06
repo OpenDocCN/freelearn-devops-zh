@@ -93,7 +93,15 @@ RESTful API 的主要特性之一是请求需要是无状态的，这意味着�
 
 思想的格式如下：
 
-[PRE0]
+```py
+thought
+{
+    id integer
+    username string
+    text string
+    timestamp string($date-time)
+}
+```
 
 要创建一个，只需要发送文本。时间戳会自动设置，ID 会自动创建，用户名会被身份验证数据检测到。
 
@@ -116,7 +124,13 @@ thought_model 表
 
 这个表在`thoughts_backend/models.py`文件中以 SQLAlchemy 格式表示，代码如下：
 
-[PRE1]
+```py
+class ThoughtModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50))
+    text = db.Column(db.String(250))
+    timestamp = db.Column(db.DateTime, server_default=func.now())
+```
 
 SQLAlchemy 能够为测试目的或开发模式创建表。在本章中，我们将数据库定义为 SQLite，它将数据存储在`db.sqlite3`文件中。
 
@@ -136,11 +150,27 @@ Flask-SQLAlchemy 的文档([`flask-sqlalchemy.palletsprojects.com/en/2.x/`](http
 
 在我们定义模型之后，我们可以通过模型中的`query`属性执行查询，并相应地进行过滤：
 
-[PRE2]
+```py
+# Retrieve a single thought by its primary key
+thought = ThoughtModel.query.get(thought_id)
+# Retrieve all thoughts filtered by a username
+thoughts = ThoughtModel.query.filter_by(username=username)
+.order_by('id').all()
+```
 
 存储和删除一行需要使用会话，然后提交它：
 
-[PRE3]
+```py
+# Create a new thought
+new_thought = ThoughtModel(username=username, text=text, timestamp=datetime.utcnow())
+db.session.add(new_thought)
+db.session.commit()
+
+# Retrieve and delete a thought
+thought = ThoughtModel.query.get(thought_id)
+db.session.delete(thought)
+db.session.commit()
+```
 
 要查看如何配置数据库访问，请查看`thoughts_backend/db.py`文件。
 
@@ -192,7 +222,25 @@ Flask 的其他好元素源自它是一个受欢迎的项目，并且有很多�
 
 让我们来看一个简单的代码示例（在 GitHub 上可用）来描述它：
 
-[PRE4]
+```py
+api_namespace = Namespace('api', description='API operations')
+
+@api_namespace.route('/thoughts/<int:thought_id>/')
+class ThoughtsRetrieve(Resource):
+
+    @api_namespace.doc('retrieve_thought')
+    @api_namespace.marshal_with(thought_model)
+    def get(self, thought_id):
+        '''
+        Retrieve a thought
+        '''
+        thought = ThoughtModel.query.get(thought_id)
+        if not thought:
+            # The thought is not present
+            return '', http.client.NOT_FOUND
+
+        return thought
+```
 
 这实现了`GET /api/thoughts/X/`操作，通过 ID 检索单个想法。
 
@@ -200,25 +248,58 @@ Flask 的其他好元素源自它是一个受欢迎的项目，并且有很多�
 
 1.  首先，我们通过其 URL 定义资源。请注意，`api_namespace`设置了 URL 的`api`前缀，这将验证参数`X`是一个整数：
 
-[PRE5]
+```py
+api_namespace = Namespace('api', description='API operations')
+
+@api_namespace.route('/thoughts/<int:thought_id>/')
+class ThoughtsRetrieve(Resource):
+    ...
+```
 
 1.  该类允许您对同一资源执行多个操作。在这种情况下，我们只执行一个：`GET`操作。
 
 1.  请注意，编码在 URL 中的`thought_id`参数作为参数传递给该方法：
 
-[PRE6]
+```py
+class ThoughtsRetrieve(Resource):
+
+    def get(self, thought_id):
+        ...
+```
 
 1.  现在我们可以执行该操作，这是在数据库中搜索以检索单个对象。调用`ThoughModel`来搜索指定的想法。如果找到，将以`http.client.OK (200)`状态代码返回。如果未找到，则返回空结果和`http.client.NOT_FOUND 404`状态代码：
 
-[PRE7]
+```py
+def get(self, thought_id):
+    thought = ThoughtModel.query.get(thought_id)
+    if not thought:
+        # The thought is not present
+        return '', http.client.NOT_FOUND
+
+    return thought
+```
 
 1.  返回`thought`对象。`marshal_with`装饰器描述了 Python 对象应如何序列化为 JSON 结构。稍后我们将看到如何配置它：
 
-[PRE8]
+```py
+@api_namespace.marshal_with(thought_model)
+def get(self, thought_id):
+    ...
+    return thought
+```
 
 1.  最后，我们有一些文档，包括由自动生成的 Swagger API 呈现的文档字符串：
 
-[PRE9]
+```py
+class ThoughtsRetrieve(Resource):
+
+    @api_namespace.doc('retrieve_thought')
+    def get(self, thought_id):
+        '''
+        Retrieve a thought
+        '''
+        ...
+```
 
 正如您所看到的，大多数操作都是通过 Flask-RESTPlus 配置和执行的，作为开发人员的主要工作是肉体的*步骤 4*。但是还有一些工作要做，例如配置预期的输入参数并验证它们，以及如何将返回的对象序列化为适当的 JSON。我们将看到 Flask-RESTPlus 如何帮助我们。
 
@@ -228,7 +309,9 @@ Flask 的其他好元素源自它是一个受欢迎的项目，并且有很多�
 
 +   字符串查询参数编码到 URL 中。这些通常用于`GET`请求，看起来像下面这样：
 
-[PRE10]
+```py
+http://test.com/some/path?param1=X&param2=Y
+```
 
 它们是 URL 的一部分，并将存储在沿途的任何日志中。参数被编码为它们自己的格式，称为**URL 编码**（[`www.urlencoder.io/learn/`](https://www.urlencoder.io/learn/)）。您可能已经注意到，例如，空格会被转换为`%20`。
 
@@ -248,11 +331,37 @@ Flask 的其他好元素源自它是一个受欢迎的项目，并且有很多�
 
 让我们看看这在我们的例子中是如何工作的。这段代码是从 GitHub 中提取的，并缩短以描述解析参数：
 
-[PRE11]
+```py
+authentication_parser = api_namespace.parser()
+authentication_parser.add_argument('Authorization', 
+location='headers', type=str, help='Bearer Access 
+Token')
+
+thought_parser = authentication_parser.copy()
+thought_parser.add_argument('text', type=str, required=True, help='Text of the thought')
+
+@api_namespace.route('/me/thoughts/')
+class MeThoughtListCreate(Resource):
+
+    @api_namespace.expect(thought_parser)
+    def post(self):
+        args = thought_parser.parse_args()
+        username = authentication_header_parser(args['Authorization'])
+        text=args['text']
+        ...
+
+```
 
 我们在下面的行中定义了一个解析器：
 
-[PRE12]
+```py
+authentication_parser = api_namespace.parser()
+authentication_parser.add_argument('Authorization', 
+location='headers', type=str, help='Bearer Access Token')
+
+thought_parser = authentication_parser.copy()
+thought_parser.add_argument('text', type=str, required=True, help='Text of the thought')
+```
 
 `authentication_parser`被`thought_parser`继承，以扩展功能并结合两者。每个参数都根据类型和是否需要来定义。如果缺少必需的参数或其他元素不正确，Flask-RESTPlus 将引发`400 BAD_REQUEST`错误，并提供有关出了什么问题的反馈。
 
@@ -260,13 +369,35 @@ Flask 的其他好元素源自它是一个受欢迎的项目，并且有很多�
 
 `post`方法得到一个装饰器，表明它期望`thought_parser`参数，并且我们用`parse_args`解析它：
 
-[PRE13]
+```py
+@api_namespace.route('/me/thoughts/')
+class MeThoughtListCreate(Resource):
+
+    @api_namespace.expect(thought_parser)
+    def post(self):
+        args = thought_parser.parse_args()
+        ...
+```
 
 此外，`args`现在是一个带有所有参数正确解析并在下一行中使用的字典。
 
 在身份验证标头的特定情况下，有一个特定的函数来处理它，并且通过使用`abort`返回`401 UNAUTHORIZED`状态码。这个调用立即停止了一个请求：
 
-[PRE14]
+```py
+def authentication_header_parser(value):
+    username = validate_token_header(value, config.PUBLIC_KEY)
+    if username is None:
+        abort(401)
+    return username
+
+class MeThoughtListCreate(Resource):
+
+    @api_namespace.expect(thought_parser)
+    def post(self):
+       args = thought_parser.parse_args()
+       username = authentication_header_parser(args['Authentication'])
+       ...
+```
 
 我们暂时不考虑要执行的操作（将新的想法存储在数据库中），而是专注于其他框架配置，将结果序列化为 JSON 对象。
 
@@ -276,37 +407,101 @@ Flask 的其他好元素源自它是一个受欢迎的项目，并且有很多�
 
 序列化器模型被定义为一个带有预期字段和字段类型的字典：
 
-[PRE15]
+```py
+from flask_restplus import fields
+
+model = {
+    'id': fields.Integer(),
+    'username': fields.String(),
+    'text': fields.String(),
+    'timestamp': fields.DateTime(),
+}
+thought_model = api_namespace.model('Thought', model)
+```
 
 该模型将接受一个 Python 对象，并将每个属性转换为相应的 JSON 元素，如字段中所定义的那样：
 
-[PRE16]
+```py
+@api_namespace.route('/me/thoughts/')
+class MeThoughtListCreate(Resource):
+
+    @api_namespace.marshal_with(thought_model)
+    def post(self):
+        ...
+        new_thought = ThoughtModel(...)
+        return new_thought
+```
 
 请注意，`new_thought`是一个`ThoughtModel`对象，由 SQLAlchemy 检索到。我们将在下面详细介绍它，但现在，可以说它具有模型中定义的所有属性：`id`、`username`、`text`和`timestamp`。
 
 内存对象中不存在的任何属性默认值为`None`。您可以将此默认值更改为将返回的值。您可以指定一个函数，因此在生成响应时将调用它来检索值。这是向对象添加动态信息的一种方式：
 
-[PRE17]
+```py
+model = {
+    'timestamp': fields.DateTime(default=datetime.utcnow),
+}
+```
 
 您还可以添加要序列化的属性的名称，以防它与预期的结果不同，或者添加一个将被调用以检索值的`lambda`函数：
 
-[PRE18]
+```py
+model = {
+    'thought_text': fields.String(attribute='text'),
+    'thought_username': fields.String(attribute=lambda x: x.username),
+ }
+```
 
 对于更复杂的对象，你可以像这样嵌套值。请注意，这从文档的角度定义了两个模型，并且每个`Nested`元素都创建了一个新的作用域。你也可以使用`List`来添加多个相同类型的实例：
 
-[PRE19]
+```py
+extra = {
+   'info': fields.String(),
+}
+extra_info = api_namespace.model('ExtraInfo', extra)
+
+model = {
+    'extra': fields.Nested(extra),
+    'extra_list': fields.List(fields.Nested(extra)),
+ }
+
+```
 
 一些可用字段有更多的选项，比如`DateTime`字段的日期格式。查看完整的字段文档（[`flask-restplus.readthedocs.io/en/stable/api.html#models`](https://flask-restplus.readthedocs.io/en/stable/api.html#models)）以获取更多详细信息。
 
 如果返回一个元素列表，在`marshal_with`装饰器中添加`as_list=True`参数：
 
-[PRE20]
+```py
+@api_namespace.route('/me/thoughts/')
+class MeThoughtListCreate(Resource):
+
+    @api_namespace.marshal_with(thought_model, as_list=True)
+    def get(self):
+        ...
+        thoughts = (
+            ThoughtModel.query.filter(
+                ThoughtModel.username == username
+            )
+            .order_by('id').all()
+        )
+        return thoughts
+
+```
 
 `marshal_with`装饰器将把`result`对象从 Python 对象转换为相应的 JSON 数据对象。
 
 默认情况下，它将返回`http.client.OK (200)`状态码，但我们可以返回不同的状态码，返回两个值：第一个是要`marshal`的对象，第二个是状态码。`marshal_with`装饰器中的代码参数用于文档目的。请注意，在这种情况下，我们需要添加特定的`marshal`调用：
 
-[PRE21]
+```py
+@api_namespace.route('/me/thoughts/')
+class MeThoughtListCreate(Resource):
+
+    @api_namespace.marshal_with(thought_model, 
+         code=http.client.CREATED)
+    def post(self):
+        ...
+        result = api_namespace.marshal(new_thought, thought_model)
+        return result, http.client.CREATED
+```
 
 Swagger 文档将显示所有您定义的`marshal`对象：
 
@@ -322,7 +517,30 @@ Flask-RESTPlus 的一个不便之处是，为了输入和输出相同的对象�
 
 最后，我们来到了输入数据已经清洁并准备好使用的具体部分，我们知道如何返回结果。这部分可能涉及执行一些数据库查询和组合结果。让我们以以下内容作为示例：
 
-[PRE22]
+```py
+@api_namespace.route('/thoughts/')
+class ThoughtList(Resource):
+
+    @api_namespace.doc('list_thoughts')
+    @api_namespace.marshal_with(thought_model, as_list=True)
+    @api_namespace.expect(search_parser)
+    def get(self):
+        '''
+        Retrieves all the thoughts
+        '''
+        args = search_parser.parse_args()
+        search_param = args['search']
+        # Action
+        query = ThoughtModel.query
+        if search_param:
+            query =(query.filter(
+                ThoughtModel.text.contains(search_param)))
+
+        query = query.order_by('id')
+        thoughts = query.all()
+        # Return the result
+        return thoughts
+```
 
 您可以在此处看到，在解析参数后，我们使用 SQLAlchemy 检索查询，如果`search`参数存在，将应用过滤器。我们使用`all()`获取所有`ThoughtModel`对象的结果。
 
@@ -334,7 +552,24 @@ Flask-RESTPlus 的一个不便之处是，为了输入和输出相同的对象�
 
 以下函数生成`Bearer`令牌：
 
-[PRE23]
+```py
+def encode_token(payload, private_key):
+    return jwt.encode(payload, private_key, algorithm='RS256')
+
+def generate_token_header(username, private_key):
+    '''
+    Generate a token header base on the username. 
+    Sign using the private key.
+    '''
+    payload = {
+        'username': username,
+        'iat': datetime.utcnow(),
+        'exp': datetime.utcnow() + timedelta(days=2),
+    }
+    token = encode_token(payload, private_key)
+    token = token.decode('utf8')
+    return f'Bearer {token}'
+```
 
 这将生成一个 JWT 有效负载。它包括`username`作为自定义值使用，但它还添加了两个标准字段，即`exp`到期日期和`iat`令牌生成时间。
 
@@ -344,19 +579,57 @@ Flask-RESTPlus 的一个不便之处是，为了输入和输出相同的对象�
 
 令牌本身的解码很简单，因为`jwt.decode`操作将执行此操作：
 
-[PRE24]
+```py
+def decode_token(token, public_key):
+    return jwt.decode(token, public_key, algoritms='RS256')
+```
 
 但在到达该步骤之前，我们需要获取令牌并验证多种情况下的头部是否有效，因此我们首先检查头部是否为空，以及是否具有正确的格式，提取令牌：
 
-[PRE25]
+```py
+def validate_token_header(header, public_key):
+    if not header:
+        logger.info('No header')
+        return None
+
+    # Retrieve the Bearer token
+    parse_result = parse('Bearer {}', header)
+    if not parse_result:
+        logger.info(f'Wrong format for header "{header}"')
+        return None
+    token = parse_result[0]
+```
 
 然后，我们解码令牌。如果无法使用公钥解码令牌，则会引发`DecodeError`。令牌也可能已过期：
 
-[PRE26]
+```py
+    try:
+        decoded_token = decode_token(token.encode('utf8'), public_key)
+    except jwt.exceptions.DecodeError:
+        logger.warning(f'Error decoding header "{header}". '
+        'This may be key missmatch or wrong key')
+        return None
+    except jwt.exceptions.ExpiredSignatureError:
+        logger.info(f'Authentication header has expired')
+        return None
+```
 
 然后，检查它是否具有预期的`exp`和`username`参数。如果其中任何一个参数缺失，这意味着令牌在解码后的格式不正确。这可能发生在不同版本中更改代码时。
 
-[PRE27]
+```py
+    # Check expiry is in the token
+    if 'exp' not in decoded_token:
+        logger.warning('Token does not have expiry (exp)')
+        return None
+
+    # Check username is in the token
+    if 'username' not in decoded_token:
+        logger.warning('Token does not have username')
+        return None
+
+    logger.info('Header successfully validated')
+    return decoded_token['username']
+```
 
 如果一切顺利，最后返回用户名。
 
@@ -370,15 +643,28 @@ Flask-RESTPlus 的一个不便之处是，为了输入和输出相同的对象�
 
 要生成私钥/公钥，请运行以下命令：
 
-[PRE28]
+```py
+$ openssl genrsa -out key.pem 2048
+Generating RSA private key, 2048 bit long modulus
+.....................+++
+.............................+++
+```
 
 然后，要提取公钥，请使用以下命令：
 
-[PRE29]
+```py
+$ openssl rsa -in key.pem -outform PEM -pubout -out key.pub
+```
 
 这将生成两个文件：`key.pem`和`key.pub`，其中包含私钥/公钥对。以文本格式读取它们就足以将它们用作编码/解码 JWT 令牌的密钥：
 
-[PRE30]
+```py
+>> with open('private.pem') as fp:
+>> ..  private_key = fp.read()
+
+>> generate_token_header('peter', private_key)
+'Bearer <token>'
+```
 
 请注意，对于测试，我们生成了一个**样本密钥对**，作为字符串附加。这些密钥是专门为此用途创建的，不会在其他任何地方使用。请不要在任何地方使用它们，因为它们在 GitHub 上是公开可用的。
 
@@ -392,7 +678,13 @@ Flask-RESTPlus 的一个不便之处是，为了输入和输出相同的对象�
 
 运行所有测试，只需在命令行中调用`pytest`：
 
-[PRE31]
+```py
+$ pytest
+============== test session starts ==============
+....
+==== 17 passed, 177 warnings in 1.50 seconds =====
+
+```
 
 请注意，`pytest`具有许多可用于处理许多测试情况的功能。在处理测试时，运行匹配测试的子集（`-k`选项）、运行上次失败的测试（`--lf`）或在第一个失败后停止（`-x`）等功能非常有用。我强烈建议查看其完整文档（[`docs.pytest.org/en/latest/`](https://docs.pytest.org/en/latest/)）并发现其所有可能性。
 
@@ -408,15 +700,45 @@ Flask-RESTPlus 的一个不便之处是，为了输入和输出相同的对象�
 
 1.  生成三个 thoughts。存储其`thought_id`：
 
-[PRE32]
+```py
+@pytest.fixture
+def thought_fixture(client):
+
+    thought_ids = []
+    for _ in range(3):
+        thought = {
+            'text': fake.text(240),
+        }
+        header = token_validation.generate_token_header(fake.name(),
+                                                        PRIVATE_KEY)
+        headers = {
+            'Authorization': header,
+        }
+        response = client.post('/api/me/thoughts/', data=thought,
+                               headers=headers)
+        assert http.client.CREATED == response.status_code
+        result = response.json
+        thought_ids.append(result['id'])
+```
 
 1.  然后，在测试中添加`yield thought_ids`：
 
-[PRE33]
+```py
+yield thought_ids
+```
 
 1.  检索所有 thoughts 并逐个删除它们：
 
-[PRE34]
+```py
+# Clean up all thoughts
+response = client.get('/api/thoughts/')
+thoughts = response.json
+for thought in thoughts:
+    thought_id = thought['id']
+    url = f'/admin/thoughts/{thought_id}/'
+    response = client.delete(url)
+    assert http.client.NO_CONTENT == response.status_code
+```
 
 请注意，我们使用`faker`模块生成假姓名和文本。您可以在[`faker.readthedocs.io/en/stable/`](https://faker.readthedocs.io/en/stable/)查看其完整文档。这是一个生成测试随机值的好方法，避免反复使用`test_user`和`test_text`。它还有助于塑造您的测试，通过独立检查输入而不是盲目地复制占位符。
 
@@ -436,7 +758,20 @@ Fixture 也可以测试您的 API。您可以选择更低级的方法，比如�
 
 例如，这个测试检查了一个过期的令牌：
 
-[PRE35]
+```py
+@freeze_time('2018-05-17 13:47:34')
+def test_invalid_token_header_expired():
+    expiry = delorean.parse('2018-05-17 13:47:33').datetime
+    payload = {
+        'username': 'tonystark',
+        'exp': expiry,
+    }
+    token = token_validation.encode_token(payload, PRIVATE_KEY)
+    token = token.decode('utf8')
+    header = f'Bearer {token}'
+    result = token_validation.validate_token_header(header, PUBLIC_KEY)
+    assert None is result
+```
 
 请注意，冻结时间恰好是令牌到期时间后的 1 秒。
 

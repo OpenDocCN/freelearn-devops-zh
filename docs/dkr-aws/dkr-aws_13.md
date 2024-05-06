@@ -96,13 +96,42 @@ Docker 中的 Docker 实践有些有争议，并且是使用 Docker 更像虚拟
 
 以下示例显示了 Dockerfile：
 
-[PRE0]
+```
+FROM docker:dind
+
+RUN apk add --no-cache bash make python3 && \
+    pip3 install --no-cache-dir docker-compose awscli
+```
 
 因为 Docker 发布了一个 Docker 中的 Docker 镜像，我们可以简单地基于这个镜像进行定制；我们免费获得了 Docker 中的 Docker 功能。DinD 镜像基于 Alpine Linux，并已经包含所需的 Docker 守护程序和 Docker 客户端。接下来，我们将添加我们构建所需的特定工具。这包括 bash shell，GNU make 和 Python 3 运行时，这是安装 Docker Compose 和 AWS CLI 所需的。
 
 您现在可以使用`docker build`命令在本地构建此镜像，如下所示：
 
-[PRE1]
+```
+> docker build -t codebuild -f Dockerfile.codebuild .
+Sending build context to Docker daemon 405.5kB
+Step 1/2 : FROM docker:dind
+dind: Pulling from library/docker
+ff3a5c916c92: Already exists
+1a649ea86bca: Pull complete
+ce35f4d5f86a: Pull complete
+d0600fe571bc: Pull complete
+e16e21051182: Pull complete
+a3ea1dbce899: Pull complete
+133d8f8629ec: Pull complete
+71a0f0a757e5: Pull complete
+0e081d1eb121: Pull complete
+5a14be8d6d21: Pull complete
+Digest: sha256:2ca0d4ee63d8911cd72aa84ff2694d68882778a1c1f34b5a36b3f761290ee751
+Status: Downloaded newer image for docker:dind
+ ---> 1f44348b3ad5
+Step 2/2 : RUN apk add --no-cache bash make python3 && pip3 install --no-cache-dir docker-compose awscli
+ ---> Running in d69027d58057
+...
+...
+Successfully built 25079965c64c
+Successfully tagged codebuild:latest
+```
 
 在上面的示例中，使用名称为`codebuild`创建新构建的 Docker 镜像。现在这样做是可以的，但是我们需要将此 CodeBuild 发布到**弹性容器注册表**（**ECR**），以便 CodeBuild 可以使用。
 
@@ -112,17 +141,70 @@ Docker 中的 Docker 实践有些有争议，并且是使用 Docker 更像虚拟
 
 首先，您需要在`todobackend-aws`文件夹的根目录中的`ecr.yml`文件中添加一个新的存储库，该文件夹是您在本章中创建的：
 
-[PRE2]
+```
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: ECR Resources
+
+Resources:
+  CodebuildRepository:
+ Type: AWS::ECR::Repository
+ Properties:
+RepositoryName: docker-in-aws/codebuild
+ RepositoryPolicyText:
+ Version: '2008-10-17'
+ Statement:
+ - Sid: CodeBuildAccess
+ Effect: Allow
+ Principal:
+ Service: codebuild.amazonaws.com
+ Action:
+ - ecr:GetDownloadUrlForLayer
+ - ecr:BatchGetImage
+ - ecr:BatchCheckLayerAvailability
+  TodobackendRepository:
+    Type: AWS::ECR::Repository
+  ...
+  ...
+```
 
 在前面的示例中，您创建了一个名为`docker-in-aws/codebuild`的新存储库，这将导致一个名为`<account-id>.dkr.ecr.<region>.amazonaws.com/docker-in-aws/codebuild`的完全限定存储库（例如`385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/codebuild`）。请注意，您必须授予 CodeBuild 服务拉取访问权限，因为 CodeBuild 需要拉取图像以运行作为其构建容器。
 
 您现在可以使用`aws cloudformation deploy`命令将更改部署到 ECR 堆栈，您可能还记得来自章节《使用 ECR 发布 Docker 镜像》的命令，部署到名为 ecr-repositories 的堆栈：
 
-[PRE3]
+```
+> export AWS_PROFILE=docker-in-aws
+> aws cloudformation deploy --template-file ecr.yml --stack-name ecr-repositories
+Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga:
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+Successfully created/updated stack - ecr-repositories
+```
 
 部署完成后，您需要使用您之前创建的图像的完全限定名称重新标记图像，然后您可以登录到 ECR 并发布图像：
 
-[PRE4]
+```
+> docker tag codebuild 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/codebuild
+> eval $(aws ecr get-login --no-include-email)
+WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+Login Succeeded
+> docker push 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/codebuild
+The push refers to repository [385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/codebuild]
+770fb042ae3b: Pushed
+0cdc6e0d843b: Pushed
+395fced17f47: Pushed
+3abf4e550e49: Pushed
+0a6dfdbcc220: Pushed
+27760475e1ac: Pushed
+5270ef39cae0: Pushed
+2c88066e123c: Pushed
+b09386d6aa0f: Pushed
+1ed7a5e2d1b3: Pushed
+cd7100a72410: Pushed
+latest: digest:
+sha256:858becbf8c64b24e778e6997868f587b9056c1d1617e8d7aa495a3170761cf8b size: 2618
+```
 
 # 向您的应用程序存储库添加 CodeBuild 支持
 
@@ -140,7 +222,27 @@ CodeBuild 允许您以多种方式提供构建规范：
 
 以下示例演示了在名为`buildspec.yml`的文件中向 todobackend 存储库添加构建规范：
 
-[PRE5]
+```
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --storage-driver=overlay&
+      - timeout -t 15 sh -c "until docker info; do echo .; sleep 1; done"
+      - export BUILD_ID=$(echo $CODEBUILD_BUILD_ID | sed 's/^[^:]*://g')
+      - export APP_VERSION=$CODEBUILD_RESOLVED_SOURCE_VERSION.$BUILD_ID
+      - make login
+  build:
+    commands:
+      - make test
+      - make release
+      - make publish
+  post_build:
+    commands:
+      - make clean
+      - make logout
+```
 
 构建规范首先指定了必须包含在每个构建规范中的版本，本书编写时最新版本为`0.2`。接下来，您定义了阶段序列，这是必需的，定义了 CodeBuild 将在构建的各个阶段运行的命令。在前面的示例中，您定义了三个阶段：
 
@@ -170,7 +272,22 @@ CodeBuild 允许您以多种方式提供构建规范：
 
 您需要执行的最后一步是将更改提交并推送到您的 Git 存储库，以便在配置 CodePipeline 和 CodeBuild 时新创建的`buildspec.yml`文件可用：
 
-[PRE6]
+```
+> git add -A
+> git commit -a -m "Add build specification"
+[master ab7ac16] Add build specification
+ 1 file changed, 19 insertions(+)
+ create mode 100644 buildspec.yml
+> git push
+Counting objects: 3, done.
+Delta compression using up to 8 threads.
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 584 bytes | 584.00 KiB/s, done.
+Total 3 (delta 1), reused 0 (delta 0)
+remote: Resolving deltas: 100% (1/1), completed with 1 local object.
+To github.com:docker-in-aws/todobackend.git
+   5fdbe62..ab7ac16 master -> master
+```
 
 # 使用 CodePipeline 创建持续集成管道
 
@@ -238,7 +355,17 @@ CodeBuild 允许您以多种方式提供构建规范：
 
 现在您已经解决了权限问题，请导航回到您的流水线的 CodePipeline 详细信息视图，点击构建阶段的重试按钮，并确认重试失败的构建。这一次，几分钟后，构建应该成功完成，您可以使用`aws ecr list-images`命令来验证已经发布了新的镜像到 ECR：
 
-[PRE7]
+```
+> aws ecr list-images --repository-name docker-in-aws/todobackend \
+ --query imageIds[].imageTag --output table
+-----------------------------------------------------------------------------------
+| ListImages                                                                      |
++---------------------------------------------------------------------------------+
+| 5fdbe62                                                                         |
+| latest                                                                          |
+| ab7ac1649e8ef4d30178c7f68899628086155f1d.10f5ef52-e3ff-455b-8ffb-8b760b7b9c55   |
++---------------------------------------------------------------------------------+
+```
 
 请注意，最后发布的镜像的格式为`<long commit hash>`.`<uuid>`，其中`<uuid>`是 CodeBuild 作业 ID，证实 CodeBuild 已成功将新镜像发布到 ECR。
 
@@ -276,7 +403,32 @@ CodePipeline 包括对 ECS 作为部署目标的支持，您可以将持续集�
 
 为了做到这一点，您必须首先定义 CodeBuild 应该收集的构件，您可以通过在 todobackend 存储库中的`buildspec.yml`构建规范中添加`artifacts`参数来实现这一点：
 
-[PRE8]
+```
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --storage-driver=overlay&
+      - timeout -t 15 sh -c "until docker info; do echo .; sleep 1; done"
+      - export BUILD_ID=$(echo $CODEBUILD_BUILD_ID | sed 's/^[^:]*://g')
+      - export APP_VERSION=$CODEBUILD_RESOLVED_SOURCE_VERSION.$BUILD_ID
+      - make login
+  build:
+    commands:
+      - make test
+      - make release
+      - make publish
+      - make version > version.json
+  post_build:
+    commands:
+      - make clean
+      - make logout
+
+artifacts:
+ files:
+ - version.json
+```
 
 在上面的示例中，`artifacts`参数配置 CodeBuild 在位置`version.json`查找构件。请注意，您还需要向构建阶段添加一个额外的命令，该命令将`make version`命令的输出写入`version.json`文件，CodeBuild 期望在那里找到构件。
 
@@ -286,7 +438,17 @@ CodePipeline 包括对 ECS 作为部署目标的支持，您可以将持续集�
 
 当您使用 CodePipeline 使用 CloudFormation 部署您的环境时，您需要确保您可以提供一个包含输入堆栈参数、堆栈标记和堆栈策略配置的配置文件。该文件必须以 JSON 格式实现，如[`docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/continuous-delivery-codepipeline-cfn-artifacts.html#w2ab2c13c15c15`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/continuous-delivery-codepipeline-cfn-artifacts.html#w2ab2c13c15c15)中定义的那样，因此我们需要修改`todobackend-aws`存储库中输入参数文件的格式，该文件目前以`<parameter>=<value>`格式位于名为`dev.cfg`的文件中。根据所引用的文档，您所有的输入参数都需要位于一个名为`Parameters`的键下的 JSON 文件中，您可以在`todobackend-aws`存储库的根目录下定义一个名为`dev.json`的新文件。
 
-[PRE9]
+```
+{ 
+  "Parameters": {
+    "ApplicationDesiredCount": "1",
+    "ApplicationImageId": "ami-ec957491",
+    "ApplicationImageTag": "latest",
+    "ApplicationSubnets": "subnet-a5d3ecee,subnet-324e246f",
+    "VpcId": "vpc-f8233a80"
+  }
+}
+```
 
 在前面的例子中，请注意我已将`ApplicationImageTag`的值更新为`latest`。这是因为我们的流水线实际上会动态地从流水线的构建阶段获取`ApplicationImageTag`输入的值，而`latest`值是一个更安全的默认值，以防您希望从命令行手动部署堆栈。
 
@@ -294,11 +456,22 @@ CodePipeline 包括对 ECS 作为部署目标的支持，您可以将持续集�
 
 您可以解决这个问题的一种方法是使用`jq`实用程序将新的`dev.json`配置文件转换为所需的`<parameter>=<value>`格式：
 
-[PRE10]
+```
+> aws cloudformation deploy --template-file stack.yml --stack-name todobackend \
+    --parameter-overrides $(cat dev.json | jq -r '.Parameters|to_entries[]|.key+"="+.value') \
+    --capabilities CAPABILITY_NAMED_IAM
+```
 
 这个命令现在相当冗长，为了简化运行这个命令，您可以向`todobackend-aws`存储库添加一个简单的 Makefile：
 
-[PRE11]
+```
+.PHONY: deploy
+
+deploy/%:
+  aws cloudformation deploy --template-file stack.yml --stack-name todobackend-$* \
+    --parameter-overrides $$(cat $*.json | jq -r '.Parameters|to_entries[]|.key+"="+.value') \
+    --capabilities CAPABILITY_NAMED_IAM
+```
 
 在前面的例子中，任务名称中的`%`字符捕获了一个通配文本值，无论何时执行`make deploy`命令。例如，如果您运行`make deploy`/`dev`，那么`%`字符将捕获`dev`，如果您运行`make deploy`/`prod`，那么捕获的值将是`prod`。然后，您可以使用`$*`变量引用捕获的值，您可以看到我们已经在堆栈名称（`todobackend-$*`，在前面的例子中会扩展为`todobackend-dev`和`todobackend-prod`）和用于 cat`dev.json`或`prod.json`文件的命令中替换了这个变量。请注意，因为在本书中我们一直将堆栈命名为`todobackend`，所以这个命令对我们来说不太适用，但是如果您将堆栈重命名为`todobackend-dev`，这个命令将使手动部署到特定环境变得更加容易。
 
@@ -412,13 +585,50 @@ CloudFormation 变更集为您提供了一个机会，可以审查即将应用�
 
 因为我们正在创建一个新的生产环境，我们需要向部署存储库添加一个环境配置文件，其中将包括特定于您的生产环境的输入参数。如前面的示例所示，演示了在`todobackend-aws`存储库的根目录下添加一个名为`prod.json`的新文件：
 
-[PRE12]
+```
+{ 
+  "Parameters": {
+    "ApplicationDesiredCount": "1",
+    "ApplicationImageId": "ami-ec957491",
+    "ApplicationImageTag": "latest",
+    "ApplicationSubnets": "subnet-a5d3ecee,subnet-324e246f",
+    "VpcId": "vpc-f8233a80"
+  }
+}
+```
 
 您可以看到配置文件的格式与我们之前修改的`dev.json`文件相同。在现实世界的情况下，您当然会期望配置文件中有所不同。例如，我们正在使用相同的应用子网和 VPC ID；您通常会为生产环境拥有一个单独的 VPC，甚至一个单独的账户，但为了保持简单，我们将生产环境部署到与开发环境相同的 VPC 和子网中。
 
 您还需要对我们的 CloudFormation 堆栈文件进行一些微小的更改，因为其中有一些硬编码的名称，如果您尝试在同一 AWS 账户中创建一个新堆栈，将会导致冲突。
 
-[PRE13]
+```
+...
+...
+Resources:
+  ...
+  ...
+  ApplicationCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      # ClusterName: todobackend-cluster
+      ClusterName: !Sub: ${AWS::StackName}-cluster
+  ...
+  ...
+  MigrateTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      # Family: todobackend-migrate
+      Family: !Sub ${AWS::StackName}-migrate
+      ...
+      ...
+  ApplicationTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      # Family: todobackend
+      Family: !Ref AWS::StackName
+  ...
+  ...
+```
 
 在前面的示例中，我已经注释了以前的配置，然后突出显示了所需的新配置。在所有情况下，我们将硬编码的对 todobackend 的引用替换为对堆栈名称的引用。鉴于 CloudFormation 堆栈名称在给定的 AWS 账户和区域内必须是唯一的，这确保了修改后的资源将具有唯一名称，不会与同一账户和区域内的其他堆栈发生冲突。
 
@@ -426,7 +636,16 @@ CloudFormation 变更集为您提供了一个机会，可以审查即将应用�
 
 在放置新的配置文件和模板更改后，确保在继续下一部分之前已经将更改提交并推送到 GitHub：
 
-[PRE14]
+```
+> git add -A
+> git commit -a -m "Add prod environment support"
+[master a42af8d] Add prod environment support
+ 2 files changed, 12 insertions(+), 3 deletions(-)
+ create mode 100644 prod.json
+> git push
+...
+...
+```
 
 # 向管道添加创建变更集操作
 

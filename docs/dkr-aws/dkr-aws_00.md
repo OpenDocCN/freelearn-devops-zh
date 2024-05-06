@@ -114,11 +114,27 @@ AWS 是全球领先的公共云服务提供商，提供丰富的解决方案来�
 
 代码块设置如下：
 
-[PRE0]
+```
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Cloud9 Management Station
+
+Parameters:
+  EC2InstanceType:
+    Type: String
+    Description: EC2 instance type
+    Default: t2.micro
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Target subnet for instance
+```
 
 任何命令行输入或输出都以以下方式编写：
 
-[PRE1]
+```
+> aws configure
+AWS Access Key ID [None]:
+```
 
 **粗体**：表示新术语、重要单词或屏幕上看到的单词。例如，菜单中的单词或对话框中的单词会以这种方式出现在文本中。例如：“要创建管理员角色，请从 AWS 控制台中选择**服务**|**IAM**，从左侧菜单中选择**角色**，然后单击**创建角色**按钮。”
 

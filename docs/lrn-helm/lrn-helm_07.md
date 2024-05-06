@@ -62,11 +62,15 @@ Redis 是一个内存中的键值数据存储，本章中将被用于数据复�
 
 1.  通过运行`minikube start`命令来启动 minikube，如下所示：
 
-[PRE0]
+```
+$ minikube start
+```
 
 1.  创建一个名为`chapter5`的新命名空间，如下所示：
 
-[PRE1]
+```
+$ kubectl create namespace chapter5
+```
 
 在部署 Guestbook 图表时，我们将使用这个命名空间。现在环境已经准备好，让我们开始编写图表。
 
@@ -90,7 +94,9 @@ Redis 是一个内存中的键值数据存储，本章中将被用于数据复�
 
 `helm create`命令将 Helm 图表的名称（`guestbook`）作为参数。在本地命令行上运行以下命令来搭建这个图表：
 
-[PRE2]
+```
+$ helm create guestbook
+```
 
 运行此命令后，您将在您的机器上看到一个名为`guestbook/`的新目录。这是包含您 Helm 图表的目录。在目录中，您将看到以下四个文件：
 
@@ -106,7 +112,9 @@ Redis 是一个内存中的键值数据存储，本章中将被用于数据复�
 
 如果您探索`templates/`目录下的内容，您会发现许多不同的模板资源已经默认包含在内。这些资源将节省创建这些资源所需的时间。虽然生成了许多有用的模板，我们将删除`templates/tests/`文件夹。这个文件夹用于包含您 Helm 图表的测试，但我们将专注于在*第六章*，*测试 Helm 图表*中编写您自己的测试。运行以下命令来删除`templates/tests/`文件夹：
 
-[PRE3]
+```
+$ rm -rf guestbook/templates/tests
+```
 
 现在`guestbook`图表已经被搭建好了，让我们继续评估生成的`Chart.yaml`文件。
 
@@ -148,15 +156,26 @@ Redis 是一个内存中的键值数据存储，本章中将被用于数据复�
 
 1.  通过运行以下命令在 Helm Hub 存储库中搜索 Redis 图表：
 
-[PRE4]
+```
+$ helm search hub redis
+```
 
 1.  将显示的图表之一是 Bitnami 的 Redis 图表。这是我们将用作依赖项的图表。如果您尚未在*第三章*中添加`bitnami`图表存储库，请使用`helm add repo`命令立即添加此图表存储库。请注意，存储库**统一资源定位符**（**URL**）是从 Helm Hub 存储库中 Redis 图表的页面中检索的。代码可以在以下片段中看到：
 
-[PRE5]
+```
+$ helm add repo bitnami https://charts.bitnami.com
+```
 
 1.  确定您想要使用的 Redis 图表的版本。可以通过运行以下命令找到版本号列表：
 
-[PRE6]
+```
+$ helm search repo redis --versions
+NAME                        	CHART VERSION	APP VERSION
+bitnami/redis               	10.5.14       	5.0.8
+bitnami/redis               	10.5.13       	5.0.8
+bitnami/redis               	10.5.12       	5.0.8
+bitnami/redis               	10.5.11       	5.0.8
+```
 
 您必须选择的版本是图表版本，而不是应用程序版本。应用程序版本仅描述 Redis 版本，而图表版本描述实际 Helm 图表的版本。
 
@@ -172,11 +191,27 @@ Redis 是一个内存中的键值数据存储，本章中将被用于数据复�
 
 将以下**YAML 不是标记语言**（**YAML**）代码添加到您的`Chart.yaml`文件的末尾，提供您已收集的有关 Redis 图表的信息以配置依赖项的设置：
 
-[PRE7]
+```
+dependencies:
+  - name: redis
+    version: 10.5.x
+    repository: https://charts.bitnami.com
+```
 
 添加依赖项后，您的完整`Chart.yaml`文件应如下所示（为简洁起见，已删除注释和空行）：
 
-[PRE8]
+```
+apiVersion: v2
+name: guestbook
+description: A Helm chart for Kubernetes
+type: application
+version: 0.1.0
+appVersion: 1.16.0
+dependencies:
+  - name: redis
+    version: 10.5.x
+    repository: https://charts.bitnami.com
+```
 
 该文件也可以在 P[ackt repository at https://github.com/PacktPublishing/-Learn-Helm/blob/master/helm-charts/charts/g](https://github.com/PacktPublishing/-Learn-Helm/blob/master/helm-charts/charts/guestbook/Chart.yaml)uestbook/Chart.yaml 中进行查看（请注意，版本和`appVersion`字段可能不同，因为我们将在本章后面修改这些字段）。
 
@@ -188,11 +223,22 @@ Redis 是一个内存中的键值数据存储，本章中将被用于数据复�
 
 运行`helm dependency update`命令来下载您的 Redis 依赖。该命令以 Helm 图表的位置作为参数，并可以在以下代码片段中看到：
 
-[PRE9]
+```
+$ helm dependency update guestbook
+Hang tight while we grab the latest from your chart repositories...
+...Successfully got an update from the 'bitnami' chart repository
+Update Complete.  Happy Helming!
+Saving 1 charts
+Downloading redis from repo https://charts.bitnami.com
+Deleting outdated charts
+```
 
 您可以通过确保 Redis 图表出现在`charts/`文件夹下来验证下载是否成功，如下所示：
 
-[PRE10]
+```
+$ ls guestbook/charts
+redis-10.5.14.tgz
+```
 
 现在 Redis 依赖已经包含，让我们继续修改`values.yaml`文件。在这里，我们将覆盖特定于配置 Redis 以及 Guestbook 前端应用程序的值。
 
@@ -208,13 +254,19 @@ Helm chart 的`values.yaml`文件用于提供一组默认参数，这些参数�
 
 让我们首先了解一下 Redis 图表的值。这可以通过对下载的 Redis 图表运行`helm show values`命令来完成，如下所示：
 
-[PRE11]
+```
+$ helm show values charts/redis-10.5.14.tgz
+```
 
 请确保修改命令以匹配您下载的 Redis 图表版本。显示值列表后，让我们识别需要被覆盖的值，如下所示：
 
 1.  Redis 图表中需要被覆盖的第一个值是`fullnameOverride`。此值显示在`helm show values`输出中，如下所示：
 
-[PRE12]
+```
+## String to fully override redis.fullname template
+##
+# fullnameOverride:
+```
 
 图表通常在一个名为`$CHART_NAME.fullname`的命名模板中使用这个值，以便轻松生成它们的 Kubernetes 资源名称。当设置了`fullnameOverride`时，命名模板将评估为这个值。否则，此模板的结果将基于`.Release.Name`对象，或者安装时提供的 Helm 发布的名称。
 
@@ -222,7 +274,9 @@ Redis 依赖项使用`redis.fullname`模板来帮助设置 Redis 主和 Redis �
 
 以下片段显示了在 Redis 图表中生成 Redis 主服务名称的示例：
 
-[PRE13]
+```
+name: {{ template 'redis.fullname' . }}-master
+```
 
 Guestbook 应用程序需要将 Redis 服务命名为`redis-master`和`redis-slave`。因此，`fullnameOverride`值应设置为`redis`。
 
@@ -234,13 +288,25 @@ https://github.com/kubernetes/examples/blob/master/guestbook/php-redis/guestbook
 
 1.  需要从 Redis 图表中覆盖的下一个值是`usePassword`。以下代码片段显示了`helm show values`输出中这个值的样子：
 
-[PRE14]
+```
+## Use password authentication
+usePassword: true
+```
 
 Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据库，因此我们将希望将此值设置为`false`。
 
 1.  我们需要覆盖的最后一个值是`configmap`。以下是`helm show values`输出中此值的样子：
 
-[PRE15]
+```
+## Redis config file
+## ref: https://redis.io/topics/config
+##
+configmap: |-
+  # Enable AOF https://redis.io/topics/persistence#append-only-file
+  appendonly yes
+  # Disable RDB persistence, AOF persistence already enabled.
+  save ''
+```
 
 默认的`configmap`值将启用 Redis 可以使用的两种持久性类型，**追加日志文件**（**AOF**）和**Redis 数据库文件**（**RDF**）持久性。Redis 中的 AOF 持久性通过将新数据条目添加到类似于更改日志的文件中来提供更改历史。RDF 持久性通过在一定间隔内将数据复制到文件中，以创建数据快照。
 
@@ -248,7 +314,16 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 识别每个 Redis 值后，将这些值添加到图表的`values.yaml`文件的末尾，如下面的代码块所示：
 
-[PRE16]
+```
+redis:
+  # Override the redis.fullname template
+  fullnameOverride: redis
+  # Enable unauthenticated access to Redis
+  usePassword: false
+  # Disable AOF persistence
+  configmap: |-
+    appendonly no
+```
 
 请记住*第四章**,* *理解 Helm 图表*，从图表依赖中覆盖的值必须在该图表名称下进行范围限定。这就是为什么每个这些值将被添加到`redis:`段下面。
 
@@ -284,29 +359,43 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 第一个位置在`deployment.yaml`图表模板中。在该文件中，有一行指示要部署的容器映像，如下所示：
 
-[PRE17]
+```
+image: '{{ .Values.image.repository }}:{{ .Chart.AppVersion }}'
+```
 
 如您所见，image 由`image.repository`值和`AppVersion`图表设置确定。如果您查看您的`values.yaml`文件，您会看到`image.repository`值当前配置为默认部署`nginx`映像，如下所示：
 
-[PRE18]
+```
+image:
+  repository: nginx
+```
 
 同样，如果您查看`Chart.yaml`文件，您会看到`AppVersion`目前设置为`1.16.0`，如下所示：
 
-[PRE19]
+```
+appVersion: 1.16.0
+```
 
 由于 Guestbook 应用程序起源于 Kubernetes 教程，您可以在 Kubernetes 文档中找到需要部署的特定映像，网址为 https://kubernetes.io/docs/tutorials/stateless-application/guestbook/#creating-the-guestbook-frontend-deployment。在文档中，您可以看到必须指定映像如下：
 
-[PRE20]
+```
+image: gcr.io/google-samples/gb-frontend:v4
+```
 
 因此，为了正确生成 image 字段，`image.repository`值必须设置为`gcr.io/google-samples/gb-frontend`，并且`AppVersion`图表设置必须设置为`v4`。
 
 必须进行修改的第二个位置是`service.yaml`图表模板。在这个文件中，有一行确定服务类型的代码，如下所示：
 
-[PRE21]
+```
+type: {{ .Values.service.type }}
+```
 
 根据`service.type`的值，该服务将默认为`ClusterIP`服务类型，如`values.yaml`文件中所示：
 
-[PRE22]
+```
+service:
+  type: ClusterIP
+```
 
 对于`guestbook`图表，我们将修改此值，以创建一个`NodePort`服务。这将允许在 minikube 环境中更容易地访问应用程序，通过在 minikube 虚拟机（VM）上暴露一个端口。连接到端口后，我们可以访问 Guestbook 前端。
 
@@ -316,11 +405,19 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 1.  将`image.repository`值替换为`gcr.io/google-samples/gb-frontend`。整个`image:`部分现在应该如下所示：
 
-[PRE23]
+```
+image:
+  repository: gcr.io/google-samples/gb-frontend
+  pullPolicy: IfNotPresent
+```
 
 1.  将`service.type`值替换为`NodePort`。整个`service:`部分现在应该如下所示：
 
-[PRE24]
+```
+service:
+  type: NodePort
+  port: 80
+```
 
 1.  您可以通过参考 Packt 存储库中的文件来验证您的`values.yaml`文件是否已正确修改。
 
@@ -328,7 +425,9 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 1.  将`appVersion`字段替换为`v4`。`appVersion`字段现在应该如下所示：
 
-[PRE25]
+```
+appVersion: v4
+```
 
 1.  您可以通过参考 Packt 存储库中的文件来验证您的`Chart.yaml`文件是否已正确修改。
 
@@ -338,11 +437,24 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 要安装您的`guestbook`图表，请在`guestbook/`目录之外运行以下命令：
 
-[PRE26]
+```
+$ helm install my-guestbook guestbook -n chapter5
+```
 
 如果安装成功，将显示以下消息：
 
-[PRE27]
+```
+NAME: my-guestbook
+LAST DEPLOYED: Sun Apr 26 09:57:52 2020
+NAMESPACE: chapter5
+STATUS: deployed
+REVISION: 1
+NOTES:
+1\. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace chapter5 -o jsonpath='{.spec.ports[0].nodePort}' services my-guestbook)
+  export NODE_IP=$(kubectl get nodes --namespace chapter5 -o jsonpath='{.items[0].status.addresses[0].address}')
+  echo http://$NODE_IP:$NODE_PORT
+```
 
 安装成功后，您可能会发现留言板和 Redis pods 并不立即处于“准备就绪”状态。当一个 Pod 没有准备就绪时，它还不能被访问。
 
@@ -350,7 +462,9 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 您可以通过检查每个 Pod 的状态来确保所有的 Pod 都已准备就绪，而不使用`--wait`标志，如下所示：
 
-[PRE28]
+```
+$ kubectl get pods -n chapter5
+```
 
 当每个 Pod 准备就绪时，您将能够观察到每个 Pod 在`READY`列下报告为`1/1`，如下所示：
 
@@ -360,7 +474,14 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 一旦 Pod 准备就绪，您可以运行发布说明中显示的命令。如果需要，可以通过运行以下代码再次显示它们：
 
-[PRE29]
+```
+$ helm get notes my-guestbook -n chapter5
+NOTES:
+1\. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace chapter5 -o jsonpath='{.spec.ports[0].nodePort}' services my-guestbook)
+  export NODE_IP=$(kubectl get nodes --namespace chapter5 -o jsonpath='{.items[0].status.addresses[0].address}')
+  echo http://$NODE_IP:$NODE_PORT
+```
 
 将留言板 URL（从`echo`命令的输出中复制并粘贴）到您的浏览器中，留言板**用户界面**（**UI**）应该显示出来，如下截图所示：
 
@@ -378,13 +499,17 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 当您准备好时，使用`helm uninstall`命令卸载此图表，就像这样：
 
-[PRE30]
+```
+$ helm uninstall my-guestbook -n chapter5
+```
 
 您还需要手动删除 Redis **PersistentVolumeClaims**（**PVCs**），因为 Redis 依赖于使用`StatefulSet`使数据库持久化（在删除时不会自动删除 PVCs）。
 
 运行以下命令以删除 Redis PVCs：
 
-[PRE31]
+```
+$ kubectl delete pvc -l app=redis -n chapter5
+```
 
 在下一节中，我们将探讨改进`guestbook`图表的方法。
 
@@ -420,13 +545,18 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 在您的`guestbook`文件结构中创建一个名为`templates/backup`的新文件夹，如下所示：
 
-[PRE32]
+```
+$ mkdir guestbook/templates/backup
+```
 
 1.  接下来，您应该创建两个模板，以执行备份所需的两个模板。所需的第一个模板是`PersistentVolumeClaim`模板，将用于包含复制的`dump.rdb`文件。第二个模板将是一个作业模板，用于执行复制操作。
 
 创建两个空模板文件作为占位符，如下所示：
 
-[PRE33]
+```
+$ touch guestbook/templates/backup/persistentvolumeclaim.yaml
+$ touch guestbook/templates/backup/job.yaml
+```
 
 1.  您可以通过参考 Packt 存储库来仔细检查您的工作。您的文件结构应该与 https://github.com/PacktPublishing/-Learn-Helm/tree/master/helm-charts/charts/guestbook/templates/backup 中找到的结构完全相同。
 
@@ -468,11 +598,15 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 1.  创建`templates/restore`文件夹，用于包含预回滚钩子，如下所示：
 
-[PRE34]
+```
+$ mkdir guestbook/templates/restore
+```
 
 1.  接下来，创建一个空的`job.yaml`模板，用于恢复数据库，如下所示：
 
-[PRE35]
+```
+$ touch guestbook/templates/restore/job.yaml
+```
 
 1.  您可以通过引用 Packt 存储库来检查是否已创建了正确的结构[`github.com/PacktPublishing/-Learn-Helm/tree/master/helm`](https://github.com/PacktPublishing/-Learn-Helm/tree/master/helm-charts/charts/guestbook/templates/restore)-charts/charts/guestbook/templates/restore。
 
@@ -494,7 +628,9 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 为了运行您创建的生命周期钩子，您必须首先通过运行`helm install`命令再次安装您的图表，如下所示：
 
-[PRE36]
+```
+$ helm install my-guestbook guestbook -n chapter5
+```
 
 当每个 Pod 报告`1/1` `Ready`状态时，通过遵循显示的发布说明访问您的 Guestbook 应用程序。请注意，访问应用程序的端口将与以前不同。
 
@@ -506,11 +642,18 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 一旦写入消息并且其文本显示在**提交**按钮下方，运行`helm upgrade`命令触发 pre-upgrade 钩子。`helm upgrade`命令将暂时挂起，直到备份完成，并且可以在这里看到：
 
-[PRE37]
+```
+$ helm upgrade my-guestbook guestbook -n chapter5
+```
 
 当命令返回时，您应该会发现 Redis 主 PVC 以及一个新创建的 PVC，名为`redis-data-redis-master-0-backup-1`，可以在这里看到：
 
-[PRE38]
+```
+$ kubectl get pvc -n chapter5
+NAME                                 STATUS
+redis-data-redis-master-0            Bound
+redis-data-redis-master-0-backup-1   Bound
+```
 
 此 PVC 包含一个数据快照，可用于在预回滚生命周期阶段恢复数据库。
 
@@ -522,7 +665,9 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 现在，运行`helm rollback`命令以恢复到第一个修订版。此命令将暂时挂起，直到恢复过程完成，并且可以在这里看到：
 
-[PRE39]
+```
+$ helm rollback my-guestbook 1 -n chapter5
+```
 
 当此命令返回时，请在浏览器中刷新您的 Guestbook 前端。您会看到您在升级后添加的消息消失，因为在进行数据备份之前它不存在，如下面的截图所示：
 
@@ -550,7 +695,10 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 你的`guestbook`图表的`values.yaml`文件包含一个名为`service.type`的值，用于确定应该为前端创建什么类型的服务。这个值可以在这里看到：
 
-[PRE40]
+```
+service:
+  type: NodePort
+```
 
 我们将这个值默认设置为`NodePort`，但从技术上讲，也可以使用其他服务类型。假设你想将服务类型限制为只有`NodePort`和`ClusterIP`服务。这个操作可以通过使用`fail`函数来执行。
 
@@ -558,7 +706,9 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 1.  找到`templates/service.yaml`服务模板。这个文件包含一行，根据`service.type`值设置服务类型，如下所示：
 
-[PRE41]
+```
+type: {{ .Values.service.type }}
+```
 
 我们应该首先检查`service.type`值是否等于`ClusterIP`或`NodePort`，然后再设置服务类型。这可以通过将一个变量设置为正确设置的列表来实现。然后，可以进行检查以确定`service.type`值是否包含在有效设置的列表中。如果是，那么就继续设置服务类型。否则，图表渲染应该被停止，并向用户返回错误消息，通知他们有效的`service.type`输入。
 
@@ -572,11 +722,15 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 尝试通过提供无效的服务类型来升级你的`my-guestbook`发布（如果你已经卸载了你的发布，重新安装也可以）。为此，请运行以下命令：
 
-[PRE42]
+```
+$ helm upgrade my-guestbook . -n chapter5 --set service.type=LoadBalancer
+```
 
 如果你在前面的*步骤 2*中的更改成功了，你应该会看到类似以下的消息：
 
-[PRE43]
+```
+Error: UPGRADE FAILED: template: guestbook/templates/service.yaml:12:6: executing 'guestbook/templates/service.yaml' at <fail 'value 'service.type' must be either 'ClusterIP' or 'NodePort''>: error calling fail: value 'service.type' must be either 'ClusterIP' or 'NodePort'
+```
 
 使用`fail`验证用户输入是确保提供的值符合一定约束的好方法，但也有时候需要确保用户首先提供了某些值。这可以通过使用下一节中解释的`required`函数来实现。
 
@@ -586,7 +740,10 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 回想一下，你的图表中包含一个名为`image.repository`的值，如下所示：
 
-[PRE44]
+```
+image:
+  repository: gcr.io/google-samples/gb-frontend
+```
 
 这个值用于确定将部署的镜像。考虑到这个值对 Helm 图表的重要性，我们可以用`required`函数来确保在安装图表时它始终有一个值。虽然我们目前在这个图表中提供了一个默认值，但添加`required`函数可以让你在需要确保用户始终提供自己的容器镜像时删除这个默认值。
 
@@ -594,7 +751,9 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 1.  找到`templates/deployment.yaml`图表模板。该文件包含一行，根据`image.repository`的值设置容器镜像（`appName`图表设置也有助于设置容器镜像，但在这个例子中，我们只关注`image.repository`），如下所示：
 
-[PRE45]
+```
+image: '{{ .Values.image.repository }}:{{ .Chart.AppVersion }}'
+```
 
 1.  `required`函数接受以下两个参数：
 
@@ -610,11 +769,15 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 1.  尝试通过提供空的`image.repository`值来升级您的`my-guestbook`发布，如下所示：
 
-[PRE46]
+```
+$ helm upgrade my-guestbook . -n chapter5 --set image.repository=''
+```
 
 如果您的更改成功，您应该会看到类似以下的错误消息：
 
-[PRE47]
+```
+Error: UPGRADE FAILED: execution error at (guestbook/templates/deployment.yaml:28:21): value 'image.repository' is required
+```
 
 到目前为止，您已成功编写了您的第一个 Helm 图表，包括生命周期挂钩和输入验证！
 
@@ -674,7 +837,9 @@ Guestbook 应用程序已经编写为无需身份验证即可访问 Redis 数据
 
 1.  一旦您获得了存储库的`git`引用，就将存储库克隆到本地计算机。确保在运行以下命令时不在`guestbook`目录内，因为我们希望该存储库与`guestbook`图表分开。
 
-[PRE48]
+```
+$ git clone $REPOSITORY_URL
+```
 
 一旦您克隆了存储库，继续下一节将`guestbook`图表发布到您的图表存储库。
 
@@ -684,11 +849,15 @@ Helm 提供了几个不同的命令来使发布 Helm 图表成为一个简单的
 
 修改您的图表的`Chart.yaml`文件中的版本字段为 1.0.0，如下所示：
 
-[PRE49]
+```
+version: 1.0.0
+```
 
 一旦您的`guestbook`图表的版本已经增加，您可以继续将您的图表打包成一个`tgz`存档。这可以通过使用`helm package`命令来完成。从您本地`guestbook`目录的上一级运行此命令，如下所示：
 
-[PRE50]
+```
+$ helm package guestbook
+```
 
 如果成功，这将创建一个名为`guestbook-1.0.0.tgz`的文件。
 
@@ -698,17 +867,25 @@ Helm 提供了几个不同的命令来使发布 Helm 图表成为一个简单的
 
 一旦您的图表被打包，通过运行以下命令将生成的`tgz`文件复制到您的 GitHub 图表仓库的克隆中：
 
-[PRE51]
+```
+$ cp guestbook-1.0.0.tgz $GITHUB_CHART_REPO_CLONE
+```
 
 当这个文件被复制后，您可以使用`helm repo index`命令为您的 Helm 仓库生成`index.yaml`文件。这个命令以您的图表仓库克隆的位置作为参数。运行以下命令来生成您的`index.yaml`文件：
 
-[PRE52]
+```
+$ helm repo index $GITHUB_CHART_REPO_CLONE
+```
 
 这个命令会悄悄地成功，但是你会在`Learn-Helm-Chart-Repository`文件夹内看到新的`index.yaml`文件。这个文件的内容提供了`guestbook`图表的元数据。如果这个仓库中还包含其他图表，它们的元数据也会出现在这个文件中。
 
 您的 Helm 图表仓库现在应该包含`tgz`存档和`index.yaml`文件。通过使用以下`git`命令将这些文件推送到 GitHub：
 
-[PRE53]
+```
+$ git add --all
+$ git commit -m 'feat: adding the guestbook helm chart'
+$ git push origin master
+```
 
 您可能会被提示输入您的 GitHub 凭据。一旦提供，您的本地内容将被推送到远程仓库，您的`guestbook` Helm 图表将从 GitHub Pages 静态站点提供服务。
 
@@ -720,11 +897,15 @@ Helm 提供了几个不同的命令来使发布 Helm 图表成为一个简单的
 
 一旦您知道您的图表存储库的 URL，您可以使用`helm repo add`命令将此存储库添加到本地，如下所示：
 
-[PRE54]
+```
+$ helm repo add learnhelm $GITHUB_PAGES_URL
+```
 
 此命令将允许您的本地 Helm 客户端与名为`learnhelm`的存储库进行交互。 您可以通过搜索您的本地配置的存储库来验证您的图表是否已发布。 可以通过运行以下命令来完成此操作：
 
-[PRE55]
+```
+$ helm search repo guestbook
+```
 
 您应该在搜索输出中找到`learnhelm/guestbook`图表。
 
@@ -734,7 +915,9 @@ Helm 提供了几个不同的命令来使发布 Helm 图表成为一个简单的
 
 您可以通过删除`chapter5`命名空间来清理环境，方法如下：
 
-[PRE56]
+```
+$ kubectl delete namespace chapter5
+```
 
 如果您已经完成工作，还可以使用`minikube stop`命令停止您的 minikube 集群。
 

@@ -140,7 +140,9 @@ containerd 是由 Docker，Inc.开发的，并捐赠给了 Cloud Native Computin
 
 启动容器的最常见方式是使用 Docker CLI。以下`docker container run`命令将基于`alpine:latest`镜像启动一个简单的新容器。
 
-[PRE0]
+```
+$ docker container run --name ctr1 -it alpine:latest sh 
+```
 
 `当您在 Docker CLI 中输入这样的命令时，Docker 客户端会将它们转换为适当的 API 负载并将其 POST 到正确的 API 端点。`
 

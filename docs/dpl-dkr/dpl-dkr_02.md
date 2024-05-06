@@ -22,7 +22,22 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 警告！还有其他几种安装 Docker 的方法，但除非绝对必要，使用`sudo curl -sSL https://somesite.com/ | sh`模式或类似的方式进行安装是非常危险的，因为您在未检查脚本功能的情况下为网站的脚本授予了 root 权限。这种执行模式也几乎没有留下执行过程的证据。此外，中途出现的异常可能会损坏下载文件但仍然执行，部分造成损害，并且您只依赖**传输层安全性**（**TLS**），全球数百家组织都可以创建伪造证书。换句话说，如果您关心您的机器，除非软件供应商对安全一无所知并且他们强迫您这样做，否则您绝对不应该以这种方式安装软件，那么您就完全受他们的支配。
 
-[PRE0]
+```
+$ # Install the pre-requisites
+$ sudo apt install -y apt-transport-https \
+                      curl
+
+$ # Add Docker's signing key into our apt configuration to ensure they are the only ones that can send us updates. This key should match the one that the apt repository is using so check the online installation instruction if you see "NO_PUBKEY <key_id>" errors.
+$ apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 \
+              --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+
+$ # Add the repository location to apt. Your URL may be different depending on if Xenial is your distribution.
+$ echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" | sudo tee -a /etc/apt/sources.list.d/docker.list
+
+$ # Update the apt listings and install Docker
+$ sudo apt update
+$ sudo apt install docker-engine
+```
 
 默认情况下，Docker 将要求在所有命令前加上`sudo`（或`root`）来运行，包括本书中未明确提到的命令。通常情况下，对于开发机器来说，这是一个很大的麻烦，所以我可能会提到，但*强烈*不建议，您也可以将当前用户添加到`docker`组中，这样您就不需要在每个 Docker 命令前加上`sudo`：
 
@@ -34,7 +49,10 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 如果所有前面的命令都按预期工作，您将能够看到 Docker 是否已安装：
 
-[PRE1]
+```
+$ docker --version
+Docker version 17.05.0-ce, build 89658be
+```
 
 安装了 Docker 但没有任何东西可运行是相当无用的，所以让我们看看是否可以获得一个可以在本地运行的镜像。我们的选择是要么从头开始制作自己的镜像，要么使用已经构建好的东西。鉴于 Docker 之所以能够达到如此高的采用率的一个重要原因是通过 Docker Hub（[`hub.docker.com/`](https://hub.docker.com/)）轻松共享镜像，而我们刚刚开始，我们将延迟一点时间来创建自己的镜像，以探索这个站点，这是一个集中发布和下载 Docker 镜像的地方。
 
@@ -48,17 +66,34 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 目前可用的顶级容器似乎是 NGINX，所以我们将尝试在我们的 Docker 环境中运行它。如果您以前没有使用过 NGINX，它是一个高性能的 Web 服务器，被许多互联网上的网站使用。在这个阶段，我们只是想要感受一下运行这些容器的感觉，让我们看看如何做到：
 
-[PRE2]
+```
+$ # Pull the image from the server to our local repository
+$ docker pull nginx
+Using default tag: latest
+latest: Pulling from library/nginx
+94ed0c431eb5: Pull complete
+9406c100a1c3: Pull complete
+aa74daafd50c: Pull complete
+Digest: sha256:788fa27763db6d69ad3444e8ba72f947df9e7e163bad7c1f5614f8fd27a311c3
+Status: Downloaded newer image for nginx:latest
+```
 
 `pull`命令拉取组成此镜像的任何和所有层。在这种情况下，NGINX 镜像基于三个堆叠的层，并且具有哈希值`788fa277..27a311c3`，由于我们没有指定我们想要的特定版本，我们得到了默认标签，即`latest`。通过这个单一的命令，我们已经从 Docker Hub 检索了 NGINX 镜像，以便我们可以在本地运行它。如果我们想使用不同的标签或从不同的服务器拉取，该命令将变得更加具有表现力，类似于`docker pull <hostname_or_ip>:<port>/<tag_name>`，但我们将在后面的章节中介绍这些高级用法。
 
 现在，镜像已经存储在我们本地的 Docker 存储中（通常在`/var/lib/docker`中），我们可以尝试运行它。NGINX 有大量可能的选项，您可以在[`hub.docker.com/_/nginx/`](https://hub.docker.com/_/nginx/)上进一步了解，但我们现在只对启动镜像感兴趣：
 
-[PRE3]
+```
+$ docker run nginx
+```
 
 您可能注意到什么都没有发生，但不要担心，这是预期的。遗憾的是，单独这个命令是不够的，因为 NGINX 将在前台运行，并且根本无法通过套接字访问，所以我们需要覆盖一些标志和开关，使其真正有用。所以让我们按下*Ctrl* + *C*关闭容器，然后再试一次，这次添加一些必要的标志：
 
-[PRE4]
+```
+$ docker run -d \
+             -p 8080:80 \
+             nginx
+dd1fd1b62d9cf556d96edc3ae7549f469e972267191ba725b0ad6081dda31e74
+```
 
 `-d`标志以后台模式运行容器，这样我们的终端就不会被 NGINX 占用，而`-p 8080:80`标志将我们的本地端口`8080`映射到容器的端口`80`。容器通常会暴露特定的端口，而在这种情况下，是`80`，但如果没有映射，我们将无法访问它。命令返回的输出是一个唯一的标识符（容器 ID），可以用来在启动后跟踪和控制这个特定的容器。希望您现在能够看到 Docker 的端口白名单方法如何增加了额外的安全级别，因为只有您明确允许监听的东西才被允许。
 
@@ -68,35 +103,74 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 但是我们究竟是如何知道端口`80`需要被监听的呢？确实，我们将在接下来的一秒钟内介绍这一点，但首先，因为我们以分离模式启动了这个容器，它仍然在后台运行，我们可能应该确保停止它。要查看我们正在运行的容器，让我们用`docker ps`来检查我们的 Docker 容器状态：
 
-[PRE5]
+```
+$ docker ps
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+dd1fd1b62d9c nginx "nginx -g 'daemon ..." 13 minutes ago Up 13 minutes 0.0.0.0:8080->80/tcp dazzling_swanson
+```
 
 我们在这里看到的是，我们的 NGINX 容器仍在运行，它已经将本地主机接口端口`8080`（包括外部可访问的端口）映射到容器的端口`80`，而且我们已经运行了`13`分钟。如果我们有更多的容器，它们都会在这里列出，因此这个命令对于处理 Docker 容器非常有用，通常用于调试和容器管理。
 
 由于我们想要关闭这个容器，我们现在将实际执行。要关闭容器，我们需要知道容器 ID，这是`docker run`返回的值，也是`docker ps`的第一列显示的值（`dd1fd1b62d9c`）。可以使用 ID 的短或长版本，但为了简洁起见，我们将使用前者：
 
-[PRE6]
+```
+$ docker stop dd1fd1b62d9c
+dd1fd1b62d9c
+```
 
 这将优雅地尝试停止容器并将使用的资源返回给操作系统，并在特定的超时后强制杀死它。如果容器真的卡住了，我们可以用`kill`替换`stop`来强制杀死进程，但这很少需要，因为如果进程没有响应，`stop`通常会做同样的事情。我们现在要确保我们的容器已经消失了：
 
-[PRE7]
+```
+$ docker ps
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+```
 
 是的，事情看起来正如我们所期望的那样，但请注意，虽然停止的容器不可见，但默认情况下它们并没有完全从文件系统中删除：
 
-[PRE8]
+```
+$ docker ps -a
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+dd1fd1b62d9c nginx "nginx -g 'daemon ..." 24 minutes ago Exited (137) 2 minutes ago dazzling_swanson
+```
 
 `-a`标志用于显示所有容器状态，而不仅仅是正在运行的容器，您可以看到系统仍然知道我们的旧容器。我们甚至可以使用`docker start`来恢复它！
 
-[PRE9]
+```
+$ docker start dd1fd1b62d9c
+dd1fd1b62d9c
+
+$ docker ps
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+dd1fd1b62d9c nginx "nginx -g 'daemon ..." 28 minutes ago Up About a minute 0.0.0.0:8080->80/tcp dazzling_swanson
+```
 
 要真正永久删除容器，我们需要明确地使用`docker rm`来摆脱它，如下所示，或者使用`--rm`开关运行`docker run`命令（我们将在接下来的几页中介绍这个）：
 
-[PRE10]
+```
+$ docker stop dd1fd1b62d9c
+dd1fd1b62d9c
+
+$ docker rm dd1fd1b62d9c
+dd1fd1b62d9c
+
+$ docker ps -a
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+```
 
 成功！
 
 现在让我们回到之前的问题，我们如何知道容器需要将端口 80 映射到它？我们有几种选项可以找到这些信息，最简单的一种是启动容器并在`docker ps`中检查未绑定的端口：
 
-[PRE11]
+```
+$ docker run -d \
+             --rm \
+             nginx
+f64b35fc42c33f4af2648bf4f1dce316b095b30d31edf703e099b93470ab725a
+
+$ docker ps
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+f64b35fc42c3 nginx "nginx -g 'daemon ..." 4 seconds ago Up 3 seconds 80/tcp awesome_bell
+```
 
 我们在`docker run`中使用的新标志是`--rm`，我们刚刚提到过，它告诉 Docker 守护程序在停止后完全删除容器，这样我们就不必手动删除了。
 
@@ -104,7 +178,13 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 虽然这是查看所需端口的最快方法，但在读取其 Dockerfile 和文档之外检查镜像的一般方法是通过`docker inspect`：
 
-[PRE12]
+```
+$ # Inspect NGINX image info and after you match our query, return also next two lines
+$ docker inspect nginx | grep -A2 "ExposedPorts"
+"ExposedPorts": {
+ "80/tcp": {}
+},
+```
 
 此外，`docker inspect`还可以显示各种其他有趣的信息，例如以下内容：
 
@@ -130,7 +210,20 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 通常在与容器一般工作中，您可能需要弄清楚正在运行的容器的情况，但`docker ps`并不能提供您需要弄清楚事情的所有信息。对于这些情况，要使用的第一个命令是`docker logs`。这个命令显示容器发出的任何输出，包括`stdout`和`stderr`流。对于以下日志，我从前面开始了相同的 NGINX 容器，并访问了它在`localhost`上托管的页面。
 
-[PRE13]
+```
+$ docker run -d \
+             -p 8080:80 \
+             nginx
+06ebb46f64817329d360bb897bda824f932b9bcf380ed871709c2033af069118
+
+$ # Access the page http://localhost:8080 with your browser
+
+$ docker logs 06ebb46f
+172.17.0.1 - - [02/Aug/2017:01:39:51 +0000] "GET / HTTP/1.1" 200 612 "-" "Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.01" "-"
+2017/08/02 01:39:51 [error] 6#6: *1 open() "/usr/share/nginx/html/favicon.ico" failed (2: No such file or directory), client: 172.17.0.1, server: localhost, request: "GET /favicon.ico HTTP/1.1", host: "localhost:8080"
+172.17.0.1 - - [02/Aug/2017:01:39:51 +0000] "GET /favicon.ico HTTP/1.1" 404 169 "-" "Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.01" "-"
+172.17.0.1 - - [02/Aug/2017:01:39:52 +0000] "GET / HTTP/1.1" 200 612 "-" "Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.01" "-"
+```
 
 您可以在这里看到，NGINX 记录了所有访问和相关的响应代码，这对于调试 Web 服务器非常宝贵。一般来说，输出可以因服务运行的内容而有很大的变化，但通常是开始搜索的好地方。如果您想要在日志被写入时跟踪日志，还可以添加`-f`标志，这在日志很大并且您试图过滤特定内容时非常有帮助。
 
@@ -138,15 +231,68 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 当日志并不能真正解决问题时，要使用的命令是`docker exec`，以便在运行的容器上执行一个命令，可以包括访问完整的 shell：
 
-[PRE14]
+```
+$ docker run -d \
+             -p 8080:80 \
+             nginx
+06ebb46f64817329d360bb897bda824f932b9bcf380ed871709c2033af069118
+
+$ docker exec 06ebb46f ls -la /etc/nginx/conf.d/
+total 12
+drwxr-xr-x 2 root root 4096 Jul 26 07:33 .
+drwxr-xr-x 3 root root 4096 Jul 26 07:33 ..
+-rw-r--r-- 1 root root 1093 Jul 11 13:06 default.conf
+```
 
 在这种情况下，我们使用`docker exec`在容器中运行`ls`命令，但实际上这并不是一个强大的调试工具。如果我们尝试在容器内获取完整的 shell 并以这种方式进行检查呢？
 
-[PRE15]
+```
+$ docker exec -it \
+              06ebb46f /bin/bash
+root@06ebb46f6481:/# ls -la /etc/nginx/conf.d/
+total 12
+drwxr-xr-x 2 root root 4096 Jul 26 07:33 .
+drwxr-xr-x 3 root root 4096 Jul 26 07:33 ..
+-rw-r--r-- 1 root root 1093 Jul 11 13:06 default.conf
+root@06ebb46f6481:/# exit
+exit
+
+$ # Back to host shell
+```
 
 这一次，我们使用了`-it`，这是`-i`和`-t`标志的简写，结合起来设置了所需的交互式终端，然后我们使用`/bin/bash`在容器内运行 Bash。容器内的 shell 在这里是一个更有用的工具，但由于许多镜像会删除图像中的任何不必要的软件包，我们受制于容器本身--在这种情况下，NGINX 容器没有`ps`，这是一个非常有价值的用于查找问题原因的实用程序。由于容器通常是隔离的一次性组件，有时可能可以向容器添加调试工具以找出问题的原因（尽管我们将在后面的章节中介绍使用`pid`命名空间的更好方法）：
 
-[PRE16]
+```
+$ docker exec -it 06ebb46f /bin/bash
+
+root@06ebb46f6481:/# ps  # No ps on system
+bash: ps: command not found
+
+root@06ebb46f6481:/# apt-get update -q
+Hit:1 http://security.debian.org stretch/updates InRelease
+Get:3 http://nginx.org/packages/mainline/debian stretch InRelease [2854 B]
+Ign:2 http://cdn-fastly.deb.debian.org/debian stretch InRelease
+Hit:4 http://cdn-fastly.deb.debian.org/debian stretch-updates InRelease
+Hit:5 http://cdn-fastly.deb.debian.org/debian stretch Release
+Fetched 2854 B in 0s (2860 B/s)
+Reading package lists...
+
+root@06ebb46f6481:/# apt-get install -y procps
+<snip>
+The following NEW packages will be installed:
+libgpm2 libncurses5 libprocps6 procps psmisc
+0 upgraded, 5 newly installed, 0 to remove and 0 not upgraded.
+Need to get 558 kB of archives.
+After this operation, 1785 kB of additional disk space will be used.
+<snip>
+
+root@06ebb46f6481:/# ps
+PID TTY TIME CMD
+31 ? 00:00:00 bash
+595 ? 00:00:00 ps
+
+root@06ebb46f6481:/#
+```
 
 正如您所看到的，从上游分发的任何调试工具都很容易添加到容器中，但请注意，一旦找到问题，您应该启动一个新的容器并删除旧的容器，以清理掉剩下的垃圾，因为它浪费空间，而新的容器将从没有添加您新安装的调试工具的图像开始（在我们的情况下是`procps`）。
 
@@ -158,7 +304,14 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 现在我们对如何操作容器有了一点了解，这是一个很好的地方来尝试创建我们自己的容器。要开始构建容器，我们需要知道的第一件事是，Docker 在构建镜像时查找的默认文件名是`Dockerfile`。虽然您可以为此主要配置文件使用不同的名称，但这是极不鼓励的，尽管在一些罕见的情况下，您可能无法避免 - 例如，如果您需要一个测试套件镜像和主镜像构建文件在同一个文件夹中。现在，我们假设您只有一个单一的构建配置，考虑到这一点，我们来看看这些基本`Dockerfile`是什么样子的。在您的文件系统的某个地方创建一个测试文件夹，并将其放入名为`Dockerfile`的文件中：
 
-[PRE17]
+```
+FROM ubuntu:latest
+
+RUN apt-get update -q && \
+ apt-get install -qy iputils-ping
+
+CMD ["ping", "google.com"]
+```
 
 让我们逐行检查这个文件。首先，我们有`FROM ubuntu:latest`这一行。这行表示我们要使用最新的 Ubuntu Docker 镜像作为我们自己服务的基础。这个镜像将自动从 Docker Hub 中拉取，但这个镜像也可以来自自定义存储库、您自己的本地镜像，并且可以基于任何其他镜像，只要它为您的服务提供了一个良好的基础（即 NGINX、Apline Linux、Jenkins 等）。
 
@@ -168,17 +321,67 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 现在我们已经配置好整个容器，让我们来构建它：
 
-[PRE18]
+```
+$ # Build using Dockerfile from current directory and tag our resulting image as "test_container"
+$ docker build -t test_container . 
+Sending build context to Docker daemon 1.716MB
+Step 1/3 : FROM ubuntu:latest
+---> 14f60031763d
+Step 2/3 : RUN apt-get update -q && apt-get install -qy iputils-ping
+---> Running in ad1ea6a6d4fc
+Get:1 http://security.ubuntu.com/ubuntu xenial-security InRelease [102 kB]
+<snip>
+The following NEW packages will be installed:
+iputils-ping libffi6 libgmp10 libgnutls-openssl27 libgnutls30 libhogweed4
+libidn11 libnettle6 libp11-kit0 libtasn1-6
+0 upgraded, 10 newly installed, 0 to remove and 8 not upgraded.
+Need to get 1304 kB of archives.
+<snip>
+Setting up iputils-ping (3:20121221-5ubuntu2) ...
+Processing triggers for libc-bin (2.23-0ubuntu9) ...
+---> eab9729248d9
+Removing intermediate container ad1ea6a6d4fc
+Step 3/3 : CMD ping google.com
+---> Running in 44fbc308e790
+---> a719d8db1c35
+Removing intermediate container 44fbc308e790
+Successfully built a719d8db1c35
+Successfully tagged test_container:latest
+```
 
 正如它所暗示的评论，我们在这里使用`docker build -t test_container .`构建了容器（使用默认的 Dockerfile 配置名称）在我们当前的目录，并用名称`test_container`标记了它。由于我们没有在`test_container`的末尾指定版本，Docker 为我们分配了一个称为`latest`的版本，正如我们可以从输出的末尾看到的那样。如果我们仔细检查输出，我们还可以看到对基本镜像的每个更改都会创建一个新的层，并且该层的 ID 然后被用作下一个指令的输入，每个层都会将自己的文件系统差异添加到镜像中。例如，如果我们再次运行构建，Docker 足够聪明，知道没有任何变化，它将再次使用这些层的缓存版本。将最终容器 ID（`a719d8db1c35`）与上一次运行的 ID 进行比较：
 
-[PRE19]
+```
+$ docker build -t test_container . 
+Sending build context to Docker daemon 1.716MB
+Step 1/3 : FROM ubuntu:latest
+---> 14f60031763d
+Step 2/3 : RUN apt-get update -q && apt-get install -qy iputils-ping
+---> Using cache
+---> eab9729248d9
+Step 3/3 : CMD ping google.com
+---> Using cache
+---> a719d8db1c35
+Successfully built a719d8db1c35
+Successfully tagged test_container:latest
+```
 
 如果在 Dockerfile 的指令中检测到任何更改，Docker 将重建该层和任何后续层，以确保一致性。这种功能和选择性的“缓存破坏”将在以后进行介绍，并且它在管理您的存储库和镜像大小方面起着非常重要的作用。
 
 容器构建完成后，让我们看看它是否真的有效（要退出循环，请按*Ctrl* + *C*）：
 
-[PRE20]
+```
+$ # Run the image tagged "test_container"
+$ docker run test_container 
+PING google.com (216.58.216.78) 56(84) bytes of data.
+64 bytes from ord30s21-in-f14.1e100.net (216.58.216.78): icmp_seq=1 ttl=52 time=45.9 ms
+64 bytes from ord30s21-in-f14.1e100.net (216.58.216.78): icmp_seq=2 ttl=52 time=41.9 ms
+64 bytes from ord30s21-in-f14.1e100.net (216.58.216.78): icmp_seq=3 ttl=52 time=249 ms
+^C
+--- google.com ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+rtt min/avg/max/mdev = 41.963/112.460/249.470/96.894 ms
+```
 
 又一个成功！你写了你的第一个运行 Docker 容器！
 
@@ -186,11 +389,16 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 在我们刚刚写的容器中，我们有点忽略了这一行`RUN apt-get update -q && apt-get install -qy iputils-ping`，因为它需要在这里进行更深入的讨论。在大多数 Linux 发行版中，软件包的版本经常变化，但告诉我们在哪里找到这些软件包的索引列表是在创建原始 Docker 镜像时就已经固定了（在这种情况下是`ubuntu:latest`）。在大多数情况下，在我们安装软件包之前，我们的索引文件已经过时太久了（如果它们没有被完全删除），所以我们需要更新它们。将这个`&&`连接的行拆分成两个单独的行将适用于第一次构建：
 
-[PRE21]
+```
+RUN apt-get update -q
+RUN apt-get install -qy iputils-ping
+```
 
 但是，当你以后在第二行添加另一个软件包时，会发生什么，就像下一行所示的那样？
 
-[PRE22]
+```
+RUN apt-get install -qy curl iputils-ping
+```
 
 在这种情况下，Docker 并不是很智能，它会认为 `update` 行没有改变，不会再次运行更新命令，因此它将使用缓存中的状态进行更新层，然后继续下一个尝试安装 `curl` 的命令（自上次构建以来已更改），如果仓库中的版本已经足够多次轮换，索引将再次过时，这很可能会失败。为了防止这种情况发生，我们使用 `&&` 将 `update` 和 `install` 命令连接起来，这样它们将被视为一个指令并创建一个层，在这种情况下，更改两个连接命令中的任何部分都将破坏缓存并正确运行 `update`。不幸的是，随着您更多地涉足可扩展的 Docker 组件，使用这些奇技淫巧来管理缓存和进行选择性缓存破坏将成为您工作的重要部分。
 
@@ -202,15 +410,37 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 要开始创建我们的 Web 服务器，我们需要创建一个目录来放置我们所有的文件：
 
-[PRE23]
+```
+$ mkdir ~/advanced_nginx
+$ cd ~/advanced_nginx
+```
 
 我们需要创建的第一个文件是我们将尝试在镜像中提供的虚拟文本文件：
 
-[PRE24]
+```
+$ echo "Just a test file" > test.txt
+```
 
 我们接下来需要的文件是所需的 NGINX 配置。将以下文本放入一个名为 `nginx_main_site.conf` 的文件中：
 
-[PRE25]
+```
+    server {
+      listen 80;
+      server_name _;
+      root /srv/www/html;
+
+      # Deny access to any files prefixed with '.'
+      location ~/\. {
+        deny all;
+      }
+
+      # Serve up the root path at <host>/
+      location / {
+        index index.html;
+        autoindex on;
+      }
+    }
+```
 
 如果你从未使用过 NGINX，让我们看看这个文件做了什么。在第一个块中，我们创建了一个在镜像上以 `/srv/www/html` 为根的监听端口 `80` 的 `server`。第二个块虽然不是严格必需的，并且对于更大的网站需要进行更改，但对于任何在 NGINX 上工作的人来说，这应该是一种肌肉记忆，因为它可以防止下载像 `.htaccess`、`.htpasswd` 和许多其他不应该公开的隐藏文件。最后一个块只是确保任何以 `/` 开头的路径将从 `root` 中读取，并且如果没有提供索引文件，它将使用 `index.html`。如果没有这样的文件可用并且我们在一个目录中，`autoindex` 确保它可以向您显示一个目录的可读列表。
 
@@ -218,7 +448,28 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 配置写好后，我们现在可以创建我们的 Dockerfile，它将获取我们的测试文件、配置文件和 NGINX 镜像，并将它们转换成一个运行 Web 服务器并提供我们的测试文件的 Docker 镜像。
 
-[PRE26]
+```
+FROM nginx:latest
+
+# Make sure we are fully up to date
+RUN apt-get update -q && \
+ apt-get dist-upgrade -y
+
+# Remove the default configuration
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Create our website's directory and make sure
+# that the webserver process can read it
+RUN mkdir -p /srv/www/html && \
+ chown nginx:nginx /srv/www/html
+
+# Put our custom server configuration in
+COPY nginx_main_site.conf /etc/nginx/conf.d/
+
+# Copy our test file in the location that is
+# being served up
+COPY test.txt /srv/www/html/
+```
 
 这个 Dockerfile 可能看起来与第一个有很大不同，所以我们将花一些时间来深入了解我们在这里做了什么。
 
@@ -242,7 +493,13 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 接下来，我们需要确保我们将要提供文件的文件夹可以被网络服务器进程访问和读取。使用`mkdir -p`的第一个命令创建了所有相关的目录，但由于 NGINX 不以 root 身份运行，我们需要知道进程将以什么用户来读取我们想要提供的文件，否则我们的服务器将无法显示任何内容。我们可以通过显示包含在镜像中的系统范围 NGINX 配置的前几行来找到原始配置中的默认用户，该配置位于`/etc/nginx/nginx.conf`中。
 
-[PRE27]
+```
+$ # Print top 2 lines of main config file in NGINX image
+$ docker run --rm \
+             nginx /bin/head -2 /etc/nginx/nginx.conf
+
+user nginx;
+```
 
 完美！现在，需要能够读取这个目录的用户是`nginx`，我们将使用`chown nginx:nginx /srv/www/html`来更改我们目标文件夹的所有者，但是我们刚刚使用了新的`run` Docker 命令来尝试找到这个信息，这是怎么回事？如果在指定镜像名称后包含一个命令，而不是在镜像中使用`CMD`指令，Docker 将用这个新命令替换它。在前面的命令中，我们运行了`/bin/head`可执行文件，并传入参数告诉它我们只想要从`/etc/nginx/nginx.conf`文件中获取前两行。由于这个命令一旦完成就退出了，容器就会停止并完全删除，因为我们使用了`--rm`标志。
 
@@ -256,11 +513,62 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 现在我们已经讨论了整个构建配置，我们可以创建我们的镜像，看看我们刚刚做了什么：
 
-[PRE28]
+```
+$ docker build -t web_server . 
+Sending build context to Docker daemon 17.41kB
+Step 1/6 : FROM nginx:latest
+ ---> b8efb18f159b
+Step 2/6 : RUN apt-get update -q && apt-get dist-upgrade -yq
+ ---> Running in 5cd9ae3712da
+Get:1 http://nginx.org/packages/mainline/debian stretch InRelease [2854 B]
+Get:2 http://security.debian.org stretch/updates InRelease [62.9 kB]
+Get:3 http://nginx.org/packages/mainline/debian stretch/nginx amd64 Packages [11.1 kB]
+Get:5 http://security.debian.org stretch/updates/main amd64 Packages [156 kB]
+Ign:4 http://cdn-fastly.deb.debian.org/debian stretch InRelease
+Get:6 http://cdn-fastly.deb.debian.org/debian stretch-updates InRelease [88.5 kB]
+Get:7 http://cdn-fastly.deb.debian.org/debian stretch Release [118 kB]
+Get:8 http://cdn-fastly.deb.debian.org/debian stretch Release.gpg [2373 B]
+Get:9 http://cdn-fastly.deb.debian.org/debian stretch/main amd64 Packages [9497 kB]
+Fetched 9939 kB in 40s (246 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Calculating upgrade...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+ ---> 4bbd446af380
+Removing intermediate container 5cd9ae3712da
+Step 3/6 : RUN rm /etc/nginx/conf.d/default.conf
+ ---> Running in 39ad3da8979a
+ ---> 7678bc9abdf2
+Removing intermediate container 39ad3da8979a
+Step 4/6 : RUN mkdir -p /srv/www/html && chown nginx:nginx /srv/www/html
+ ---> Running in e6e50483e207
+ ---> 5565de1d2ec8
+Removing intermediate container e6e50483e207
+Step 5/6 : COPY nginx_main_site.conf /etc/nginx/conf.d/
+ ---> 624833d750f9
+Removing intermediate container a2591854ff1a
+Step 6/6 : COPY test.txt /srv/www/html/
+ ---> 59668a8f45dd
+Removing intermediate container f96dccae7b5b
+Successfully built 59668a8f45dd
+Successfully tagged web_server:latest
+```
 
 容器构建似乎很好，让我们来运行它：
 
-[PRE29]
+```
+$ docker run -d \
+             -p 8080:80 \
+             --rm \
+             web_server 
+bc457d0c2fb0b5706b4ca51b37ca2c7b8cdecefa2e5ba95123aee4458e472377
+
+$ docker ps
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+bc457d0c2fb0 web_server "nginx -g 'daemon ..." 30 seconds ago Up 29 seconds 0.0.0.0:8080->80/tcp goofy_barti
+```
 
 到目前为止，一切都很顺利，似乎运行得很好。现在我们将在`http://localhost:8080`上用浏览器访问容器。
 
@@ -278,11 +586,62 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 我们将从创建一个干净的目录开始这个示例，并创建我们之前使用的相同的测试文件：
 
-[PRE30]
+```
+$ mkdir ~/python_webserver
+$ cd ~/python_webserver
+
+$ echo "Just a test file" > test.txt
+```
 
 现在我们将通过将以下内容放入`Dockerfile`来创建一个稍微复杂一点的基于 Python 的 Web 服务器容器。
 
-[PRE31]
+```
+FROM python:3
+
+# Add some labels for cache busting and annotating
+LABEL version="1.0"
+LABEL org.sgnn7.name="python-webserver"
+
+# Set a variable that we will keep reusing to prevent typos
+ENV SRV_PATH=/srv/www/html
+
+# Make sure we are fully up to date
+RUN apt-get update -q && \
+ apt-get dist-upgrade -y
+
+# Let Docker know that the exposed port we will use is 8000
+EXPOSE 8000
+
+# Create our website's directory, then create a limited user
+# and group
+RUN mkdir -p $SRV_PATH && \
+ groupadd -r -g 350 pythonsrv && \
+ useradd -r -m -u 350 -g 350 pythonsrv
+
+# Define ./external as an externally-mounted directory
+VOLUME $SRV_PATH/external
+
+# To serve things up with Python, we need to be in that
+# same directory
+WORKDIR $SRV_PATH
+
+# Copy our test file
+COPY test.txt $SRV_PATH/
+
+# Add a URL-hosted content into the image
+ADD https://raw.githubusercontent.com/moby/moby/master/README.md \
+ $SRV_PATH/
+
+# Make sure that we can read all of these files as a
+# limited user
+RUN chown -R pythonsrv:pythonsrv $SRV_PATH
+
+# From here on out, use the limited user
+USER pythonsrv
+
+# Run the simple http python server to serve up the content
+CMD [ "python3", "-m", "http.server" ]
+```
 
 在几乎所有情况下，使用 Python 内置的 Web 服务器都是极不推荐的，因为它既不可扩展，也没有任何显著的配置方式，但它可以作为一个通过 Docker 托管的服务的良好示例，并且几乎在所有安装了 Python 的系统上都可用。除非你真的知道自己在做什么，否则不要在真实的生产服务中使用它。
 
@@ -292,7 +651,10 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 我们这里的第一个新指令是`LABEL`：
 
-[PRE32]
+```
+LABEL version="1.0"
+LABEL org.sgnn7.name="python-webserver"
+```
 
 `LABEL <key>=<value>`或`LABEL <key> <value>`用于向正在构建的镜像添加元数据，稍后可以通过`docker ps`和`docker images`进行检查和过滤，使用类似`docker images --filter "<key>=<value>"`的方式。键通常以`reverse-dns`表示法全部小写，但在这里您可以使用任何内容，`version`应该出现在每个镜像上，因此我们使用顶级版本键名称。但是，这里的版本不仅用于过滤图像，还用于在更改时打破 Docker 的缓存。如果没有这种缓存破坏或在构建过程中通过手动设置标志（`docker build --no-cache`），Docker 将一直重用缓存，直到最近更改的指令或文件，因此您的容器很可能会保持在冻结的软件包配置中。这种情况可能是您想要的，也可能不是，但是以防万一您有自动化构建工具，添加一个`version`层，可以在更改时打破缓存，使得容器非常容易更新。
 
@@ -310,7 +672,11 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 我们`Dockerfile`中的以下新代码块可能有点复杂，但我们将一起学习：
 
-[PRE33]
+```
+RUN mkdir -p $SRV_PATH && \
+ groupadd -r -g 350 pythonsrv && \
+ useradd -r -m -u 350 -g 350 pythonsrv
+```
 
 这是我们需要在多个层面上扩展的内容，但你首先需要知道的是，默认情况下，Dockerfile 指令是以`root`用户执行的，如果稍后没有指定不同的`USER`，你的服务将以`root`凭据运行，从安全角度来看，这是一个巨大的漏洞，我们试图通过将我们的服务仅作为有限用户运行来修补这个漏洞。然而，如果没有定义用户和组，我们无法将上下文从`root`切换，因此我们首先创建一个`pythonsrv`组，然后创建附属于该组的`pythonsrv`用户。`-r`标志将用户和组标记为系统级实体，对于不会直接登录的组和用户来说，这是一个良好的做法。
 
@@ -334,7 +700,10 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 如果要尝试向容器中添加不在本地托管的文件和/或由于许可问题无法将它们包含在`Dockerfile`所在的存储库中，该怎么办？为了这个特定的目的，有`ADD`指令。这个命令会从提供的 URI 下载文件并将其放入容器中。如果文件是本地压缩存档，比如`.tgz`或`.zip`文件，并且目标路径以斜杠结尾，它将被扩展到该目录中，这是一个非常有用的选项，与`COPY`相比。在我们写的例子中，我们将从 GitHub 中随机选择一个文件，并将其放入要包含的目录中。
 
-[PRE34]
+```
+ADD https://raw.githubusercontent.com/moby/moby/master/README.md \
+ $SRV_PATH/
+```
 
 # 改变当前用户
 
@@ -344,11 +713,31 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 我们快要完成了！我们需要做的最后一件事是在容器启动时启动 Python 的内置 HTTP 服务器模块：
 
-[PRE35]
+```
+CMD [ "python3", "-m", "http.server" ]
+```
 
 一切就绪后，我们可以构建并启动我们的新容器：
 
-[PRE36]
+```
+$ docker build -t python_server . 
+Sending build context to Docker daemon 16.9kB
+Step 1/14 : FROM python:3
+ ---> 968120d8cbe8
+<snip>
+Step 14/14 : CMD python3 -m http.server
+ ---> Running in 55262476f342
+ ---> 38fab9dca6cd
+Removing intermediate container 55262476f342
+Successfully built 38fab9dca6cd
+Successfully tagged python_server:latest
+
+$ docker run -d \
+             -p 8000:8000 \
+             --rm \
+             python_server 
+d19e9bf7fe70793d7fce49f3bd268917015167c51bd35d7a476feaac629c32b8
+```
 
 我们可以祈祷并通过访问`http://localhost:8000`来检查我们构建的内容：
 
@@ -360,7 +749,20 @@ Docker 的安装在操作系统之间有很大的差异，但对于大多数系�
 
 如果卷是空的，那么我们的目录也是空的并不奇怪。我们来看看是否可以将一些文件从我们的主机挂载到这个目录中：
 
-[PRE37]
+```
+$ # Kill our old container that is still running
+$ docker kill d19e9bf7
+d19e9bf7
+
+$ # Run our image but mount our current folder to container's
+$ # /srv/www/html/external folder
+$ docker run -d \
+             -p 8000:8000 \
+             --rm \
+             -v $(pwd):/srv/www/html/external \
+             python_server 
+9756b456074f167d698326aa4cbe5245648e5487be51b37b00fee36067464b0e
+```
 
 在这里，我们使用`-v`标志将我们的当前目录(`$(pwd)`)挂载到我们的`/srv/www/html/external`目标上。那么现在`http://localhost:8000/external`是什么样子呢？我们的文件可见吗？
 

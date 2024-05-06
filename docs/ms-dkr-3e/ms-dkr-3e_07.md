@@ -40,31 +40,65 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 要启动虚拟机，您只需要运行以下命令：
 
-[PRE0]
+```
+$ docker-machine create --driver virtualbox docker-local
+```
 
 这将启动部署过程，期间您将获得 Docker Machine 正在运行的任务列表。对于每个使用 Docker Machine 启动的 Docker 主机，都会经历相同的步骤。
 
 首先，Docker Machine 运行一些基本检查，例如确认 VirtualBox 是否已安装，并创建证书和目录结构，用于存储所有文件和虚拟机：
 
-[PRE1]
+```
+Creating CA: /Users/russ/.docker/machine/certs/ca.pem
+Creating client certificate: /Users/russ/.docker/machine/certs/cert.pem
+Running pre-create checks...
+(docker-local) Image cache directory does not exist, creating it at /Users/russ/.docker/machine/cache...
+```
 
 然后检查将用于虚拟机的镜像是否存在。如果不存在，将下载该镜像：
 
-[PRE2]
+```
+(docker-local) No default Boot2Docker ISO found locally, downloading the latest release...
+(docker-local) Latest release for github.com/boot2docker/boot2docker is v18.06.1-ce
+(docker-local) Downloading /Users/russ/.docker/machine/cache/boot2docker.iso from https://github.com/boot2docker/boot2docker/releases/download/v18.06.1-ce/boot2docker.iso...
+(docker-local) 0%....10%....20%....30%....40%....50%....60%....70%....80%....90%....100%
+```
 
 一旦检查通过，它将使用所选的驱动程序创建虚拟机：
 
-[PRE3]
+```
+Creating machine...
+(docker-local) Copying /Users/russ/.docker/machine/cache/boot2docker.iso to /Users/russ/.docker/machine/machines/docker-local/boot2docker.iso...
+(docker-local) Creating VirtualBox VM...
+(docker-local) Creating SSH key...
+(docker-local) Starting the VM...
+(docker-local) Check network to re-create if needed...
+(docker-local) Found a new host-only adapter: "vboxnet0"
+(docker-local) Waiting for an IP...
+Waiting for machine to be running, this may take a few minutes...
+```
 
 正如您所看到的，Docker Machine 为虚拟机创建了一个唯一的 SSH 密钥。这意味着您将能够通过 SSH 访问虚拟机，但稍后会详细介绍。虚拟机启动后，Docker Machine 会连接到虚拟机：
 
-[PRE4]
+```
+Detecting operating system of created instance...
+Waiting for SSH to be available...
+Detecting the provisioner...
+Provisioning with boot2docker...
+Copying certs to the local machine directory...
+Copying certs to the remote machine...
+Setting Docker configuration on the remote daemon...
+Checking connection to Docker...
+```
 
 正如您所看到的，Docker Machine 会检测正在使用的操作系统，并选择适当的引导脚本来部署 Docker。一旦安装了 Docker，Docker Machine 会在本地主机和 Docker 主机之间生成和共享证书。然后，它会为证书认证配置远程 Docker 安装，这意味着您的本地客户端可以连接并与远程 Docker 服务器进行交互：
 
 一旦安装了 Docker，Docker Machine 会在本地主机和 Docker 主机之间生成和共享证书。然后，它会为证书认证配置远程 Docker 安装，这意味着您的本地客户端可以连接并与远程 Docker 服务器进行交互：
 
-[PRE5]
+```
+Docker is up and running!
+To see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: docker-machine env docker-local
+```
 
 最后，它检查您的本地 Docker 客户端是否可以进行远程连接，并通过提供有关如何配置本地客户端以连接新启动的 Docker 主机的说明来完成任务。
 
@@ -74,11 +108,20 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 接下来，我们需要配置本地 Docker 客户端以连接到新启动的 Docker 主机；如在启动主机的输出中已经提到的，运行以下命令将向您显示如何进行连接：
 
-[PRE6]
+```
+$ docker-machine env docker-local
+```
 
 该命令返回以下内容：
 
-[PRE7]
+```
+export DOCKER_TLS_VERIFY="1"
+export DOCKER_HOST="tcp://192.168.99.100:2376"
+export DOCKER_CERT_PATH="/Users/russ/.docker/machine/machines/docker-local"
+export DOCKER_MACHINE_NAME="docker-local"
+# Run this command to configure your shell:
+# eval $(docker-machine env docker-local)
+```
 
 这将通过提供新启动的 Docker 主机的 IP 地址和端口号以及用于身份验证的证书路径来覆盖本地 Docker 安装。在输出的末尾，它会给出一个命令来运行并配置您的终端会话，以便进行连接。
 
@@ -88,7 +131,9 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 这基本上是我正在运行的 Docker for Mac 安装。运行以下命令，然后再次运行`docker version`应该会显示服务器的一些更改：
 
-[PRE8]
+```
+$ eval $(docker-machine env docker-local)
+```
 
 该命令的输出如下：
 
@@ -100,7 +145,9 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 首先列出当前配置的 Docker 主机：
 
-[PRE9]
+```
+$ docker-machine ls
+```
 
 该命令的输出如下：
 
@@ -112,7 +159,9 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 接下来的命令使用 SSH 连接到 Docker 主机：
 
-[PRE10]
+```
+$ docker-machine ssh docker-local
+```
 
 该命令的输出如下：
 
@@ -120,19 +169,36 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 如果您需要在 Docker Machine 之外安装其他软件或配置，则这很有用。如果您需要查看日志等，也很有用，因为您可以通过运行`exit`退出远程 shell。一旦回到本地机器上，您可以通过运行以下命令找到 Docker 主机的 IP 地址：
 
-[PRE11]
+```
+$ docker-machine ip docker-local
+```
 
 我们将在本章后面经常使用这个。还有一些命令可以获取有关 Docker 主机的更多详细信息：
 
-[PRE12]
+```
+$ docker-machine inspect docker-local
+$ docker-machine config docker-local
+$ docker-machine status docker-local
+$ docker-machine url docker-local
+```
 
 最后，还有一些命令可以`stop`，`start`，`restart`和删除您的 Docker 主机。使用最后一个命令来删除您本地启动的主机：
 
-[PRE13]
+```
+$ docker-machine stop docker-local
+$ docker-machine start docker-local
+$ docker-machine restart docker-local
+$ docker-machine rm docker-local
+```
 
 运行`docker-machine rm`命令将提示您确定是否真的要删除实例：
 
-[PRE14]
+```
+About to remove docker-local
+WARNING: This action will delete both local reference and remote instance.
+Are you sure? (y/n): y
+Successfully removed docker-local
+```
 
 现在我们已经快速了解了基础知识，让我们尝试一些更有冒险精神的东西。
 
@@ -146,17 +212,40 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 首先，我们要做的是将我们的令牌设置为环境变量，这样我们就不必一直使用它。要做到这一点，请运行以下命令，确保您用自己的 API 令牌替换 API 令牌：
 
-[PRE15]
+```
+$ DOTOKEN=0cb54091fecfe743920d0e6d28a29fe325b9fc3f2f6fccba80ef4b26d41c7224
+```
 
 由于我们需要传递给 Docker Machine 命令的额外标志，我将使用`\`来将命令分割成多行，以使其更易读。
 
 要启动名为`docker-digtialocean`的 Docker 主机，我们需要运行以下命令：
 
-[PRE16]
+```
+$ docker-machine create \
+ --driver digitalocean \ --digitalocean-access-token $DOTOKEN \ docker-digitalocean
+```
 
 由于 Docker 主机是远程机器，它将需要一些时间来启动、配置和访问。如您从以下输出中所见，Docker Machine 启动 Docker 主机的方式也有一些变化：
 
-[PRE17]
+```
+Running pre-create checks...
+Creating machine...
+(docker-digitalocean) Creating SSH key...
+(docker-digitalocean) Creating Digital Ocean droplet...
+(docker-digitalocean) Waiting for IP address to be assigned to the Droplet...
+Waiting for machine to be running, this may take a few minutes...
+Detecting operating system of created instance...
+Waiting for SSH to be available...
+Detecting the provisioner...
+Provisioning with ubuntu(systemd)...
+Installing Docker...
+Copying certs to the local machine directory...
+Copying certs to the remote machine...
+Setting Docker configuration on the remote daemon...
+Checking connection to Docker...
+Docker is up and running!
+To see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: docker-machine env docker-digitalocean
+```
 
 启动后，您应该能够在 DigitalOcean 控制面板中看到 Docker 主机：
 
@@ -164,7 +253,9 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 通过运行以下命令重新配置本地客户端以连接到远程主机：
 
-[PRE18]
+```
+$ eval $(docker-machine env docker-digitalocean)
+```
 
 此外，您可以运行 `docker version` 和 `docker-machine inspect docker-digitalocean` 来获取有关 Docker 主机的更多信息。
 
@@ -174,11 +265,31 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 您可以通过运行 `exit` 退出远程 shell。正如您所见，我们不必告诉 Docker Machine 要使用哪种操作系统，Docker 主机的大小，甚至在哪里启动它。这是因为每个驱动程序都有一些相当合理的默认值。将这些默认值添加到我们的命令中，使其看起来像以下内容：
 
-[PRE19]
+```
+$ docker-machine create \
+ --driver digitalocean \
+ --digitalocean-access-token $DOTOKEN \
+ --digitalocean-image ubuntu-16-04-x64 \
+ --digitalocean-region nyc3 \
+ --digitalocean-size 512mb \
+ --digitalocean-ipv6 false \
+ --digitalocean-private-networking false \
+ --digitalocean-backups false \
+ --digitalocean-ssh-user root \
+ --digitalocean-ssh-port 22 \
+ docker-digitalocean
+```
 
 如您所见，您可以自定义 Docker 主机的大小、区域和操作系统，甚至是启动 Docker 主机的网络。假设我们想要更改操作系统和 droplet 的大小。在这种情况下，我们可以运行以下命令：
 
-[PRE20]
+```
+$ docker-machine create \
+ --driver digitalocean \
+ --digitalocean-access-token $DOTOKEN \
+ --digitalocean-image ubuntu-18-04-x64 \
+ --digitalocean-size 1gb \
+ docker-digitalocean
+```
 
 如您在 DigitalOcean 控制面板中所见，这将启动一个看起来像以下内容的机器：
 
@@ -186,7 +297,9 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 您可以通过运行以下命令删除 DigitalOcean Docker 主机：
 
-[PRE21]
+```
+$ docker-machine rm docker-digitalocean
+```
 
 # 使用其他基本操作系统
 
@@ -198,23 +311,67 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 要启动 DigitalOcean 管理的`coreos-stable`版本，请运行以下命令：
 
-[PRE22]
+```
+$ docker-machine create \
+ --driver digitalocean \
+ --digitalocean-access-token $DOTOKEN \
+ --digitalocean-image coreos-stable \
+ --digitalocean-size 1GB \
+ --digitalocean-ssh-user core \
+ docker-coreos
+```
 
 与在公共云上启动其他 Docker 主机一样，输出基本相同。您会注意到 Docker Machine 使用 CoreOS 提供程序：
 
-[PRE23]
+```
+Running pre-create checks...
+Creating machine...
+(docker-coreos) Creating SSH key...
+(docker-coreos) Creating Digital Ocean droplet...
+(docker-coreos) Waiting for IP address to be assigned to the Droplet...
+Waiting for machine to be running, this may take a few minutes...
+Detecting operating system of created instance...
+Waiting for SSH to be available...
+Detecting the provisioner...
+Provisioning with coreOS...
+Copying certs to the local machine directory...
+Copying certs to the remote machine...
+Setting Docker configuration on the remote daemon...
+Checking connection to Docker...
+Docker is up and running!
+To see how to connect your Docker Client to the Docker Engine running on this virtual machine, run: docker-machine env docker-coreos
+```
 
 一旦启动，您可以运行以下命令：
 
-[PRE24]
+```
+$ docker-machine ssh docker-coreos cat /etc/*release
+```
 
 这将返回`release`文件的内容：
 
-[PRE25]
+```
+DISTRIB_ID="Container Linux by CoreOS"
+DISTRIB_RELEASE=1800.7.0
+DISTRIB_CODENAME="Rhyolite"
+DISTRIB_DESCRIPTION="Container Linux by CoreOS 1800.7.0 (Rhyolite)"
+NAME="Container Linux by CoreOS"
+ID=coreos
+VERSION=1800.7.0
+VERSION_ID=1800.7.0
+BUILD_ID=2018-08-15-2254
+PRETTY_NAME="Container Linux by CoreOS 1800.7.0 (Rhyolite)"
+ANSI_COLOR="38;5;75"
+HOME_URL="https://coreos.com/"
+BUG_REPORT_URL="https://issues.coreos.com"
+COREOS_BOARD="amd64-usr"
+```
 
 运行以下命令将显示有关在 CoreOS 主机上运行的 Docker 版本的更多信息：
 
-[PRE26]
+```
+$ docker $(docker-machine config docker-coreos) version
+```
 
 您可以从以下输出中看到这一点；另外，正如已经提到的，它落后于当前版本：
 
@@ -222,7 +379,9 @@ VirtualBox 是 Oracle 提供的免费虚拟化产品。它允许您在许多不�
 
 这意味着本书中使用的并非所有命令都能正常工作。要删除 CoreOS 主机，请运行以下命令：
 
-[PRE27]
+```
+$ docker-machine rm docker-coreos
+```
 
 # 摘要
 

@@ -99,21 +99,46 @@ Docker 引擎通过利用最近提到的资源隔离和控制技术有效地保�
 
 首先，我们通过在`docker run`子命令中运行简单的`id`命令来演示 Docker 容器的默认根权限，如下所示：
 
-[PRE0]
+```
+$ sudo docker run --rm ubuntu:14.04 id
+uid=0(root) gid=0(root) groups=0(root)
+
+```
 
 现在，让我们执行以下步骤：
 
 1.  制作一个`Dockerfile`，创建一个非根权限用户，并将默认的根用户修改为新创建的非根权限用户，如下所示：
 
-[PRE1]
+```
+#######################################################
+# Dockerfile to change from root to non-root privilege
+#######################################################
+
+# Base image is Ubuntu
+FROM ubuntu:14.04
+
+# Add a new user "peter" with user id 7373
+RUN useradd -u 7373  peter
+
+# Change to non-root privilege
+USER peter
+uid=0(root) gid=0(root) groups=0(root)
+```
 
 1.  继续使用`docker build`子命令构建 Docker 镜像，如下所示：
 
-[PRE2]
+```
+$ sudo docker build –t nonrootimage .
+
+```
 
 1.  最后，让我们使用`docker run`子命令中的`id`命令来验证容器的当前用户：
 
-[PRE3]
+```
+$ sudo docker run --rm nonrootimage id
+uid=7373(peter) gid=7373(peter) groups=7373(peter)
+
+```
 
 显然，容器的用户、组和组现在已更改为非根用户。
 

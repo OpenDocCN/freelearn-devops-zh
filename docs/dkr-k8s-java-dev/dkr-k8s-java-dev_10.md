@@ -36,37 +36,67 @@
 
 它可能已经存在，您可以使用以下命令进行验证：
 
-[PRE0]
+```
+$ python3 --version
+
+```
 
 如果输出是`command not found`，最快的安装方法将是使用系统上的软件包管理器，例如 Debian/Ubuntu 上的`apt`，Fedora 上的`yum`，或 macOS 上的 Homebrew。如果您在 macOS 上工作并且尚未安装 Homebrew，我强烈建议您这样做；它是一个很棒的工具，可以让您轻松安装成千上万的软件包以及所有所需的依赖项。Homebrew 可以免费获取[`brew.sh/`](https://brew.sh/)。要安装它，请执行以下命令：
 
-[PRE1]
+```
+$ ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+
+```
 
 从现在开始，您应该在 macOS 终端中可以使用`brew`命令。
 
 要在 Linux 上使用`apt`软件包管理器（在 Debian 或 Ubuntu 上）安装 Python，请执行以下命令：
 
-[PRE2]
+```
+$ sudo apt-get update
+
+$ sudo apt-get install python3.6
+
+```
 
 在 macOS 上，这将是以下命令：
 
-[PRE3]
+```
+$ brew install python3
+
+```
 
 安装 Python 的过程取决于您的计算机速度和互联网连接速度，但不应该花费太长时间。一旦安装了 Python，我们将需要另一个工具，即`pip`。`pip`是安装 Python 软件包的推荐工具。它本身是用 Python 编写的。您可以使用您选择的软件包管理器来安装它，例如在 Ubuntu 或 Debian 上执行以下命令：
 
-[PRE4]
+```
+$ sudo apt-get install python3-pip
+
+```
 
 安装`pip`的另一种方法是使用安装脚本。在这种情况下，Linux 和 macOS 的过程完全相同。首先，我们需要使用以下命令下载安装脚本：
 
-[PRE5]
+```
+$ curl -O https://bootstrap.pypa.io/get-pip.py
+
+```
 
 过一段时间，我们需要通过执行以下命令运行安装脚本：
 
-[PRE6]
+```
+$ python3 get-pip.py -user
+
+```
 
 过一段时间，`pip`应该可以在终端 shell 中使用。要验证它是否正常工作，请执行以下命令：
 
-[PRE7]
+```
+$ pip -V
+
+or 
+
+$ pip --version
+
+```
 
 现在我们已经安装并正常运行 Python 和 pip，是时候转向更有趣的事情了，安装 Amazon AWS 命令行工具。
 
@@ -76,7 +106,10 @@ Amazon **AWS 命令行工具**（**awscli**）界面是管理 AWS 服务的统�
 
 要安装`awscli`，执行以下`pip`命令：
 
-[PRE8]
+```
+$ pip3 install --user --upgrade awscli
+
+```
 
 过一会儿，`pip`将在驱动器的`python3`文件夹结构中下载并安装必要的文件。在 macOS 和 Python 3.6 的情况下，它将是`~/Library/Python/3.6/bin`。将此文件夹添加到您的`PATH`环境变量中非常方便，以便在 shell 中的任何位置都可以使用。这很简单；您需要编辑其中一个文件中的`PATH`变量，具体取决于您使用的 shell：
 
@@ -88,11 +121,17 @@ Amazon **AWS 命令行工具**（**awscli**）界面是管理 AWS 服务的统�
 
 在 macOS 上，`PATH`条目可能看起来与此相同：
 
-[PRE9]
+```
+export PATH=~/Library/Python/3.6/bin/:$PATH
+
+```
 
 重新登录或启动新的终端后，您可以通过执行以下命令来验证`aws`命令是否可用：
 
-[PRE10]
+```
+$ aws -version
+
+```
 
 正如您在输出中所看到的，这将为您提供详细的`aws`命令行工具版本，还有它运行的 Python 版本：
 
@@ -106,15 +145,32 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 要在 macOS 或 Linux 上安装，您只需要下载二进制文件，更改权限为可执行，然后就完成了。例如，要下载，请执行：
 
-[PRE11]
+```
+$ wget \ https://github.com/kubernetes/kops/releases/download/1.6.1/kops-darwin-amd64 
+
+$ chmod +x kops-darwin-amd64
+
+$ mv kops-darwin-amd64 /usr/local/bin/kops
+
+```
 
 或者，如果您使用 Linux，请执行以下命令：
 
-[PRE12]
+```
+$ wget \ https://github.com/kubernetes/kops/releases/download/1.6.2/kops-linux-amd64
+
+$ chmod +x kops-linux-amd64
+
+$ mv kops-linux-amd64 /usr/local/bin/kops
+
+```
 
 另外，再次使用软件包管理器将是获取最新的`kops`二进制文件的最简单方法，例如在 macOS 上使用`brew`：
 
-[PRE13]
+```
+$ brew update && brew install kops
+
+```
 
 请注意，您必须安装`kubectl`（[`kubernetes.io/docs/tasks/tools/install-kubectl/`](https://kubernetes.io/docs/tasks/tools/install-kubectl/)）才能使`kops`正常工作。如果您使用软件包管理器，`kubectl`的依赖关系可能已经在`kops`软件包中定义，因此将首先安装`kubernetes-cli`。
 
@@ -164,7 +220,20 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 首先，我们将创建一个名为`kops`的组，并为该组分配所需的权限。执行以下命令列表来创建一个组并分配权限：
 
-[PRE14]
+```
+$ aws iam create-group --group-name kops
+
+$ aws iam attach-group-policy --policy-arn $ arn:aws:iam::aws:policy/AmazonEC2FullAccess --group-name kops
+
+$ aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops
+
+$ aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53FullAccess --group-name kops
+
+$ aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/IAMFullAccess --group-name kops
+
+$ aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonVPCFullAccess --group-name kops
+
+```
 
 `create-group`命令将给您一些 JSON 响应，但是如果一切顺利，当将权限（组策略）附加到组时将不会有响应：
 
@@ -172,7 +241,12 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 接下来，让我们创建`kops` IAM 用户并将用户添加到`kops`组，使用以下命令：
 
-[PRE15]
+```
+$ aws iam create-user --user-name kops
+
+$ aws iam add-user-to-group --user-name kops --group-name kops
+
+```
 
 如果您感兴趣，现在可以登录到 Web AWS 控制台。您会看到我们的`kops`用户拥有我们需要的所有权限：
 
@@ -180,7 +254,10 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 要列出所有注册用户，请执行以下命令：
 
-[PRE16]
+```
+$ aws iam list-users 
+
+```
 
 正如您在以下截图中所看到的，我们现在应该有两个用户：`admin`和`kops`：
 
@@ -188,7 +265,10 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 关于我们的新`kops`用户，我们需要做的最后一件事就是生成访问密钥。我们将需要它们来使用`aws configure`命令进行身份验证。执行以下操作为`kops`用户生成访问密钥：
 
-[PRE17]
+```
+$ aws iam create-access-key --user-name kops
+
+```
 
 正如您在以下截图中所看到的，AWS 将以包含`AccessKeyId`和`SecretAccessKey`的 JSON 响应进行回答；在使用`aws configure`命令进行身份验证时，我们将需要这两者：
 
@@ -196,11 +276,19 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 现在我们需要做的就是使用`aws configure`命令进行身份验证，提供我们在响应中获得的`AccessKeyId`和`SecretAccessKey`。执行以下操作：
 
-[PRE18]
+```
+$ aws configure 
+
+```
 
 因为`aws configure`命令不会为`kops`导出这些变量以供使用，所以我们现在需要导出它们：
 
-[PRE19]
+```
+$ export AWS_ACCESS_KEY_ID=<access key>
+
+$ export AWS_SECRET_ACCESS_KEY=<secret key>
+
+```
 
 就是这样，我们已经使用名为`kops`的新用户进行了身份验证，该用户具有启动 Kubernetes 集群所需的所有权限。从现在开始，我们执行的每个`kops`命令都将使用 AWS `kops`用户。现在是时候回到重点并最终创建我们的集群了。
 
@@ -226,27 +314,105 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 如果您在 AWS 上购买并托管了您的域名，但想要将子域用于集群，您需要在 Route 53 中创建一个新的托管区域，然后将新路由委派给这个新区域。基本上就是将您的子域的 NS 服务器复制到 Route 53 中的父域。假设我们的域是[mydomain.com](http://www.mydomain.com/)；我们首先需要获取一些信息。请注意，当执行`aws`命令时，现在`jq`命令行工具非常方便。首先，我们需要我们主要父区域的 ID：
 
-[PRE20]
+```
+$ aws route53 list-hosted-zones | jq '.HostedZones[] \ 
+
+| select(.Name=="mydomain.com.") | .Id'
+
+```
 
 要创建新的子域，请执行以下操作：
 
-[PRE21]
+```
+$ aws route53 create-hosted-zone --name myservice.mydomain.com \ 
+
+--caller-reference $ID | jq .DelegationSet.NameServers
+
+```
 
 请注意，上一个命令将列出新域的名称服务器。如果您之前创建了子域，并且想要列出名称服务器（以便首先将 NS 服务器列表复制到父区域，我们需要知道它们），请执行以下命令以获取子域区域 ID：
 
-[PRE22]
+```
+$ aws route53 list-hosted-zones | jq '.HostedZones[] | \ select(.Name==" myservice.mydomain.com.") | .Id'
+
+```
 
 有了子域区域的 ID，我们可以通过执行以下命令列出其名称服务器：
 
-[PRE23]
+```
+$ aws route53 get-hosted-zone --id <your-subdomain-zoneID> \
+
+| jq .DelegationSet.NameServers
+
+```
 
 到目前为止，我们有父区域的区域 ID，子域区域的 ID 和子域名称服务器列表。我们准备好将它们复制到父区域中了。最方便的方法是准备 JSON 文件，因为输入内容相当长。文件将如下所示：
 
-[PRE24]
+```
+{
+
+ "Changes": [
+
+ {
+
+ "Action": "CREATE",
+
+ "ResourceRecordSet": {
+
+ "Name": "myservice.mydomain.com",
+
+ "Type": "NS",
+
+ "TTL": 300,
+
+ "ResourceRecords": [
+
+ {
+
+ "Value": "ns-1.awsdns-1.com"
+
+ },
+
+ {
+
+ "Value": "ns-2.awsdns-2.org"
+
+ },
+
+ {
+
+ "Value": "ns-3.awsdns-3.com"
+
+ },
+
+ {
+
+ "Value": "ns-4.awsdns-4.net"
+
+ }
+
+ ]
+
+ }
+
+ }
+
+ ]
+
+}
+
+```
 
 您需要将此保存为文件，比如`my-service-subdomain.json`，并执行最后一个命令。它将把名称服务器列表复制到父区域中。
 
-[PRE25]
+```
+$ aws route53 change-resource-record-sets 
+
+--change-batch file://my-service-subdomain.json \
+
+--hosted-zone-id <your-parent-zone-id>
+
+```
 
 一段时间后，所有发送到`*.myservice.mydomain.com`的网络流量将被路由到 AWS Route 53 中正确的子域托管区域。
 
@@ -264,7 +430,14 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 与托管在 AWS 上的域上的子域类似，让我们首先创建一个子域，通过执行以下命令：
 
-[PRE26]
+```
+$ aws route53 create-hosted-zone \
+
+--name myservice.mydomain.com \
+
+--caller-reference $ID | jq .DelegationSet.NameServers
+
+```
 
 上一个命令的输出将列出子域的名称服务器。您需要登录到您的注册商设置页面，并创建一个新的子域，提供从上一个命令中收到的四个名称服务器记录。您可以在您特定的注册商帮助指南中找到有关如何编辑您域的名称服务器的详细说明。
 
@@ -276,7 +449,10 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 要列出特定区域可用的区域，请执行以下命令：
 
-[PRE27]
+```
+$ aws ec2 describe-availability-zones --region eu-central-1
+
+```
 
 如您在以下截图中所见，AWS 将在响应中列出可用的区域：
 
@@ -286,7 +462,16 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 我们的集群需要在某个地方存储其状态。Kops 使用 Amazon S3 存储桶来实现这一目的。S3 存储桶是**Amazon Web Services**（**AWS**）对象存储服务**Simple Storage Solution**（**S3**）中的逻辑存储单元。存储桶用于存储对象，对象由描述数据的数据和元数据组成。要创建一个存储桶，请执行以下`aws`命令：
 
-[PRE28]
+```
+$ aws s3api create-bucket \
+
+--bucket my-cluster-store \
+
+--region eu-central-1 \
+
+--create-bucket-configuration LocationConstraint=eu-central-1
+
+```
 
 如您在以下截图中所见，AWS 将向您提供有关存储位置的简明信息：
 
@@ -294,7 +479,10 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 创建存储后，我们需要在创建集群时使其对`kops`可用。为此，我们需要将存储桶的名称导出到`KOPS_STATE_STORE`环境变量中：
 
-[PRE29]
+```
+$ export KOPS_STATE_STORE=s3://my-cluster-store
+
+```
 
 我们现在准备创建一个集群。
 
@@ -304,13 +492,19 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 首先将我们的集群名称导出到环境变量中。这将很有用，因为我们经常会引用集群的名称。执行以下命令导出集群名称：
 
-[PRE30]
+```
+$ export NAME=my-rest-cluster.k8s.local
+
+```
 
 `kops create cluster`是我们将用来创建集群的命令。请注意，这不会影响我们的 Amazon EC2 实例。该命令的结果只是一个本地集群模板，我们可以在在 AWS 上进行真正的物理更改之前进行审查和编辑。
 
 命令的语法非常简单：
 
-[PRE31]
+```
+$ kops create cluster [options]
+
+```
 
 该命令有很多选项；您可以在 GitHub 上始终找到最新的描述，网址为[`github.com/kubernetes/kops/blob/master/docs/cli/kops_create_cluster.md`](https://github.com/kubernetes/kops/blob/master/docs/cli/kops_create_cluster.md) 。让我们专注于最重要的几个：
 
@@ -335,7 +529,22 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 现在让我们使用以下命令创建我们的集群：
 
-[PRE32]
+```
+$ kops create cluster --v=0 \
+
+--cloud=aws --node-count 2 \
+
+--master-size=t2.medium \
+
+--master-zones=eu-central-1a \
+
+--zones eu-central-1a,eu-central-1b  \
+
+--name=${NAME} \
+
+--node-size=t2.medium
+
+```
 
 在响应中，`kops`将列出已创建的配置的所有细节，并建议您可以采取的新集群配置的一些下一步操作：
 
@@ -345,7 +554,10 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 正如我们之前所说，在这个阶段，只创建了集群的模板，而不是集群本身。您仍然可以通过编辑您的集群来更改任何选项：
 
-[PRE33]
+```
+$ kops edit cluster my-rest-cluster.k8s.local
+
+```
 
 这将启动你在 shell 中定义的默认编辑器，在那里你可以看到已生成的集群模板。它将包含更多的设置，不仅仅是你在运行`cluster create`命令时指定的那些：
 
@@ -357,11 +569,17 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 要启动集群并启动所有必要的 EC2 实例，你需要执行`update`命令。`kops`手册建议你首先在预览模式下执行，不要使用`--yes`开关。这不会启动任何 EC2 实例：
 
-[PRE34]
+```
+$ kops update cluster ${NAME} 
+
+```
 
 如果一切看起来正确，使用`--yes`开关执行更新命令：
 
-[PRE35]
+```
+$ kops update cluster ${NAME} --yes
+
+```
 
 ![](img/Image00124.jpg)
 
@@ -371,7 +589,10 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 你也可以通过发出以下命令来检查整个集群状态：
 
-[PRE36]
+```
+$ kops validate cluster
+
+```
 
 输出将包含有关集群节点数量和状态的信息，包括主节点：
 
@@ -379,7 +600,10 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 当然，由于`kubectl`现在配置为在我们的 AWS 集群上操作，我们可以使用`kubectl get nodes`命令列出节点，就像我们在第九章中使用`minikube`基础集群一样。执行以下命令：
 
-[PRE37]
+```
+$ list nodes: kubectl get nodes --show-labels
+
+```
 
 将会给你提供有关你的集群节点名称和状态的信息：
 
@@ -389,7 +613,22 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 `Kops`的行为类似于`kubectl`；你可以在编辑器中编辑配置文件，然后再实际对集群进行任何更改。`kops update`命令将应用配置更改，但不会修改正在运行的基础设施。要更新运行中的集群，你需要执行`rolling-update`命令。以下将启动集群基础设施的更新或重建过程：
 
-[PRE38]
+```
+ $ kops 
+
+rolling
+
+-
+
+update 
+
+cluster
+
+ –
+
+yes 
+
+```
 
 我们的新集群正在运行，但是它是空的。让我们部署一些东西。
 
@@ -397,11 +636,21 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 当集群运行时，部署一个仪表板会很好，以查看您的服务、部署、Pod 等的状态。仪表板默认包含在 `minikube` 集群中，但是在我们全新的亚马逊集群上，我们需要手动安装它。这是一个简单的过程。由于我们已经配置了 `kubectl` 来操作远程集群，我们可以使用 `kubernetes-dashboard.yaml` 模板作为输入执行以下 `kubectl create` 命令：
 
-[PRE39]
+```
+$ kubectl create -f \
+
+https://rawgit.com/kubernetes/dashboard/master/src/deploy
+
+kubernetes-dashboard.yaml
+
+```
 
 接下来要做的事情是代理网络流量，使用我们已经知道的以下 `kubectl proxy` 命令：
 
-[PRE40]
+```
+$ kubectl proxy
+
+```
 
 就是这样！过一会儿，仪表板将被部署，我们将能够使用本地主机地址访问它：
 
@@ -413,7 +662,10 @@ Kubernetes 操作或简称`kops`是生产级 Kubernetes 安装、升级和管理
 
 如果您决定删除集群，请执行以下命令：
 
-[PRE41]
+```
+$ kops delete cluster -name=${NAME} --yes
+
+```
 
 请注意，如果您只是创建了集群模板，而没有首先执行 `kops update cluster ${NAME} --yes`，您也可以删除集群，如下截图所示：
 

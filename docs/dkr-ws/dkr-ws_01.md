@@ -92,11 +92,40 @@ Docker 引擎不仅支持执行容器镜像，还提供了内置机制，可以�
 
 1.  在 Bash 终端或 PowerShell 窗口中输入`docker run`命令。这会指示 Docker 运行一个名为`hello-world`的容器：
 
-[PRE0]
+```
+$ docker run hello-world
+```
 
 你的 shell 应该返回类似以下的输出：
 
-[PRE1]
+```
+Unable to find image 'hello-world: latest' locally
+latest: Pulling from library/hello-world
+0e03bdcc26d7: Pull complete 
+Digest: sha256:
+8e3114318a995a1ee497790535e7b88365222a21771ae7e53687ad76563e8e76
+Status: Downloaded newer image for hello-world:latest
+Hello from Docker!
+This message shows that your installation appears to be working 
+correctly.
+To generate this message, Docker took the following steps:
+ 1\. The Docker client contacted the Docker daemon.
+ 2\. The Docker daemon pulled the "hello-world" image from the 
+Docker Hub.
+    (amd64)
+ 3\. The Docker daemon created a new container from that image 
+which runs the executable that produces the output you are 
+currently reading.
+4\. The Docker daemon streamed that output to the Docker 
+client, which sent it to your terminal.
+To try something more ambitious, you can run an Ubuntu 
+container with:
+ $ docker run -it ubuntu bash
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+```
 
 刚刚发生了什么？你告诉 Docker 运行名为`hello-world`的容器。所以，首先，Docker 会在本地容器缓存中查找具有相同名称的容器。如果找不到，它将尝试在互联网上的容器注册表中查找以满足命令。通过简单地指定容器的名称，Docker 将默认查询 Docker Hub 以获取该名称的已发布容器镜像。
 
@@ -104,31 +133,48 @@ Docker 引擎不仅支持执行容器镜像，还提供了内置机制，可以�
 
 1.  使用`docker ps`命令查看系统上正在运行的容器。在 Bash 或 PowerShell 终端中，输入以下命令：
 
-[PRE2]
+```
+$ docker ps
+```
 
 这将返回类似以下的输出：
 
-[PRE3]
+```
+CONTAINER ID      IMAGE     COMMAND      CREATED
+  STATUS              PORTS                   NAMES
+```
 
 `docker ps`命令的输出为空，因为它默认只显示当前正在运行的容器。这类似于 Linux/Unix 的`ps`命令，它只显示正在运行的进程。
 
 1.  使用`docker ps -a`命令显示所有容器，甚至是已停止的容器：
 
-[PRE4]
+```
+$ docker ps -a
+```
 
 在返回的输出中，你应该看到`hello-world`容器实例：
 
-[PRE5]
+```
+CONTAINER ID     IMAGE           COMMAND     CREATED
+  STATUS                          PORTS         NAMES
+24c4ce56c904     hello-world     "/hello"    About a minute ago
+  Exited (0) About a minute ago                 inspiring_moser
+```
 
 正如你所看到的，Docker 给容器分配了一个唯一的容器 ID。它还显示了运行的`IMAGE`，在该映像中执行的`COMMAND`，创建的`TIME`，以及运行该容器的进程的`STATUS`，以及一个唯一的可读名称。这个特定的容器大约一分钟前创建，执行了程序`/hello`，并成功运行。你可以看出程序运行并成功执行，因为它产生了一个`Exited (0)`的代码。
 
 1.  你可以查询你的系统，看看 Docker 本地缓存了哪些容器映像。执行`docker images`命令来查看本地缓存：
 
-[PRE6]
+```
+$ docker images
+```
 
 返回的输出应该显示本地缓存的容器映像：
 
-[PRE7]
+```
+REPOSITORY     TAG        IMAGE ID        CREATED         SIZE
+hello-world    latest     bf756fb1ae65    3 months ago    13.3kB
+```
 
 到目前为止，唯一缓存的映像是`hello-world`容器映像。这个映像正在运行`latest`版本，创建于 3 个月前，大小为 13.3 千字节。从前面的输出中，你知道这个 Docker 映像非常精简，开发者在 3 个月内没有发布过这个映像的代码更改。这个输出对于排除现实世界中软件版本之间的差异非常有帮助。
 
@@ -140,31 +186,68 @@ Docker 引擎不仅支持执行容器镜像，还提供了内置机制，可以�
 
 1.  如果您再次执行相同的`docker run`命令，那么对于用户输入的每个`docker run`命令，都将创建一个新的容器实例。值得注意的是，容器化的一个好处是能够轻松运行多个软件应用的实例。为了看到 Docker 如何处理多个容器实例，再次运行相同的`docker run`命令，以创建`hello-world`容器的另一个实例：
 
-[PRE8]
+```
+$ docker run hello-world
+```
 
 您应该看到以下输出：
 
-[PRE9]
+```
+Hello from Docker!
+This message shows that your installation appears to be 
+working correctly.
+To generate this message, Docker took the following steps:
+ 1\. The Docker client contacted the Docker daemon.
+ 2\. The Docker daemon pulled the "hello-world" image from 
+    the Docker Hub.
+    (amd64)
+ 3\. The Docker daemon created a new container from that image 
+    which runs the executable that produces the output you 
+    are currently reading.
+ 4\. The Docker daemon streamed that output to the Docker client, 
+    which sent it to your terminal.
+To try something more ambitious, you can run an Ubuntu container 
+with:
+ $ docker run -it ubuntu bash
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+```
 
 请注意，这一次，Docker 不必再次从 Docker Hub 下载容器图像。这是因为您现在在本地缓存了该容器图像。相反，Docker 能够直接运行容器并将输出显示在屏幕上。让我们看看您的`docker ps -a`输出现在是什么样子。
 
 1.  在您的终端中，再次运行`docker ps -a`命令：
 
-[PRE10]
+```
+docker ps -a
+```
 
 在输出中，您应该看到这个容器图像的第二个实例已经完成了执行并进入了停止状态，如输出的`STATUS`列中的`Exit (0)`所示：
 
-[PRE11]
+```
+CONTAINER ID     IMAGE           COMMAND       CREATED
+  STATUS                      PORTS               NAMES
+e86277ca07f1     hello-world     "/hello"      2 minutes ago
+  Exited (0) 2 minutes ago                        awesome_euclid
+24c4ce56c904     hello-world     "/hello"      20 minutes ago
+  Exited (0) 20 minutes ago                       inspiring_moser
+```
 
 您现在在输出中看到了这个容器的第二个实例。每次执行`docker run`命令时，Docker 都会创建该容器的一个新实例，具有其属性和数据。您可以运行尽可能多的容器实例，只要您的系统资源允许。在这个例子中，您 20 分钟前创建了一个实例。您 2 分钟前创建了第二个实例。
 
 1.  再次执行`docker images`命令，检查基本图像：
 
-[PRE12]
+```
+$ docker images
+```
 
 返回的输出将显示 Docker 从单个基本图像创建的两个运行实例：
 
-[PRE13]
+```
+REPOSITORY     TAG       IMAGE ID        CREATED         SIZE
+hello-world    latest    bf756fb1ae65    3 months ago    13.3kB
+```
 
 在这个练习中，您使用`docker run`启动了`hello-world`容器。为了实现这一点，Docker 从 Docker Hub 注册表下载了图像，并在 Docker Engine 中执行了它。一旦基本图像被下载，您可以使用后续的`docker run`命令创建任意数量的该容器的实例。
 
@@ -208,43 +291,89 @@ Docker 容器管理比在开发环境中仅仅启动和查看容器状态更加�
 
 1.  在新的终端或 PowerShell 窗口中，执行`docker pull`命令以下载`Ubuntu 18.04`容器镜像：
 
-[PRE14]
+```
+$ docker pull ubuntu:18.04
+```
 
 您应该看到以下输出，表明 Docker 正在下载基础镜像的所有层：
 
-[PRE15]
+```
+5bed26d33875: Pull complete 
+f11b29a9c730: Pull complete 
+930bda195c84: Pull complete 
+78bf9a5ad49e: Pull complete 
+Digest: sha256:bec5a2727be7fff3d308193cfde3491f8fba1a2ba392
+        b7546b43a051853a341d
+Status: Downloaded newer image for ubuntu:18.04
+docker.io/library/ubuntu:18.04
+```
 
 1.  使用`docker pull`命令下载`Ubuntu 19.04`基础镜像：
 
-[PRE16]
+```
+$ docker pull ubuntu:19.04
+```
 
 当 Docker 下载`Ubuntu 19.04`基础镜像时，您将看到类似的输出：
 
-[PRE17]
+```
+19.04: Pulling from library/ubuntu
+4dc9c2fff018: Pull complete 
+0a4ccbb24215: Pull complete 
+c0f243bc6706: Pull complete 
+5ff1eaecba77: Pull complete 
+Digest: sha256:2adeae829bf27a3399a0e7db8ae38d5adb89bcaf1bbef
+        378240bc0e6724e8344
+Status: Downloaded newer image for ubuntu:19.04
+docker.io/library/ubuntu:19.04
+```
 
 1.  使用`docker images`命令确认容器镜像已下载到本地容器缓存：
 
-[PRE18]
+```
+$ docker images
+```
 
 本地容器缓存的内容将显示`Ubuntu 18.04`和`Ubuntu 19.04`基础镜像，以及我们之前练习中的`hello-world`镜像：
 
-[PRE19]
+```
+REPOSITORY     TAG        IMAGE ID         CREATED         SIZE
+ubuntu         18.04      4e5021d210f6     4 weeks ago     64.2MB
+ubuntu         19.04      c88ac1f841b7     3 months ago    70MB
+hello-world    latest     bf756fb1ae65     3 months ago    13.3kB
+```
 
 1.  在运行这些镜像之前，使用`docker inspect`命令获取关于容器镜像的详细输出以及它们之间的差异。在你的终端中，运行`docker inspect`命令，并使用`Ubuntu 18.04`容器镜像的 ID 作为主要参数：
 
-[PRE20]
+```
+$ docker inspect 4e5021d210f6
+```
 
 `inspect`输出将包含定义该容器的所有属性的大型列表。例如，你可以看到容器中配置了哪些环境变量，容器在最后一次更新镜像时是否设置了主机名，以及定义该容器的所有层的详细信息。这个输出包含了在规划升级时可能会有价值的关键调试细节。以下是`inspect`命令的截断输出。在`Ubuntu 18.04`镜像中，`"Created"`参数应该提供构建容器镜像的日期和时间：
 
-[PRE21]
+```
+"Id": "4e5021d210f6d4a0717f4b643409eff23a4dc01c4140fa378b1b
+       f0a4f8f4",
+"Created": "2020-03-20T19:20:22.835345724Z",
+"Path": "/bin/bash",
+"Args": [],
+```
 
 1.  检查`Ubuntu 19.04`容器，你会看到这个参数是不同的。在`Ubuntu 19.04`容器镜像 ID 中运行`docker inspect`命令：
 
-[PRE22]
+```
+$ docker inspect c88ac1f841b7
+```
 
 在显示的输出中，你会看到这个容器镜像是在一个不同的日期创建的，与`18.04`容器镜像不同：
 
-[PRE23]
+```
+"Id": "c88ac1f841b74e5021d210f6d4a0717f4b643409eff23a4dc0
+       1c4140fa"
+"Created": "2020-01-16T01:20:46.938732934Z",
+"Path": "/bin/bash",
+"Args": []
+```
 
 如果你知道 Ubuntu 基础镜像中可能存在安全漏洞，这可能是至关重要的信息。这些信息也可以对帮助你确定要运行哪个版本的容器至关重要。
 
@@ -252,7 +381,9 @@ Docker 容器管理比在开发环境中仅仅启动和查看容器状态更加�
 
 1.  使用`docker run`命令启动 Ubuntu 18.04 容器的一个实例：
 
-[PRE24]
+```
+$ docker run -d ubuntu:18.04
+```
 
 请注意，这次我们使用了带有`-d`标志的`docker run`命令。这告诉 Docker 以守护进程模式（或后台模式）运行容器。如果我们省略`-d`标志，容器将占用我们当前的终端，直到容器内的主要进程终止。
 
@@ -262,169 +393,282 @@ Docker 容器管理比在开发环境中仅仅启动和查看容器状态更加�
 
 1.  使用`docker ps -a`命令检查容器的状态：
 
-[PRE25]
+```
+$ docker ps -a
+```
 
 这将显示类似于以下内容的输出：
 
-[PRE26]
+```
+CONTAINER ID     IMAGE           COMMAND        CREATED
+  STATUS                     PORTS         NAMES
+c139e44193de     ubuntu:18.04    "/bin/bash"    6 seconds ago
+  Exited (0) 4 seconds ago                 xenodochial_banzai
+```
 
 正如你所看到的，你的容器已经停止并退出。这是因为容器内的主要进程是`/bin/bash`，这是一个 shell。Bash shell 不能在没有以交互模式执行的情况下运行，因为它期望来自用户的文本输入和输出。
 
 1.  再次运行`docker run`命令，传入`-i`标志以使会话交互（期望用户输入），并传入`-t`标志以为容器分配一个**伪 tty**处理程序。`伪 tty`处理程序将基本上将用户的终端链接到容器内运行的交互式 Bash shell。这将允许 Bash 正确运行，因为它将指示容器以交互模式运行，期望用户输入。您还可以通过传入`--name`标志为容器指定一个易读的名称。在您的 Bash 终端中键入以下命令：
 
-[PRE27]
+```
+$ docker run -i -t -d --name ubuntu1 ubuntu:18.04
+```
 
 1.  再次执行`docker ps -a`命令以检查容器实例的状态：
 
-[PRE28]
+```
+$ docker ps -a 
+```
 
 您现在应该看到新的实例正在运行，以及刚刚无法启动的实例：
 
-[PRE29]
+```
+CONTAINER ID    IMAGE          COMMAND         CREATED
+  STATUS            PORTS               NAMES
+f087d0d92110    ubuntu:18.04   "/bin/bash"     4 seconds ago
+  Up 2 seconds                          ubuntu1
+c139e44193de    ubuntu:18.04   "/bin/bash"     5 minutes ago
+  Exited (0) 5 minutes ago              xenodochial_banzai
+```
 
 1.  您现在有一个正在运行的 Ubuntu 容器。您可以使用`docker exec`命令在此容器内运行命令。运行`exec`命令以访问 Bash shell，这将允许我们在容器内运行命令。类似于`docker run`，传入`-i`和`-t`标志使其成为交互式会话。还传入容器的名称或 ID，以便 Docker 知道您要定位哪个容器。`docker exec`的最后一个参数始终是您希望执行的命令。在这种情况下，它将是`/bin/bash`，以在容器实例内启动 Bash shell：
 
-[PRE30]
+```
+docker exec -it ubuntu1 /bin/bash
+```
 
 您应该立即看到您的提示更改为根 shell。这表明您已成功在 Ubuntu 容器内启动了一个 shell。容器的主机名`cfaa37795a7b`取自容器 ID 的前 12 个字符。这使用户可以确定他们正在访问哪个容器，如下例所示：
 
-[PRE31]
+```
+root@cfaa37795a7b:/#
+```
 
 1.  在容器内，您所拥有的工具非常有限。与 VM 镜像不同，容器镜像在预安装的软件包方面非常精简。但是`echo`命令应该是可用的。使用`echo`将一个简单的消息写入文本文件：
 
-[PRE32]
+```
+root@cfaa37795a7b:/# echo "Hello world from ubuntu1" > hello-world.txt
+```
 
 1.  运行`exit`命令退出`ubuntu1`容器的 Bash shell。您应该返回到正常的终端 shell：
 
-[PRE33]
+```
+root@cfaa37795a7b:/# exit
+```
 
 该命令将返回以下输出。请注意，对于运行该命令的每个用户，输出可能会有所不同：
 
-[PRE34]
+```
+user@developmentMachine:~/
+```
 
 1.  现在创建一个名为`ubuntu2`的第二个容器，它也将在您的 Docker 环境中使用`Ubuntu 19.04`镜像运行：
 
-[PRE35]
+```
+$ docker run -i -t -d --name ubuntu2 ubuntu:19.04
+```
 
 1.  运行`docker exec`来访问第二个容器的 shell。记得使用你创建的新容器的名称或容器 ID。同样地，访问这个容器内部的 Bash shell，所以最后一个参数将是`/bin/bash`：
 
-[PRE36]
+```
+$ docker exec -it ubuntu2 /bin/bash
+```
 
 你应该观察到你的提示会变成一个 Bash root shell，类似于`Ubuntu 18.04`容器镜像的情况：
 
-[PRE37]
+```
+root@875cad5c4dd8:/#
+```
 
 1.  在`ubuntu2`容器实例内部运行`echo`命令，写入类似的`hello-world`类型的问候语：
 
-[PRE38]
+```
+root@875cad5c4dd8:/# echo "Hello-world from ubuntu2!" > hello-world.txt
+```
 
 1.  目前，在你的 Docker 环境中有两个运行中的 Ubuntu 容器实例，根账户的主目录中有两个单独的`hello-world`问候消息。使用`docker ps`来查看这两个运行中的容器镜像：
 
-[PRE39]
+```
+$ docker ps
+```
 
 运行容器的列表应该反映出两个 Ubuntu 容器，以及它们创建后经过的时间：
 
-[PRE40]
+```
+CONTAINER ID    IMAGE            COMMAND        CREATED
+  STATUS              PORTS               NAMES
+875cad5c4dd8    ubuntu:19.04     "/bin/bash"    3 minutes ago
+  Up 3 minutes                            ubuntu2
+cfaa37795a7b    ubuntu:18.04     "/bin/bash"    15 minutes ago
+  Up 15 minutes                           ubuntu1
+```
 
 1.  不要使用`docker exec`来访问容器内部的 shell，而是使用它来显示你通过在容器内执行`cat`命令写入的`hello-world.txt`文件的输出：
 
-[PRE41]
+```
+$ docker exec -it ubuntu1 cat hello-world.txt
+```
 
 输出将显示你在之前步骤中传递给容器的`hello-world`消息。请注意，一旦`cat`命令完成并显示输出，用户就会被移回到主终端的上下文中。这是因为`docker exec`会话只会存在于用户执行命令的时间内。
 
 在之前的 Bash shell 示例中，只有用户使用`exit`命令终止它时，Bash 才会退出。在这个例子中，只显示了`Hello world`输出，因为`cat`命令显示了输出并退出，结束了`docker exec`会话：
 
-[PRE42]
+```
+Hello world from ubuntu1
+```
 
 你会看到`hello-world`文件的内容显示，然后返回到你的主终端会话。
 
 1.  在`ubuntu2`容器实例中运行相同的`cat`命令：
 
-[PRE43]
+```
+$ docker exec -it ubuntu2 cat hello-world.txt
+```
 
 与第一个例子类似，`ubuntu2`容器实例将显示之前提供的`hello-world.txt`文件的内容：
 
-[PRE44]
+```
+Hello-world from ubuntu2!
+```
 
 正如你所看到的，Docker 能够在两个容器上分配一个交互式会话，执行命令，并直接返回输出到我们正在运行的容器实例中。
 
 1.  与你用来在运行中的容器内执行命令的方式类似，你也可以停止、启动和重新启动它们。使用`docker stop`命令停止其中一个容器实例。在你的终端会话中，执行`docker stop`命令，然后是`ubuntu2`容器的名称或容器 ID：
 
-[PRE45]
+```
+$ docker stop ubuntu2
+```
 
 该命令应该不返回任何输出。
 
 1.  使用`docker ps`命令查看所有正在运行的容器实例：
 
-[PRE46]
+```
+$ docker ps
+```
 
 输出将显示`ubuntu1`容器正在运行：
 
-[PRE47]
+```
+CONTAINER ID    IMAGE           COMMAND        CREATED
+  STATUS              PORTS               NAMES
+cfaa37795a7b    ubuntu:18.04    "/bin/bash"    26 minutes ago
+  Up 26 minutes                           ubuntu1
+```
 
 1.  执行`docker ps -a`命令以查看所有容器实例，无论它们是否正在运行，以查看您的容器是否处于停止状态：
 
-[PRE48]
+```
+$ docker ps -a
+```
 
 该命令将返回以下输出：
 
-[PRE49]
+```
+CONTAINER ID     IMAGE            COMMAND         CREATED
+  STATUS                      PORTS             NAMES
+875cad5c4dd8     ubuntu:19.04     "/bin/bash"     14 minutes ago
+  Exited (0) 6 seconds ago                      ubuntu2
+```
 
 1.  使用`docker start`或`docker restart`命令重新启动容器实例：
 
-[PRE50]
+```
+$ docker start ubuntu2
+```
 
 该命令将不返回任何输出，尽管某些版本的 Docker 可能会显示容器 ID。
 
 1.  使用`docker ps`命令验证容器是否再次运行：
 
-[PRE51]
+```
+$ docker ps
+```
 
 注意`STATUS`显示该容器只运行了很短的时间（`1 秒`），尽管容器实例是 29 分钟前创建的：
 
-[PRE52]
+```
+CONTAINER ID    IMAGE           COMMAND         CREATED
+  STATUS              PORTS               NAMES
+875cad5c4dd8    ubuntu:19.04    "/bin/bash"     17 minutes ago
+  Up 1 second                             ubuntu2
+cfaa37795a7b    ubuntu:18.04    "/bin/bash"     29 minutes ago
+  Up 29 minutes                           ubuntu1
+```
 
 从这个状态开始，您可以尝试启动、停止或在这些容器内执行命令。
 
 1.  容器管理生命周期的最后阶段是清理您创建的容器实例。使用`docker stop`命令停止`ubuntu1`容器实例：
 
-[PRE53]
+```
+$ docker stop ubuntu1
+```
 
 该命令将不返回任何输出，尽管某些版本的 Docker 可能会返回容器 ID。
 
 1.  执行相同的`docker stop`命令以停止`ubuntu2`容器实例：
 
-[PRE54]
+```
+$ docker stop ubuntu2
+```
 
 1.  当容器实例处于停止状态时，使用`docker rm`命令彻底删除容器实例。使用`docker rm`后跟名称或容器 ID 删除`ubuntu1`容器实例：
 
-[PRE55]
+```
+$ docker rm ubuntu1
+```
 
 该命令将不返回任何输出，尽管某些版本的 Docker 可能会返回容器 ID。
 
 在`ubuntu2`容器实例上执行相同的步骤：
 
-[PRE56]
+```
+$ docker rm ubuntu2
+```
 
 1.  执行`docker ps -a`以查看所有容器，即使它们处于停止状态。您会发现停止的容器由于之前的命令已被删除。您也可以删除`hello-world`容器实例。使用从`docker ps -a`输出中捕获的容器 ID 删除`hello-world`容器：
 
-[PRE57]
+```
+$ docker rm b291785f066c
+```
 
 1.  要完全重置我们的 Docker 环境状态，请删除您在此练习中下载的基本图像。使用`docker images`命令查看缓存的基本图像：
 
-[PRE58]
+```
+$ docker images
+```
 
 您的本地缓存中将显示 Docker 图像列表和所有关联的元数据：
 
-[PRE59]
+```
+REPOSITORY     TAG        IMAGE ID        CREATED         SIZE
+ubuntu         18.04      4e5021d210f6    4 weeks ago     64.2MB
+ubuntu         19.04      c88ac1f841b7    3 months ago    70MB
+hello-world    latest     bf756fb1ae65    3 months ago    13.3kB
+```
 
 1.  执行`docker rmi`命令，后跟图像 ID 以删除第一个图像 ID：
 
-[PRE60]
+```
+$ docker rmi 4e5021d210f6
+```
 
 类似于`docker pull`，`rmi`命令将删除每个图像和所有关联的层：
 
-[PRE61]
+```
+Untagged: ubuntu:18.04
+Untagged: ubuntu@sha256:bec5a2727be7fff3d308193cfde3491f8fba1a2b
+a392b7546b43a051853a341d
+Deleted: sha256:4e5021d210f65ebe915670c7089120120bc0a303b9020859
+2851708c1b8c04bd
+Deleted: sha256:1d9112746e9d86157c23e426ce87cc2d7bced0ba2ec8ddbd
+fbcc3093e0769472
+Deleted: sha256:efcf4a93c18b5d01aa8e10a2e3b7e2b2eef0378336456d86
+53e2d123d6232c1e
+Deleted: sha256:1e1aa31289fdca521c403edd6b37317bf0a349a941c7f19b
+6d9d311f59347502
+Deleted: sha256:c8be1b8f4d60d99c281fc2db75e0f56df42a83ad2f0b0916
+21ce19357e19d853
+```
 
 对于要删除的每个映像，执行此步骤，替换各种映像 ID。对于删除的每个基本映像，您将看到所有图像层都被取消标记并与其一起删除。
 
@@ -454,31 +698,46 @@ Docker 容器管理比在开发环境中仅仅启动和查看容器状态更加�
 
 1.  使用`docker run`命令启动一个新的 Ubuntu 容器实例。以交互模式（`-i`）运行此容器，分配一个 TTY 会话（`-t`），并在后台（`-d`）运行。将此容器命名为`attach-example1`：
 
-[PRE62]
+```
+docker run -itd --name attach-example1 ubuntu:latest
+```
 
 这将使用 Ubuntu 容器图像的最新版本启动一个名为`attach-example1`的新 Ubuntu 容器实例。
 
 1.  使用`docker ps`命令来检查该容器是否在我们的环境中运行：
 
-[PRE63]
+```
+docker ps 
+```
 
 将显示运行中容器实例的详细信息。请注意，此容器的主要进程是 Bash shell（`/bin/bash`）：
 
-[PRE64]
+```
+CONTAINER ID    IMAGE            COMMAND          CREATED
+  STATUS              PORTS               NAMES
+90722712ae93    ubuntu:latest    "/bin/bash"      18 seconds ago
+  Up 16 seconds                           attach-example1
+```
 
 1.  运行`docker attach`命令以附加到此容器内部的主要进程（`/bin/bash`）。使用`docker attach`后跟容器实例的名称或 ID：
 
-[PRE65]
+```
+$ docker attach attach-example1
+```
 
 这应该将您放入此容器实例的主 Bash shell 会话中。请注意，您的终端会话应更改为根 shell 会话，表示您已成功访问了容器实例：
 
-[PRE66]
+```
+root@90722712ae93:/#
+```
 
 在这里需要注意，使用诸如`exit`之类的命令来终止 shell 会话将导致停止容器实例，因为您现在已连接到容器实例的主要进程。默认情况下，Docker 提供了*Ctrl* + *P*然后*Ctrl* + *Q*的快捷键序列，以正常分离`attach`会话。
 
 1.  使用键盘组合*Ctrl* + *P*然后*Ctrl* + *Q*正常分离此会话：
 
-[PRE67]
+```
+root@90722712ae93:/# CTRL-p CTRL-q
+```
 
 注意
 
@@ -486,55 +745,89 @@ Docker 容器管理比在开发环境中仅仅启动和查看容器状态更加�
 
 成功分离容器后，将显示单词`read escape sequence`，然后将您返回到主终端或 PowerShell 会话：
 
-[PRE68]
+```
+root@90722712ae93:/# read escape sequence
+```
 
 1.  使用`docker ps`验证 Ubuntu 容器是否仍然按预期运行：
 
-[PRE69]
+```
+$ docker ps
+```
 
 `attach-example1`容器将被显示为预期运行：
 
-[PRE70]
+```
+CONTAINER ID    IMAGE            COMMAND          CREATED
+  STATUS              PORTS               NAMES
+90722712ae93    ubuntu:latest    "/bin/bash"      13 minutes ago
+  Up 13 minutes                           attach-example1
+```
 
 1.  使用`docker attach`命令再次附加到`attach-example1`容器实例：
 
-[PRE71]
+```
+$ docker attach attach-example1
+```
 
 您应该被放回到主进程的 Bash 会话中：
 
-[PRE72]
+```
+root@90722712ae93:/#
+```
 
 1.  现在，使用`exit`命令终止这个容器的主进程。在 Bash shell 会话中，输入`exit`命令：
 
-[PRE73]
+```
+root@90722712ae93:/# exit
+```
 
 终端会话应该已经退出，再次返回到您的主终端。
 
 1.  使用`docker ps`命令观察`attach-example1`容器不再运行：
 
-[PRE74]
+```
+$ docker ps
+```
 
 这应该不会显示任何正在运行的容器实例：
 
-[PRE75]
+```
+CONTAINER ID    IMAGE            COMMAND              CREATED
+  STATUS              PORTS               NAMES
+```
 
 1.  使用`docker ps -a`命令查看所有容器，即使已停止或已退出的容器也会显示：
 
-[PRE76]
+```
+$ docker ps -a
+```
 
 这应该显示`attach-example1`容器处于停止状态：
 
-[PRE77]
+```
+CONTAINER ID      IMAGE                COMMAND 
+  CREATED            STATUS    PORTS           NAMES
+90722712ae93      ubuntu:latest        "/bin/bash"
+  20 minutes ago     Exited (0) 3 minutes ago  attach-example1
+```
 
 正如你所看到的，容器已经优雅地终止（`Exited (0)`）大约 3 分钟前。`exit`命令会优雅地终止 Bash shell 会话。
 
 1.  使用`docker system prune -fa`命令清理已停止的容器实例：
 
-[PRE78]
+```
+docker system prune -fa
+```
 
 这应该删除所有已停止的容器实例，包括`attach-example1`容器实例，如下面的输出所示：
 
-[PRE79]
+```
+Deleted Containers:
+ry6v87v9a545hjn7535jk2kv9x8cv09wnkjnscas98v7a762nvnw7938798vnand
+Deleted Images:
+untagged: attach-example1
+```
 
 在这个练习中，我们使用`docker attach`命令直接访问正在运行的容器的主进程。这与我们在本章中早些时候探讨的`docker exec`命令不同，因为`docker exec`在运行的容器内执行一个新的进程，而`docker attach`直接附加到容器的主进程。然而，在附加到容器时，必须注意不要通过终止主进程来停止容器。
 
@@ -556,7 +849,10 @@ Docker 容器管理比在开发环境中仅仅启动和查看容器状态更加�
 
 1.  使用环境变量在运行时配置容器以使用以下数据库凭据：
 
-[PRE80]
+```
+username: panoramic
+password: trekking
+```
 
 1.  验证容器是否正在运行和健康。
 
@@ -564,7 +860,12 @@ Docker 容器管理比在开发环境中仅仅启动和查看容器状态更加�
 
 运行`docker ps`命令应返回以下输出：
 
-[PRE81]
+```
+CONTAINER ID  IMAGE         COMMAND                 CREATED
+  STATUS              PORTS               NAMES
+29f115af8cdd  postgres:12   "docker-entrypoint.s…"  4 seconds ago
+  Up 2 seconds        5432/tcp            blissful_kapitsa
+```
 
 注意
 

@@ -30,11 +30,15 @@
 
 要将文件复制到 Pod，您可以使用以下方法：
 
-[PRE0]
+```
+kubectl cp /tmp/test <pod>:/tmp/bar
+```
 
 要从 Pod 复制文件，您可以使用以下方法：
 
-[PRE1]
+```
+kubectl cp <some-pod>:/tmp/foo /tmp/bar
+```
 
 当文件从一个 pod 中复制时，Kubernetes 首先创建文件内部的文件的 TAR 归档。然后将 TAR 归档复制到客户端，最后为客户端解压 TAR 归档。2018 年，研究人员发现了一种方法，可以使用`kubectl cp`来覆盖客户端主机上的文件。如果攻击者可以访问一个 pod，这个漏洞可以被用来用恶意文件替换 TAR 归档。当畸形的 TAR 文件被复制到主机时，它可以在解压时覆盖主机上的文件。这可能导致数据泄露和主机上的代码执行。
 
@@ -46,11 +50,25 @@
 
 +   **始终使用更新版本的 kubectl**：您可以使用以下命令找到`kubectl`二进制文件的最新版本：
 
-[PRE2]
+```
+$ curl https://storage.googleapis.com/kubernetes-release/release/stable.txt
+v1.18.3
+```
 
 +   **使用准入控制器限制 kubectl cp 的使用**：正如我们在*第七章*中讨论的那样，*身份验证、授权和准入控制*，Open Policy Agent 可以用作准入控制器。让我们看一个拒绝调用`kubectl cp`的策略：
 
-[PRE3]
+```
+deny[reason] {
+  input.request.kind.kind == "PodExecOptions"
+  input.request.resource.resource == "pods"
+  input.request.subResource == "exec"
+  input.request.object.command[0] == "tar"
+  reason = sprintf("kubectl cp was detected on %v/%v by user: %v", [
+    input.request.namespace,
+    input.request.object.container,
+    input.request.userInfo.username])
+}
+```
 
 这个策略拒绝了 pod 中 TAR 二进制文件的执行，从而禁用了所有用户的`kubectl cp`。您可以更新此策略，以允许特定用户或组的`kubectl cp`。
 
@@ -58,17 +76,59 @@
 
 +   为所有 pod 设置安全上下文：如*第八章*中所讨论的，*保护 Kubernetes Pod*，确保 pod 具有`readOnlyRootFilesystem`，这将防止攻击者在文件系统中篡改文件（例如，覆盖`/bin/tar`二进制文件）。
 
-[PRE4]
+```
+spec:
+    securityContext:
+        readOnlyRootFilesystem: true
+```
 
 +   使用 Falco 规则检测文件修改：我们在*第十一章*中讨论了 Falco，*深度防御*。Falco 规则（可以在[`github.com/falcosecurity/falco/blob/master/rules/falco_rules.yaml`](https://github.com/falcosecurity/falco/blob/master/rules/falco_rules.yaml)找到）可以设置为执行以下操作：
 
 检测 pod 中二进制文件的修改：使用默认的 Falco 规则中的`Write below monitored dir`来检测对 TAR 二进制文件的更改：
 
-[PRE5]
+```
+- rule: Write below monitored dir
+  desc: an attempt to write to any file below a set of binary directories
+  condition: >
+    evt.dir = < and open_write and monitored_dir
+    and not package_mgmt_procs
+    and not coreos_write_ssh_dir
+    and not exe_running_docker_save
+    and not python_running_get_pip
+    and not python_running_ms_oms
+    and not google_accounts_daemon_writing_ssh
+    and not cloud_init_writing_ssh
+    and not user_known_write_monitored_dir_conditions
+  output: >
+    File below a monitored directory opened for writing (user=%user.name
+    command=%proc.cmdline file=%fd.name parent=%proc.pname pcmdline=%proc.pcmdline gparent=%proc.aname[2] container_id=%container.id image=%container.image.repository)
+  priority: ERROR
+  tags: [filesystem, mitre_persistence]
+```
 
 检测使用易受攻击的 kubectl 实例：`kubectl`版本 1.12.9、1.13.6 和 1.14.2 已修复了此问题。使用早于此版本的任何版本都将触发以下规则：
 
-[PRE6]
+```
+- macro: safe_kubectl_version
+  condition: (jevt.value[/userAgent] startswith "kubectl/v1.15" or
+              jevt.value[/userAgent] startswith "kubectl/v1.14.3" or
+              jevt.value[/userAgent] startswith "kubectl/v1.14.2" or
+              jevt.value[/userAgent] startswith "kubectl/v1.13.7" or
+              jevt.value[/userAgent] startswith "kubectl/v1.13.6" or
+              jevt.value[/userAgent] startswith "kubectl/v1.12.9")
+# CVE-2019-1002101
+# Run kubectl version --client and if it does not say client version 1.12.9,
+1.13.6, or 1.14.2 or newer,  you are running a vulnerable version.
+- rule: K8s Vulnerable Kubectl Copy
+  desc: Detect any attempt vulnerable kubectl copy in pod
+  condition: kevt_started and pod_subresource and kcreate and
+             ka.target.subresource = "exec" and ka.uri.param[command] = "tar" and
+             not safe_kubectl_version
+  output: Vulnerable kubectl copy detected (user=%ka.user.name pod=%ka.target.name ns=%ka.target.namespace action=%ka.target.subresource command=%ka.uri.param[command] userAgent=%jevt.value[/userAgent])
+  priority: WARNING
+  source: k8s_audit
+  tags: [k8s]
+```
 
 CVE-2019-11246 是为什么您需要跟踪安全公告并阅读技术细节以添加减轻策略到您的集群以确保如果发现问题的任何变化，您的集群是安全的一个很好的例子。接下来，我们将看看 CVE-2019-1002100，它可以用于在`kube-apiserver`上引起 DoS 问题。
 
@@ -76,7 +136,14 @@ CVE-2019-11246 是为什么您需要跟踪安全公告并阅读技术细节以�
 
 修补是一种常用的技术，用于在运行时更新 API 对象。开发人员使用`kubectl patch`在运行时更新 API 对象。一个简单的例子是向 pod 添加一个容器：
 
-[PRE7]
+```
+spec:
+  template:
+    spec:
+      containers:
+      - name: db
+        image: redis
+```
 
 前面的补丁文件允许一个 pod 被更新以拥有一个新的 Redis 容器。`kubectl patch`允许补丁以 JSON 格式。问题出现在`kube-apiserver`的 JSON 解析代码中，这允许攻击者发送一个格式错误的`json-patch`实例来对 API 服务器进行 DoS 攻击。在*第十章*中，*Kubernetes 集群的实时监控和资源管理*，我们讨论了 Kubernetes 集群中服务可用性的重要性。这个问题的根本原因是`kube-apiserver`对`patch`请求的未经检查的错误条件和无限制的内存分配。
 
@@ -86,7 +153,11 @@ CVE-2019-11246 是为什么您需要跟踪安全公告并阅读技术细节以�
 
 +   **在 Kubernetes 集群中使用资源监控工具**：如*第十章*中所讨论的，*Kubernetes 集群的实时监控和资源管理*，资源监控工具如 Prometheus 和 Grafana 可以帮助识别主节点内存消耗过高的问题。在 Prometheus 指标图表中，高数值可能如下所示：
 
-[PRE8]
+```
+container_memory_max_usage_bytes{pod_ name="kube-apiserver-xxx" }
+sum(rate(container_cpu_usage_seconds_total{pod_name="kube-apiserver-xxx"}[5m]))
+sum(rate(container_network_receive_bytes_total{pod_name="kube-apiserver-xxx"}[5m]))
+```
 
 这些资源图表显示了`kube-apiserver`在 5 分钟间隔内的最大内存、CPU 和网络使用情况。这些使用模式中的任何异常都是`kube-apiserver`受到攻击的迹象。
 
@@ -94,7 +165,20 @@ CVE-2019-11246 是为什么您需要跟踪安全公告并阅读技术细节以�
 
 使用`kops`，你可以使用`--master-zones={zone1, zone2}`来拥有多个主节点：
 
-[PRE9]
+```
+kops create cluster k8s-clusters.k8s-demo-zone.com \
+  --cloud aws \
+  --node-count 3 \
+  --zones $ZONES \
+  --node-size $NODE_SIZE \
+  --master-size $MASTER_SIZE \
+  --master-zones $ZONES \
+  --networking calico \
+  --kubernetes-version 1.14.3 \
+  --yes \
+kube-apiserver-ip-172-20-43-65.ec2.internal              1/1     Running   4          4h16m
+kube-apiserver-ip-172-20-67-151.ec2.internal             1/1     Running   4          4h15m
+```
 
 正如您所看到的，这个集群中有多个`kube-apiserver` pods 在运行。
 
@@ -120,7 +204,10 @@ XML 炸弹或十亿笑攻击在任何 XML 解析代码中都很受欢迎。与 X
 
 +   **为未经身份验证的用户禁用 auth can-i（对于 v1.14.x）**：不应允许未经身份验证的用户与`kube-apiserver`交互。在 Kubernetes v1.14.x 中，您可以使用[`github.com/kubernetes/kubernetes/files/3735508/rbac.yaml.txt`](https://github.com/kubernetes/kubernetes/files/3735508/rbac.yaml.txt)中的 RBAC 文件禁用未经身份验证的服务器的`auth can-i`：
 
-[PRE10]
+```
+kubectl auth reconcile -f rbac.yaml --remove-extra-subjects --remove-extra-permissions
+kubectl annotate --overwrite clusterrolebinding/system:basic-user rbac.authorization.kubernetes.io/autoupdate=false 
+```
 
 第二个命令禁用了`clusterrolebinding`的自动更新，这将确保在重新启动时不会覆盖更改。
 
@@ -142,7 +229,17 @@ XML 炸弹或十亿笑攻击在任何 XML 解析代码中都很受欢迎。与 X
 
 +   **启用 Kubernetes 审计**：我们在*第十一章*中讨论了 Kubernetes 的审计和审计策略，*深度防御*。Kubernetes 的审计可以帮助识别集群中的任何意外操作。在大多数情况下，这样的漏洞会被用来修改和删除集群中的任何额外控制。您可以使用以下策略来识别这类利用的实例：
 
-[PRE11]
+```
+  apiVersion: audit.k8s.io/v1 # This is required.
+      kind: Policy
+      rules:
+      - level: RequestResponse
+        verbs: ["patch", "update", "delete"]
+        resources:
+        - group: ""
+          resources: ["pods"]
+          namespaces: ["kube-system", "monitoring"]
+```
 
 此策略记录了在 `kube-system` 或 `monitoring` 命名空间中删除或修改 pod 的任何实例。
 
@@ -156,15 +253,23 @@ Kubernetes 发布的安全公告和公告（[`kubernetes.io/docs/reference/issue
 
 1.  克隆存储库：
 
-[PRE12]
+```
+$git clone https://github.com/aquasecurity/kube-hunter
+```
 
 1.  在您的集群中运行`kube-hunter` pod：
 
-[PRE13]
+```
+$ ./kubectl create -f job.yaml
+```
 
 1.  查看日志以查找集群中的任何问题：
 
-[PRE14]
+```
+$ ./kubectl get pods
+NAME                READY   STATUS              RESTARTS   AGE
+kube-hunter-7hsfc   0/1     ContainerCreating   0          12s
+```
 
 以下输出显示了 Kubernetes v1.13.0 中已知的漏洞列表：
 

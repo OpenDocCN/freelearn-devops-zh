@@ -64,13 +64,23 @@ HTTP 模块方法是强大且可扩展的，但在我们刚开始时，它增加
 
 在 Docker 镜像中设置这一点，首先需要配置 IIS，使其将任何站点的所有日志条目写入单个文件，并允许文件增长而不进行旋转。您可以在 Dockerfile 中使用 PowerShell 来完成这一点，使用`Set-WebConfigurationProperty` cmdlet 来修改应用程序主机级别的中央日志属性。我在`dockeronwindows/ch03-iis-log-watcher`镜像的 Dockerfile 中使用了这个 cmdlet：
 
-[PRE0]
+```
+RUN Set-WebConfigurationProperty -p 'MACHINE/WEBROOT/APPHOST' -fi 'system.applicationHost/log' -n 'centralLogFileMode' -v 'CentralW3C'; `
+    Set-WebConfigurationProperty -p 'MACHINE/WEBROOT/APPHOST' -fi 'system.applicationHost/log/centralW3CLogFile' -n 'truncateSize' -v 4294967295; `
+    Set-WebConfigurationProperty -p 'MACHINE/WEBROOT/APPHOST' -fi 'system.applicationHost/log/centralW3CLogFile' -n 'period' -v 'MaxSize'; `
+    Set-WebConfigurationProperty -p 'MACHINE/WEBROOT/APPHOST' -fi 'system.applicationHost/log/centralW3CLogFile' -n 'directory' -v 'C:\iislog'
+```
 
 这是丑陋的代码，但它表明你可以在 Dockerfile 中编写任何你需要设置应用程序的内容。它配置 IIS 将所有条目记录到`C:\iislog`中的文件，并设置日志轮换的最大文件大小，让日志文件增长到 4GB。这足够的空间来使用 - 记住，容器不应该长时间存在，所以我们不应该在单个容器中有几 GB 的日志条目。IIS 仍然使用子目录格式来记录日志文件，所以实际的日志文件路径将是`C:\iislog\W3SVC\u_extend1.log`。现在我有了一个已知的日志文件位置，我可以使用 PowerShell 来回显日志条目到控制台。
 
 我在`CMD`指令中执行这个操作，所以 Docker 运行和监控的最终命令是 PowerShell 的 cmdlet 来回显日志条目。当新条目被写入控制台时，它们会被 Docker 捕捉到。PowerShell 可以很容易地监视文件，但是有一个复杂的地方，因为文件需要在 PowerShell 监视之前存在。在 Dockerfile 中，我在启动时按顺序运行多个命令：
 
-[PRE1]
+```
+ CMD Start-Service W3SVC; `
+     Invoke-WebRequest http://localhost -UseBasicParsing | Out-Null; `
+     netsh http flush logbuffer | Out-Null; `
+     Get-Content -path 'c:\iislog\W3SVC\u_extend1.log' -Tail 1 -Wait
+```
 
 容器启动时会发生四件事情：
 
@@ -84,11 +94,18 @@ HTTP 模块方法是强大且可扩展的，但在我们刚开始时，它增加
 
 我可以以通常的方式从这个镜像中运行一个容器：
 
-[PRE2]
+```
+ docker container run -d -P --name log-watcher dockeronwindows/ch03-iis-log-watcher:2e
+```
 
 当我通过浏览到容器的 IP 地址（或在 PowerShell 中使用`Invoke-WebRequest`）发送一些流量到站点时，我可以看到从`Get-Content` cmdlet 使用`docker container logs`中中继到 Docker 的 IIS 日志条目：
 
-[PRE3]
+```
+> docker container logs log-watcher
+2019-02-06 20:21:30 W3SVC1 172.27.97.43 GET / - 80 - 192.168.2.214 Mozilla/5.0+(Windows+NT+10.0;+Win64;+x64;+rv:64.0)+Gecko/20100101+Firefox/64.0 - 200 0 0 7
+2019-02-06 20:21:30 W3SVC1 172.27.97.43 GET /iisstart.png - 80 - 192.168.2.214 Mozilla/5.0+(Windows+NT+10.0;+Win64;+x64;+rv:64.0)+Gecko/20100101+Firefox/64.0 http://localhost:51959/ 200 0 0 17
+2019-02-06 20:21:30 W3SVC1 172.27.97.43 GET /favicon.ico - 80 - 192.168.2.214 Mozilla/5.0+(Windows+NT+10.0;+Win64;+x64;+rv:64.0)+Gecko/20100101+Firefox/64.0 - 404 0 2 23
+```
 
 IIS 始终在将日志条目写入磁盘之前在内存中缓冲日志条目，以提高性能进行微批量写入。刷新每 60 秒进行一次，或者当缓冲区大小为 64KB 时。如果你想强制容器中的 IIS 日志刷新，可以使用与我在 Dockerfile 中使用的相同的`netsh`命令：`docker container exec log-watcher netsh http flush logbuffer`。你会看到一个`Ok`输出，并且新的条目将在`docker container logs`中。
 
@@ -108,17 +125,25 @@ IIS 始终在将日志条目写入磁盘之前在内存中缓冲日志条目，�
 
 您的应用程序设置应该使用一个特定的目录来存储配置文件，这样可以通过挂载 Docker 卷在运行时覆盖它们。我已经在`dockeronwindows/ch03-aspnet-config:2e`中使用了一个简单的 ASP.NET WebForms 应用程序。Dockerfile 只使用了您已经看到的命令：
 
-[PRE4]
+```
+# escape=` FROM mcr.microsoft.com/dotnet/framework/aspnet COPY Web.config C:\inetpub\wwwroot COPY config\*.config C:\inetpub\wwwroot\config\ COPY default.aspx C:\inetpub\wwwroot
+```
 
 这使用了微软的 ASP.NET 镜像作为基础，并复制了我的应用程序文件 - 一个 ASPX 页面和一些配置文件。在这个例子中，我正在使用默认的 IIS 网站，它从`C:\inetpub\wwwroot`加载内容，所以我只需要在 Dockerfile 中使用`COPY`指令，而不需要运行任何 PowerShell 脚本。
 
 ASP.NET 期望在应用程序目录中找到`Web.config`文件，但您可以将配置的部分拆分成单独的文件。我已经在一个子目录中的文件中做到了这一点，这些文件是从`appSettings`和`connectionStrings`部分加载的：
 
-[PRE5]
+```
+<?xml version="1.0" encoding="utf-8"?> <configuration>
+  <appSettings  configSource="config\appSettings.config"  />
+  <connectionStrings  configSource="config\connectionStrings.config"  /> </configuration>
+```
 
 `config`目录填充了默认配置文件，所以我可以从镜像中运行容器，而不需要指定任何额外的设置：
 
-[PRE6]
+```
+docker container run -d -P dockeronwindows/ch03-aspnet-config:2e
+```
 
 当我获取容器的端口并浏览到它时，我看到网页显示来自默认配置文件的值：
 
@@ -126,7 +151,11 @@ ASP.NET 期望在应用程序目录中找到`Web.config`文件，但您可以将
 
 我可以通过从主机上的目录加载配置文件，将本地目录挂载为一个卷，以`C:\inetpub\wwwroot\config`为目标，来为不同的环境运行应用程序。当容器运行时，该目录的内容将从主机上的目录加载：
 
-[PRE7]
+```
+docker container run -d -P `
+ -v $pwd\prod-config:C:\inetpub\wwwroot\config `
+ dockeronwindows/ch03-aspnet-config:2e
+```
 
 我正在使用 PowerShell 来运行这个命令，它会将`$pwd`扩展到当前目录的完整值，所以我在说当前路径中的`prod-config`目录应该被挂载为容器中的`C:\inetpub\wwwroot\config`。您也可以使用完全限定的路径。
 
@@ -144,17 +173,35 @@ ASP.NET 应用程序已经在`Web.config`中具有丰富的配置框架，但通
 
 Docker 允许您在 Dockerfile 中指定环境变量并给出初始默认值。`ENV`指令设置环境变量，您可以在每个`ENV`指令中设置一个或多个变量。以下示例来自于`dockeronwindows/ch03-iis-environment-variables:2e`的 Dockerfile。
 
-[PRE8]
+```
+ ENV A01_KEY A01 value
+ ENV A02_KEY="A02 value" `
+     A03_KEY="A03 value"
+```
 
 使用`ENV`在 Dockerfile 中添加的设置将成为镜像的一部分，因此您从该镜像运行的每个容器都将具有这些值。运行容器时，您可以使用`--env`或`-e`选项添加新的环境变量或替换现有镜像变量的值。您可以通过一个简单的 Nano Server 容器看到环境变量是如何工作的。
 
-[PRE9]
+```
+> docker container run `
+  --env ENV_01='Hello' --env ENV_02='World' `
+  mcr.microsoft.com/windows/nanoserver:1809 `
+  cmd /s /c echo %ENV_01% %ENV_02%
+
+Hello World
+```
 
 在 IIS 中托管的应用程序使用 Docker 中的环境变量存在一个复杂性。当 IIS 启动时，它会从系统中读取所有环境变量并对其进行缓存。当 Docker 运行具有设置的环境变量的容器时，它会将它们写入进程级别，但这发生在 IIS 缓存了原始值之后，因此它们不会被更新，IIS 应用程序将无法看到新值。然而，IIS 并不以相同的方式缓存机器级别的环境变量，因此我们可以将 Docker 设置的值提升为机器级别的环境变量，这样 IIS 应用程序就能够读取它们。
 
 推广环境变量可以通过将它们从进程级别复制到机器级别来实现。您可以在容器启动命令中使用 PowerShell 脚本，通过循环遍历所有进程级别变量并将它们复制到机器级别，除非机器级别键已经存在。
 
-[PRE10]
+```
+ foreach($key in [System.Environment]::GetEnvironmentVariables('Process').Keys) {
+     if ([System.Environment]::GetEnvironmentVariable($key, 'Machine') -eq $null) {
+         $value = [System.Environment]::GetEnvironmentVariable($key, 'Process')
+         [System.Environment]::SetEnvironmentVariable($key, $value, 'Machine')
+     }
+ }
+```
 
 如果您使用的是基于 Microsoft 的 IIS 镜像的图像，则无需执行此操作，因为它会为您使用一个名为`ServiceMonitor.exe`的实用程序，该实用程序已打包在 IIS 镜像中。ServiceMonitor 执行三件事——它使进程级环境变量可用，启动后台 Windows 服务，然后监视服务以确保其保持运行。这意味着您可以使用 ServiceMonitor 作为容器的启动进程，如果 IIS Windows 服务失败，ServiceMonitor 将退出，Docker 将看到您的应用程序已停止。
 
@@ -162,17 +209,26 @@ Docker 允许您在 Dockerfile 中指定环境变量并给出初始默认值。`
 
 如果您想要在自己的逻辑中使用 ServiceMonitor 来回显 IIS 日志，您需要在后台启动 ServiceMonitor，并在 Dockerfile 中的启动命令中完成日志读取。我在`dockeronwindows/ch03-iis-environment-variables:2e`中使用 PowerShell 的`Start-Process`命令运行 ServiceMonitor：
 
-[PRE11]
+```
+ENTRYPOINT ["powershell"] CMD Start-Process -NoNewWindow -FilePath C:\ServiceMonitor.exe -ArgumentList w3svc; ` Invoke-WebRequest http://localhost -UseBasicParsing | Out-Null; `
+    netsh http flush logbuffer | Out-Null; `
+   Get-Content -path 'C:\iislog\W3SVC\u_extend1.log' -Tail 1 -Wait 
+```
 
 `ENTRYPOINT`和`CMD`指令都告诉 Docker 如何运行您的应用程序。您可以将它们组合在一起，以指定默认的入口点，并允许您的镜像用户在启动容器时覆盖命令。
 
 图像中的应用程序是一个简单的 ASP.NET Web Forms 页面，列出了环境变量。我可以以通常的方式在容器中运行这个应用程序：
 
-[PRE12]
+```
+docker container run -d -P --name iis-env dockeronwindows/ch03-iis-environment-variables:2e
+```
 
 ![](img/2e618d29-6ac9-4bbd-9146-05ec35667a31.png)
 
-[PRE13]
+```
+$port = $(docker container port iis-env).Split(':')[1]
+start "http://localhost:$port"
+```
 
 网站显示了来自 Docker 镜像的默认环境变量值，这些值被列为进程级变量：
 
@@ -180,7 +236,12 @@ Docker 允许您在 Dockerfile 中指定环境变量并给出初始默认值。`
 
 您可以使用不同的环境变量运行相同的镜像，覆盖其中一个镜像变量并添加一个新变量：
 
-[PRE14]
+```
+docker container run -d -P --name iis-env2 ` 
+ -e A01_KEY='NEW VALUE!' ` 
+ -e B01_KEY='NEW KEY!' `
+ dockeronwindows/ch03-iis-environment-variables:2e
+```
 
 浏览新容器的端口，您将看到 ASP.NET 页面写出的新值：
 
@@ -200,29 +261,53 @@ Web 应用程序的*健康*的简单定义是能够正常响应 HTTP 请求。�
 
 对于任何 Web 应用程序的简单健康检查只需使用`Invoke-WebRequest` PowerShell 命令来获取主页并检查 HTTP 响应代码是否为`200`，这意味着成功接收到响应：
 
-[PRE15]
+```
+try { 
+    $response = iwr http://localhost/ -UseBasicParsing
+    if ($response.StatusCode -eq 200) { 
+        return 0
+    } else {
+        return 1
+    } 
+catch { return 1 }
+```
 
 对于更复杂的 Web 应用程序，添加一个专门用于健康检查的新端点可能很有用。您可以向 API 和网站添加一个诊断端点，该端点执行应用程序的一些核心逻辑并返回一个布尔结果，指示应用程序是否健康。您可以在 Docker 健康检查中调用此端点，并检查响应内容以及状态码，以便更有信心地确认应用程序是否正常工作。
 
 Dockerfile 中的`HEALTHCHECK`指令非常简单。您可以配置检查之间的间隔和容器被视为不健康之前可以失败的检查次数，但是要使用默认值，只需在`HEALTHCHECK CMD`中指定测试脚本。以下是来自`dockeronwindows/ch03-iis-healthcheck:2e`镜像的 Dockerfile 的示例，它使用 PowerShell 向诊断 URL 发出`GET`请求并检查响应状态码：
 
-[PRE16]
+```
+HEALTHCHECK --interval=5s `
+ CMD powershell -command `
+    try { `
+     $response = iwr http://localhost/diagnostics -UseBasicParsing; `
+     if ($response.StatusCode -eq 200) { return 0} `
+     else {return 1}; `
+    } catch { return 1 }
+```
 
 我已经为健康检查指定了一个间隔，因此 Docker 将每 5 秒在容器内执行此命令（如果您不指定间隔，则默认间隔为 30 秒）。健康检查非常便宜，因为它是本地容器的，所以您可以设置这样的短间隔，并快速捕捉任何问题。
 
 此 Docker 镜像中的应用程序是一个 ASP.NET Web API 应用程序，其中有一个诊断端点和一个控制器，您可以使用该控制器来切换应用程序的健康状态。Dockerfile 包含一个健康检查，当您从该镜像运行容器时，您可以看到 Docker 如何使用它：
 
-[PRE17]
+```
+docker container run -d -P --name healthcheck dockeronwindows/ch03-iis-healthcheck:2e
+```
 
 如果您在启动该容器后运行`docker container ls`，您会看到状态字段中稍有不同的输出，类似于`Up 3 seconds (health: starting)`。Docker 每 5 秒运行一次此容器的健康检查，所以在这一点上，检查尚未运行。稍等一会儿，然后状态将变为类似于`Up 46 seconds (healthy)`。
 
 您可以通过查询“诊断”端点来检查 API 的当前健康状况：
 
-[PRE18]
+```
+$port = $(docker container port healthcheck).Split(':')[1]
+iwr "http://localhost:$port/diagnostics"
+```
 
 在返回的内容中，您会看到`"Status":"GREEN"`，这意味着 API 是健康的。直到我调用控制器来切换健康状态之前，这个容器将保持健康。我可以通过一个`POST`请求来做到这一点，该请求将 API 设置为对所有后续请求返回 HTTP 状态`500`：
 
-[PRE19]
+```
+iwr "http://localhost:$port/toggle/unhealthy" -Method Post
+```
 
 现在，应用程序将对 Docker 平台发出的所有`GET`请求响应 500，这将导致健康检查失败。Docker 会继续尝试健康检查，如果连续三次失败，则认为容器不健康。此时，容器列表中的状态字段显示`Up 3 minutes (unhealthy)`。Docker 不会对不健康的单个容器采取自动操作，因此此容器仍在运行，您仍然可以访问 API。
 
@@ -254,7 +339,9 @@ Dockerfile 中的`HEALTHCHECK`指令非常简单。您可以配置检查之间�
 
 这种方法非常适合自定义 SQL Server Docker 镜像。我可以再次使用多阶段构建来为 Dockerfile 构建，这样其他用户就不需要安装 Visual Studio 来从源代码打包数据库。这是`dockeronwindows/ch03-nerd-dinner-db:2e`镜像的 Dockerfile 的第一阶段：
 
-[PRE20]
+```
+# escape=` FROM microsoft/dotnet-framework:4.7.2-sdk-windowsservercore-ltsc2019 AS builder SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"] # add SSDT build tools RUN nuget install Microsoft.Data.Tools.Msbuild -Version 10.0.61804.210 # add SqlPackage tool ENV download_url="https://download.microsoft.com/download/6/E/4/6E406.../EN/x64/DacFramework.msi" RUN Invoke-WebRequest -Uri $env:download_url -OutFile DacFramework.msi ; `Start-Process msiexec.exe -ArgumentList '/i', 'DacFramework.msi', '/quiet', '/norestart' -NoNewWindow -Wait; `Remove-Item -Force DacFramework.msi WORKDIR C:\src\NerdDinner.Database COPY src\NerdDinner.Database . RUN msbuild NerdDinner.Database.sqlproj ` /p:SQLDBExtensionsRefPath="C:\Microsoft.Data.Tools.Msbuild.10.0.61804.210\lib\net46" ` /p:SqlServerRedistPath="C:\Microsoft.Data.Tools.Msbuild.10.0.61804.210\lib\net46" 
+```
 
 这里有很多内容，但都很简单。`builder`阶段从微软的.NET Framework SDK 镜像开始。这给了我`NuGet`和`MSBuild`，但没有我构建 SQL Server Dacpac 所需的依赖项。前两个`RUN`指令安装了 SQL Server 数据工具和`SqlPackage`工具。如果我有很多数据库项目要容器化，我可以将其打包为一个单独的 SQL Server SDK 镜像。
 
@@ -262,7 +349,9 @@ Dockerfile 中的`HEALTHCHECK`指令非常简单。您可以配置检查之间�
 
 这是 Dockerfile 的第二阶段，它打包了 NerdDinner Dacpac 以在 SQL Server Express 中运行：
 
-[PRE21]
+```
+FROM dockeronwindows/ch03-sql-server:2e ENV DATA_PATH="C:\data" ` sa_password="N3rdD!Nne720⁶" VOLUME ${DATA_PATH} WORKDIR C:\init COPY Initialize-Database.ps1 . CMD powershell ./Initialize-Database.ps1 -sa_password $env:sa_password -data_path $env:data_path -Verbose COPY --from=builder ["C:\\Program Files...\\DAC", "C:\\Program Files...\\DAC"] COPY --from=builder C:\docker\NerdDinner.Database.dacpac . 
+```
 
 我正在使用我自己的 Docker 镜像，其中安装了 SQL Server Express 2017。微软在 Docker Hub 上发布了用于 Windows 和 Linux 的 SQL Server 镜像，但 Windows 版本并没有定期维护。SQL Server Express 是免费分发的，所以你可以将其打包到自己的 Docker 镜像中（`dockeronwindows/ch03-sql-server`的 Dockerfile 在 GitHub 的`sixeyed/docker-on-windows`存储库中）。
 
@@ -288,13 +377,21 @@ Dockerfile 中的`HEALTHCHECK`指令非常简单。您可以配置检查之间�
 
 执行此操作的逻辑都在`Initialize-Database.ps1` PowerShell 脚本中，Dockerfile 将其设置为容器的入口点。在 Dockerfile 中，我将数据目录传递给 PowerShell 脚本中的`data_path`变量，并且脚本检查该目录中是否存在 NerdDinner 数据（`mdf`）和日志（`ldf`）文件：
 
-[PRE22]
+```
+$mdfPath  =  "$data_path\NerdDinner_Primary.mdf" $ldfPath  =  "$data_path\NerdDinner_Primary.ldf" # attach data files if they exist: if  ((Test-Path  $mdfPath)  -eq  $true) {  $sqlcmd  =  "IF DB_ID('NerdDinner') IS NULL BEGIN CREATE DATABASE NerdDinner ON (FILENAME = N'$mdfPath')"    if  ((Test-Path  $ldfPath)  -eq  $true) {   $sqlcmd  =  "$sqlcmd, (FILENAME = N'$ldfPath')"
+ }  $sqlcmd  =  "$sqlcmd FOR ATTACH; END"  Invoke-Sqlcmd  -Query $sqlcmd  -ServerInstance ".\SQLEXPRESS" }
+```
 
 这个脚本看起来很复杂，但实际上，它只是构建了一个`CREATE DATABASE...FOR ATTACH`语句，如果 MDF 数据文件和 LDF 日志文件存在，则填写路径。然后它调用 SQL 语句，将外部卷中的数据库文件作为 SQL Server 容器中的新数据库附加。
 
 这涵盖了用户使用卷挂载运行容器的情况，主机目录已经包含来自先前容器的数据文件。这些文件被附加，数据库在新容器中可用。接下来，脚本使用`SqlPackage`工具从 Dacpac 生成部署脚本。我知道`SqlPackage`工具存在，也知道它的路径，因为它是从构建阶段打包到我的镜像中的：
 
-[PRE23]
+```
+$SqlPackagePath  =  'C:\Program Files\Microsoft SQL Server\140\DAC\bin\SqlPackage.exe' &  $SqlPackagePath  `
+  /sf:NerdDinner.Database.dacpac `
+  /a:Script /op:deploy.sql /p:CommentOutSetVarDeclarations=true `
+  /tsn:.\SQLEXPRESS /tdn:NerdDinner /tu:sa /tp:$sa_password  
+```
 
 如果容器启动时数据库目录为空，则容器中没有`NerdDinner`数据库，并且`SqlPackage`将生成一个包含一组`CREATE`语句的脚本来部署新数据库。如果数据库目录包含文件，则现有数据库将被附加。在这种情况下，`SqlPackage`将生成一个包含一组`ALTER`和`CREATE`语句的脚本，以使数据库与 Dacpac 保持一致。
 
@@ -302,7 +399,9 @@ Dockerfile 中的`HEALTHCHECK`指令非常简单。您可以配置检查之间�
 
 最后，PowerShell 脚本执行 SQL 脚本，传入数据库名称、文件前缀和数据路径的变量：
 
-[PRE24]
+```
+$SqlCmdVars  =  "DatabaseName=NerdDinner",  "DefaultFilePrefix=NerdDinner"...  Invoke-Sqlcmd  -InputFile deploy.sql -Variable $SqlCmdVars  -Verbose
+```
 
 SQL 脚本运行后，数据库在容器中存在，并且其模式与 Dacpac 中建模的模式相同，Dacpac 是从 Dockerfile 的构建阶段中的 SQL 项目构建的。数据库文件位于预期位置，并具有预期名称，因此如果用相同镜像的另一个容器替换此容器，新容器将找到现有数据库并附加它。
 
@@ -312,11 +411,28 @@ SQL 脚本运行后，数据库在容器中存在，并且其模式与 Dacpac �
 
 这就是您在 Docker 中运行 NerdDinner 数据库的方式，使用默认管理员密码，带有数据库文件的主机目录，并命名容器，以便我可以从其他容器中访问它：
 
-[PRE25]
+```
+mkdir -p C:\databases\nd
+
+docker container run -d -p 1433:1433 ` --name nerd-dinner-db ` -v C:\databases\nd:C:\data ` dockeronwindows/ch03-nerd-dinner-db:2e
+```
 
 第一次运行此容器时，Dacpac 将运行以创建数据库，并将数据和日志文件保存在主机上的挂载目录中。您可以使用`ls`检查主机上是否存在文件，并且`docker container logs`的输出显示生成的 SQL 脚本正在运行，并创建资源：
 
-[PRE26]
+```
+> docker container logs nerd-dinner-db
+VERBOSE: Starting SQL Server
+VERBOSE: Changing SA login credentials
+VERBOSE: No data files - will create new database
+Generating publish script for database 'NerdDinner' on server '.\SQLEXPRESS'.
+Successfully generated script to file C:\init\deploy.sql.
+VERBOSE: Changed database context to 'master'.
+VERBOSE: Creating NerdDinner...
+VERBOSE: Changed database context to 'NerdDinner'.
+VERBOSE: Creating [dbo].[Dinners]...
+...
+VERBOSE: Deployed NerdDinner database, data files at: C:\data
+```
 
 我使用的`docker container run`命令还发布了标准的 SQL Server 端口`1433`，因此您可以通过.NET 连接或**SQL Server Management Studio**（**SSMS**）远程连接到容器内运行的数据库。如果您的主机上已经运行了 SQL Server 实例，您可以将容器的端口`1433`映射到主机上的不同端口。
 
@@ -344,7 +460,9 @@ Docker 中的服务发现不仅适用于容器。容器可以使用其主机名�
 
 本章对 NerdDinner 的 Dockerfile 进行了一些更新。我添加了健康检查和从 IIS 中输出日志的设置。我仍然没有对 NerdDinner 代码库进行任何功能性更改，只是将`Web.config`文件拆分，并将默认数据库连接字符串设置为使用运行在 Docker 中的 SQL Server 数据库容器。现在运行 Web 应用程序容器时，它将能够通过名称连接到数据库容器，并使用在 Docker 中运行的 SQL Server Express 数据库：
 
-[PRE27]
+```
+docker container run -d -P dockeronwindows/ch03-nerd-dinner-web:2e
+```
 
 您可以在创建容器时明确指定 Docker 网络应加入的容器，但在 Windows 上，所有容器默认加入名为`nat`的系统创建的 Docker 网络。数据库容器和 Web 容器都连接到`nat`网络，因此它们可以通过容器名称相互访问。
 
@@ -404,11 +522,15 @@ ASP.NET Core 是一个现代的应用程序堆栈，它在快速而轻量的运�
 
 `dockeronwindows/ch03-nerd-dinner-homepage:2e`镜像的 Dockerfile 使用了与完整 ASP.NET 应用程序相同的模式。构建器阶段使用 SDK 镜像并分离包恢复和编译步骤：
 
-[PRE28]
+```
+# escape=` FROM microsoft/dotnet:2.2-sdk-nanoserver-1809 AS builder WORKDIR C:\src\NerdDinner.Homepage COPY src\NerdDinner.Homepage\NerdDinner.Homepage.csproj . RUN dotnet restore COPY src\NerdDinner.Homepage . RUN dotnet publish  
+```
 
 Dockerfile 的最后阶段为`NERD_DINNER_URL`环境变量提供了默认值。应用程序将其用作主页上链接的目标。 Dockerfile 的其余指令只是复制已发布的应用程序并设置入口点：
 
-[PRE29]
+```
+FROM microsoft/dotnet:2.2-aspnetcore-runtime-nanoserver-1809 WORKDIR C:\dotnetapp ENV NERD_DINNER_URL="/home/find" EXPOSE 80 CMD ["dotnet", "NerdDinner.Homepage.dll"] COPY --from=builder C:\src\NerdDinner.Homepage\bin\Debug\netcoreapp2.2\publish .
+```
 
 我可以在单独的容器中运行主页组件，但它尚未连接到主 NerdDinner 应用程序。使用本章中采用的方法，我需要对原始应用程序进行代码更改，以便集成新的主页服务。
 
@@ -418,13 +540,39 @@ Dockerfile 的最后阶段为`NERD_DINNER_URL`环境变量提供了默认值。�
 
 在主 NerdDinner 应用程序的`HomeController`类中进行简单更改，将从新主页服务中继承响应，而不是从主应用程序呈现页面：
 
-[PRE30]
+```
+static  HomeController() {
+  var  homepageUrl  =  Environment.GetEnvironmentVariable("HOMEPAGE_URL", EnvironmentVariableTarget.Machine); if (!string.IsNullOrEmpty(homepageUrl))
+  {
+    var  request  =  WebRequest.Create(homepageUrl); using (var  response  =  request.GetResponse())
+    using (var  responseStream  =  new  StreamReader(response.GetResponseStream()))
+    {
+      _NewHomePageHtml  =  responseStream.ReadToEnd();
+    }
+ } } public  ActionResult  Index() { if (!string.IsNullOrEmpty(_NewHomePageHtml)) { return  Content(_NewHomePageHtml);
+  }
+  else
+  {
+    return  Find();
+ } }
+```
 
 在新代码中，我从环境变量中获取主页服务的 URL。与数据库连接一样，我可以在 Dockerfile 中为其设置默认值。在分布式应用程序中，这将是不好的做法，因为我们无法保证组件在何处运行，但是在 Docker 化应用程序中，我可以安全地这样做，因为我将控制容器的名称，因此在部署它们时，我可以确保服务名称是正确的。
 
 我已将此更新的镜像标记为`dockeronwindows/ch03-nerd-dinner-web:2e-v2`。现在，要启动整个解决方案，我需要运行三个容器：
 
-[PRE31]
+```
+docker container run -d -p 1433:1433 `
+ --name nerd-dinner-db ` 
+ -v C:\databases\nd:C:\data `
+ dockeronwindows/ch03-nerd-dinner-db:2e
+
+docker container run -d -P `
+ --name nerd-dinner-homepage `
+ dockeronwindows/ch03-nerd-dinner-homepage:2e
+
+docker container run -d -P dockeronwindows/ch03-nerd-dinner-web:2e-v2
+```
 
 当容器正在运行时，我浏览到 NerdDinner 容器的发布端口，我可以看到来自新组件的主页：
 

@@ -48,19 +48,26 @@ Image2Docker 是一个开源工具，您可以使用它为现有应用程序生�
 
 在我的开发计算机上，我有一个部署到**Internet Information Services**（**IIS**）的 ASP.NET 应用程序。我可以通过从 PowerShell 库安装 Image2Docker 并导入模块来在 Docker 中迁移该应用程序。
 
-[PRE0]
+```
+Install-Module Image2Docker
+Import-Module Image2Docker
+```
 
 PowerShell 5.0 是`Image2Docker`所需的最低版本，但该工具没有其他依赖关系。
 
 我可以运行`ConvertTo-Dockerfile` cmdlet，指定 IIS 构件来构建一个包含我计算机上所有 IIS 网站的 Dockerfile：
 
-[PRE1]
+```
+ConvertTo-Dockerfile -Local -Artifact IIS -OutputPath C:\i2d\iis
+```
 
 这将在`C:\i2d\iis`创建一个目录，在文件夹内部，我将有一个 Dockerfile 和每个网站的子目录。`Image2Docker`将网站内容从源复制到输出位置。Dockerfile 使用最相关的基础映像来找到应用程序，即`microsoft/iis`，`microsoft/aspnet`或`microsoft/aspnet:3.5`。
 
 如果源中有多个网站或 Web 应用程序，`Image2Docker`会提取它们所有并构建一个重复原始 IIS 设置的单个 Dockerfile，因此 Docker 镜像中将有多个应用程序。这不是我的目标，因为我希望我的 Docker 镜像中只有一个应用程序，所以我可以使用参数来提取单个网站：
 
-[PRE2]
+```
+ConvertTo-Dockerfile -Local -Artifact IIS -ArtifactParam SampleApi -OutputPath C:\i2d\api
+```
 
 这个过程是一样的，但这次，`Image2Docker`只从源中提取一个应用程序 - 在`ArtifactParam`参数中命名的应用程序。Dockerfile 包含部署应用程序的步骤，您可以运行`docker image build`来创建图像并运行应用程序。
 

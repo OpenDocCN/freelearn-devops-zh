@@ -72,7 +72,11 @@ Helm 实际上扮演了模板/代码生成工具和 CI/CD 工具的双重角色�
 
 您可以按照以下步骤获取并运行脚本：
 
-[PRE0]
+```
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+```
 
 现在，我们应该能够运行`helm`命令了。默认情况下，Helm 将自动使用您现有的`kubeconfig`集群和上下文，因此为了在 Helm 中切换集群，您只需要使用`kubectl`来更改您的`kubeconfig`文件，就像您通常做的那样。
 
@@ -88,37 +92,67 @@ Helm 图表由一个或多个模板、一些图表元数据和一个`values`文�
 
 为了安装具有本地 values 文件的本地 Helm 图表，您可以为每个传递路径到`helm install`，如以下命令所示：
 
-[PRE1]
+```
+helm install -f values.yaml /path/to/chart/root
+```
 
 然而，对于常用的安装图表，您也可以直接从图表存储库安装图表，并且您还可以选择将自定义存储库添加到本地 Helm 中，以便能够轻松地从非官方来源安装图表。
 
 例如，为了通过官方 Helm 图表安装 Drupal，您可以运行以下命令：
 
-[PRE2]
+```
+helm install -f values.yaml stable/drupal
+```
 
 此代码从官方 Helm 图表存储库安装图表。要使用自定义存储库，您只需要首先将其添加到 Helm 中。例如，要安装托管在`jetstack` Helm 存储库上的`cert-manager`，我们可以执行以下操作：
 
-[PRE3]
+```
+helm repo add jetstack https://charts.jetstack.io
+helm install certmanager --namespace cert-manager jetstack/cert-manager
+```
 
 此代码将`jetstack` Helm 存储库添加到本地 Helm CLI 工具中，然后通过其中托管的图表安装`cert-manager`。我们还将发布命名为`cert-manager`。Helm 发布是 Helm V3 中使用 Kubernetes secrets 实现的概念。当我们在 Helm 中创建一个发布时，它将作为同一命名空间中的一个 secret 存储。
 
 为了说明这一点，我们可以使用前面的`install`命令创建一个 Helm 发布。现在让我们来做吧：
 
-[PRE4]
+```
+helm install certmanager --namespace cert-manager jetstack/cert-manager
+```
 
 该命令应该产生以下输出，具体内容可能会有所不同，取决于当前的 Cert Manager 版本。为了便于阅读，我们将输出分为两个部分。
 
 首先，命令的输出给出了 Helm 发布的状态：
 
-[PRE5]
+```
+NAME: certmanager
+LAST DEPLOYED: Sun May 23 19:07:04 2020
+NAMESPACE: cert-manager
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+```
 
 正如您所看到的，此部分包含部署的时间戳、命名空间信息、修订版本和状态。接下来，我们将看到输出的注释部分：
 
-[PRE6]
+```
+NOTES:
+cert-manager has been deployed successfully!
+In order to begin issuing certificates, you will need to set up a ClusterIssuer
+or Issuer resource (for example, by creating a 'letsencrypt-staging' issuer).
+More information on the different types of issuers and how to configure them
+can be found in our documentation:
+https://cert-manager.io/docs/configuration/
+For information on how to configure cert-manager to automatically provision
+Certificates for Ingress resources, take a look at the `ingress-shim`
+documentation:
+https://cert-manager.io/docs/usage/ingress/
+```
 
 正如您所看到的，我们的 Helm `install`命令已经成功，这也给了我们一些来自`cert-manager`的信息，告诉我们如何使用它。这个输出在安装 Helm 软件包时可能会很有帮助，因为它们有时包括先前片段中的文档。现在，为了查看我们的 Kubernetes 中的发布对象是什么样子，我们可以运行以下命令：
 
-[PRE7]
+```
+Kubectl get secret -n cert-manager
+```
 
 这将产生以下输出：
 
@@ -130,7 +164,9 @@ Helm 图表由一个或多个模板、一些图表元数据和一个`values`文�
 
 最后，要在 Helm CLI 中查看发布列表，我们可以运行以下命令：
 
-[PRE8]
+```
+helm ls -A
+```
 
 此命令将列出所有命名空间中的 Helm 发布（就像`kubectl get pods -A`会列出所有命名空间中的 pod 一样）。输出将如下所示：
 
@@ -146,7 +182,14 @@ Helm 图表由一个或多个模板、一些图表元数据和一个`values`文�
 
 让我们从 Helm 图表的文件夹结构开始。正如我们之前提到的，Helm 图表由模板、元数据文件和可选值组成。我们将在实际安装图表时注入这些值，但我们可以将我们的文件夹结构设计成这样：
 
-[PRE9]
+```
+Chart.yaml
+charts/
+templates/
+dev-values.yaml
+staging-values.yaml
+production-values.yaml
+```
 
 我们还没有提到的一件事是，您实际上可以在现有图表中拥有一个 Helm 图表的文件夹！这些子图表可以将复杂的应用程序分解为组件，使其易于管理。对于本书的目的，我们将不使用子图表，但是如果您的应用程序变得过于复杂或模块化，这是一个有价值的功能。
 
@@ -154,7 +197,11 @@ Helm 图表由一个或多个模板、一些图表元数据和一个`values`文�
 
 那么，`Chart.yaml`文件是什么样子的呢？该文件将包含有关图表的一些基本元数据，并且通常看起来至少是这样的：
 
-[PRE10]
+```
+apiVersion: v2
+name: mynodeapp
+version: 1.0.0
+```
 
 `Chart.yaml`文件支持许多可选字段，您可以在[`helm.sh/docs/topics/charts/`](https://helm.sh/docs/topics/charts/)中查看，但是对于本教程的目的，我们将保持简单。强制字段是`apiVersion`，`name`和`version`。
 
@@ -168,15 +215,24 @@ Helm 图表由一个或多个模板、一些图表元数据和一个`values`文�
 
 首先，我们可以使用 Helm CLI 命令自动生成我们的`Chart`文件夹，其中包括所有先前的文件和文件夹，减去为您生成的子图和值文件。让我们试试吧 - 首先使用以下命令创建一个新的 Helm 图表：
 
-[PRE11]
+```
+helm create myfakenodeapp
+```
 
 这个命令将在名为`myfakenodeapp`的文件夹中创建一个自动生成的图表。让我们使用以下命令检查我们`templates`文件夹的内容：
 
-[PRE12]
+```
+Ls myfakenodeapp/templates
+```
 
 这个命令将产生以下输出：
 
-[PRE13]
+```
+helpers.tpl
+deployment.yaml
+NOTES.txt
+service.yaml
+```
 
 这个自动生成的图表可以作为起点帮助很多，但是对于本教程的目的，我们将从头开始制作这些。
 
@@ -188,7 +244,29 @@ Helm 图表由一个或多个模板、一些图表元数据和一个`values`文�
 
 deployment.yaml:
 
-[PRE14]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-myapp
+  labels:
+    app: frontend-myapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-myapp
+  template:
+    metadata:
+      labels:
+        app: frontend-myapp
+    spec:
+      containers:
+      - name: frontend-myapp
+        image: myrepo/myapp:1.0.0
+        ports:
+        - containerPort: 80
+```
 
 正如你所看到的，这个 YAML 只是一个普通的 Kubernetes 资源 YAML。我们在我们的模板中没有使用任何变量。
 
@@ -198,21 +276,30 @@ deployment.yaml:
 
 要使用 Helm V3 安装图表，你需要从图表的`root`目录运行`helm install`命令：
 
-[PRE15]
+```
+helm install myapp .
+```
 
 这个安装命令创建了一个名为`frontend-app`的 Helm 发布，并安装了我们的图表。现在，我们的图表只包括一个具有两个 pod 的单个部署，我们应该能够通过以下命令在我们的集群中看到它正在运行：
 
-[PRE16]
+```
+kubectl get deployment
+```
 
 这应该会产生以下输出：
 
-[PRE17]
+```
+NAMESPACE  NAME            READY   UP-TO-DATE   AVAILABLE   AGE
+default    frontend-myapp  2/2     2            2           2m
+```
 
 从输出中可以看出，我们的 Helm `install`命令已经成功在 Kubernetes 中创建了一个部署对象。
 
 卸载我们的图表同样简单。我们可以通过运行以下命令来安装通过我们的图表安装的所有 Kubernetes 资源：
 
-[PRE18]
+```
+helm uninstall myapp
+```
 
 这个`uninstall`命令（在 Helm V2 中是`delete`）只需要我们 Helm 发布的名称。
 
@@ -228,7 +315,31 @@ deployment.yaml:
 
 Templated-deployment.yaml:
 
-[PRE19]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-{{ .Release.Name }}
+  labels:
+    app: frontend-{{ .Release.Name }}
+    chartVersion: {{ .Chart.version }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-{{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: frontend-{{ .Release.Name }}
+    spec:
+      containers:
+      - name: frontend-{{ .Release.Name }}
+        image: myrepo/{{ .Values.image.name }}
+:{{ .Values.image.tag }}
+        ports:
+        - containerPort: 80
+```
 
 让我们浏览一下这个 YAML 文件，审查一下我们的变量。在这个文件中，我们使用了几种不同类型的变量，但它们都使用相同的点符号表示法。
 
@@ -252,11 +363,17 @@ Helm 实际上支持几种不同的顶级对象。这些是您可以在模板中
 
 考虑到这一点，让我们从我们的模板创建我们的值文件，我们将在其中传递我们的图像`name`和`tag`。因此，让我们以正确的格式包含它们：
 
-[PRE20]
+```
+image:
+  name: myapp
+  tag: 2.0.1
+```
 
 现在我们可以通过我们的 Helm 图表安装我们的应用程序！使用以下命令：
 
-[PRE21]
+```
+helm install myrelease -f values.yaml .
+```
 
 正如您所看到的，我们正在使用`-f`键传递我们的值（您也可以使用`--values`）。此命令将安装我们应用程序的发布。
 
@@ -266,19 +383,31 @@ Helm 实际上支持几种不同的顶级对象。这些是您可以在模板中
 
 现在我们有了一个活动的 Helm 发布，我们可以升级它。让我们对我们的`values.yaml`进行一些小改动：
 
-[PRE22]
+```
+image:
+  name: myapp
+  tag: 2.0.2
+```
 
 要使这成为我们发布的新版本，我们还需要更改我们的图表 YAML：
 
-[PRE23]
+```
+apiVersion: v2
+name: mynodeapp
+version: 1.0.1
+```
 
 现在，我们可以使用以下命令升级我们的发布：
 
-[PRE24]
+```
+helm upgrade myrelease -f values.yaml .
+```
 
 如果出于任何原因，我们想回滚到早期版本，我们可以使用以下命令：
 
-[PRE25]
+```
+helm rollback myrelease 1.0.0
+```
 
 正如您所看到的，Helm 允许无缝地对应用程序进行模板化、发布、升级和回滚。正如我们之前提到的，Kustomize 达到了许多相同的点，但它的方式大不相同-让我们看看。 
 
@@ -294,13 +423,38 @@ Helm 实际上支持几种不同的顶级对象。这些是您可以在模板中
 
 目前，安装使用以下命令：
 
-[PRE26]
+```
+curl -s "https://raw.githubusercontent.com/\
+kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+```
 
 现在我们已经安装了 Kustomize，让我们将 Kustomize 应用于我们现有的用例。我们将从我们的普通 Kubernetes YAML 开始（在我们开始添加 Helm 变量之前）：
 
 plain-deployment.yaml：
 
-[PRE27]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-myapp
+  labels:
+    app: frontend-myapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-myapp
+  template:
+    metadata:
+      labels:
+        app: frontend-myapp
+    spec:
+      containers:
+      - name: frontend-myapp
+        image: myrepo/myapp:1.0.0
+        ports:
+        - containerPort: 80
+```
 
 创建了初始的`deployment.yaml`后，我们现在可以创建一个 Kustomization 文件，我们称之为`kustomize.yaml`。
 
@@ -334,7 +488,19 @@ Kustomize 让我们可以修补单个值或设置自动设置的常见值。一�
 
 Deployment-kustomization-1.yaml：
 
-[PRE28]
+```
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deployment.yaml
+namespace: default
+commonLabels:
+  app: frontend-app
+images:
+  - name: frontend-myapp
+    newTag: 2.0.0
+    newName: frontend-app-1
+```
 
 这个特定的`Kustomization.yaml`文件将图像标签从`1.0.0`更新为`2.0.0`，将应用程序的名称从`frontend-myapp`更新为`frontend-app`，并将容器的名称从`frontend-myapp`更新为`frontend-app-1`。
 
@@ -342,15 +508,41 @@ Deployment-kustomization-1.yaml：
 
 要查看当我们的 Kustomize 文件应用到我们的部署时的结果，我们可以使用 Kustomize CLI 工具。我们将使用以下命令生成经过自定义处理的输出：
 
-[PRE29]
+```
+kustomize build deployment-kustomization1.yaml
+```
 
 该命令将给出以下输出：
 
-[PRE30]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-myapp
+  labels:
+    app: frontend-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-app
+  template:
+    metadata:
+      labels:
+        app: frontend-app
+    spec:
+      containers:
+      - name: frontend-app-1
+        image: myrepo/myapp:2.0.0
+        ports:
+        - containerPort: 80
+```
 
 如您所见，我们的 Kustomization 文件中的自定义已经应用。因为`kustomize build`命令输出 Kubernetes YAML，我们可以轻松地将输出部署到 Kubernetes，如下所示：
 
-[PRE31]
+```
+kustomize build deployment-kustomization.yaml | kubectl apply -f -
+```
 
 接下来，让我们看看如何使用带有`PatchStrategicMerge`的 YAML 文件来修补我们的部署。
 
@@ -362,7 +554,15 @@ Deployment-kustomization-1.yaml：
 
 Deployment-kustomization-2.yaml：
 
-[PRE32]
+```
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deployment.yaml
+namespace: default
+patchesStrategicMerge:
+  - deployment-patch-1.yaml
+```
 
 正如您所见，我们的 Kustomization 文件在`patchesStrategicMerge`部分引用了一个新文件`deployment-patch-1.yaml`。这里可以添加任意数量的补丁 YAML 文件。
 
@@ -370,19 +570,34 @@ Deployment-kustomization-2.yaml：
 
 Deployment-patch-1.yaml：
 
-[PRE33]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-myapp
+  labels:
+    app: frontend-myapp
+spec:
+  replicas: 4
+```
 
 这个补丁文件是原始部署中字段的一个子集。在这种情况下，它只是将 `replicas` 从 `2` 更新为 `4`。再次应用更改，我们可以使用以下命令：
 
-[PRE34]
+```
+ kustomize build deployment-kustomization2.yaml
+```
 
 但是，我们也可以在 `kubectl` 命令中使用 `-k` 标志！它看起来是这样的：
 
-[PRE35]
+```
+Kubectl apply -k deployment-kustomization2.yaml
+```
 
 这个命令相当于以下内容：
 
-[PRE36]
+```
+kustomize build deployment-kustomization2.yaml | kubectl apply -f -
+```
 
 与 `PatchStrategicMerge` 类似，我们还可以在我们的 Kustomization 中指定基于 JSON 的补丁 - 现在让我们来看看。
 
@@ -394,7 +609,20 @@ Deployment-patch-1.yaml：
 
 Deployment-kustomization-3.yaml:
 
-[PRE37]
+```
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- deployment.yaml
+namespace: default
+patches:
+- path: deployment-patch-2.json
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: frontend-myapp
+```
 
 正如您所看到的，我们的 Kustomize 文件有一个 `patches` 部分，其中引用了一个 JSON 补丁文件以及一个目标。您可以在此部分引用尽可能多的 JSON 补丁。`target` 用于确定在资源部分中指定的哪个 Kubernetes 资源将接收补丁。
 
@@ -402,7 +630,15 @@ Deployment-kustomization-3.yaml:
 
 Deployment-patch-2.json:
 
-[PRE38]
+```
+[
+  {
+   "op": "replace",
+   "path": "/spec/template/spec/containers/0/name",
+   "value": "frontend-myreplacedapp"
+  }
+]
+```
 
 应用此补丁时，将对我们第一个容器的名称执行 `replace` 操作。您可以沿着我们原始的 `deployment.yaml` 文件路径查看，以查看它引用了第一个容器的名称。它将用新值 `frontend-myreplacedapp` 替换此名称。
 
@@ -482,7 +718,22 @@ Deployment-patch-2.json:
 
 Pipeline-1-codebuild-1.yaml:
 
-[PRE39]
+```
+version: 0.2
+phases:
+  build:
+    commands:
+      - npm run build
+  test:
+    commands:
+      - npm test
+  containerbuild:
+    commands:
+      - docker build -t $ECR_REPOSITORY/$IMAGE_NAME:$IMAGE_TAG .
+  push:
+    commands:
+      - docker push_$ECR_REPOSITORY/$IMAGE_NAME:$IMAGE_TAG
+```
 
 这个 CodeBuild 流水线包括四个阶段。CodeBuild 流水线规范是用 YAML 编写的，并包含一个与 CodeBuild 规范版本对应的`version`标签。然后，我们有一个`phases`部分，按顺序执行。这个 CodeBuild 首先运行`build`命令，然后在测试阶段运行`test`命令。最后，`containerbuild`阶段创建容器镜像，`push`阶段将镜像推送到我们的容器仓库。
 
@@ -492,7 +743,24 @@ Pipeline-1-codebuild-1.yaml:
 
 Pipeline-1-codebuild-2.yaml:
 
-[PRE40]
+```
+version: 0.2
+phases:
+  install:
+    commands:
+      - curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.16.8/2020-04-16/bin/darwin/amd64/kubectl  
+      - chmod +x ./kubectl
+      - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin
+      - echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+      - source ~/.bashrc
+  pre_deploy:
+    commands:
+      - aws eks --region $AWS_DEFAULT_REGION update-kubeconfig --name $K8S_CLUSTER
+  deploy:
+    commands:
+      - cd $CODEBUILD_SRC_DIR
+      - kubectl set image deployment/$KUBERNETES-DEPLOY-NAME myrepo:"$IMAGE_TAG"
+```
 
 让我们来分解这个文件。我们的 CodeBuild 设置分为三个阶段：`install`、`pre_deploy`和`deploy`。在`install`阶段，我们安装 kubectl CLI 工具。
 
@@ -508,7 +776,24 @@ Pipeline-1-codebuild-2.yaml:
 
 Pipeline-2-codebuild-1.yaml:
 
-[PRE41]
+```
+version: 0.2
+phases:
+  install:
+    commands:
+      - curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.16.8/2020-04-16/bin/darwin/amd64/kubectl  
+      - chmod +x ./kubectl
+      - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin
+      - echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+      - source ~/.bashrc
+  pre_deploy:
+    commands:
+      - aws eks --region $AWS_DEFAULT_REGION update-kubeconfig --name $K8S_CLUSTER
+  deploy:
+    commands:
+      - cd $CODEBUILD_SRC_DIR
+      - kubectl apply -f .
+```
 
 正如您所看到的，这个 CodeBuild 规范与我们之前的规范非常相似。与以前一样，我们安装 kubectl 并准备好与我们的 Kubernetes 集群一起使用。由于我们在 AWS 上运行，我们使用 AWS CLI 来完成，但这可以通过许多方式来完成，包括只需将`Kubeconfig`文件添加到我们的 CodeBuild 环境中。
 
@@ -530,15 +815,21 @@ FluxCD 可以在几个步骤中使用 Helm 轻松安装：
 
 1.  首先，我们需要添加 Flux Helm 图表存储库：
 
-[PRE42]
+```
+helm repo add fluxcd https://charts.fluxcd.io
+```
 
 1.  接下来，我们需要添加一个自定义资源定义，FluxCD 需要这样做才能与 Helm 发布一起工作：
 
-[PRE43]
+```
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/master/deploy/crds.yaml
+```
 
 1.  在我们安装 FluxCD Operator（这是 FluxCD 在 Kubernetes 上的核心功能）和 FluxCD Helm Operator 之前，我们需要为 FluxCD 创建一个命名空间。
 
-[PRE44]
+```
+kubectl create namespace flux
+```
 
 现在我们可以安装 FluxCD 的主要组件，但我们需要为 FluxCD 提供有关我们的 Git 存储库的一些额外信息。
 
@@ -550,7 +841,14 @@ FluxCD 还将通过拉取策略响应新的 ECR 镜像，但我们稍后再讨�
 
 这组指令假设 Git 仓库是公开的，但实际上它可能不是。由于大多数组织使用私有仓库，FluxCD 有特定的配置来处理这种情况-只需查看文档[`docs.fluxcd.io/en/latest/tutorials/get-started-helm/`](https://docs.fluxcd.io/en/latest/tutorials/get-started-helm/)。事实上，为了看到 FluxCD 的真正力量，无论如何你都需要给它对 Git 仓库的高级访问权限，因为 FluxCD 可以写入你的 Git 仓库，并在创建新的容器镜像时自动更新清单。但是，在本书中我们不会涉及这个功能。FluxCD 的文档绝对值得仔细阅读，因为这是一个具有许多功能的复杂技术。要告诉 FluxCD 要查看哪个 GitHub 仓库，你可以在安装时使用 Helm 设置变量，就像下面的命令一样：
 
-[PRE45]
+```
+helm upgrade -i flux fluxcd/flux \
+--set git.url=git@github.com:GITHUB_USERNAME/REPOSITORY_NAME \
+--namespace flux
+helm upgrade -i helm-operator fluxcd/helm-operator \
+--set git.ssh.secretName=flux-git-deploy \
+--namespace flux
+```
 
 正如你所看到的，我们需要传递我们的 GitHub 用户名，仓库的名称，以及在 Kubernetes 中用于 GitHub 秘钥的名称。
 
@@ -560,7 +858,25 @@ FluxCD 还将通过拉取策略响应新的 ECR 镜像，但我们稍后再讨�
 
 helmrelease-1.yaml:
 
-[PRE46]
+```
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: myapp
+  annotations:
+    fluxcd.io/automated: "true"
+    fluxcd.io/tag.chart-image: glob:myapp-v*
+spec:
+  releaseName: myapp
+  chart:
+    git: ssh://git@github.com/<myuser>/<myinfrastructurerepository>/myhelmchart
+    ref: master
+    path: charts/myapp
+  values:
+    image:
+      repository: myrepo/myapp
+      tag: myapp-v2
+```
 
 让我们分析一下这个文件。我们正在指定 Flux 将在哪里找到我们应用程序的 Helm 图表的 Git 仓库。我们还使用`automated`注释标记`HelmRelease`，这告诉 Flux 每隔几分钟去轮询容器镜像仓库，看看是否有新版本需要部署。为了帮助这一点，我们包括了一个`chart-image`过滤模式，标记的容器镜像必须匹配才能触发重新部署。最后，在值部分，我们有 Helm 值，将用于 Helm 图表的初始安装。
 
@@ -570,11 +886,20 @@ helmrelease-1.yaml:
 
 目前，我们在 GitHub 上的基础设施仓库只包含我们的单个 Helm 发布文件。文件夹内容如下：
 
-[PRE47]
+```
+helmrelease1.yaml
+```
 
 为了闭环并允许 Flux 实际部署我们的 Helm 图表，我们需要将其添加到这个基础设施仓库中。让我们这样做，使我们 GitHub 仓库中的最终文件夹内容如下：
 
-[PRE48]
+```
+helmrelease1.yaml
+myhelmchart/
+  Chart.yaml
+  Values.yaml
+  Templates/
+    … chart templates
+```
 
 现在，当 FluxCD 下次检查 GitHub 上的基础设施仓库时，它将首先找到 Helm 发布 YAML 文件，然后将其指向我们的新 Helm 图表。
 

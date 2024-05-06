@@ -32,7 +32,24 @@ cAdvisor 获取这些指标以及主机机器的指标，并通过一个简单�
 
 在运行 cAdvisor 之前，让我们启动一个新的 vagrant 主机：
 
-[PRE0]
+```
+[russ@mac ~]$ cd ~/Documents/Projects/monitoring-docker/vagrant-centos/
+[russ@mac ~]$ vagrant up
+Bringing machine 'default' up with 'virtualbox' provider...
+==>default: Importing base box 'russmckendrick/centos71'...
+==>default: Matching MAC address for NAT networking...
+==>default: Checking if box 'russmckendrick/centos71' is up to date...
+
+.....
+
+==>default: => Installing docker-engine ...
+==>default: => Configuring vagrant user ...
+==>default: => Starting docker-engine ...
+==>default: => Installing docker-compose ...
+==>default: => Finished installation of Docker
+[russ@mac ~]$ vagrantssh
+
+```
 
 ### 提示
 
@@ -42,7 +59,19 @@ cAdvisor 获取这些指标以及主机机器的指标，并通过一个简单�
 
 一旦您可以访问主机，运行以下命令：
 
-[PRE1]
+```
+docker run \
+--detach=true \
+--volume=/:/rootfs:ro \
+--volume=/var/run:/var/run:rw \
+--volume=/sys:/sys:ro \
+--volume=/var/lib/docker/:/var/lib/docker:ro \
+--publish=8080:8080 \
+--privileged=true \
+--name=cadvisor \
+google/cadvisor:latest
+
+```
 
 现在您应该在主机上运行一个 cAdvisor 容器。在开始之前，让我们通过讨论为什么我们传递了所有选项给容器来更详细地了解 cAdvisor。
 
@@ -74,15 +103,69 @@ cAdvisor 二进制文件设计为在主机上与 Docker 二进制文件一起运
 
 如果您按照上一节中的说明操作，您已经有一个 cAdvisor 进程正在运行。在从源代码编译之前，您应该从一个干净的主机开始；让我们注销主机并启动一个新的副本：
 
-[PRE2]
+```
+[vagrant@centos7 ~]$ exit
+logout
+Connection to 127.0.0.1 closed.
+[russ@mac ~]$ vagrant destroy
+default: Are you sure you want to destroy the 'default' VM? [y/N] y
+==>default: Forcing shutdown of VM...
+==>default: Destroying VM and associated drives...
+==>default: Running cleanup tasks for 'shell' provisioner...
+[russ@mac ~]$ vagrant up
+Bringing machine 'default' up with 'virtualbox' provider...
+==>default: Importing base box 'russmckendrick/centos71'...
+==>default: Matching MAC address for NAT networking...
+==>default: Checking if box 'russmckendrick/centos71' is up to date...
+
+.....
+
+==>default: => Installing docker-engine ...
+==>default: => Configuring vagrant user ...
+==>default: => Starting docker-engine ...
+==>default: => Installing docker-compose ...
+==>default: => Finished installation of Docker
+[russ@mac ~]$ vagrantssh
+
+```
 
 要在 CentOS 7 主机上构建 cAdvisor，请运行以下命令：
 
-[PRE3]
+```
+sudo yum install -y golanggit mercurial
+export GOPATH=$HOME/go
+go get -d github.com/google/cadvisor
+go get github.com/tools/godep
+export PATH=$PATH:$GOPATH/bin
+cd $GOPATH/src/github.com/google/cadvisor
+godep go build .
+sudocpcadvisor /usr/local/bin/
+sudowgethttps://gist.githubusercontent.com/russmckendrick/f647b2faad5d92c96771/raw/86b01a044006f85eebbe395d3857de1185ce4701/cadvisor.service -O /lib/systemd/system/cadvisor.service
+sudosystemctl enable cadvisor.service
+sudosystemctl start cadvisor
+
+```
 
 在 Ubuntu 14.04 LTS 主机上，运行以下命令：
 
-[PRE4]
+```
+sudo apt-get -y install software-properties-common
+sudo add-apt-repository ppa:evarlast/golang1.4
+sudo apt-get update
+
+sudo apt-get -y install golang mercurial
+
+export GOPATH=$HOME/go
+go get -d github.com/google/cadvisor
+go get github.com/tools/godep
+export PATH=$PATH:$GOPATH/bin
+cd $GOPATH/src/github.com/google/cadvisor
+godep go build .
+sudocpcadvisor /usr/local/bin/
+sudowgethttps://gist.githubusercontent.com/russmckendrick/f647b2faad5d92c96771/raw/e12c100d220d30c1637bedd0ce1c18fb84beff77/cadvisor.conf -O /etc/init/cadvisor.conf
+sudo start cadvisor
+
+```
 
 您现在应该有一个正在运行的 cAdvisor 进程。您可以通过运行`ps aux | grep cadvisor`来检查，您应该会看到一个路径为`/usr/local/bin/cadvisor`的进程正在运行。
 
@@ -248,7 +331,15 @@ cAdvisor 默认会做的一件事是在`/metrics`上公开它捕获的所有指�
 
 与 cAdvisor 一样，您可以以几种方式启动 Prometheus。首先，我们将启动一个容器，并注入我们自己的配置文件，以便 Prometheus 知道我们的 cAdvisor 端点在哪里：
 
-[PRE5]
+```
+docker run \
+--detach=true \
+--volume=/monitoring_docker/Chapter03/prometheus.yml:/etc/prometheus/prometheus.yml \
+--publish=9090:9090 \
+--name=prometheus \
+prom/prometheus:latest
+
+```
 
 一旦您启动了容器，Prometheus 将可以通过以下 URL 访问：`http://192.168.33.10:9090`。当您首次加载 URL 时，您将被带到一个状态页面；这提供了有关 Prometheus 安装的一些基本信息。此页面的重要部分是目标列表。这列出了 Prometheus 将抓取以捕获指标的 URL；您应该看到您的 cAdvisor URL 列在其中，并显示为**HEALTHY**，如下面的截图所示：
 
@@ -272,13 +363,18 @@ cAdvisor 默认会做的一件事是在`/metrics`上公开它捕获的所有指�
 
 我们将使用官方的 Redis 镜像，并且我们只会将其用作示例，因此我们不需要传递任何用户变量：
 
-[PRE6]
+```
+docker run --name my-redis-server -d redis
+
+```
 
 我们现在有一个名为`my-redis-server`的容器正在运行。 cAdvisor 应该已经在向 Prometheus 公开有关容器的指标；让我们继续查看。在 Prometheus Web 界面中，转到页面顶部菜单中的**Graph**链接。在这里，您将看到一个文本框，您可以在其中输入查询。首先，让我们查看 Redis 容器的 CPU 使用情况。
 
 在框中输入以下内容：
 
-[PRE7]
+```
+container_cpu_usage_seconds_total{job="cadvisor",name="my-redis-server"}
+```
 
 然后，点击**Execute**后，您应该会得到两个结果，列在页面的**Console**选项卡中。如果您记得，cAdvisor 记录容器可以访问的每个 CPU 核的 CPU 使用情况，这就是为什么我们得到了两个值，一个是"cpu00"，另一个是"cpu01"。点击**Graph**链接将显示一段时间内的结果：
 
@@ -292,11 +388,26 @@ cAdvisor 默认会做的一件事是在`/metrics`上公开它捕获的所有指�
 
 在启动仪表板容器之前，我们应该初始化一个 SQLite3 数据库来存储我们的配置。为了确保数据库是持久的，我们将把它存储在主机机器上的`/tmp/prom/file.sqlite3`中：
 
-[PRE8]
+```
+docker run \
+--volume=/tmp/prom:/tmp/prom \
+-e DATABASE_URL=sqlite3:/tmp/prom/file.sqlite3 \
+prom/promdash ./bin/rake db:migrate
+
+```
 
 一旦我们初始化了数据库，我们就可以正常启动仪表板应用程序了：
 
-[PRE9]
+```
+docker run \
+--detach=true \
+--volume=/tmp/prom:/tmp/prom \
+-e DATABASE_URL=sqlite3:/tmp/prom/file.sqlite3 \
+--publish=3000:3000  \
+--name=promdash \
+prom/promdash
+
+```
 
 该应用程序现在应该可以在`http://192.168.33.10:3000/`上访问。我们需要做的第一件事是设置数据源。要做到这一点，点击屏幕顶部的**服务器**链接，然后点击**新服务器**。在这里，您将被要求提供您的 Prometheus 服务器的详细信息。命名服务器并输入以下 URL：
 
@@ -328,15 +439,33 @@ cAdvisor 默认会做的一件事是在`/metrics`上公开它捕获的所有指�
 
 首先，让我们确保已删除所有正在运行的 Prometheus 容器：
 
-[PRE10]
+```
+docker stop prometheus&&dockerrm Prometheus
+
+```
 
 接下来，让我们创建一个名为`promdata`的数据容器：
 
-[PRE11]
+```
+docker create \
+--volume=/promdata \
+--name=promdata \
+prom/prometheus /bin/true
+
+```
 
 最后，再次启动 Prometheus，这次使用数据容器：
 
-[PRE12]
+```
+docker run \
+--detach=true \
+--volumes-from promdata \
+--volume=/monitoring_docker/Chapter03/prometheus.yml:/etc/prometheus/prometheus.yml \
+--publish=9090:9090 \
+--name=prometheus \
+prom/prometheus
+
+```
 
 这将确保，如果您必须升级或重新启动容器，您一直在捕获的指标是安全的。
 

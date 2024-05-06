@@ -74,15 +74,67 @@ NGINX > Ruby on Rails > PostgreSQL：
 
 NGINX Docker 容器（Dockerfile）如下：
 
-[PRE0]
+```
+## AngularJS Container build  
+FROM nginx:latest 
+
+# Download packages 
+RUN apt-get update 
+RUN apt-get install -y curl   \ 
+                   git    \ 
+                   ruby \ 
+                   ruby-dev \     
+                   build-essential 
+
+# Copy angular files 
+COPY . /usr/share/nginx 
+
+# Installation 
+RUN curl -sL https://deb.nodesource.com/setup | bash - 
+RUN apt-get install -y nodejs \ 
+                  rubygems 
+RUN apt-get clean 
+WORKDIR /usr/share/nginx 
+RUN npm install npm -g 
+RUN npm install -g bower 
+RUN npm install  -g grunt-cli 
+RUN gem install sass 
+RUN gem install compass 
+RUN npm cache clean 
+RUN npm install 
+RUN bower -allow-root install -g 
+
+# Building 
+RUN grunt build 
+
+# Open port and start nginx 
+EXPOSE 80 
+CMD ["/usr/sbin/nginx", "-g", "daemon off;"]
+
+```
 
 如图所示的 Ruby on Rails Docker 容器（Dockerfile）：
 
-[PRE1]
+```
+## Ruby-on-Rails Container build 
+FROM rails:onbuild 
+
+# Create and migrate DB 
+RUN bundle exec rake db:create 
+RUN bundle exec rake db:migrate 
+
+# Start rails server 
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+
+```
 
 如图所示的 PostgreSQL Docker 容器：
 
-[PRE2]
+```
+## PostgreSQL Containers build 
+# cloudconsulted/postgres is a Postgres setup that accepts remote connections from Docker IP (172.17.0.1/16).  We can therefore make use of this image directory so there is no need to create a new Docker file here.
+
+```
 
 上述 Dockerfile 可用于部署三层 Web 应用程序，并帮助我们开始使用微服务。
 
@@ -244,7 +296,84 @@ Docker 非常适合微服务，因为它将容器隔离到一个进程或服务�
 
 NGINX > Node.js > Redis > Docker Compose
 
-[PRE3]
+```
+# Directly create and run the Redis image 
+docker run -d -name redis -p 6379:6379 redis 
+
+## Node Container 
+# Set the base image to Ubuntu 
+FROM ubuntu 
+
+# File Author / Maintainer 
+MAINTAINER John Wooten @CONSULTED <jwooten@cloudconsulted.com> 
+
+# Install Node.js and other dependencies 
+RUN apt-get update && \ 
+        apt-get -y install curl && \ 
+        curl -sL https://deb.nodesource.com/setup | sudo bash - && \ 
+        apt-get -y install python build-essential nodejs 
+
+# Install nodemon 
+RUN npm install -g nodemon 
+
+# Provides cached layer for node_modules 
+ADD package.json /tmp/package.json 
+RUN cd /tmp && npm install 
+RUN mkdir -p /src && cp -a /tmp/node_modules /src/ 
+
+# Define working directory 
+WORKDIR /src 
+ADD . /src 
+
+# Expose portability 
+EXPOSE 8080 
+
+# Run app using nodemon 
+CMD ["nodemon", "/src/index.js"] 
+
+## Nginx Containers build 
+# Set nginx base image 
+FROM nginx 
+
+# File Author / Maintainer 
+MAINTAINER John Wooten @CONSULTED <jwooten@cloudconsulted.com> 
+
+# Copy custom configuration file from the current directory 
+COPY nginx.conf /etc/nginx/nginx.conf 
+
+## Docker Compose 
+nginx: 
+build: ./nginx 
+links: 
+ - node1:node1 
+ - node2:node2 
+ - node3:node3 
+ports: 
+- "80:80" 
+node1: 
+build: ./node 
+links: 
+ - redis 
+ports: 
+ - "8080" 
+node2: 
+build: ./node 
+links: 
+ - redis 
+ports: 
+- "8080" 
+node3: 
+build: ./node 
+links: 
+ - redis 
+ports: 
+- "8080" 
+redis: 
+image: redis 
+ports: 
+ - "6379"
+
+```
 
 我们将在第十章中更深入地探讨 Docker Compose，*Docker Machine、Compose 和 Swarm*。此外，我们还需要实现一个服务发现机制（在后面的章节中讨论），使服务能够发现其需要与之通信的任何其他服务的位置（主机和端口）。
 
@@ -280,11 +409,36 @@ Dockunit 的要求是 Node.js、npm 和 Docker。
 
 如果尚未安装，安装 npm（我们将假设已安装 Docker 和 Node.js）：
 
-[PRE4]
+```
+npm install -g dockunit
+
+```
 
 现在我们可以使用 Dockunit 轻松测试我们的 Node.js 应用程序。这可以通过一个`Dockunit.json`文件来完成；以下是一个示例，测试了一个使用`mocha`的 Node.js 0.10.x 和 0.12.0 应用程序：
 
-[PRE5]
+```
+{ 
+  "containers": [ 
+    { 
+      "prettyName": "Node 0.10.x", 
+      "image": "google/nodejs:latest", 
+      "beforeScripts": [ 
+        "npm install -g mocha" 
+      ], 
+      "testCommand": "mocha" 
+    }, 
+    { 
+      "prettyName": "Node 0.12", 
+      "image": "tlovett1/nodejs:0.12", 
+      "beforeScripts": [ 
+        "npm install -g mocha" 
+      ], 
+      "testCommand": "mocha" 
+    } 
+  ] 
+} 
+
+```
 
 上面的代码片段显示了一个应用程序如何在 docker 容器内进行单元测试。
 
@@ -306,11 +460,66 @@ LEMP 堆栈（NGINX > MySQL > PHP）
 
 为了简化，我们将把这个 LEMP 堆栈分成两个容器：一个用于 MySQL，另一个用于 NGINX 和 PHP，每个都使用 Ubuntu 基础：
 
-[PRE6]
+```
+# LEMP stack decoupled as separate docker container s 
+FROM ubuntu:14.04 
+MAINTAINER John Wooten @CONSULTED <jwooten@cloudconsulted.com> 
+
+RUN apt-get update 
+RUN apt-get -y upgrade 
+
+# seed database password 
+COPY mysqlpwdseed /root/mysqlpwdseed 
+RUN debconf-set-selections /root/mysqlpwdseed 
+
+RUN apt-get -y install mysql-server 
+
+RUN sed -i -e"s/^bind-address\s*=\s*127.0.0.1/bind-address = 0.0.0.0/" /etc/mysql/my.cnf 
+
+RUN /usr/sbin/mysqld & \ 
+    sleep 10s &&\ 
+    echo "GRANT ALL ON *.* TO admin@'%' IDENTIFIED BY 'secret' WITH GRANT OPTION; FLUSH PRIVILEGES" | mysql -u root --password=secret &&\ 
+    echo "create database test" | mysql -u root --password=secret 
+
+# persistence: http://txt.fliglio.com/2013/11/creating-a-mysql-docker-container/ 
+
+EXPOSE 3306 
+
+CMD ["/usr/bin/mysqld_safe"]
+
+```
 
 第二个容器将安装和存储 NGINX 和 PHP：
 
-[PRE7]
+```
+# LEMP stack decoupled as separate docker container s 
+FROM ubuntu:14.04 
+MAINTAINER John Wooten @CONSULTED <jwooten@cloudconsulted.com> 
+
+## install nginx 
+RUN apt-get update 
+RUN apt-get -y upgrade 
+RUN apt-get -y install nginx 
+RUN echo "daemon off;" >> /etc/nginx/nginx.conf 
+RUN mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak 
+COPY default /etc/nginx/sites-available/default 
+
+## install PHP 
+RUN apt-get -y install php5-fpm php5-mysql 
+RUN sed -i s/\;cgi\.fix_pathinfo\s*\=\s*1/cgi.fix_pathinfo\=0/ /etc/php5/fpm/php.ini 
+
+# prepare php test scripts 
+RUN echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/info.php 
+ADD wall.php /usr/share/nginx/html/wall.php 
+
+# add volumes for debug and file manipulation 
+VOLUME ["/var/log/", "/usr/share/nginx/html/"] 
+
+EXPOSE 80 
+
+CMD service php5-fpm start && nginx
+
+```
 
 ## 将不同层次的应用程序工作起来
 

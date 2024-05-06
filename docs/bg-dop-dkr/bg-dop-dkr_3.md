@@ -136,7 +136,10 @@ Swarm 可以配置为使用以下任一调度策略：
 
 此命令用于创建一个新的虚拟 Docker 主机：
 
-[PRE0]
+```
+docker-machine create --driver <driver> <machine_name>
+
+```
 
 这意味着我们的 Docker 主机将在 VirtualBox 上运行，但由`docker-machine`进行管理和控制。`--driver`选项指定要使用的驱动程序来创建机器。在这种情况下，我们的驱动程序是 VirtualBox。
 
@@ -194,7 +197,10 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 此命令用于获取一个或多个 Docker 机器的 IP 地址：
 
-[PRE1]
+```
+docker-machine ip <machine_names>
+
+```
 
 此命令用于获取一个或多个 Docker 机器的 IP 地址。`<machine_name>`是我们需要 IP 地址的机器的名称。在我们的情况下，我们将用它来获取`manager1`节点的 IP 地址，因为在初始化 swarm 模式时我们将需要它：
 
@@ -204,7 +210,10 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 此命令用于使用`SSH`登录到机器：
 
-[PRE2]
+```
+docker-machine ssh <machine_name>
+
+```
 
 成功连接到我们的`manager1`后，我们应该得到以下输出：
 
@@ -218,7 +227,10 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 以下是初始化 Swarm 模式的命令：
 
-[PRE3]
+```
+docker swarm init --advertise-addr <MANAGER_IP>
+
+```
 
 让我们在管理节点内运行此命令以初始化 Swarm。`advertise-addr`选项用于指定将向集群的其他成员广告的地址，以进行 API 访问和网络。
 
@@ -246,7 +258,10 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 此命令用于添加 Swarm 工作节点`：`
 
-[PRE4]
+```
+docker swarm join --token <provided_token> <manager_ip>:<port>
+
+```
 
 在我们可以将工作节点添加到集群之前，我们需要通过`ssh`连接到它们。
 
@@ -272,7 +287,9 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 我们使用此命令来查看我们集群的状态：
 
-[PRE5]
+```
+docker node ls
+```
 
 我们使用这个命令来查看我们集群的状态。这个命令在管理节点上运行，并显示我们集群中所有节点的状态和可用性。在我们的管理节点上运行这个命令会显示类似以下的输出：
 
@@ -306,7 +323,10 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 此命令用于创建服务：
 
-[PRE6]
+```
+docker service create --replicas <count> -p <host_port>:<container_port> --name <service_name> <image_name>
+
+```
 
 我们在管理节点上运行这个命令，正如前面所提到的。我们将使用我们在上一课中构建的 WordPress 示例。由于我们已经在本地拥有这个镜像，所以不需要从 hub 上拉取它。
 
@@ -324,7 +344,9 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 此命令用于查看当前正在运行的服务：
 
-[PRE7]
+```
+docker service ls
+```
 
 此命令用于查看当前正在运行的服务以及更多信息，例如副本、镜像、端口等。
 
@@ -336,7 +358,9 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 此命令用于了解我们的服务是否运行正常：
 
-[PRE8]
+```
+docker service ps <service_name>
+```
 
 查看服务列表不会为我们提供所有所需的信息，比如我们的服务部署在哪些节点上。但是，我们可以知道我们的服务是否运行正常以及遇到的错误（如果有）。当我们在管理节点上运行此命令时，我们会得到以下输出：
 
@@ -370,7 +394,9 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 1.  创建一个新节点并将其命名为`dbworker`：
 
-[PRE9]
+```
+docker-machine create --driver virtualbox dbworker
+```
 
 ![活动 2 — 在集群上运行服务](img/image03_27.jpg)
 
@@ -378,7 +404,9 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 1.  创建一个新的数据库服务，并将其命名为`db`，使用 postgres 镜像作为基础：
 
-[PRE10]
+```
+docker service create --replicas 1 --name db postgres
+```
 
 以下是输出的截图：
 
@@ -388,7 +416,10 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 1.  将运行在`dbworker 节点`中的`postgres`容器映射到您的计算机上：
 
-[PRE11]
+```
+docker run --name db -e POSTGRES_PASSWORD=postgres -d -p 5432:5432 postgres
+
+```
 
 ![活动 2 — 在集群上运行服务](img/image03_30.jpg)
 
@@ -410,7 +441,9 @@ Docker 机器通过`docker-machine cli`进行控制。Docker Swarm 作为一个�
 
 我们将扩展我们的数据库服务，作为扩展服务的示例。在现实世界的场景中，云服务如 Google Cloud Platform 和 Amazon Web Services 可能定义了自动扩展服务，其中创建了一些副本，并通过称为**负载平衡**的服务在副本之间分发流量。我们将在下一个活动中深入探讨这一点。首先，我们要从基础知识开始了解扩展是如何工作的。扩展数据库的命令格式如下：
 
-[PRE12]
+```
+docker service scale <service_name>=<count>
+```
 
 要扩展服务，请传入我们创建服务时提供的服务名称以及要将其增加到的副本数。
 

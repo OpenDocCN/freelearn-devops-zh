@@ -238,11 +238,47 @@ Magnum 中有定期任务，会在特定时间间隔内同步 Magnum 数据库�
 
 1.  如有需要，为 DevStack 创建一个根目录：
 
-[PRE0]
+```
+        $ sudo mkdir -p /opt/stack
+        $ sudo chown $USER /opt/stack
+        Clone DevStack repo:
+        $ git clone https://git.openstack.org/openstack-dev/devstack
+        /opt/stack/devstack  
+```
 
 1.  我们将使用最小的`local.conf`设置来运行 DevStack，以启用 Magnum、Heat 和 Neutron：
 
-[PRE1]
+```
+    $ cat > /opt/stack/devstack/local.conf << END
+    [[local|localrc]]
+    DATABASE_PASSWORD=password
+    RABBIT_PASSWORD=password
+    SERVICE_TOKEN=password
+    SERVICE_PASSWORD=password
+    ADMIN_PASSWORD=password
+    # magnum requires the following to be set correctly
+    PUBLIC_INTERFACE=eth1
+
+    # Enable barbican service and use it to store TLS certificates
+    enable_plugin barbican 
+    https://git.openstack.org/openstack/barbican
+
+    enable_plugin heat 
+    https://git.openstack.org/openstack/heat
+
+    # Enable magnum plugin after dependent plugins
+    enable_plugin magnum 
+    https://git.openstack.org/openstack/magnum
+
+    # Optional:  uncomment to enable the Magnum UI plugin in 
+    Horizon
+    #enable_plugin magnum-ui 
+    https://github.com/openstack/magnum-ui
+
+    VOLUME_BACKING_FILE_SIZE=20G
+    END
+
+```
 
 请注意，我们必须在这里使用 Barbican 来存储 Magnum 生成的 TLS 证书。有关详细信息，请参阅*关键特性*部分下的*传输层安全*部分。
 
@@ -250,11 +286,26 @@ Magnum 中有定期任务，会在特定时间间隔内同步 Magnum 数据库�
 
 1.  现在，运行 DevStack：
 
-[PRE2]
+```
+        $ cd /opt/stack/devstack
+        $ ./stack.sh  
+```
 
 1.  您将拥有一个正在运行的 Magnum 设置。要验证安装，请检查正在运行的 Magnum 服务列表：
 
-[PRE3]
+```
+$ magnum service-list
++----+----------+------------------+-------+----------+-----------------+------------------------
+-+---------------------------+
+| id | host     | binary           | state | disabled | disabled_reason | created_at             
+| updated_at                |
++----+----------+------------------+-------+----------+-----------------+------------------------
+-+---------------------------+
+| 1  | devstack | magnum-conductor | up    | False    | -               | 2017-09
+19T11:14:12+00:00 | 2017-09-19T14:06:41+00:00 |
++----+----------+------------------+-------+----------+-----------------+------------------------
+-+---------------------------+  
+```
 
 # 管理 COE
 
@@ -262,27 +313,92 @@ Magnum 为 OpenStack 集群的生命周期提供无缝管理。当前操作是�
 
 首先，我们将准备我们的会话，以便能够使用各种 OpenStack 客户端，包括 Magnum、Neutron 和 Glance。创建一个新的 shell 并源自 DevStack 的`openrc`脚本：
 
-[PRE4]
+```
+$ source /opt/stack/devstack/openrc admin admin  
+```
 
 创建一个用于集群模板的密钥对。这个密钥对将用于 ssh 到集群节点：
 
-[PRE5]
+```
+$ openstack keypair create --public-key ~/.ssh/id_rsa.pub testkey
++-------------+-------------------------------------------------+
+| Field       | Value                                           |
++-------------+-------------------------------------------------+
+| fingerprint | d2:8d:c8:d2:2a:82:fc:aa:98:17:5f:9b:22:08:8a:f7 |
+| name        | testkey                                         |
+| user_id     | 4360ea27027a4d9d97e749bba9698915                |
++-------------+-------------------------------------------------+  
+```
 
 DevStack 在 Glance 中为 Magnum 的使用创建了一个 Fedora Atomic 微型 OS 镜像。用户还可以在 Glance 中创建其他镜像以供其集群使用。验证在 Glance 中创建的镜像：
 
-[PRE6]
+```
+$ openstack image list
++--------------------------------------+------------------------------------+--------+
+| ID                                   | Name                               | Status |
++--------------------------------------+------------------------------------+--------+
+| 482bd0b4-883d-4fc5-bf26-a88a98ceddd1 | Fedora-Atomic-26-20170723.0.x86_64 | active |
+| 6862d910-a320-499e-a19f-1dbcdc79455f | cirros-0.3.5-x86_64-disk           | active |
++--------------------------------------+------------------------------------+--------+
+```
 
 现在，创建一个具有 swarm COE 类型的 Magnum 集群模板。这与 Nova flavor 类似，告诉 Magnum 如何构建集群。集群模板指定了集群中要使用的所有资源，例如 Fedora Atomic 镜像、Nova 密钥对、网络等等：
 
-[PRE7]
+```
+$ magnum cluster-template-create swarm-template --image Fedora-Atomic-26-20170723.0.x86_64 --keypair testkey --external-network public --flavor m1.small --docker-volume-size 5  --dns-nameserver 8.8.8.8 --coe swarm
++-----------------------+--------------------------------------+
+| Property              | Value                                |
++-----------------------+--------------------------------------+
+| insecure_registry     | -                                    |
+| labels                | {}                                   |
+| updated_at            | -                                    |
+| floating_ip_enabled   | True                                 |
+| fixed_subnet          | -                                    |
+| master_flavor_id      | -                                    | 
+| uuid                  | 0963601a-50aa-4361-9f6f-5f64f0826da8 |
+| no_proxy              | -                                    |
+| https_proxy           | -                                    |
+| tls_disabled          | False                                |
+| keypair_id            | testkey                              |
+| public                | False                                |
+| http_proxy            | -                                    |
+| docker_volume_size    | 5                                    |
+| server_type           | vm                                   |
+| external_network_id   | public                               |
+| cluster_distro        | fedora-atomic                        |
+| image_id              | Fedora-Atomic-26-20170723.0.x86_64   |
+| volume_driver         | -                                    |
+| registry_enabled      | False                                |
+| docker_storage_driver | devicemapper                         |
+| apiserver_port        | -                                    |
+| name                  | swarm-template                       |
+| created_at            | 2017-09-19T13:06:28+00:00            |
+| network_driver        | docker                               |
+| fixed_network         | -                                    |
+| coe                   | swarm                                |
+| flavor_id             | m1.small                             |
+| master_lb_enabled     | False                                |
+| dns_nameserver        | 8.8.8.8                              |
++-----------------------+--------------------------------------+  
+```
 
 使用以下命令验证集群模板的创建：
 
-[PRE8]
+```
+$ magnum cluster-template-list
++--------------------------------------+----------------+
+| uuid                                 | name           |
++--------------------------------------+----------------+
+| 0963601a-50aa-4361-9f6f-5f64f0826da8 | swarm-template |
++--------------------------------------+----------------+  
+```
 
 使用前面的模板创建一个集群。这个集群将导致创建一组安装了 Docker Swarm 的 VM：
 
-[PRE9]
+```
+$ magnum cluster-create swarm --cluster-template swarm-template --node-count 1
+Request to create cluster f42f5dfc-a2d0-4f89-9af1-566c666727c3 has been accepted.  
+```
 
 集群将初始状态设置为`CREATE_IN_PROGRESS`。当 Magnum 完成创建集群时，将把状态更新为`CREATE_COMPLETE`。
 
@@ -290,55 +406,130 @@ Heat 可以用来查看堆栈或特定集群状态的详细信息。
 
 要检查所有集群堆栈的列表，请使用以下命令：
 
-[PRE10]
+```
+$ openstack stack list
++--------------------------------------+--------------------+----------------------------------+-------------------+----------------------+--------------+
+| ID                                   | Stack Name         | Project                          | Stack Status       | Creation Time        | Updated Time |
++--------------------------------------+--------------------+----------------------------------+--------------------+----------------------+--------------+
+| 9d39e877-32ff-4904-a349-727274caee68 | swarm-5g5ilw3lak6p | 8c4a19b957904085992dd800621459b6 | CREATE_IN_PROGRESS | 2017-09-19T13:07:52Z | None         |
++--------------------------------------+--------------------+----------------------------------+--------------------+----------------------+--------------+  
+```
 
 要查看集群的详细信息，请执行以下操作：
 
-[PRE11]
+```
+$ magnum cluster-show swarm
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Property            | Value                                                                                                                                                                                                                                                                                                                                                                                                |
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| labels              | {}                                                                                                                                                                                                                                                                                                                                                                                                   |
+| updated_at          | 2017-09-19T13:16:41+00:00                                                                                                                                                                                                                                                                                                                                                                            |
+| keypair             | testkey                                                                                                                                                                                                                                                                                                                                                                                              |
+| node_count          | 1                                                                                                                                                                                                                                                                                                                                                                                                    |
+| uuid                | f42f5dfc-a2d0-4f89-9af1-566c666727c3                                                                                                                                                                                                                                                                                                                                                                 |
+| api_address         | https://172.24.4.4:6443
+|
+| master_addresses    | ['172.24.4.2']                                                                                                                                                                                                                                                                                                                                                                                       |
+| create_timeout      | 60                                                                                                                                                                                                                                                                                                                                                                                                   |
+| status              | CREATE_COMPLETE                                                                                                                                                                                                                                                                                                                                                                                        |
+| docker_volume_size  | 5                                                                                                                                                                                                                                                                                                                                                                                                    |
+| master_count        | 1                                                                                                                                                                                                                                                                                                                                                                                                    |
+| node_addresses      | ['172.24.4.3']                                                                                                                                                                                                                                                                                                                                                                                                   |
+| status_reason       | Stack CREATE completed successfully                                                                                                                                                                                                                                           |
+| coe_version         | 1.2.5                                                                                                                                                                                                                                                                                                                                                                                                |
+| cluster_template_id | 0963601a-50aa-4361-9f6f-5f64f0826da8                                                                                                                                                                                                                                                                                                                                                                 |
+| name                | swarm                                                                                                                                                                                                                                                                                                                                                                                                |
+| stack_id            | 9d39e877-32ff-4904-a349-727274caee68                                                                                                                                                                                                                                                                                                                                                                 |
+| created_at          | 2017-09-19T13:07:46+00:00                                                                                                                                                                                                                                                                                                                                                                            |
+| discovery_url       | https://discovery.etcd.io/af18b93f0d1b64db0d803a1c76e4d0d0                                                                                                                                                                                                                                                                                                                                           |
+| container_version   | 1.12.6                                                                                                                                                                                                                                                                                                                                                                                               |
++---------------------+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+  
+```
 
 现在我们需要设置 Docker CLI 以使用我们使用适当凭据创建的 swarm 集群。
 
 创建一个`dir`来存储`certs`和`cd`。`DOCKER_CERT_PATH`环境变量被 Docker 使用，它期望这个目录中有`ca.pem`、`key.pem`和`cert.pem`：
 
-[PRE12]
+```
+$ export DOCKER_CERT_PATH=~/.docker
+$ mkdir -p ${DOCKER_CERT_PATH}
+$ cd ${DOCKER_CERT_PATH}
+```
 
 生成 RSA 密钥：
 
-[PRE13]
+```
+$ openssl genrsa -out key.pem 4096
+```
 
 创建`openssl`配置以帮助生成 CSR：
 
-[PRE14]
+```
+$ cat > client.conf << END
+[req]
+distinguished_name = req_distinguished_name
+req_extensions     = req_ext
+prompt = no
+[req_distinguished_name]
+CN = Your Name
+[req_ext]
+extendedKeyUsage = clientAuth
+END 
+```
 
 运行`openssl req`命令生成 CSR：
 
-[PRE15]
+```
+$ openssl req -new -days 365 -config client.conf -key key.pem -out client.csr    
+```
 
 现在您已经有了客户端 CSR，请使用 Magnum CLI 对其进行签名，并下载签名证书：
 
-[PRE16]
+```
+$ magnum ca-sign --cluster swarm-cluster --csr client.csr > cert.pem
+$ magnum ca-show --cluster swarm-cluster > ca.pem  
+```
 
 设置 CLI 以使用 TLS。这个`env var`被 Docker 使用：
 
-[PRE17]
+```
+$ export DOCKER_TLS_VERIFY="1" 
+```
 
 设置要使用的正确主机，即 Swarm API 服务器端点的公共 IP 地址。
 
 这个`env var`被 Docker 使用：
 
-[PRE18]
+```
+$ export DOCKER_HOST=$(magnum cluster-show swarm-cluster | awk '/
+api_address /{print substr($4,7)}')  
+```
 
 接下来，我们将在这个 Swarm 集群中创建一个容器。这个容器将四次 ping 地址`8.8.8.8`：
 
-[PRE19]
+```
+$ docker run --rm -it cirros:latest ping -c 4 8.8.8.8  
+```
 
 你应该看到类似以下的输出：
 
-[PRE20]
+```
+PING 8.8.8.8 (8.8.8.8): 56 data bytes
+64 bytes from 8.8.8.8: seq=0 ttl=40 time=25.513 ms
+64 bytes from 8.8.8.8: seq=1 ttl=40 time=25.348 ms
+64 bytes from 8.8.8.8: seq=2 ttl=40 time=25.226 ms
+64 bytes from 8.8.8.8: seq=3 ttl=40 time=25.275 ms
+
+--- 8.8.8.8 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 25.226/25.340/25.513 ms  
+```
 
 创建集群后，您可以通过更新`node_count`属性动态地向集群中添加或删除节点。例如，要添加一个节点，执行以下操作：
 
-[PRE21]
+```
+$ magnum cluster-update swarm replace node_count=2  
+```
 
 当更新过程继续进行时，集群的状态将为`UPDATE_IN_PROGRESS`。更新完成后，状态将更新为`UPDATE_COMPLETE`。减少`node_count`会删除已删除节点上的所有现有 pod/容器。Magnum 尝试删除工作负载最小的节点。
 

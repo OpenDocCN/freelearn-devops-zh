@@ -150,13 +150,36 @@ Docker Desktop 可以从 Docker Hub 获取 - 你可以通过导航到[`dockr.ly/
 
 在 Windows 上运行 Docker 时，你可以打开命令提示符或 PowerShell 会话并开始使用容器。首先，通过运行`docker version`来验证一切是否按预期工作。你应该看到类似于这段代码片段的输出：
 
-[PRE0]
+```
+> docker version
+
+Client: Docker Engine - Community
+ Version:           18.09.2
+ API version:       1.39
+ Go version:        go1.10.8
+ Git commit:        6247962
+ Built:             Sun Feb 10 04:12:31 2019
+ OS/Arch:           windows/amd64
+ Experimental:      false
+
+Server: Docker Engine - Community
+ Engine:
+  Version:          18.09.2
+  API version:      1.39 (minimum version 1.24)
+  Go version:       go1.10.6
+  Git commit:       6247962
+  Built:            Sun Feb 10 04:28:48 2019
+  OS/Arch:          windows/amd64
+  Experimental:     true
+```
 
 输出会告诉你命令行客户端和 Docker Engine 的版本。操作系统字段应该都是*Windows*；如果不是，那么你可能仍然处于 Linux 模式，需要切换到 Windows 容器。
 
 现在使用 Docker CLI 运行一个简单的容器：
 
-[PRE1]
+```
+docker container run dockeronwindows/ch01-whale:2e
+```
 
 这使用了 Docker Hub 上的公共镜像 - 本书的示例镜像之一，Docker 在您第一次使用时会拉取。如果您没有其他镜像，这将需要几分钟，因为它还会下载我镜像所使用的 Microsoft Nano Server 镜像。当容器运行时，它会显示一些 ASCII 艺术然后退出。再次运行相同的命令，您会发现它执行得更快，因为镜像现在已经在本地缓存中。
 
@@ -172,25 +195,47 @@ Docker Desktop 在 Windows 10 上使用容器进行开发非常方便。对于�
 
 在新安装的 Windows Server 2019 Core 上，使用 `sconfig` 工具安装所有最新的 Windows 更新，然后运行这些 PowerShell 命令来安装 Docker 引擎和 Docker CLI：
 
-[PRE2]
+```
+Install-Module -Name DockerMsftProvider -Repository PSGallery -Force
+Install-Package -Name docker -ProviderName DockerMsftProvider
+```
 
 这将配置服务器所需的 Windows 功能，安装 Docker，并设置其作为 Windows 服务运行。根据安装了多少 Windows 更新，您可能需要重新启动服务器：
 
-[PRE3]
+```
+Restart-Computer -Force
+```
 
 当服务器在线时，请确认 Docker 是否正在运行 `docker version`，然后从本章的示例镜像中运行一个容器：
 
-[PRE4]
+```
+docker container run dockeronwindows/ch01-whale:2e
+```
 
 当发布新版本的 Docker Engine 时，您可以通过重复 `Install` 命令并添加 `-Update` 标志来更新服务器：
 
-[PRE5]
+```
+Install-Package -Name docker -ProviderName DockerMsftProvider -Update 
+```
 
 我在一些环境中使用这个配置 - 在轻量级虚拟机中运行 Windows Server 2019 Core，只安装了 Docker。您可以通过远程桌面连接在服务器上使用 Docker，或者您可以配置 Docker 引擎以允许远程连接，这样您就可以使用笔记本电脑上的 `docker` 命令管理服务器上的 Docker 容器。这是一个更高级的设置，但它确实为您提供了安全的远程访问。
 
 最好设置 Docker 引擎，以便使用 TLS 对客户端进行安全通信，这与 HTTPS 使用的加密技术相同。只有具有正确 TLS 证书的客户端才能连接到服务。您可以通过在 VM 内运行以下 PowerShell 命令来设置这一点，提供 VM 的外部 IP 地址：
 
-[PRE6]
+```
+$ipAddress = '<vm-ip-address>'
+
+mkdir -p C:\certs\client
+
+docker container run --rm `
+ --env SERVER_NAME=$(hostname) `
+ --env IP_ADDRESSES=127.0.0.1,$ipAddress `
+ --volume 'C:\ProgramData\docker:C:\ProgramData\docker' `
+ --volume 'C:\certs\client:C:\Users\ContainerAdministrator\.docker' `
+ dockeronwindows/ch01-dockertls:2e
+
+Restart-Service docker
+```
 
 不要太担心这个命令在做什么。在接下来的几章中，您将对所有这些 Docker 选项有一个很好的理解。我正在使用一个基于 Stefan Scherer 的 Docker 镜像，他是微软 MVP 和 Docker Captain。该镜像有一个脚本，用 TLS 证书保护 Docker 引擎。您可以在 Stefan 的博客上阅读更多详细信息[`stefanscherer.github.io`](https://stefanscherer.github.io)。
 
@@ -198,7 +243,13 @@ Docker Desktop 在 Windows 10 上使用容器进行开发非常方便。对于�
 
 在客户端机器上，您可以设置环境变量，指向 Docker 客户端使用远程 Docker 服务。这些命令将建立与 VM 的远程连接（假设您在客户端上使用了相同的证书文件路径），如下所示：
 
-[PRE7]
+```
+$ipAddress = '<vm-ip-address>'
+
+$env:DOCKER_HOST='tcp://$($ipAddress):2376'
+$env:DOCKER_TLS_VERIFY='1'
+$env:DOCKER_CERT_PATH='C:\certs\client'
+```
 
 您可以使用这种方法安全地连接到任何远程 Docker 引擎。如果您没有 Windows 10 或 Windows Server 2019 的访问权限，您可以在云上创建一个 VM，并使用相同的命令连接到它。
 
@@ -210,15 +261,26 @@ Docker Desktop 在 Windows 10 上使用容器进行开发非常方便。对于�
 
 您可以通过 Azure 门户创建一个 DevTest 实验室，然后从 Microsoft 的 VM 映像**Windows Server 2019 Datacenter with Containers**创建一个 VM。作为 Azure 门户的替代方案，您可以使用`az`命令行来管理 DevTest 实验室。我已经将`az`打包到一个 Docker 镜像中，您可以在 Windows 容器中运行它：
 
-[PRE8]
+```
+docker container run -it dockeronwindows/ch01-az:2e
+```
 
 这将运行一个交互式的 Docker 容器，其中包含打包好并准备好使用的`az`命令。运行`az login`，然后你需要打开浏览器并对 Azure CLI 进行身份验证。然后，你可以在容器中运行以下命令来创建一个 VM：
 
-[PRE9]
+```
+az lab vm create `
+ --lab-name docker-on-win --resource-group docker-on-win `
+ --name dow-vm-01 `
+ --image "Windows Server 2019 Datacenter with Containers" `
+ --image-type gallery --size Standard_DS2_v2 `
+ --admin-username "elton" --admin-password "S3crett20!9"
+```
 
 该 VM 使用带有 UI 的完整 Windows Server 2019 安装，因此你可以使用远程桌面连接到该机器，打开 PowerShell 会话，并立即开始使用 Docker。与其他选项一样，你可以使用`docker version`检查 Docker 是否正在运行，然后从本章的示例镜像中运行一个容器：
 
-[PRE10]
+```
+docker container run dockeronwindows/ch01-whale:2e
+```
 
 如果 Azure VM 是你首选的选项，你可以按照上一节的步骤来保护远程访问的 Docker API。这样你就可以在笔记本电脑上运行 Docker 命令行来管理云上的容器。Azure VM 使用 PowerShell 部署 Docker，因此你可以使用上一节中的`InstallPackage ... -Update`命令来更新 VM 上的 Docker Engine。
 

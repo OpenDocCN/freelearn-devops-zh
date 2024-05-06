@@ -46,9 +46,44 @@
 
 以下示例演示了在新的 CloudFormation 模板文件中创建 KMS 密钥和 KMS 别名，您可以将其放在 todobackend-aws 存储库的根目录下，我们将其称为`kms.yml`：
 
-[PRE0]
+```
+AWSTemplateFormatVersion: "2010-09-09"
 
-[PRE1]
+Description: KMS Keys
+
+Resources:
+  KmsKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Custom key for Secrets
+      Enabled: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: key-policy
+        Statement: 
+          - Sid: Allow root account access to key
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action:
+              - kms:*
+            Resource: "*"
+  KmsKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/secrets-key
+      TargetKeyId: !Ref KmsKey
+
+```
+
+```
+Outputs:
+  KmsKey:
+    Description: Secrets Key KMS Key ARN
+    Value: !Sub ${KmsKey.Arn}
+    Export:
+      Name: secrets-key
+```
 
 使用 CloudFormation 创建 KMS 资源
 
@@ -62,7 +97,25 @@
 
 有了前面示例中的配置，假设您已经将此模板放在名为`kms.yml`的文件中，现在可以部署新的堆栈，这将导致创建新的 KMS 密钥和 KMS 资源：
 
-[PRE2]
+```
+> export AWS_PROFILE=docker-in-aws
+> aws cloudformation deploy --template-file kms.yml --stack-name kms
+Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga:
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+Successfully created/updated stack - kms
+> aws cloudformation list-exports
+{
+    "Exports": [
+        {
+            "ExportingStackId": "arn:aws:cloudformation:us-east-1:385605022855:stack/kms/be0a6d20-3bd4-11e8-bf63-50faeaabf0d1",
+            "Name": "secrets-key",
+            "Value": "arn:aws:kms:us-east-1:385605022855:key/ee08c380-153c-4f31-bf72-9133b41472ad"
+        }
+    ]
+}
+```
 
 使用 CloudFormation 部署 KMS 密钥
 
@@ -76,19 +129,36 @@
 
 以下示例演示了使用 AWS CLI 加密简单纯文本值：
 
-[PRE3]
+```
+> aws kms encrypt --key-id alias/secrets-key --plaintext "Hello World"
+{
+    "CiphertextBlob": "AQICAHifCoHWAYb859mOk+pmJ7WgRbhk58UL9mhuMIcVAKJ18gHN1/SRRhwQVoVJvDS6i7MoAAAAaTBnBgkqhkiG9w0BBwagWjBYAgEAMFMGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMYm4au5zNZG9wa5ceAgEQgCZdADZyWKTcwDfTpw60kUI8aIAtrECRyW+/tu58bYrMaZFlwVYmdA==",
+    "KeyId": "arn:aws:kms:us-east-1:385605022855:key/ee08c380-153c-4f31-bf72-9133b41472ad"
+}
+```
 
 使用 KMS 密钥加密数据
 
 在上面的示例中，请注意您必须使用`--key-id`标志指定 KMS 密钥 ID 或别名，并且每当使用 KMS 密钥别名时，您总是要使用`alias/<alias-name>`作为前缀。加密数据以 Base64 编码的二进制块形式返回到`CiphertextBlob`属性中，这也方便地将加密的 KMS 密钥 ID 编码到加密数据中，这意味着 KMS 服务可以解密密文块，而无需您明确指定加密的 KMS 密钥 ID：
 
-[PRE4]
+```
+> ciphertext=$(aws kms encrypt --key-id alias/secrets-key --plaintext "Hello World" --query CiphertextBlob --output text)
+> aws kms decrypt --ciphertext-blob fileb://<(echo $ciphertext | base64 --decode)
+{
+    "KeyId": "arn:aws:kms:us-east-1:385605022855:key/ee08c380-153c-4f31-bf72-9133b41472ad",
+    "Plaintext": "SGVsbG8gV29ybGQ="
+}
+```
 
 使用 KMS 密钥解密数据
 
 在上面的示例中，您加密了一些数据，这次使用 AWS CLI 查询和文本输出选项来捕获`CiphertextBlob`属性值，并将其存储在名为`ciphertext`的 bash 变量中。然后，您使用`aws kms decrypt`命令将密文作为二进制文件传递，使用 bash 进程替换将密文的 Base64 解码值传递到二进制文件 URI 指示器（`fileb://`）中。请注意，返回的`Plaintext`值不是您最初加密的`Hello World`值，这是因为`Plaintext`值是以 Base64 编码格式，下面的示例进一步使用`aws kms decrypt`命令返回原始明文值：
 
-[PRE5]
+```
+> aws kms decrypt --ciphertext-blob fileb://<(echo $ciphertext | base64 --decode) \
+    --query Plaintext --output text | base64 --decode
+Hello World
+```
 
 使用 KMS 密钥解密数据并返回明文值在前两个示例中，`base64 --decode`命令用于解码 MacOS 和大多数 Linux 平台上的 Base64 值。在一些 Linux 平台（如 Alpine Linux）上，`--decode`标志不被识别，您必须使用`base64 -d`命令。
 
@@ -118,7 +188,15 @@
 
 您还可以使用`aws secretsmanager create-secret`命令通过 AWS CLI 创建秘密：
 
-[PRE6]
+```
+> aws secretsmanager create-secret --name test/credentials --kms-key-id alias/secrets-key \
+ --secret-string '{"MYSQL_PASSWORD":"some-super-secret-password"}'
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:385605022855:secret:test/credentials-l3JdTI",
+    "Name": "test/credentials",
+    "VersionId": "beab75bd-e9bc-4ac8-913e-aca26f6e3940"
+}
+```
 
 使用 AWS CLI 创建秘密
 
@@ -128,7 +206,19 @@
 
 您可以使用`aws secretsmanager get-secret-value`命令通过 AWS CLI 检索秘密：
 
-[PRE7]
+```
+> aws secretsmanager get-secret-value --secret-id test/credentials
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:385605022855:secret:test/credentials-l3JdTI",
+    "Name": "test/credentials",
+    "VersionId": "beab75bd-e9bc-4ac8-913e-aca26f6e3940",
+    "SecretString": "{\"MYSQL_PASSWORD\":\"some-super-password\"}",
+    "VersionStages": [
+        "AWSCURRENT"
+    ],
+    "CreatedDate": 1523605423.133
+}
+```
 
 使用 AWS CLI 获取秘密值
 
@@ -140,7 +230,23 @@
 
 让我们看看如何现在更新**todobackend/credentials**秘密以添加`SECRET_KEY`变量的值。您可以通过运行`aws secretsmanager update-secret`命令来更新秘密，引用秘密的 ID 并指定新的秘密值：
 
-[PRE8]
+```
+> aws secretsmanager get-random-password --password-length 50 --exclude-characters "'\""
+{
+    "RandomPassword": "E2]eTfO~8Z5)&amp;0SlR-&amp;XQf=yA:B(`,p.B#R6d]a~X-vf?%%/wY"
+}
+> aws secretsmanager update-secret --secret-id todobackend/credentials \
+    --kms-key-id alias/secrets-key \
+    --secret-string '{
+ "MYSQL_PASSWORD":"some-super-secret-password",
+ "SECRET_KEY": "E2]eTfO~8Z5)&amp;0SlR-&amp;XQf=yA:B(`,p.B#R6d]a~X-vf?%%/wY"
+ }'
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:385605022855:secret:todobackend/credentials-f7AQlO",
+    "Name": "todobackend/credentials",
+    "VersionId": "cd258b90-d108-4a06-b0f2-849be15f9c33"
+}
+```
 
 使用 AWS CLI 更新秘密值
 
@@ -152,15 +258,45 @@
 
 可以通过运行`aws secretsmanager delete-secret`命令来删除秘密，如下例所示：
 
-[PRE9]
+```
+> aws secretsmanager delete-secret --secret-id test/credentials
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:385605022855:secret:test/credentials-l3JdTI",
+    "Name": "test/credentials",
+    "DeletionDate": 1526198116.323
+}
+```
 
 使用 AWS CLI 删除秘密值
 
 请注意，AWS Secrets Manager 不会立即删除您的秘密，而是在 30 天内安排删除该秘密。在此期间，该秘密是不可访问的，但可以在安排的删除日期之前恢复，如下例所示：
 
-[PRE10]
+```
+> aws secretsmanager delete-secret --secret-id todobackend/credentials
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:385605022855:secret:todobackend/credentials-f7AQlO",
+    "Name": "todobackend/credentials",
+    "DeletionDate": 1526285256.951
+}
+> aws secretsmanager get-secret-value --secret-id todobackend/credentials
+An error occurred (InvalidRequestException) when calling the GetSecretValue operation: You can’t perform this operation on the secret because it was deleted.
 
-[PRE11]
+> aws secretsmanager restore-secret --secret-id todobackend/credentials
+{
+    "ARN": "arn:aws:secretsmanager:us-east-1:385605022855:secret:todobackend/credentials-f7AQlO",
+    "Name": "todobackend/credentials"
+}
+
+> aws secretsmanager get-secret-value --secret-id todobackend/credentials \
+ --query SecretString --output text
+```
+
+```
+{
+  "MYSQL_PASSWORD":"some-super-secret-password",
+  "SECRET_KEY": "E2]eTfO~8Z5)&amp;0SlR-&amp;XQf=yA:B(`,p.B#R6d]a~X-vf?%%/wY"
+}
+```
 
 使用 AWS CLI 恢复秘密值
 
@@ -196,19 +332,50 @@ Docker 的`ENTRYPOINT`指令配置了容器执行的第一个命令或脚本。�
 
 以下示例演示了为 todobackend 示例应用程序创建 entrypoint 脚本，您应该将其放在 todobackend 存储库的根目录中：
 
-[PRE12]
+```
+> pwd
+/Users/jmenga/Source/docker-in-aws/todobackend
+> touch entrypoint.sh > tree -L 1 .
+├── Dockerfile
+├── Makefile
+├── docker-compose.yml
+├── entrypoint.sh
+└── src
+
+1 directory, 4 files
+```
 
 在 Todobackend 存储库中创建一个 entrypoint 脚本
 
 以下示例显示了入口脚本的内容，该脚本将从 AWS Secrets Manager 中注入秘密到环境中：
 
-[PRE13]
+```
+#!/bin/bash
+set -e -o pipefail
+
+# Inject AWS Secrets Manager Secrets
+# Read space delimited list of secret names from SECRETS environment variable
+echo "Processing secrets [${SECRETS}]..."
+read -r -a secrets <<< "$SECRETS"
+for secret in "${secrets[@]}"
+do
+  vars=$(aws secretsmanager get-secret-value --secret-id $secret \
+    --query SecretString --output text \
+    | jq -r 'to_entries[] | "export \(.key)='\''\(.value)'\''"')
+  eval "$vars"
+done
+
+# Run application
+exec "$@"
+```
 
 定义一个将秘密注入到环境中的入口脚本
 
 在前面的例子中，从`SECRETS`环境变量创建了一个名为`secrets`的数组，该数组预计以空格分隔的格式包含一个或多个秘密的名称，这些秘密应该被处理。例如，您可以通过在示例中演示的方式设置`SECRETS`环境变量来处理名为`db/credentials`和`app/credentials`的两个秘密：
 
-[PRE14]
+```
+> export SECRETS="db/credentials app/credentials"
+```
 
 定义多个秘密
 
@@ -216,7 +383,13 @@ Docker 的`ENTRYPOINT`指令配置了容器执行的第一个命令或脚本。�
 
 为了进一步理解这一点，您可以在命令行上使用您之前创建的`todobackend/credentials`秘钥运行相同的命令：
 
-[PRE15]
+```
+> aws secretsmanager get-secret-value --secret-id todobackend/credentials \
+ --query SecretString --output text \
+ | jq -r 'to_entries[] | "export \(.key)='\''\(.value)'\''"'
+export MYSQL_PASSWORD='some-super-secret-password'
+export SECRET_KEY='E2]eTfO~8Z5)&amp;0SlR-&amp;XQf=yA:B(`,p.B#R6d]a~X-vf?%%/wY'
+```
 
 生成一个将秘钥导出到环境中的 Shell 表达式
 
@@ -234,7 +407,41 @@ Docker 的`ENTRYPOINT`指令配置了容器执行的第一个命令或脚本。�
 
 现在，您已经在 todobackend 存储库中建立了一个入口脚本，您需要将此脚本添加到现有的 Dockerfile，并确保使用`ENTRYPOINT`指令指定脚本作为入口点：
 
-[PRE16]
+```
+...
+...
+# Release stage
+FROM alpine
+LABEL=todobackend
+
+# Install operating system dependencies
+RUN apk add --no-cache python3 mariadb-client bash curl bats jq && \
+ pip3 --no-cache-dir install awscli
+
+# Create app user
+RUN addgroup -g 1000 app && \
+    adduser -u 1000 -G app -D app
+
+# Copy and install application source and pre-built dependencies
+COPY --from=test --chown=app:app /build /build
+COPY --from=test --chown=app:app /app /app
+RUN pip3 install -r /build/requirements.txt -f /build --no-index --no-cache-dir
+RUN rm -rf /build
+
+# Create public volume
+RUN mkdir /public
+RUN chown app:app /public
+VOLUME /public
+
+# Entrypoint script
+COPY entrypoint.sh /usr/bin/entrypoint
+RUN chmod +x /usr/bin/entrypoint
+ENTRYPOINT ["/usr/bin/entrypoint"]
+
+# Set working directory and application user
+WORKDIR /app
+USER app
+```
 
 向 Dockerfile 添加入口脚本
 
@@ -244,7 +451,56 @@ Docker 的`ENTRYPOINT`指令配置了容器执行的第一个命令或脚本。�
 
 现在您的 Dockerfile 已更新，您需要提交更改，重新构建并发布 Docker 镜像更改，如下例所示：
 
-[PRE17]
+```
+> git add -A
+> git commit -a -m "Add entrypoint script"
+[master 5fdbe62] Add entrypoint script
+ 4 files changed, 31 insertions(+), 7 deletions(-)
+ create mode 100644 entrypoint.sh
+> export AWS_PROFILE=docker-in-aws
+> make login
+$(aws ecr get-login --no-include-email)
+Login Succeeded
+> make test && make release docker-compose build --pull release
+Building release
+Step 1/28 : FROM alpine AS test
+latest: Pulling from library/alpine...
+...
+docker-compose run app bats acceptance.bats
+Starting todobackend_db_1 ... done
+Processing secrets []...
+1..4
+ok 1 todobackend root
+ok 2 todo items returns empty list
+ok 3 create todo item
+ok 4 delete todo item
+App running at http://localhost:32784
+> make publish docker-compose push release
+Pushing release (385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest)...
+The push refers to repository [385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend]
+fdc98d6948f6: Pushed
+9f33f154b3fa: Pushed
+d8aedb2407c9: Pushed
+f778da37eed6: Pushed
+05e5971d2995: Pushed
+4932bb9f39a5: Pushed
+fa63544c9f7e: Pushed
+fd3b38ee8bd6: Pushed
+cd7100a72410: Layer already exists
+latest: digest: sha256:5d456c61dd23728ec79c281fe5a3c700370382812e75931b45f0f5dd1a8fc150 size: 2201
+Pushing app (385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:5fdbe62)...
+The push refers to repository [385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend]
+fdc98d6948f6: Layer already exists
+9f33f154b3fa: Layer already exists
+d8aedb2407c9: Layer already exists
+f778da37eed6: Layer already exists
+05e5971d2995: Layer already exists
+4932bb9f39a5: Layer already exists
+fa63544c9f7e: Layer already exists
+fd3b38ee8bd6: Layer already exists
+cd7100a72410: Layer already exists
+34d86eb: digest: sha256:5d456c61dd23728ec79c281fe5a3c700370382812e75931b45f0f5dd1a8fc150 size: 2201
+```
 
 发布更新的 Docker 镜像
 
@@ -262,7 +518,43 @@ Docker 的`ENTRYPOINT`指令配置了容器执行的第一个命令或脚本。�
 
 ECS 包括一个名为 IAM 任务角色的功能（[`docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html)），它允许您在 ECS 任务定义级别授予 IAM 权限，并且在我们只想要将对 todobackend 秘密的访问权限授予 todobackend 应用程序的情况下非常有用。以下示例演示了创建授予这些特权的 IAM 角色：
 
-[PRE18]
+```
+...
+...
+Resources:
+  ...
+  ...
+  ApplicationTaskRole:
+ Type: AWS::IAM::Role
+ Properties:
+ AssumeRolePolicyDocument:
+ Version: "2012-10-17"
+ Statement:
+ - Effect: Allow
+ Principal:
+ Service: ecs-tasks.amazonaws.com
+ Action:
+ - sts:AssumeRole
+ Policies:
+ - PolicyName: SecretsManagerPermissions
+ PolicyDocument:
+ Version: "2012-10-17"
+ Statement:
+ - Sid: GetSecrets
+ Effect: Allow
+ Action:
+ - secretsmanager:GetSecretValue
+ Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:todobackend/*
+ - Sid: DecryptSecrets
+ Effect: Allow
+ Action:
+ - kms:Decrypt
+ Resource: !ImportValue secrets-key
+  ApplicationTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+...
+...
+```
 
 创建 IAM 任务角色
 
@@ -270,7 +562,77 @@ ECS 包括一个名为 IAM 任务角色的功能（[`docs.aws.amazon.com/AmazonE
 
 有了`ApplicationTaskRole`资源，以下示例演示了如何重新配置`stack.yml`文件中的`todobackend-aws`存储库中的`ApplicationTaskDefinition`和`MigrateTaskDefinition`资源：
 
-[PRE19]
+```
+Parameters:
+  ...
+  ...
+  ApplicationSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Target subnets for EC2 instances
+ # The DatabasePassword parameter has been removed
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Target VPC
+ ...
+  ... 
+Resources:
+  ...
+  ...
+  MigrateTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: todobackend-migrate
+ TaskRoleArn: !Sub ${ApplicationTaskRole.Arn}
+      ContainerDefinitions:
+        - Name: migrate
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/docker-in-aws/todobackend:${ApplicationImageTag}
+          MemoryReservation: 5
+          Cpu: 5
+          Environment:
+            - Name: DJANGO_SETTINGS_MODULE
+              Value: todobackend.settings_release
+            - Name: MYSQL_HOST
+              Value: !Sub ${ApplicationDatabase.Endpoint.Address}
+            - Name: MYSQL_USER
+              Value: todobackend
+            - Name: MYSQL_DATABASE
+              Value: todobackend
+            # The MYSQL_PASSWORD variable has been removed
+ - Name: SECRETS
+ Value: todobackend/credentials
+            - Name: AWS_DEFAULT_REGION
+              Value: !Ref AWS::Region  ...
+  ...
+  ApplicationTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: todobackend
+ TaskRoleArn: !Sub ${ApplicationTaskRole.Arn}
+      Volumes:
+        - Name: public
+      ContainerDefinitions:
+        - Name: todobackend
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/docker-in-aws/todobackend:${ApplicationImageTag}
+          MemoryReservation: 395
+          Cpu: 245
+          MountPoints:
+            - SourceVolume: public
+              ContainerPath: /public
+          Environment:- Name: DJANGO_SETTINGS_MODULE
+              Value: todobackend.settings_release
+            - Name: MYSQL_HOST
+              Value: !Sub ${ApplicationDatabase.Endpoint.Address}
+            - Name: MYSQL_USER
+              Value: todobackend
+            - Name: MYSQL_DATABASE
+              Value: todobackend
+ # The MYSQL_PASSWORD and SECRET_KEY variables have been removed            - Name: SECRETS
+ Value: todobackend/credentials
+            - Name: AWS_DEFAULT_REGION
+              Value: !Ref AWS::Region
+...
+...
+```
 
 配置 ECS 任务定义以使用秘密
 
@@ -278,7 +640,13 @@ ECS 包括一个名为 IAM 任务角色的功能（[`docs.aws.amazon.com/AmazonE
 
 因为您不再将数据库密码作为参数注入到堆栈中，您还需要更新 todobackend-aws 存储库中的`dev.cfg`文件，并且还要指定您在之前示例中发布的更新的 Docker 镜像标记：
 
-[PRE20]
+```
+ApplicationDesiredCount=1
+ApplicationImageId=ami-ec957491
+ApplicationImageTag=5fdbe62
+ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
+VpcId=vpc-f8233a80
+```
 
 更新输入参数
 
@@ -294,9 +662,96 @@ ECS 包括一个名为 IAM 任务角色的功能（[`docs.aws.amazon.com/AmazonE
 
 以下示例演示了向您的 CloudFormation 堆栈添加一个 Lambda 函数资源，该函数查询 AWS Secrets Manager 服务，并返回给定秘密名称和秘密值内键/值对中的目标键的秘密值：
 
-[PRE21]
+```
+...
+...
+Resources:
+  SecretsManager:
+ Type: AWS::Lambda::Function
+ DependsOn:
+ - SecretsManagerLogGroup
+ Properties:
+ FunctionName: !Sub ${AWS::StackName}-secretsManager
+ Description: !Sub ${AWS::StackName} Secrets Manager
+ Handler: index.handler
+ MemorySize: 128
+ Runtime: python3.6
+ Timeout: 300
+ Role: !Sub ${SecretsManagerRole.Arn}
+ Code:
+ ZipFile: |
+ import cfnresponse, json, sys, os
+ import boto3
 
-[PRE22]
+ client = boto3.client('secretsmanager')
+
+ def handler(event, context):
+            sys.stdout = sys.__stdout__
+ try:
+ print("Received event %s" % event)
+ if event['RequestType'] == 'Delete':
+ cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, event['PhysicalResourceId'])
+ return
+ secret = client.get_secret_value(
+ SecretId=event['ResourceProperties']['SecretId'],
+ )
+ credentials = json.loads(secret['SecretString'])
+              # Suppress logging output to ensure credential values are kept secure
+              with open(os.devnull, "w") as devnull:
+                sys.stdout = devnull
+                cfnresponse.send(
+                  event, 
+                  context, 
+                  cfnresponse.SUCCESS,
+                  credentials, # This dictionary will be exposed to CloudFormation resources
+                  secret['VersionId'], # Physical ID of the custom resource
+                  noEcho=True
+                )
+ except Exception as e:
+ print("A failure occurred with exception %s" % e)
+ cfnresponse.send(event, context, cfnresponse.FAILED, {})
+ SecretsManagerRole:
+ Type: AWS::IAM::Role
+ Properties:
+ AssumeRolePolicyDocument:
+ Version: "2012-10-17"
+ Statement:
+ - Effect: Allow
+ Principal:
+ Service: lambda.amazonaws.com
+ Action:
+ - sts:AssumeRole
+ Policies:
+ - PolicyName: SecretsManagerPermissions
+ PolicyDocument:
+ Version: "2012-10-17"
+ Statement:
+ - Sid: GetSecrets
+ Effect: Allow
+ Action:
+ - secretsmanager:GetSecretValue
+ Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:todobackend/*
+            - Sid: DecryptSecrets
+              Effect: Allow
+              Action:
+ - kms:Decrypt
+ Resource: !ImportValue secrets-key
+- Sid: ManageLambdaLogs
+ Effect: Allow
+ Action:
+ - logs:CreateLogStream
+ - logs:PutLogEvents
+ Resource: !Sub ${SecretsManagerLogGroup.Arn}
+```
+
+```
+SecretsManagerLogGroup:
+ Type: AWS::Logs::LogGroup
+ Properties:
+ LogGroupName: !Sub /aws/lambda/${AWS::StackName}-secretsManager
+ RetentionInDays: 7...
+  ...
+```
 
 添加一个 Secrets Manager CloudFormation 自定义资源函数
 
@@ -310,7 +765,31 @@ ECS 包括一个名为 IAM 任务角色的功能（[`docs.aws.amazon.com/AmazonE
 
 现在您已经为自定义资源准备了一个 Lambda 函数，您可以创建实际的自定义资源，该资源将提供对存储在 AWS Secrets Manager 中的秘密的访问。以下示例演示了在本章前面创建的 **todobackend/credentials** 密钥的自定义资源，然后从您的 `ApplicationDatabase` 资源中访问该密钥：
 
-[PRE23]
+```
+...
+...
+Resources:
+  Secrets:
+ Type: AWS::CloudFormation::CustomResource
+ Properties:
+ ServiceToken: !Sub ${SecretsManager.Arn}
+ SecretId: todobackend/credentials
+  SecretsManager:
+    Type: AWS::Lambda::FunctionResources:
+  ...
+  ...
+  ApplicationDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: MySQL
+      EngineVersion: 5.7
+      DBInstanceClass: db.t2.micro
+      AllocatedStorage: 10
+      StorageType: gp2
+      MasterUsername: todobackend
+ MasterUserPassword: !Sub ${Secrets.MYSQL_PASSWORD} ...
+  ...
+```
 
 添加一个 Secrets Manager 自定义资源
 
@@ -320,7 +799,15 @@ ECS 包括一个名为 IAM 任务角色的功能（[`docs.aws.amazon.com/AmazonE
 
 此时，您已准备好部署对 CloudFormation 堆栈的更改，您可以使用我们在过去几章中使用的`aws cloudformation deploy`命令来执行：
 
-[PRE24]
+```
+> aws cloudformation deploy --template-file stack.yml \
+ --stack-name todobackend --parameter-overrides $(cat dev.cfg) \
+ --capabilities CAPABILITY_NAMED_IAM
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+Successfully created/updated stack - todobackend
+```
 
 部署 CloudFormation 堆栈更改
 

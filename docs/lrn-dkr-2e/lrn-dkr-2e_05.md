@@ -40,13 +40,34 @@
 
 在我们开始之前，我们希望确保 Docker 已正确安装在您的系统上，并准备好接受您的命令。打开一个新的终端窗口，并输入以下命令：
 
-[PRE0]
+```
+$ docker version
+```
 
 如果您使用的是 Docker Toolbox，则请使用已与 Toolbox 一起安装的 Docker Quickstart 终端，而不是 macOS 上的终端或 Windows 上的 PowerShell。
 
 如果一切正常，您应该在终端中看到安装在您的笔记本电脑上的 Docker 客户端和服务器的版本。在撰写本文时，它看起来是这样的（为了可读性而缩短）：
 
-[PRE1]
+```
+Client: Docker Engine - Community
+ Version: 19.03.0-beta3
+ API version: 1.40
+ Go version: go1.12.4
+ Git commit: c55e026
+ Built: Thu Apr 25 19:05:38 2019
+ OS/Arch: darwin/amd64
+ Experimental: false
+
+Server: Docker Engine - Community
+ Engine:
+ Version: 19.03.0-beta3
+ API version: 1.40 (minimum version 1.12)
+ Go version: go1.12.4
+ Git commit: c55e026
+ Built: Thu Apr 25 19:13:00 2019
+ OS/Arch: linux/amd64
+ ...
+```
 
 您可以看到我在我的 macOS 上安装了`19.03.0`版本的`beta3`。
 
@@ -54,19 +75,32 @@
 
 所以，您已经准备好看到一些操作了。请在您的终端窗口中输入以下命令并按*Return*键：
 
-[PRE2]
+```
+$ docker container run alpine echo "Hello World" 
+```
 
 当您第一次运行上述命令时，您应该在终端窗口中看到类似于这样的输出：
 
-[PRE3]
+```
+Unable to find image 'alpine:latest' locally
+latest: Pulling from library/alpine
+e7c96db7181b: Pull complete
+Digest: sha256:769fddc7cc2f0a1c35abb2f91432e8beecf83916c421420e6a6da9f8975464b6
+Status: Downloaded newer image for alpine:latest
+Hello World
+```
 
 现在这很容易！让我们再次尝试运行完全相同的命令：
 
-[PRE4]
+```
+$ docker container run alpine echo "Hello World" 
+```
 
 第二次、第三次或第 n 次运行上述命令时，您应该在终端中只看到以下输出：
 
-[PRE5]
+```
+ Hello World  
+```
 
 尝试推理第一次运行命令时为什么会看到不同的输出，而所有后续次数都不同。但是如果您无法弄清楚，不要担心；我们将在本章的后续部分详细解释原因。
 
@@ -74,7 +108,9 @@
 
 在上一节中，您已成功运行了一个容器。现在，我们想详细调查到底发生了什么以及为什么。让我们再次看看我们使用的命令：
 
-[PRE6]
+```
+$ docker container run alpine echo "Hello World" 
+```
 
 这个命令包含多个部分。首先，我们有单词`docker`。这是 Docker**命令行界面**（**CLI**）工具的名称，我们使用它与负责运行容器的 Docker 引擎进行交互。接下来是单词`container`，它表示我们正在处理的上下文。因为我们要运行一个容器，所以我们的上下文是`container`。接下来是我们要在给定上下文中执行的实际命令，即`run`。
 
@@ -94,11 +130,28 @@ docker container run 表达式的解剖
 
 现在我们已经了解了运行容器命令的各个部分，让我们尝试在容器中运行另一个不同的进程。在终端中键入以下命令：
 
-[PRE7]
+```
+$ docker container run centos ping -c 5 127.0.0.1
+```
 
 您应该在终端窗口中看到类似以下的输出：
 
-[PRE8]
+```
+Unable to find image 'centos:latest' locally
+latest: Pulling from library/centos
+8ba884070f61: Pull complete
+Digest: sha256:b5e66c4651870a1ad435cd75922fe2cb943c9e973a9673822d1414824a1d0475
+Status: Downloaded newer image for centos:latest
+PING 127.0.0.1 (127.0.0.1) 56(84) bytes of data.
+64 bytes from 127.0.0.1: icmp_seq=1 ttl=64 time=0.104 ms
+64 bytes from 127.0.0.1: icmp_seq=2 ttl=64 time=0.059 ms
+64 bytes from 127.0.0.1: icmp_seq=3 ttl=64 time=0.081 ms
+64 bytes from 127.0.0.1: icmp_seq=4 ttl=64 time=0.050 ms
+64 bytes from 127.0.0.1: icmp_seq=5 ttl=64 time=0.055 ms
+--- 127.0.0.1 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4127ms
+rtt min/avg/max/mdev = 0.050/0.069/0.104/0.022 ms
+```
 
 改变的是，这次我们使用的容器镜像是`centos`，我们在`centos`容器内执行的进程是`ping -c 5 127.0.0.1`，它会对回环地址进行五次 ping 直到停止。
 
@@ -108,15 +161,23 @@ docker container run 表达式的解剖
 
 第一行如下：
 
-[PRE9]
+```
+Unable to find image 'centos:latest' locally
+```
 
 这告诉我们 Docker 在系统的本地缓存中没有找到名为`centos:latest`的镜像。因此，Docker 知道它必须从存储容器镜像的某个注册表中拉取镜像。默认情况下，您的 Docker 环境配置为从`docker.io`的 Docker Hub 拉取镜像。这由第二行表示，如下所示：
 
-[PRE10]
+```
+latest: Pulling from library/centos 
+```
 
 接下来的三行输出如下：
 
-[PRE11]
+```
+8ba884070f61: Pull complete
+Digest: sha256:b5e66c4651870a1ad435cd75922fe2cb943c9e973a9673822d1414824a1d0475
+Status: Downloaded newer image for centos:latest
+```
 
 这告诉我们 Docker 已成功从 Docker Hub 拉取了`centos:latest`镜像。
 
@@ -130,11 +191,22 @@ docker container run 表达式的解剖
 
 现在的目标是在容器内运行一个进程，每五秒产生一个新的随机琐事问题，并将问题输出到`STDOUT`。以下脚本将完全做到这一点：
 
-[PRE12]
+```
+while : 
+do 
+ wget -qO- http://jservice.io/api/random | jq .[0].question 
+ sleep 5 
+done
+```
 
 在终端窗口中尝试一下。通过按*Ctrl*+*C*来停止脚本。输出应该类似于这样：
 
-[PRE13]
+```
+"In 2004 Pitt alumna Wangari Maathai became the first woman from this continent to win the Nobel Peace Prize"
+"There are 86,400 of these in every day"
+"For $5 million in 2013 an L.A. movie house became TCL Chinese Theatre, but we bet many will still call it this, after its founder"
+^C
+```
 
 每个响应都是一个不同的琐事问题。
 
@@ -142,7 +214,9 @@ docker container run 表达式的解剖
 
 现在，让我们在一个`alpine`容器中运行这个逻辑。由于这不仅仅是一个简单的命令，我们想把前面的脚本包装在一个脚本文件中并执行它。为了简化事情，我创建了一个名为`fundamentalsofdocker/trivia`的 Docker 镜像，其中包含了所有必要的逻辑，这样我们就可以直接在这里使用它。稍后，一旦我们介绍了 Docker 镜像，我们将进一步分析这个容器镜像。暂时，让我们就这样使用它。执行以下命令将容器作为后台服务运行。在 Linux 中，后台服务也被称为守护进程：
 
-[PRE14]
+```
+$ docker container run -d --name trivia fundamentalsofdocker/trivia:ed2
+```
 
 在前面的表达式中，我们使用了两个新的命令行参数`-d`和`--name`。现在，`-d`告诉 Docker 将在容器中运行的进程作为 Linux 守护进程运行。而`--name`参数则可以用来给容器指定一个显式的名称。在前面的示例中，我们选择的名称是`trivia`。
 
@@ -152,11 +226,16 @@ docker container run 表达式的解剖
 
 一个重要的要点是，容器名称在系统上必须是唯一的。让我们确保`trivia`容器正在运行：
 
-[PRE15]
+```
+$ docker container ls -l
+```
 
 这应该给我们类似于这样的东西（为了可读性而缩短）：
 
-[PRE16]
+```
+CONTAINER ID  IMAGE                            ... CREATED         STATUS ...
+0ff3d7cf7634  fundamentalsofdocker/trivia:ed2  ... 11 seconds ago  Up 9 seconds ...
+```
 
 前面输出的重要部分是`STATUS`列，本例中是`Up 9 seconds`。也就是说，容器已经运行了 9 秒钟。
 
@@ -164,7 +243,9 @@ docker container run 表达式的解剖
 
 完成本节，让我们停下来，使用以下命令停止并移除`trivia`容器：
 
-[PRE17]
+```
+$ docker rm -f trivia
+```
 
 现在是时候学习如何列出在我们的系统上运行或悬空的容器了。
 
@@ -172,7 +253,9 @@ docker container run 表达式的解剖
 
 随着时间的推移，我们继续运行容器，我们的系统中会有很多容器。要找出当前在我们的主机上运行的是什么，我们可以使用`container ls`命令，如下所示：
 
-[PRE18]
+```
+$ docker container ls
+```
 
 这将列出所有当前正在运行的容器。这样的列表可能看起来类似于这样：
 
@@ -192,17 +275,23 @@ docker container run 表达式的解剖
 
 如果我们不仅想列出当前正在运行的容器，而是所有在系统上定义的容器，那么我们可以使用命令行参数`-a`或`--all`，如下所示：
 
-[PRE19]
+```
+$ docker container ls -a
+```
 
 这将列出任何状态的容器，例如`已创建`、`运行中`或`已退出`。
 
 有时，我们只想列出所有容器的 ID。为此，我们有`-q`参数：
 
-[PRE20]
+```
+$ docker container ls -q
+```
 
 您可能会想知道这有什么用。我将在这里向您展示一个非常有用的命令：
 
-[PRE21]
+```
+$ docker container rm -f $(docker container ls -a -q)
+```
 
 往后倾斜，深呼吸。然后，尝试找出前面的命令是做什么的。在找到答案或放弃之前，请不要再往下读。
 
@@ -210,7 +299,9 @@ docker container run 表达式的解剖
 
 在前面的部分，我们在列表命令中使用了`-l`参数。尝试使用 Docker 帮助找出`-l`参数代表什么。您可以按照以下方式调用列表命令的帮助：
 
-[PRE22]
+```
+$ docker container ls -h 
+```
 
 接下来，让我们学习如何停止和重新启动容器。
 
@@ -220,11 +311,15 @@ docker container run 表达式的解剖
 
 1.  用这个命令再次运行容器：
 
-[PRE23]
+```
+$ docker container run -d --name trivia fundamentalsofdocker/trivia:ed2
+```
 
 1.  现在，如果我们想要停止这个容器，我们可以通过发出这个命令来做到：
 
-[PRE24]
+```
+$ docker container stop trivia
+```
 
 当您尝试停止 trivia 容器时，您可能会注意到这个命令执行起来需要一段时间。确切地说，大约需要 10 秒。*为什么会这样？*
 
@@ -234,19 +329,25 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 *我们如何获取容器的 ID？*有几种方法可以做到这一点。手动方法是列出所有运行中的容器，并在列表中找到我们要找的容器。然后，我们复制它的 ID。更自动化的方法是使用一些 shell 脚本和环境变量。例如，如果我们想要获取 trivia 容器的 ID，我们可以使用这个表达式：
 
-[PRE25]
+```
+$ export CONTAINER_ID=$(docker container ls -a | grep trivia | awk '{print $1}')
+```
 
 我们在 Docker `container ls`命令中使用`-a`参数来列出所有容器，即使是已停止的。在这种情况下是必要的，因为我们刚刚停止了 trivia 容器。
 
 现在，我们可以在表达式中使用`$CONTAINER_ID`变量，而不是使用容器名称：
 
-[PRE26]
+```
+$ docker container stop $CONTAINER_ID 
+```
 
 一旦我们停止了容器，它的状态就会变为`Exited`。
 
 如果容器已停止，可以使用`docker container start`命令重新启动。让我们用 trivia 容器来做这个操作。让它再次运行是很好的，因为我们将在本章的后续部分中需要它：
 
-[PRE27]
+```
+$ docker container start trivia 
+```
 
 现在是时候讨论我们不再需要的已停止容器该怎么办了。
 
@@ -254,11 +355,15 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 当我们运行`docker container ls -a`命令时，我们可以看到相当多的容器处于`Exited`状态。如果我们不再需要这些容器，那么将它们从内存中删除是一件好事；否则，它们会不必要地占用宝贵的资源。删除容器的命令如下：
 
-[PRE28]
+```
+$ docker container rm <container ID>
+```
 
 另一个删除容器的命令如下：
 
-[PRE29]
+```
+$ docker container rm <container name>
+```
 
 尝试使用其 ID 删除一个已退出的容器。
 
@@ -268,11 +373,38 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 容器是镜像的运行时实例，并且具有许多特征其行为的关联数据。要获取有关特定容器的更多信息，我们可以使用`inspect`命令。通常情况下，我们必须提供容器 ID 或名称来标识我们想要获取数据的容器。因此，让我们检查我们的示例容器：
 
-[PRE30]
+```
+$ docker container inspect trivia 
+```
 
 响应是一个充满细节的大型 JSON 对象。它看起来类似于这样：
 
-[PRE31]
+```
+[
+    {
+        "Id": "48630a3bf188...",
+        ...
+        "State": {
+            "Status": "running",
+            "Running": true,
+            ...
+        },
+        "Image": "sha256:bbc92c8f014d605...",
+        ...
+        "Mounts": [],
+        "Config": {
+            "Hostname": "48630a3bf188",
+            "Domainname": "",
+            ...
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "82aed83429263ceb6e6e...",
+            ...
+        }
+    }
+]
+```
 
 输出已经被缩短以便阅读。
 
@@ -288,13 +420,29 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 有时，我们只需要整体信息的一小部分，为了实现这一点，我们可以使用`grep`工具或过滤器。前一种方法并不总是得到预期的答案，所以让我们看看后一种方法：
 
-[PRE32]
+```
+$ docker container inspect -f "{{json .State}}" trivia | jq .
+```
 
 `-f`或`--filter`参数用于定义过滤器。过滤器表达式本身使用 Go 模板语法。在这个例子中，我们只想以 JSON 格式看到整个输出中的状态部分。
 
 为了使输出格式良好，我们将结果传输到`jq`工具中：
 
-[PRE33]
+```
+{
+  "Status": "running",
+  "Running": true,
+  "Paused": false,
+  "Restarting": false,
+  "OOMKilled": false,
+  "Dead": false,
+  "Pid": 18252,
+  "ExitCode": 0,
+  "Error": "",
+  "StartedAt": "2019-06-16T13:30:15.776272Z",
+  "FinishedAt": "2019-06-16T13:29:38.6412298Z"
+}
+```
 
 在我们学会如何检索有关容器的大量重要和有用的元信息之后，我们现在想调查如何在运行的容器中执行它。
 
@@ -302,13 +450,17 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 有时，我们希望在已经运行的容器内运行另一个进程。一个典型的原因可能是尝试调试行为异常的容器。*我们如何做到这一点？*首先，我们需要知道容器的 ID 或名称，然后我们可以定义我们想要运行的进程以及我们希望它如何运行。再次，我们使用当前正在运行的 trivia 容器，并使用以下命令在其中交互式运行一个 shell：
 
-[PRE34]
+```
+$ docker container exec -i -t trivia /bin/sh
+```
 
 `-i`标志表示我们要交互式地运行附加进程，`-t`告诉 Docker 我们希望它为命令提供 TTY（终端仿真器）。最后，我们运行的进程是`/bin/sh`。
 
 如果我们在终端中执行上述命令，那么我们将看到一个新的提示符`/app＃`。我们现在在 trivia 容器内的 shell 中。我们可以很容易地通过执行`ps`命令来证明这一点，该命令将列出上下文中所有正在运行的进程：
 
-[PRE35]
+```
+/app # ps
+```
 
 结果应该看起来与这个有些相似：
 
@@ -320,7 +472,9 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 通过按下*Ctrl* + *D*来离开容器。我们不仅可以在容器中交互地执行额外的进程。请考虑以下命令：
 
-[PRE36]
+```
+$ docker container exec trivia ps
+```
 
 输出显然与前面的输出非常相似。
 
@@ -330,7 +484,14 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 我们甚至可以使用`-d`标志以守护进程的形式运行进程，并使用`-e`标志变量定义环境变量，如下所示：
 
-[PRE37]
+```
+$ docker container exec -it \
+ -e MY_VAR="Hello World" \
+ trivia /bin/sh
+/app # echo $MY_VAR
+Hello World
+/app # <CTRL-d>
+```
 
 很好，我们已经学会了如何进入一个正在运行的容器并运行额外的进程。但是还有另一种重要的方式可以与正在运行的容器交互。
 
@@ -338,7 +499,9 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 我们可以使用`attach`命令将我们终端的标准输入、输出和错误（或三者的任意组合）附加到正在运行的容器，使用容器的 ID 或名称。让我们为我们的 trivia 容器这样做：
 
-[PRE38]
+```
+$ docker container attach trivia
+```
 
 在这种情况下，我们将每隔五秒左右在输出中看到一个新的引用出现。
 
@@ -346,35 +509,66 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 让我们运行另一个容器，这次是一个 Nginx Web 服务器：
 
-[PRE39]
+```
+$ docker run -d --name nginx -p 8080:80 nginx:alpine
+```
 
 在这里，我们在一个名为`nginx`的容器中以守护进程的形式运行 Alpine 版本的 Nginx。`-p 8080:80`命令行参数在主机上打开端口`8080`，以便访问容器内运行的 Nginx Web 服务器。不用担心这里的语法，因为我们将在第十章“单主机网络”中更详细地解释这个特性：
 
 1.  让我们看看是否可以使用`curl`工具访问 Nginx 并运行这个命令：
 
-[PRE40]
+```
+$ curl -4 localhost:8080
+```
 
 如果一切正常，你应该会看到 Nginx 的欢迎页面（为了方便阅读而缩短）：
 
-[PRE41]
+```
+<html> 
+<head> 
+<title>Welcome to nginx!</title> 
+<style> 
+    body { 
+        width: 35em; 
+        margin: 0 auto; 
+        font-family: Tahoma, Verdana, Arial, sans-serif; 
+    } 
+</style> 
+</head> 
+<body> 
+<h1>Welcome to nginx!</h1> 
+...
+</html> 
+```
 
 1.  现在，让我们附加我们的终端到`nginx`容器，观察发生了什么：
 
-[PRE42]
+```
+$ docker container attach nginx
+```
 
 1.  一旦你附加到容器上，你首先看不到任何东西。但现在打开另一个终端，在这个新的终端窗口中，重复`curl`命令几次，例如，使用以下脚本：
 
-[PRE43]
+```
+$ for n in {1..10}; do curl -4 localhost:8080; done 
+```
 
 你应该会看到 Nginx 的日志输出，看起来类似于这样：
 
-[PRE44]
+```
+172.17.0.1 - - [16/Jun/2019:14:14:02 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.54.0" "-"
+172.17.0.1 - - [16/Jun/2019:14:14:02 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.54.0" "-"
+172.17.0.1 - - [16/Jun/2019:14:14:02 +0000] "GET / HTTP/1.1" 200 612 "-" "curl/7.54.0" "-"
+...
+```
 
 1.  按下*Ctrl*+*C*来退出容器。这将分离你的终端，并同时停止`nginx`容器。
 
 1.  清理时，使用以下命令删除`nginx`容器：
 
-[PRE45]
+```
+$ docker container rm nginx 
+```
 
 在下一节中，我们将学习如何处理容器日志。
 
@@ -386,7 +580,9 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 1.  要访问特定容器的日志，我们可以使用`docker container logs`命令。例如，如果我们想要检索我们的`trivia`容器的日志，我们可以使用以下表达式：
 
-[PRE46]
+```
+$ docker container logs trivia
+```
 
 这将检索应用程序从其存在的最开始产生的整个日志。
 
@@ -394,13 +590,17 @@ Docker 向容器内部运行的主进程发送 Linux `SIGTERM`信号。如果进
 
 1.  如果我们只想获取一些最新的条目，我们可以使用`-t`或`--tail`参数，如下所示：
 
-[PRE47]
+```
+$ docker container logs --tail 5 trivia
+```
 
 这将只检索容器内运行的进程产生的最后五个条目。
 
 有时，我们希望跟踪容器产生的日志。当使用`-f`或`--follow`参数时，这是可能的。以下表达式将输出最后五个日志项，然后跟踪容器化进程产生的日志：
 
-[PRE48]
+```
+$ docker container logs --tail 5 --follow trivia 
+```
 
 通常使用容器日志的默认机制是不够的。我们需要一种不同的日志记录方式。这将在下一节中讨论。
 
@@ -423,23 +623,37 @@ Docker 包括多种日志记录机制，帮助我们从运行的容器中获取�
 
 我们已经看到日志记录驱动程序可以在 Docker 守护程序配置文件中全局设置。但我们也可以在容器与容器之间定义日志记录驱动程序。在以下示例中，我们运行了一个`busybox`容器，并使用`--log-driver`参数配置了`none`日志记录驱动程序：
 
-[PRE49]
+```
+$ docker container run --name test -it \
+ --log-driver none \
+ busybox sh -c 'for N in 1 2 3; do echo "Hello $N"; done'
+```
 
 我们应该看到以下内容：
 
-[PRE50]
+```
+Hello 1
+Hello 2
+Hello 3 
+```
 
 现在，让我们尝试获取前一个容器的日志：
 
-[PRE51]
+```
+$ docker container logs test
+```
 
 输出如下：
 
-[PRE52]
+```
+Error response from daemon: configured logging driver does not support reading
+```
 
 这是可以预期的，因为`none`驱动程序不会产生任何日志输出。让我们清理并删除`test`容器：
 
-[PRE53]
+```
+$ docker container rm test
+```
 
 # 高级主题-更改默认日志记录驱动程序
 
@@ -447,17 +661,31 @@ Docker 包括多种日志记录机制，帮助我们从运行的容器中获取�
 
 1.  在真实的 Linux 主机上进行这项操作是最简单的。为此，我们将使用 Vagrant 和 Ubuntu 镜像：
 
-[PRE54]
+```
+$ vagrant init bento/ubuntu-17.04
+$ vagrant up
+$ vagrant ssh
+```
 
 **Vagrant**是由 Hashicorp 开发的开源工具，通常用于构建和维护可移植的虚拟软件开发环境。
 
 1.  进入 Ubuntu 虚拟机后，我们要编辑 Docker 守护程序配置文件。转到`/etc/docker`文件夹并运行`vi`如下：
 
-[PRE55]
+```
+$ vi daemon.json 
+```
 
 1.  输入以下内容：
 
-[PRE56]
+```
+{
+  "Log-driver": "json-log",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": 3
+  }
+}
+```
 
 1.  通过首先按*Esc*，然后输入`:w:q`，最后按*Enter*键保存并退出`vi`。
 
@@ -465,7 +693,9 @@ Docker 包括多种日志记录机制，帮助我们从运行的容器中获取�
 
 现在我们必须向 Docker 守护程序发送`SIGHUP`信号，以便它接受配置文件中的更改：
 
-[PRE57]
+```
+$ sudo kill -SIGHUP $(pidof dockerd)
+```
 
 请注意，前面的命令只重新加载配置文件，而不重新启动守护程序。
 

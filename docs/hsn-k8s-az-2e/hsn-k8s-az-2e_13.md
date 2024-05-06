@@ -48,27 +48,64 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 1.  我们将从缩减当前集群到一个节点开始：
 
-[PRE0]
+```
+az aks nodepool scale --cluster-name handsonaks \
+  -g rg-handsonaks --name agentpool--node-count 1
+```
 
 1.  然后，我们将设置一些在脚本中将使用的变量：
 
-[PRE1]
+```
+EXISTINGAKSNAME="handsonaks"
+NEWAKSNAME="handsonaks-aad"
+RGNAME="rg-handsonaks"
+LOCATION="westus2"
+TENANTID=$(az account show --query tenantId -o tsv)
+```
 
 1.  现在，我们将从我们的 AKS 集群中获取现有的服务主体。我们将重用此服务主体，以授予新集群访问我们的 Azure 订阅的权限：
 
-[PRE2]
+```
+# Get SP from existing cluster and create new password
+RBACSP=$(azaks show -n $EXISTINGAKSNAME -g $RGNAME \
+  --query servicePrincipalProfile.clientId -o tsv)
+RBACSPPASSWD=$(openssl rand -base64 32)
+az ad sp credential reset --name $RBACSP \
+  --password $RBACSPPASSWD --append
+```
 
 1.  接下来，我们将创建一个新的 Azure AD 应用程序。这个 Azure AD 应用程序将用于获取用户的 Azure AD 组成员资格：
 
-[PRE3]
+```
+serverApplicationId=$(az ad app create \
+    --display-name "${NEWAKSNAME}Server" \
+    --identifier-uris "https://${NEWAKSNAME}Server" \
+    --query appId -o tsv)
+```
 
 1.  在下一步中，我们将更新应用程序，创建服务主体，并从服务主体获取密钥：
 
-[PRE4]
+```
+az ad app update --id $serverApplicationId --set groupMembershipClaims=All
+az ad sp create --id $serverApplicationId
+serverApplicationSecret=$(az ad sp credential reset \
+    --name $serverApplicationId \
+    --credential-description "AKSPassword" \
+    --query password -o tsv)
+```
 
 1.  然后，我们将授予此服务主体访问 Azure AD 中的目录数据的权限：
 
-[PRE5]
+```
+az ad app permission add \
+--id $serverApplicationId \
+    --api 00000003-0000-0000-c000-000000000000 \
+    --api-permissions e1fe6dd8-ba31-4d61-89e7-88639da4683d=Scope \
+    06da0dbc-49e2-44d2-8312-53f166ab848a=Scope \
+    7ab1d382-f21e-4acd-a863-ba3e13f7da61=Role
+az ad app permission grant --id $serverApplicationId\
+    --api 00000003-0000-0000-c000-000000000000
+```
 
 1.  这里有一个手动步骤，需要我们转到 Azure 门户。我们需要授予应用程序管理员同意。为了实现这一点，在 Azure 搜索栏中查找*Azure Active Directory*：![在 Azure 搜索栏中搜索 Azure Active Directory。](img/Figure_10.2.jpg)
 
@@ -94,11 +131,39 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 1.  接下来，我们将创建另一个服务主体并授予其权限。这个服务主体将接受用户的认证请求，并验证他们的凭据和权限：
 
-[PRE6]
+```
+clientApplicationId=$(az ad app create \
+    --display-name "${NEWAKSNAME}Client" \
+    --native-app \
+    --reply-urls "https://${NEWAKSNAME}Client" \
+    --query appId -o tsv)
+az ad sp create --id $clientApplicationId
+oAuthPermissionId=$(az ad app show --id $serverApplicationId\
+--query "oauth2Permissions[0].id" -o tsv)
+az ad app permission add --id $clientApplicationId \
+--api$serverApplicationId --api-permissions \
+$oAuthPermissionId=Scope
+az ad app permission grant --id $clientApplicationId\
+--api $serverApplicationId
+```
 
 1.  然后，作为最后一步，我们可以创建新的集群：
 
-[PRE7]
+```
+azaks create \
+    --resource-group $RGNAME \
+    --name $NEWAKSNAME \
+    --location $LOCATION
+    --node-count 2 \
+    --node-vm-size Standard_D1_v2 \
+    --generate-ssh-keys \
+    --aad-server-app-id $serverApplicationId \
+    --aad-server-app-secret $serverApplicationSecret \
+    --aad-client-app-id $clientApplicationId \
+    --aad-tenant-id $TENANTID \
+    --service-principal $RBACSP \
+    --client-secret $RBACSPPASSWD
+```
 
 在本节中，我们已经创建了一个集成了 Azure AD 的新 AKS 集群，用于 RBAC。创建一个新集群大约需要 5 到 10 分钟。在新集群正在创建时，您可以继续下一节并在 Azure AD 中创建新用户和组。
 
@@ -170,7 +235,9 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 1.  要开始我们的示例，我们需要检索组的 ID。以下命令将检索组 ID：
 
-[PRE8]
+```
+az ad group show -g 'kubernetes-admins' --query objectId -o tsv
+```
 
 这将显示您的组 ID。记下来，因为我们在下一步中会需要它：
 
@@ -180,19 +247,36 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 1.  由于我们为这个示例创建了一个新的集群，我们将获取凭据以登录到这个集群。我们将使用管理员凭据进行初始设置：
 
-[PRE9]
+```
+az aks get-credentials -n handsonaksad -g rg-handsonaks --admin
+```
 
 1.  在 Kubernetes 中，我们将为这个示例创建两个命名空间：
 
-[PRE10]
+```
+kubectl create ns no-access
+kubectl create ns delete-access
+```
 
 1.  我们将在两个命名空间中部署`azure-vote`应用程序：
 
-[PRE11]
+```
+kubectl create -f azure-vote.yaml -n no-access
+kubectl create -f azure-vote.yaml -n delete-access
+```
 
 1.  接下来，我们将创建`ClusterRole`文件。这在`clusterRole.yaml`文件中提供：
 
-[PRE12]
+```
+1   apiVersion: rbac.authorization.k8s.io/v1
+2   kind: ClusterRole
+3   metadata:
+4     name: readOnly
+5   rules:
+6   - apiGroups: [""]
+7     resources: ["pods"]
+8     verbs: ["get", "watch", "list"]
+```
 
 让我们仔细看看这个文件：
 
@@ -208,11 +292,26 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 我们将使用以下命令创建这个`ClusterRole`：
 
-[PRE13]
+```
+kubectl create -f clusterRole.yaml
+```
 
 1.  下一步是创建一个 ClusterRoleBinding。该绑定将角色链接到用户。这在`clusterRoleBinding.yaml`文件中提供：
 
-[PRE14]
+```
+1   apiVersion: rbac.authorization.k8s.io/v1
+2   kind: ClusterRoleBinding
+3   metadata:
+4     name: readOnlyBinding
+5   roleRef:
+6     kind: ClusterRole
+7     name: readOnly
+8     apiGroup: rbac.authorization.k8s.io
+9   subjects:
+10  - kind: Group
+11   apiGroup: rbac.authorization.k8s.io
+12   name: "<group-id>"
+```
 
 让我们仔细看看这个文件：
 
@@ -226,11 +325,23 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 我们可以使用以下命令创建这个`ClusterRoleBinding`：
 
-[PRE15]
+```
+kubectl create -f clusterRoleBinding.yaml
+```
 
 1.  接下来，我们将创建一个限制在`delete-access`命名空间的`Role`。这在`role.yaml`文件中提供：
 
-[PRE16]
+```
+1   apiVersion: rbac.authorization.k8s.io/v1
+2   kind: Role
+3   metadata:
+4     name: deleteRole
+5     namespace: delete-access
+6   rules:
+7   - apiGroups: [""]
+8     resources: ["pods"]
+9     verbs: ["delete"]
+```
 
 这个文件类似于之前的`ClusterRole`文件。有两个有意义的区别：
 
@@ -240,11 +351,27 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 我们可以使用以下命令创建这个`Role`：
 
-[PRE17]
+```
+kubectl create -f role.yaml
+```
 
 1.  最后，我们将创建将我们的用户链接到命名空间角色的`RoleBinding`。这在`roleBinding.yaml`文件中提供：
 
-[PRE18]
+```
+1   apiVersion: rbac.authorization.k8s.io/v1
+2   kind: RoleBinding
+3   metadata:
+4     name: deleteBinding
+5     namespace: delete-access
+6   roleRef:
+7     kind: Role
+8     name: deleteRole
+9     apiGroup: rbac.authorization.k8s.io
+10  subjects:
+11  - kind: User
+12    apiGroup: rbac.authorization.k8s.io
+13    name: "<user e-mail address>"
+```
 
 这个文件类似于之前的 ClusterRoleBinding 文件。有一些有意义的区别：
 
@@ -258,7 +385,9 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 我们可以使用以下命令创建这个`RoleBinding`：
 
-[PRE19]
+```
+kubectl create -f roleBinding.yaml
+```
 
 这已经满足了 RBAC 的要求。我们已经创建了两个角色并设置了两个 RoleBindings。在下一节中，我们将通过以我们的用户身份登录到集群来探索 RBAC 的影响。
 
@@ -286,11 +415,15 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 1.  一旦 Cloud Shell 可用，让我们获取连接到我们的 AKS 集群的凭据：
 
-[PRE20]
+```
+az aks get-credentials -n handsonaksaad -g rg-handsonaks
+```
 
 1.  然后，我们将尝试在 kubectl 中执行一个命令。让我们尝试获取集群中的节点：
 
-[PRE21]
+```
+kubectl get nodes
+```
 
 由于这是针对启用 RBAC 的集群执行的第一个命令，您将被要求重新登录。浏览至[`microsoft.com/devicelogin`](https://microsoft.com/devicelogin)并提供 Cloud Shell 显示给您的代码。确保您在此处使用新用户的凭据登录：
 
@@ -306,7 +439,10 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 1.  现在我们可以验证我们的用户可以查看所有命名空间中的 Pods，并且用户有权限在`delete-access`命名空间中删除 Pods：
 
-[PRE22]
+```
+kubectl get pods -n no-access
+kubectl get pods -n delete-access
+```
 
 这应该对两个命名空间都成功。这是由于为用户组配置的`ClusterRole`：
 
@@ -316,7 +452,10 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 1.  让我们也验证一下“删除”权限：
 
-[PRE23]
+```
+kubectl delete pod --all -n no-access
+kubectl delete pod --all -n delete-access
+```
 
 正如预期的那样，在`no-access`命名空间中被拒绝，在`delete-access`命名空间中被允许，如*图 10.25*所示：
 
@@ -326,7 +465,12 @@ Kubernetes 中的 RBAC 是一个可选功能。在 AKS 中，默认情况下是�
 
 在本节中，我们已经设置了一个集成了 Azure AD 的新集群，并验证了与 Azure AD 身份的 RBAC 的正确配置。让我们清理本节中创建的资源，获取现有集群的凭据，并将我们的常规集群缩减到两个节点：
 
-[PRE24]
+```
+az aks delete -n handsonaksaad -g rg-handsonaks
+az aks get-credentials -n handsonaks -g rg-handsonaks
+az aks nodepool scale --cluster-name handsonaks \
+  -g rg-handsonaks --name agentpool --node-count 2
+```
 
 在下一节中，我们将继续探讨 Kubernetes 安全性的路径，这次是调查 Kubernetes 密码。
 
@@ -362,25 +506,37 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 1.  将 URL 存储在`apiurl.txt`中，如下所示：
 
-[PRE25]
+```
+echo https://my-secret-url-location.topsecret.com \
+> secreturl.txt
+```
 
 1.  将令牌存储在另一个文件中，如下所示：
 
-[PRE26]
+```
+echo 'superSecretToken' > secrettoken.txt
+```
 
 1.  让 Kubernetes 从文件中创建密码，如下所示：
 
-[PRE27]
+```
+kubectl create secret generic myapi-url-token \
+--from-file=./secreturl.txt --from-file=./secrettoken.txt
+```
 
 在这个命令中，我们将秘密类型指定为`generic`。
 
 该命令应返回以下输出：
 
-[PRE28]
+```
+secret/myapi-url-token created
+```
 
 1.  我们可以使用`get`命令检查秘密是否与任何其他 Kubernetes 资源以相同的方式创建：
 
-[PRE29]
+```
+kubectl get secrets
+```
 
 此命令将返回类似于*图 10.26*的输出：
 
@@ -392,7 +548,9 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 1.  要了解有关秘密的更多详细信息，您还可以运行`describe`命令：
 
-[PRE30]
+```
+kubectl describe secrets/myapi-url-token
+```
 
 您将获得类似于*图 10.27*的输出：
 
@@ -404,7 +562,9 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 1.  要获取秘密，请运行以下命令：
 
-[PRE31]
+```
+kubectl get -o yaml secrets/myapi-url-token
+```
 
 您将获得类似于*图 10.28*的输出：
 
@@ -416,7 +576,9 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 1.  前面的值是 base64 编码的。Base64 编码并不安全。它会使秘密变得难以被操作员轻松阅读，但任何坏人都可以轻松解码 base64 编码的秘密。要获取实际值，请运行以下命令：
 
-[PRE32]
+```
+echo 'c3VwZXJTZWNyZXRUb2tlbgo=' | base64 -d
+```
 
 您将获得最初输入的值：
 
@@ -426,7 +588,9 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 1.  同样，对于`url`值，您可以运行以下命令：
 
-[PRE33]
+```
+echo 'aHR0cHM6Ly9teS1zZWNyZXQtdXJsLWxvY2F0aW9uLnRvcHNlY3JldC5jb20K'| base64 -d
+```
 
 您将获得最初输入的`url`值，如*图 10.30*所示：
 
@@ -442,25 +606,42 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 1.  首先，我们需要将秘密编码为`base64`，如下所示：
 
-[PRE34]
+```
+echo 'superSecretToken' | base64
+```
 
 您将获得以下价值：
 
-[PRE35]
+```
+c3VwZXJTZWNyZXRUb2tlbgo=
+```
 
 您可能会注意到，这与我们在上一节中获取秘密的`yaml`定义时存在的值相同。
 
 1.  同样，对于`url`值，我们可以获取 base64 编码的值，如下面的代码块所示：
 
-[PRE36]
+```
+echo 'https://my-secret-url-location.topsecret.com' | base64
+```
 
 这将给您`base64`编码的 URL：
 
-[PRE37]
+```
+aHR0cHM6Ly9teS1zZWNyZXQtdXJsLWxvY2F0aW9uLnRvcHNlY3JldC5jb20K
+```
 
 1.  现在我们可以手动创建秘密定义；然后保存文件。该文件已在代码包中提供，名称为`myfirstsecret.yaml`：
 
-[PRE38]
+```
+1   apiVersion: v1
+2   kind: Secret
+3   metadata:
+4     name: myapiurltoken-yaml
+5   type: Opaque
+6   data:
+7     url: aHR0cHM6Ly9teS1zZWNyZXQtdXJsLWxvY2F0aW9uLnRvcHNlY3JldC5jb20K
+8     token: c3VwZXJTZWNyZXRUb2tlbgo=
+```
 
 让我们调查一下这个文件：
 
@@ -472,11 +653,15 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 1.  现在，我们可以像任何其他 Kubernetes 资源一样使用`create`命令创建秘密：
 
-[PRE39]
+```
+kubectl create -f myfirstsecret.yaml
+```
 
 1.  我们可以通过以下方式验证我们的秘密是否已成功创建：
 
-[PRE40]
+```
+kubectl get secrets
+```
 
 这将显示一个类似于*图 10.31*的输出：
 
@@ -490,11 +675,17 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 创建秘密的第三种方法是使用`literal`方法，这意味着您可以在命令行上传递值。要做到这一点，请运行以下命令：
 
-[PRE41]
+```
+kubectl create secret generic myapiurltoken-literal \
+--from-literal=token='superSecretToken' \
+--from-literal=url=https://my-secret-url-location.topsecret.com
+```
 
 我们可以通过运行以下命令来验证秘密是否已创建：
 
-[PRE42]
+```
+kubectl get secrets
+```
 
 这将给我们一个类似于*图 10.32*的输出：
 
@@ -508,7 +699,12 @@ Kubernetes 提供了三种创建密码的方式，如下所示：
 
 在生产环境中连接到私有 Docker 注册表是必要的。由于这种用例非常常见，Kubernetes 提供了创建连接的机制：
 
-[PRE43]
+```
+kubectl create secret docker-registry <secret-name> \
+--docker-server=<your- registry-server> \
+--docker-username=<your-name> \
+--docker-password=<your-pword> --docker-email=<your-email>
+```
 
 第一个参数是秘密类型，即`docker-registry`。然后，您给秘密一个名称；例如，`regcred`。其他参数是 Docker 服务器（[`index.docker.io/v1/`](https://index.docker.io/v1/)用于 Docker Hub），您的用户名，您的密码和您的电子邮件。
 
@@ -522,7 +718,9 @@ Kubernetes 中的最终秘密类型是 TLS 秘密。
 
 TLS 秘密用于存储 TLS 证书。要创建可用于 Ingress 定义的 TLS 秘密，我们使用以下命令：
 
-[PRE44]
+```
+kubectl create secret tls <secret-name> --key <ssl.key> --cert <ssl.crt>
+```
 
 第一个参数是`tls`，用于设置秘密类型，然后是`key`值和实际的证书值。这些文件通常来自您的证书注册商。
 
@@ -552,7 +750,28 @@ TLS 秘密用于存储 TLS 证书。要创建可用于 Ingress 定义的 TLS 秘
 
 1.  我们可以配置一个具有环境变量秘密的 Pod，就像在`pod-with-env-secrets.yaml`中提供的定义：
 
-[PRE45]
+```
+1   apiVersion: v1
+2   kind: Pod
+3   metadata:
+4     name: secret-using-env
+5   spec:
+6     containers:
+7     - name: nginx
+8       image: nginx
+9       env:
+10        - name: SECRET_URL
+11          valueFrom:
+12            secretKeyRef:
+13              name: myapi-url-token
+14              key: secreturl.txt
+15        - name: SECRET_TOKEN
+16          valueFrom:
+17            secretKeyRef:
+18              name: myapi-url-token
+19              key: secrettoken.txt
+20    restartPolicy: Never
+```
 
 让我们检查一下这个文件：
 
@@ -564,11 +783,17 @@ TLS 秘密用于存储 TLS 证书。要创建可用于 Ingress 定义的 TLS 秘
 
 1.  现在让我们创建 Pod 并看看它是否真的起作用：
 
-[PRE46]
+```
+kubectl create -f pod-with-env-secrets.yaml
+```
 
 1.  检查环境变量是否设置正确：
 
-[PRE47]
+```
+kubectl exec -it secret-using-env sh
+echo $SECRET_URL
+echo $SECRET_TOKEN
+```
 
 这应该显示与*图 10.33*类似的结果：
 
@@ -584,7 +809,24 @@ TLS 秘密用于存储 TLS 证书。要创建可用于 Ingress 定义的 TLS 秘
 
 定义以演示如何完成此操作。它在`pod-with-env-secrets.yaml`文件中提供：
 
-[PRE48]
+```
+1   apiVersion: v1
+2   kind: Pod
+3   metadata:
+4     name: secret-using-volume
+5   spec:
+6     containers:
+7     - name: nginx
+8       image: nginx
+9       volumeMounts:
+10      - name: secretvolume
+11        mountPath: "/etc/secrets"
+12        readOnly: true
+13    volumes:
+14    - name: secretvolume
+15      secret:
+16        secretName: myapi-url-token
+```
 
 让我们仔细看看这个文件：
 
@@ -598,11 +840,18 @@ TLS 秘密用于存储 TLS 证书。要创建可用于 Ingress 定义的 TLS 秘
 
 1.  使用以下命令创建 Pod：
 
-[PRE49]
+```
+kubectl create -f pod-with-vol-secret.yaml
+```
 
 1.  回显挂载卷中文件的内容：
 
-[PRE50]
+```
+kubectl exec -it secret-using-volume bash
+cd /etc/secrets/ 
+cat secreturl.txt
+cat /etc/secrets/secrettoken.txt 
+```
 
 如您在*图 10.34*中所见，我们的 Pod 中存在秘密：
 
@@ -618,7 +867,9 @@ TLS 秘密用于存储 TLS 证书。要创建可用于 Ingress 定义的 TLS 秘
 
 1.  首先使用以下命令获取秘密 Pod 正在运行的实例：
 
-[PRE51]
+```
+kubectl describe pod secret-using-env | grep Node
+```
 
 这应该向您显示实例 ID，如*图 10.35*所示：
 
@@ -628,7 +879,9 @@ TLS 秘密用于存储 TLS 证书。要创建可用于 Ingress 定义的 TLS 秘
 
 1.  接下来，获取正在运行的 Pod 的 Docker ID：
 
-[PRE52]
+```
+kubectl describe pod secret-using-env | grep 'docker://'
+```
 
 这应该向您显示 Docker ID：
 
@@ -638,7 +891,16 @@ TLS 秘密用于存储 TLS 证书。要创建可用于 Ingress 定义的 TLS 秘
 
 1.  最后，我们将在运行我们的容器的节点中执行一个命令，以显示我们作为环境变量传递的秘密：
 
-[PRE53]
+```
+INSTANCE=<provide instance number>
+DOCKERID=<provide Docker ID>
+VMSS=$(az vmss list --query '[].name' -o tsv)
+RGNAME=$(az vmss list --query '[].resourceGroup' -o tsv)
+az vmss run-command invoke -g $RGNAME -n $VMSS --command-id \
+RunShellScript --instance-id $INSTANCE --scripts \
+"docker inspect -f '{{ .Config.Env }}' $DOCKERID" \
+-o yaml| grep SECRET
+```
 
 这将向您显示明文的两个秘密：
 
@@ -654,7 +916,11 @@ RBAC 对于控制秘密也非常重要。拥有对集群的访问权限并具有
 
 让我们确保清理掉我们在这个示例中创建的资源：
 
-[PRE54]
+```
+kubectl delete pod --all
+kubectl delete secret myapi-url-token \
+myapiurltoken-literal myapiurltoken-yaml
+```
 
 现在我们已经使用默认的秘密机制在 Kubernetes 中探索了秘密，让我们继续使用一个更安全的选项，即 Key Vault。
 
@@ -700,7 +966,9 @@ Azure 提供了符合行业标准的秘密存储解决方案，称为 Azure 密�
 
 1.  使用以下命令创建 Key Vault FlexVolume。`kv-flexvol-installer.yaml`文件已在本章的源代码中提供：
 
-[PRE55]
+```
+kubectl create -f kv-flexvol-installer.yaml
+```
 
 #### 注意
 
@@ -708,15 +976,37 @@ Azure 提供了符合行业标准的秘密存储解决方案，称为 Azure 密�
 
 1.  FlexVolume 需要凭据才能连接到 Key Vault。在这一步中，我们将创建一个新的服务主体：
 
-[PRE56]
+```
+APPID=$(az ad app create \
+    --display-name "flex" \
+    --identifier-uris "https://flex" \
+    --query appId -o tsv)
+az ad sp create --id $APPID
+APPPASSWD=$(az ad sp credential reset \
+    --name $APPID \
+    --credential-description "KeyVault" \
+    --query password -o tsv)
+```
 
 1.  现在我们将在 Kubernetes 中创建两个秘密来存储服务主体连接：
 
-[PRE57]
+```
+kubectl create secret generic kvcreds \
+--from-literal=clientid=$APPID \
+--from-literal=clientsecret=$APPPASSWD --type=azure/kv
+```
 
 1.  现在我们将为此服务主体授予对密钥保管库中秘密的访问权限：
 
-[PRE58]
+```
+KVNAME=handsonaks-kv
+az keyvault set-policy -n $KVNAME --key-permissions \
+  get --spn $APPID
+az keyvault set-policy -n $KVNAME --secret-permissions \
+  get --spn $APPID
+az keyvault set-policy -n $KVNAME --certificate-permissions \
+  get --spn $APPID
+```
 
 您可以在门户中验证这些权限是否已成功设置。在您的密钥保管库中，在**访问策略**部分，您应该看到 flex 应用程序对密钥、秘密和证书具有`获取`权限：
 
@@ -736,7 +1026,31 @@ Key Vault FlexVolume 支持多种身份验证选项。我们现在正在使用�
 
 1.  我们提供了一个名为`pod_secret_flex.yaml`的文件，它将帮助创建一个挂载 Key Vault 秘密的 Pod。您需要对这个文件进行两处更改：
 
-[PRE59]
+```
+1   apiVersion: v1
+2   kind: Pod
+3   metadata:
+4     name: nginx-secret-flex
+5   spec:
+6     containers:
+7     - name: nginx
+8       image: nginx
+9       volumeMounts:
+10      - name: test
+11        mountPath: /etc/secret/
+12        readOnly: true
+13    volumes:
+14    - name: test
+15      flexVolume:
+16        driver: "azure/kv"
+17        secretRef:
+18          name: kvcreds
+19        options:
+20          keyvaultname: <keyvault name>
+21          keyvaultobjectnames: k8s-secret-demo
+22          keyvaultobjecttypes: secret
+23          tenantid: "<tenant ID>"
+```
 
 让我们调查一下这个文件：
 
@@ -750,11 +1064,17 @@ Key Vault FlexVolume 支持多种身份验证选项。我们现在正在使用�
 
 1.  我们可以使用以下命令创建此 Pod：
 
-[PRE60]
+```
+kubectl create -f pod_secret_flex.yaml
+```
 
 1.  一旦 Pod 被创建并运行，我们可以在 Pod 中执行并验证秘密是否存在：
 
-[PRE61]
+```
+kubectl exec -it nginx-secret-flex bash
+cd /etc/secret
+cat k8s-secret-demo
+```
 
 这应该输出我们在 Key Vault 中创建的秘密，如图 10.43 所示：
 
@@ -766,7 +1086,11 @@ Key Vault FlexVolume 支持多种身份验证选项。我们现在正在使用�
 
 让我们确保清理我们的部署：
 
-[PRE62]
+```
+kubectl delete -f pod_secret_flex.yaml
+kubectl delete -f kv-flexvol-installer.yaml
+kubectl delete secret kvcreds
+```
 
 在这一部分，我们已经看到了创建和挂载秘密的多种方式。我们已经探讨了使用文件、YAML 文件和直接从命令行创建秘密的方法。我们还探讨了秘密可以如何被使用，可以作为环境变量或作为挂载文件。然后，我们研究了一种更安全的使用秘密的方式，即通过 Azure Key Vault。
 
@@ -816,11 +1140,16 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  转到您的主目录并下载`istio`软件包，如下所示：
 
-[PRE63]
+```
+cd ~
+curl -L https://istio.io/downloadIstio | sh -
+```
 
 1.  将`istio`二进制文件添加到您的路径。首先，获取您正在运行的 Istio 版本号：
 
-[PRE64]
+```
+ls | grep istio 
+```
 
 这应该显示类似于*图 10.45*的输出：
 
@@ -830,15 +1159,21 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 记下 Istio 版本，并将其用作以下方式将二进制文件添加到您的路径：
 
-[PRE65]
+```
+export PATH="$PATH:~/istio-<release-number>/bin"
+```
 
 1.  使用以下命令检查您的集群是否可以用于运行 Istio：
 
-[PRE66]
+```
+istioctl verify-install
+```
 
 1.  使用演示配置文件安装`istio`：
 
-[PRE67]
+```
+istioctl manifest apply --set profile=demo
+```
 
 #### 注意
 
@@ -846,7 +1181,9 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  确保一切都已经启动运行，如下所示：
 
-[PRE68]
+```
+kubectl get svc -n istio-system
+```
 
 您应该在`istio-system`命名空间中看到许多服务：
 
@@ -862,19 +1199,27 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  让我们使用适当的标签（即`istio-injection=enabled`）为默认命名空间打标签：
 
-[PRE69]
+```
+kubectl label namespace default istio-injection=enabled
+```
 
 1.  让我们启动一个应用程序，看看边车是否确实自动部署（`bookinfo.yaml`文件在本章的源代码中提供）：
 
-[PRE70]
+```
+kubectl create -f bookinfo.yaml
+```
 
 获取在默认命名空间上运行的 Pods。Pods 可能需要几秒钟才能显示出来，并且所有 Pods 变为`Running`可能需要几分钟：
 
-[PRE71]
+```
+kubectl get pods
+```
 
 1.  在任何一个 Pod 上运行`describe`命令：
 
-[PRE72]
+```
+kubectl describe pods/productpage-v1-<pod-ID>
+```
 
 您可以看到边车确实已经应用：
 
@@ -904,7 +1249,21 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  首先，我们创建命名空间（`foo`、`bar`和`legacy`），并在这些命名空间中创建`httpbin`和`sleep`服务：
 
-[PRE73]
+```
+kubectl create ns foo
+kubectl apply -f <(istioctl kube-inject \
+-f httpbin.yaml) -n foo 
+kubectl apply -f <(istioctl kube-inject \
+-f sleep.yaml) -n foo
+kubectl create ns bar
+kubectl apply -f <(istioctl kube-inject \
+-f httpbin.yaml) -n bar
+kubectl apply -f <(istioctl kube-inject \
+-f sleep.yaml) -n bar
+kubectl create ns legacy
+kubectl apply -f httpbin.yaml -n legacy 
+kubectl apply -f sleep.yaml -n legacy
+```
 
 正如您所看到的，我们现在正在使用`istioctl`工具来注入 sidecar。它会读取我们的 YAML 文件，并在部署中注入 sidecar。现在我们在`foo`和`bar`命名空间中有一个带有 sidecar 的服务。但是在`legacy`命名空间中没有注入。
 
@@ -914,7 +1273,9 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  使用以下命令运行脚本：
 
-[PRE74]
+```
+bash test_mtls.sh
+```
 
 上述命令会迭代所有可达的组合。您应该看到类似以下输出。HTTP 状态码为`200`表示成功：
 
@@ -926,7 +1287,11 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  确保除默认策略外没有现有策略，如下所示：
 
-[PRE75]
+```
+kubectl get policies.authentication.istio.io \
+--all-namespaces
+kubectl get meshpolicies.authentication.istio.io
+```
 
 这应该向您展示：
 
@@ -936,7 +1301,10 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  另外，确保没有适用的目标规则：
 
-[PRE76]
+```
+kubectl get destinationrules.networking.istio.io \
+--all-namespaces -o yaml | grep "host:"
+```
 
 在结果中，不应该有带有`foo`、`bar`、`legacy`或通配符（表示为`*`）的主机。
 
@@ -952,7 +1320,15 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  要全局启用双向 TLS，我们将创建以下`MeshPolicy`（在`mtls_policy.yaml`中提供）：
 
-[PRE77]
+```
+1   apiVersion: authentication.istio.io/v1alpha1
+2   kind: MeshPolicy
+3   metadata:
+4     name: default
+5   spec:
+6     peers:
+7     - mtls: {}
+```
 
 由于此`MeshPolicy`没有选择器，它将适用于所有工作负载。网格中的所有工作负载只接受使用 TLS 加密的请求。这意味着`MeshPolicy`处理连接的传入部分：
 
@@ -962,7 +1338,9 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 您可以使用以下命令创建`MeshPolicy`：
 
-[PRE78]
+```
+kubectl apply -f mtls_policy.yaml
+```
 
 #### 注意
 
@@ -970,7 +1348,9 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  现在再次运行脚本以测试网络连接：
 
-[PRE79]
+```
+bash test_mtls.sh
+```
 
 1.  带有边车的系统在运行此命令时将失败，并将收到`503`状态代码，因为客户端仍在使用纯文本。可能需要几秒钟才能使`MeshPolicy`生效。*图 10.54*显示输出：![bash test_mtls.sh 命令的输出，显示具有边车的 httpbin.foo 和 httpbin.barPods 的流量失败，状态代码为 503。](img/Figure_10.54.jpg)
 
@@ -980,7 +1360,18 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 1.  现在，我们将通过将目标规则设置为使用类似于整个网格的身份验证策略的`*`通配符来允许某些流量。这是配置客户端端的必需操作：
 
-[PRE80]
+```
+1   apiVersion: networking.istio.io/v1alpha3
+2   kind: DestinationRule
+3   metadata:
+4     name: default
+5     namespace: istio-system
+6   spec:
+7     host: "*.local"
+8     trafficPolicy:
+9       tls:
+10        mode: ISTIO_MUTUAL
+```
 
 让我们看看这个文件：
 
@@ -998,11 +1389,15 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 我们可以使用以下命令创建这个：
 
-[PRE81]
+```
+kubectl create -f destinationRule.yaml
+```
 
 我们可以通过再次运行相同的命令来检查其影响：
 
-[PRE82]
+```
+bash test_mtls.sh
+```
 
 这次，返回的代码将如*图 10.56*所示：
 
@@ -1020,7 +1415,15 @@ Istio 还具有实施策略的能力。策略可用于限制某些流量的速�
 
 让我们确保清理我们部署的任何资源：
 
-[PRE83]
+```
+istioctl manifest generate --set profile=demo | kubectl delete -f -
+for NS in "foo" "bar" "legacy"
+do
+kubectl delete -f sleep.yaml -n $NS
+kubectl delete -f httpbin.yaml -n $NS
+done
+kubectl delete -f bookinfo.yaml
+```
 
 这结束了 Istio 的演示。
 

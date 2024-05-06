@@ -42,53 +42,148 @@ Kubernetes 可以部署在裸机 Fedora 或 Ubuntu 机器上。甚至 Fedora 和
 
 1.  启用 Kubernetes 测试 YUM 仓库：
 
-[PRE0]
+```
+ yum -y install --enablerepo=updates-testing kubernetes
+
+```
 
 1.  安装`etcd`和`iptables-services`：
 
-[PRE1]
+```
+ yum -y install etcd iptables-services
+
+```
 
 1.  在`/etcd/hosts`中，设置 Fedora 主节点和 Fedora 节点：
 
-[PRE2]
+```
+ echo "192.168.121.9  fed-master 
+        192.168.121.65  fed-node" >> /etc/hosts
+
+```
 
 1.  禁用防火墙和`iptables-services`：
 
-[PRE3]
+```
+ systemctl disable iptables-services firewalld 
+        systemctl stop iptables-services firewalld
+
+```
 
 1.  编辑`/etcd/kubernetes/config`文件：
 
-[PRE4]
+```
+ # Comma separated list of nodes in the etcd cluster
+        KUBE_MASTER="--master=http://fed-master:8080"
+        # logging to stderr means we get it in the systemd journal
+        KUBE_LOGTOSTDERR="--logtostderr=true"
+        # journal message level, 0 is debug
+        KUBE_LOG_LEVEL="--v=0"
+        # Should this cluster be allowed to run privileged docker 
+        containers
+        KUBE_ALLOW_PRIV="--allow-privileged=false"
+
+```
 
 1.  编辑`/etc/kubernetes/apiserver`文件的内容：
 
-[PRE5]
+```
+ # The address on the local server to listen to. 
+        KUBE_API_ADDRESS="--address=0.0.0.0" 
+
+        # Comma separated list of nodes in the etcd cluster 
+        KUBE_ETCD_SERVERS="--etcd-servers=http://127.0.0.1:2379" 
+
+        # Address range to use for services         
+        KUBE_SERVICE_ADDRESSES="--service-cluster-ip-
+        range=10.254.0.0/16" 
+
+        # Add your own! 
+        KUBE_API_ARGS=""
+
+```
 
 1.  `/etc/etcd/etcd.conf`文件应该取消注释以下行，以便在端口`2379`上进行监听，因为 Fedora 24 使用 etcd 2.0：
 
-[PRE6]
+```
+ ETCD_LISTEN_CLIENT_URLS="http://0.0.0.0:2379"
+
+```
 
 1.  **Kubernetes 节点设置可以在单独的主机上完成，但我们将在当前机器上设置它们，以便在同一台机器上配置 Kubernetes 主节点和节点：**
 
 1.  **编辑`/etcd/kubernetes/kubelet`文件如下：**
 
-[PRE7]
+```
+ ### 
+        # Kubernetes kubelet (node) config 
+
+        # The address for the info server to serve on (set to 0.0.0.0 
+        or "" for 
+        all interfaces) 
+        KUBELET_ADDRESS="--address=0.0.0.0" 
+
+        # You may leave this blank to use the actual hostname 
+        KUBELET_HOSTNAME="--hostname-override=fed-node" 
+
+        # location of the api-server 
+        KUBELET_API_SERVER="--api-servers=http://fed-master:8080" 
+
+        # Add your own! 
+        #KUBELET_ARGS=""
+
+```
 
 1.  创建一个 shell 脚本在同一台机器上启动所有 Kubernetes 主节点和节点服务：
 
-[PRE8]
+```
+ $ nano start-k8s.sh 
+        for SERVICES in etcd kube-apiserver kube-controller-manager 
+        kube-scheduler 
+        kube-proxy kubelet docker; do  
+            systemctl restart $SERVICES 
+            systemctl enable $SERVICES 
+            systemctl status $SERVICES  
+        done
+
+```
 
 1.  在 Kubernetes 机器上创建一个`node.json`文件来配置它：
 
-[PRE9]
+```
+        { 
+            "apiVersion": "v1", 
+            "kind": "Node", 
+            "metadata": { 
+                "name": "fed-node", 
+                "labels":{ "name": "fed-node-label"} 
+            }, 
+            "spec": { 
+                "externalID": "fed-node" 
+            } 
+        } 
+
+```
 
 1.  使用以下命令创建一个节点对象：
 
-[PRE10]
+```
+ $ kubectl create -f ./node.json 
+
+        $ kubectl get nodes 
+        NAME               LABELS                  STATUS 
+        fed-node           name=fed-node-label     Unknown
+
+```
 
 1.  一段时间后，节点应该准备好部署 pod：
 
-[PRE11]
+```
+ kubectl get nodes 
+        NAME                LABELS                  STATUS 
+        fed-node            name=fed-node-label     Ready
+
+```
 
 # 故障排除 Kubernetes Fedora 手动设置
 
@@ -96,15 +191,27 @@ Kubernetes 可以部署在裸机 Fedora 或 Ubuntu 机器上。甚至 Fedora 和
 
 使用以下内容生成密钥并将其添加到`k8s`集群中：
 
-[PRE12]
+```
+ openssl genrsa -out /tmp/serviceaccount.key 2048
+
+```
 
 要启动 API 服务器，在`/etc/kubernetes/apiserver`文件的末尾添加以下选项：
 
-[PRE13]
+```
+ KUBE_API_ARGS="--
+         service_account_key_file=/tmp/serviceaccount.key"
+
+```
 
 在`/etc/kubernetes/kube-controller-manager`文件的末尾添加以下选项：
 
-[PRE14]
+```
+ KUBE_CONTROLLER_MANAGER_ARGS=" -
+ service_account_private_key_file
+        =/tmp/serviceaccount.key"
+
+```
 
 使用`start_k8s.sh` shell 脚本重新启动集群。
 
@@ -116,45 +223,123 @@ Minikube 仍在开发中；它是一个工具，可以方便地在本地运行 K
 
 1.  下载 Minikube 二进制文件：
 
-[PRE15]
+```
+ $ curl -Lo minikube
+ https://storage.googleapis.com/minikube/releases/v0.12.2/minikube-darwin-amd64
+ % Total % Received % Xferd Average Speed Time Time Time Current
+ Dload Upload Total Spent Left Speed
+ 100 79.7M 100 79.7M 0 0 1857k 0 0:00:43 0:00:43 --:--:-- 1863k
+
+```
 
 1.  授予二进制文件执行权限：
 
-[PRE16]
+```
+ $ chmod +x minikube
+
+```
 
 1.  将 Minikube 二进制文件移动到`/usr/local/bin`，以便将其添加到路径并可以直接在终端上执行：
 
-[PRE17]
+```
+ $ sudo mv minikube /usr/local/bin
+
+```
 
 1.  之后，我们将需要`kubectl`客户端二进制文件来针对 Mac OS X 运行命令单节点 Kubernetes 集群：
 
-[PRE18]
+```
+ $ curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/v1.3.0/bin/darwin/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+        https://storage.googleapis.com/kubernetes-release/release/v1.3.0/bin/darwin/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+          % Total % Received % Xferd Average Speed Time Time Time Current
+                                     Dload Upload Total Spent Left Speed
+        100 53.2M 100 53.2M 0 0 709k 0 0:01:16 0:01:16 --:--:-- 1723k
+
+```
 
 现在已配置 kubectl 以与集群一起使用。
 
 1.  设置 Minikube 以在本地部署 VM 并配置 Kubernetes 集群：
 
-[PRE19]
+```
+ $ minikube start
+
+        Starting local Kubernetes cluster...
+
+        Downloading Minikube ISO
+
+        36.00 MB / 36.00 MB
+
+		[==============================================] 
+        100.00% 0s
+
+```
 
 1.  我们可以设置 kubectl 以使用 Minikube 上下文，并在需要时进行切换：
 
-[PRE20]
+```
+ $ kubectl config use-context minikube 
+        switched to context "minikube".
+
+```
 
 1.  我们将能够列出 Kubernetes 集群的节点：
 
-[PRE21]
+```
+ $ kubectl get nodes
+
+        NAME       STATUS    AGE
+        minikube   Ready     39m
+
+```
 
 1.  创建`hello-minikube` pod 并将其公开为服务：
 
-[PRE22]
+```
+ $ kubectl run hello-minikube --
+          image=gcr.io/google_containers/echoserver:1.4 --port=8080
+
+        deployment "hello-minikube" created
+
+        $ kubectl expose deployment hello-minikube --type=NodePort
+
+        service "hello-minikube" exposed
+
+```
 
 1.  我们可以使用以下命令获取`hello-minikube` pod 的状态：
 
-[PRE23]
+```
+ $  kubectl get pod
+     NAME                           READY   STATUS    RESTARTS   AGE          hello-minikube-3015430129-otr7u   1/1    running       0          36s
+        vkohli-m01:~ vkohli$ curl $(minikube service hello-minikube --url)
+        CLIENT VALUES:
+        client_address=172.17.0.1
+        command=GET
+        real path=/
+        query=nil
+        request_version=1.1
+        request_uri=http://192.168.99.100:8080/
+
+        SERVER VALUES:
+        server_version=nginx: 1.10.0 - lua: 10001
+
+        HEADERS RECEIVED:
+        accept=*/*
+        host=192.168.99.100:30167
+        user-agent=curl/7.43.0
+
+```
 
 1.  我们可以使用以下命令打开 Kubernetes 仪表板并查看部署的 pod 的详细信息：
 
-[PRE24]
+```
+ $ minikube dashboard
+
+        Opening kubernetes dashboard in default browser...
+
+```
 
 ![使用 Minikube 部署 Kubernetes](img/image_08_002.jpg)
 
@@ -174,19 +359,36 @@ Minikube 仍在开发中；它是一个工具，可以方便地在本地运行 K
 
 1.  安装和配置 AWS 命令行界面。在本例中，我们使用以下命令在 Linux 上安装了 AWS CLI：
 
-[PRE25]
+```
+ $ sudo pip install awscli
+
+```
 
 1.  为了配置 AWS-CLI，请使用以下命令：
 
-[PRE26]
+```
+ $ aws configure
+ AWS Access Key ID [None]: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+ AWS Secret Access Key [None]: YYYYYYYYYYYYYYYYYYYYYYYYYYYY
+ Default region name [None]: us-east-1
+ Default output format [None]: text
+
+```
 
 1.  配置 AWS CLI 后，我们将创建一个配置文件，并附加一个具有对 S3 和 EC2 的完全访问权限的角色。
 
-[PRE27]
+```
+ $ aws iam create-instance-profile --instance-profile-name Kube
+
+```
 
 1.  角色可以附加到上述配置文件，该配置文件将具有完全的 EC2 和 S3 访问权限，如下面的屏幕截图所示。可以使用控制台或 AWS CLI 单独创建角色，并使用 JSON 文件定义角色可以具有的权限：
 
-[PRE28]
+```
+ $ aws iam create-role --role-name Test-Role --assume-role-policy-
+          document /root/kubernetes/Test-Role-Trust-Policy.json
+
+```
 
 ![在 AWS 上部署 Kubernetes](img/image_08_003.jpg)
 
@@ -194,19 +396,65 @@ Minikube 仍在开发中；它是一个工具，可以方便地在本地运行 K
 
 1.  创建角色后，可以使用以下命令将其附加到策略：
 
-[PRE29]
+```
+ $ aws iam add-role-to-instance-profile --role-name Test-Role --
+          instance-profile-name Kube
+
+```
 
 1.  脚本使用默认配置文件；我们可以按以下方式更改它：
 
-[PRE30]
+```
+ $ export AWS_DEFAULT_PROFILE=Kube
+
+```
 
 1.  Kubernetes 集群可以使用一个命令轻松部署，如下所示；
 
-[PRE31]
+```
+ $ export KUBERNETES_PROVIDER=aws; wget -q -O - https://get.k8s.io | bash
+ Downloading kubernetes release v1.1.1 to /home/vkohli/kubernetes.tar.gz
+ --2015-11-22 10:39:18--  https://storage.googleapis.com/kubernetes-
+        release/release/v1.1.1/kubernetes.tar.gz
+ Resolving storage.googleapis.com (storage.googleapis.com)... 
+        216.58.220.48, 2404:6800:4007:805::2010
+ Connecting to storage.googleapis.com 
+        (storage.googleapis.com)|216.58.220.48|:443... connected.
+ HTTP request sent, awaiting response... 200 OK
+ Length: 191385739 (183M) [application/x-tar]
+ Saving to: 'kubernetes.tar.gz'
+ 100%[======================================>] 191,385,739 1002KB/s   
+        in 3m 7s
+ 2015-11-22 10:42:25 (1002 KB/s) - 'kubernetes.tar.gz' saved 
+        [191385739/191385739]
+ Unpacking kubernetes release v1.1.1
+ Creating a kubernetes on aws...
+ ... Starting cluster using provider: aws
+ ... calling verify-prereqs
+ ... calling kube-up
+ Starting cluster using os distro: vivid
+ Uploading to Amazon S3
+ Creating kubernetes-staging-e458a611546dc9dc0f2a2ff2322e724a
+ make_bucket: s3://kubernetes-staging-e458a611546dc9dc0f2a2ff2322e724a/
+ +++ Staging server tars to S3 Storage: kubernetes-staging-
+        e458a611546dc9dc0f2a2ff2322e724a/devel
+ upload: ../../../tmp/kubernetes.6B8Fmm/s3/kubernetes-salt.tar.gz to 
+        s3://kubernetes-staging-e458a611546dc9dc0f2a2ff2322e724a/devel/kubernetes-
+        salt.tar.gz
+ Completed 1 of 19 part(s) with 1 file(s) remaining
+
+```
 
 1.  上述命令将调用`kube-up.sh`，然后使用`config-default.sh`脚本调用`utils.sh`，该脚本包含具有四个节点的`k8s`集群的基本配置，如下所示：
 
-[PRE32]
+```
+ ZONE=${KUBE_AWS_ZONE:-us-west-2a}
+ MASTER_SIZE=${MASTER_SIZE:-t2.micro}
+ MINION_SIZE=${MINION_SIZE:-t2.micro}
+ NUM_MINIONS=${NUM_MINIONS:-4}
+ AWS_S3_REGION=${AWS_S3_REGION:-us-east-1}
+
+```
 
 1.  这些实例是在 Ubuntu 上运行的“t2.micro”。该过程需要五到十分钟，之后主节点和从节点的 IP 地址将被列出，并可用于访问 Kubernetes 集群。
 
@@ -216,21 +464,61 @@ Minikube 仍在开发中；它是一个工具，可以方便地在本地运行 K
 
 1.  在开始设置之前，我们需要在 Linux 机器上安装 golang，可以按以下方式进行：
 
-[PRE33]
+```
+ $ wget https://storage.googleapis.com/golang/go1.7.3.linux-
+ amd64.tar.gz
+
+        $ tar -C /usr/local -xzf go1.7.3.linux-amd64.tar.gz
+
+        $ go
+
+        Go is a tool for managing Go source code.
+        Usage:
+          go command [arguments]
+
+```
 
 1.  设置 go 路径：
 
-[PRE34]
+```
+ $ export GOPATH=/usr/local/go
+ $ export PATH=$PATH:$GOPATH/bin
+
+```
 
 1.  下载预构建的 Debian VMDK，该 VMDK 将用于在 vSphere 上创建 Kubernetes 集群：
 
-[PRE35]
+```
+         $ curl --remote-name-all https://storage.googleapis.com/
+        govmomi/vmdk/2016-01-08/kube.vmdk.gz{,.md5}
+ % Total    % Received % Xferd  Average Speed   Time    Time     Time  
+        Current
+ Dload  Upload   Total   Spent    Left  
+        Speed
+         100  663M  100  663M   0   0  14.4M      0  0:00:45  0:00:45 --:--:-- 
+        17.4M
+         100    47  100    47   0   0     70      0 --:--:-- --:--:-- --:--:--   
+        0
+         $ md5sum -c kube.vmdk.gz.md5
+         kube.vmdk.gz: OK
+         $ gzip -d kube.vmdk.gz
+
+```
 
 # Kubernetes 设置故障排除
 
 我们需要设置适当的环境变量以远程连接到 ESX 服务器以部署 Kubernetes 集群。为了在 vSphere 上进行 Kubernetes 设置，应设置以下环境变量：
 
-[PRE36]
+```
+ export GOVC_URL='https://[USERNAME]:[PASSWORD]@[ESXI-HOSTNAME-IP]/sdk'
+ export GOVC_DATASTORE='[DATASTORE-NAME]'
+ export GOVC_DATACENTER='[DATACENTER-NAME]'
+ #username & password used to login to the deployed kube VM
+ export GOVC_RESOURCE_POOL='*/Resources'
+ export GOVC_GUEST_LOGIN='kube:kube'
+ export GOVC_INSECURE=true
+
+```
 
 ### 注意
 
@@ -238,19 +526,34 @@ Minikube 仍在开发中；它是一个工具，可以方便地在本地运行 K
 
 将`kube.vmdk`上传到 ESX 数据存储。VMDK 将存储在由以下命令创建的`kube`目录中：
 
-[PRE37]
+```
+ $ govc datastore.import kube.vmdk kube
+
+```
 
 将 Kubernetes 提供程序设置为 vSphere，同时在 ESX 上部署 Kubernetes 集群。这将包含一个 Kubernetes 主节点和四个 Kubernetes 从节点，这些从节点是从上传到数据存储中的扩展的`kube.vmdk`派生出来的：
 
-[PRE38]
+```
+ $ cd kubernetes
+ $ KUBERNETES_PROVIDER=vsphere cluster/kube-up.sh
+
+```
 
 这将显示四个 VM 的 IP 地址列表。如果您目前正在开发 Kubernetes，可以使用此集群部署机制以以下方式测试新代码：
 
-[PRE39]
+```
+ $ cd kubernetes
+ $ make release
+ $ KUBERNETES_PROVIDER=vsphere cluster/kube-up.sh
+
+```
 
 可以使用以下命令关闭集群：
 
-[PRE40]
+```
+ $ cluster/kube-down.sh
+
+```
 
 ![Kubernetes 设置故障排除](img/image_08_004.jpg)
 
@@ -266,35 +569,115 @@ Minikube 仍在开发中；它是一个工具，可以方便地在本地运行 K
 
 1.  在 Kubernetes 主节点上，创建一个新文件夹：
 
-[PRE41]
+```
+ $ mkdir nginx_kube_example
+ $ cd nginx_kube_example
+
+```
 
 1.  在您选择的编辑器中创建 YAML 文件，该文件将用于部署 NGINX pod：
 
-[PRE42]
+```
+ $ vi nginx_pod.yaml
+ apiVersion: v1
+ kind: ReplicationController
+ metadata:
+ name: nginx
+ spec:
+ replicas: 2
+ selector:
+ app: nginx
+ template:
+ metadata:
+ name: nginx
+ labels:
+ app: nginx
+ spec:
+ containers:
+ - name: nginx
+ image: nginx
+ ports:
+ - containerPort: 80
+
+```
 
 1.  使用`kubectl`创建 NGINX pod：
 
-[PRE43]
+```
+ $ kubectl create -f nginx_pod.yaml
+
+```
 
 1.  在前面的 pod 创建过程中，我们创建了两个 NGINX pod 的副本，其详细信息如下所示：
 
-[PRE44]
+```
+ $ kubectl get pods
+ NAME          READY     REASON    RESTARTS   AGE
+ nginx-karne   1/1       Running   0          14s
+ nginx-mo5ug   1/1       Running   0          14s
+ $ kubectl get rc
+ CONTROLLER   CONTAINER(S)   IMAGE(S)   SELECTOR    REPLICAS
+ nginx        nginx          nginx      app=nginx   2
+
+```
 
 1.  可以列出部署的 minion 上的容器如下：
 
-[PRE45]
+```
+         $ docker ps
+         CONTAINER ID        IMAGE                                   COMMAND
+        CREATED             STATUS              PORTS               NAMES
+         1d3f9cedff1d        nginx:latest                            "nginx -g 
+        'daemon of   41 seconds ago      Up 40 seconds
+        k8s_nginx.6171169d_nginx-karne_default_5d5bc813-3166-11e5-8256-
+        ecf4bb2bbd90_886ddf56
+         0b2b03b05a8d        nginx:latest                            "nginx -g 
+        'daemon of   41 seconds ago      Up 40 seconds
+
+```
 
 1.  使用 YAML 文件部署 NGINX 服务，以便在主机端口`82`上暴露 NGINX pod：
 
-[PRE46]
+```
+ $ vi nginx_service.yaml
+ apiVersion: v1
+ kind: Service
+ metadata:
+ labels:
+ name: nginxservice
+ name: nginxservice
+ spec:
+ ports:
+ # The port that this service should serve on.
+ - port: 82
+ # Label keys and values that must match in order to receive traffic for 
+        this service.
+ selector:
+ app: nginx
+ type: LoadBalancer
+
+```
 
 1.  使用`kubectl`创建 NGINX 服务：
 
-[PRE47]
+```
+ $kubectl create -f nginx_service.yaml
+ services/nginxservice
+
+```
 
 1.  可以列出 NGINX 服务如下：
 
-[PRE48]
+```
+         $ kubectl get services
+         NAME           LABELS                                   SELECTOR    IP(S)
+        PORT(S)
+         kubernetes     component=apiserver,provider=kubernetes  <none>      
+        192.168.3.1    443/TCP
+         nginxservice   name=nginxservice                        app=nginx   
+        192.168.3.43   82/TCP
+
+```
 
 1.  现在可以通过以下 URL 访问通过服务访问的 NGINX 服务器测试页面：`http://192.168.3.43:82`
 
@@ -332,23 +715,45 @@ Kubernetes 应用部署流水线
 
 1.  调试 Kubernetes 集群的第一步是列出节点的数量，使用以下命令：
 
-[PRE49]
+```
+ $ kubetl get nodes
+
+```
 
 还要验证所有节点是否处于就绪状态。
 
 1.  查看日志以找出部署的 Kubernetes 集群中的问题
 
-[PRE50]
+```
+ master:
+ var/log/kube-apiserver.log - API Server, responsible for serving the API
+        /var/log/kube-scheduler.log - Scheduler, responsible for making scheduling 
+    decisions
+        /var/log/kube-controller-manager.log - Controller that manages replication 
+    controllers
+ Worker nodes:
+ /var/log/kubelet.log - Kubelet, responsible for running containers on the 
+    node
+        /var/log/kube-proxy.log - Kube Proxy, responsible for service load 
+    balancing
+
+```
 
 1.  如果 pod 保持在挂起状态，请使用以下命令：
 
-[PRE51]
+```
+ $ cluster/kubectl.sh describe pod podname
+
+```
 
 这将列出事件，并可能描述发生在 pod 上的最后一件事情。
 
 1.  要查看所有集群事件，请使用以下命令：
 
-[PRE52]
+```
+ $ cluster/kubectl.sh get events
+
+```
 
 如果`kubectl`命令行无法到达`apiserver`进程，请确保`Kubernetes_master`或`Kube_Master_IP`已设置。确保`apiserver`进程在主节点上运行，并检查其日志：
 
@@ -376,7 +781,10 @@ Kubernetes 应用部署流水线
 
 +   使用以下命令检查 Docker 中是否创建了容器：
 
-[PRE53]
+```
+ $ sudo docker ps -a
+
+```
 
 +   如果您看不到容器，则问题可能出在 pod 配置、镜像、Docker 或 kubelet 上。如果您看到容器每 10 秒创建一次，则问题可能出在容器的创建或容器的进程失败。
 

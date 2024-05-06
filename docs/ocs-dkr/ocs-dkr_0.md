@@ -36,11 +36,18 @@
 
 一块代码设置如下：
 
-[PRE0]
+```
+WORKDIR code.it
+RUN     git submodule update --init --recursive
+RUN     npm install
+```
 
 任何命令行输入或输出都以以下方式编写：
 
-[PRE1]
+```
+$ docker run --d -p '8000:8000' -e 'NODE_PORT=8000' -v '/var/log/code.it:/var/log/code.it' shrikrishna/code.it .
+
+```
 
 **新术语**和**重要单词**以粗体显示。例如，屏幕上看到的单词，菜单或对话框中出现的单词会在文本中显示为：“转到您的存储库中的**设置**”。
 

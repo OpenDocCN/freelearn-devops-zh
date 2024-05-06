@@ -54,7 +54,11 @@
 
 如果使用 Machine 的通用驱动程序，它将选择最新稳定的 Docker 二进制文件。在撰写本书时，为了使用 Docker 1.12，我们有时通过使用`--engine-install-url`选项，让 Machine 选择获取最新的不稳定版本的 Docker：
 
-[PRE0]
+```
+docker-machine create -d DRIVER --engine-install-url 
+    https://test.docker.com mymachine
+
+```
 
 在阅读本书时，对于生产 Swarm（模式），1.12 将是稳定的；因此，除非你需要使用一些最新的 Docker 功能，否则这个技巧将不再必要。
 
@@ -93,11 +97,31 @@
 
 然后，使用循环创建一组特定的工作节点：
 
-[PRE1]
+```
+#!/bin/bash
+for i in `seq 0 9`; do
+docker-machine create -d amazonec2 --engine-install-url 
+    https://test.docker.com --amazonec2-instance-type "t2.large" swarm-
+    worker-$i
+done
+
+```
 
 之后，只需要浏览机器列表，`ssh`进入它们并`join`节点即可：
 
-[PRE2]
+```
+#!/bin/bash
+SWARMWORKER="swarm-worker-"
+for machine in `docker-machine ls --format {{.Name}} | grep 
+    $SWARMWORKER`;
+do
+docker-machine ssh $machine sudo docker swarm join --token SWMTKN-
+    1-5c3mlb7rqytm0nk795th0z0eocmcmt7i743ybsffad5e04yvxt-
+    9m54q8xx8m1wa1g68im8srcme \
+172.31.10.250:2377
+done
+
+```
 
 此脚本将遍历机器，并对于每个以`s`warm-worker-`开头的名称，它将`ssh`进入并将节点加入现有的 Swarm 和领导管理者，即`172.31.10.250`。
 
@@ -111,27 +135,58 @@ Belt 是用于大规模配置 Docker Engines 的另一种变体。它基本上�
 
 您可以通过从 Github 获取其源代码来自行编译 Belt。
 
-[PRE3]
+```
+# Set $GOPATH here
+go get https://github.com/chanwit/belt
+
+```
 
 目前，Belt 仅支持 DigitalOcean 驱动程序。我们可以在`config.yml`中准备我们的配置模板。
 
-[PRE4]
+```
+digitalocean:
+image: "docker-1.12-rc4"
+region: nyc3
+ssh_key_fingerprint: "your SSH ID"
+ssh_user: root
+
+```
 
 然后，我们可以用几个命令创建数百个节点。
 
 首先，我们创建三个管理主机，每个主机有 16GB 内存，分别是`mg0`，`mg1`和`mg2`。
 
-[PRE5]
+```
+$ belt create 16gb mg[0:2]
+NAME      IPv4         MEMORY  REGION         IMAGE           STATUS
+mg2   104.236.231.136  16384   nyc3    Ubuntu docker-1.12-rc4  active
+mg1   45.55.136.207    16384   nyc3    Ubuntu docker-1.12-rc4  active
+mg0   45.55.145.205    16384   nyc3    Ubuntu docker-1.12-rc4  active
+
+```
 
 然后我们可以使用`status`命令等待所有节点都处于活动状态：
 
-[PRE6]
+```
+$ belt status --wait active=3
+STATUS  #NODES  NAMES
+active      3   mg2, mg1, mg0
+
+```
 
 我们将再次为 10 个工作节点执行此操作：
 
-[PRE7]
+```
+$ belt create 512mb node[1:10]
+$ belt status --wait active=13
 
-[PRE8]
+```
+
+```
+STATUS  #NODES  NAMES
+active      3   node10, node9, node8, node7
+
+```
 
 ## 使用 Ansible
 
@@ -139,13 +194,54 @@ Belt 是用于大规模配置 Docker Engines 的另一种变体。它基本上�
 
 您需要编译这些模块（用`go`编写），然后将它们传递给`ansible-playbook -M`参数。
 
-[PRE9]
+```
+git clone https://github.com/fsoppelsa/ansible-swarm
+cd ansible-swarm/library
+go build docker-machine.go
+go build docker_swarm.go
+cd ..
+
+```
 
 playbooks 中有一些示例 play。Ansible 的 plays 语法非常容易理解，甚至不需要详细解释。
 
 我使用这个命令将 10 个工作节点加入到**Swarm2k**实验中：
 
-[PRE10]
+```
+    ---    
+name: Join the Swarm2k project
+hosts: localhost
+connection: local
+gather_facts: False
+#mg0 104.236.18.183
+#mg1 104.236.78.154
+#mg2 104.236.87.10
+tasks:
+name: Load shell variables
+shell: >
+eval $(docker-machine env "{{ machine_name }}")
+echo $DOCKER_TLS_VERIFY &&
+echo $DOCKER_HOST &&
+echo $DOCKER_CERT_PATH &&
+echo $DOCKER_MACHINE_NAME
+register: worker
+name: Set facts
+set_fact:
+whost: "{{ worker.stdout_lines[0] }}"
+wcert: "{{ worker.stdout_lines[1] }}"
+name: Join a worker to Swarm2k
+docker_swarm:
+role: "worker"
+operation: "join"
+join_url: ["tcp://104.236.78.154:2377"]
+secret: "d0cker_swarm_2k"
+docker_url: "{{ whost }}"
+tls_path: "{{ wcert }}"
+register: swarm_result
+name: Print final msg
+debug: msg="{{ swarm_result.msg }}"
+
+```
 
 基本上，它在加载一些主机信息后调用了`docker_swarm`模块：
 
@@ -161,7 +257,17 @@ playbooks 中有一些示例 play。Ansible 的 plays 语法非常容易理解�
 
 在库中编译了`docker_swarm.go`之后，将工作节点加入到 Swarm 就像这样简单：
 
-[PRE11]
+```
+#!/bin/bash
+SWARMWORKER="swarm-worker-"
+for machine in `docker-machine ls --format {{.Name}} | grep 
+    $SWARMWORKER`;
+do
+ansible-playbook -M library --extra-vars "{machine_name: $machine}" 
+    playbook.yaml
+done
+
+```
 
 ![使用 Ansible](img/image_05_004.jpg)
 
@@ -197,7 +303,11 @@ playbooks 中有一些示例 play。Ansible 的 plays 语法非常容易理解�
 
 使用以下语法将`worker0`和`worker1`提升为管理者：
 
-[PRE12]
+```
+docker node promote worker0
+docker node promote worker1
+
+```
 
 幕后没有什么神奇的。只是，Swarm 试图通过即时指令改变节点角色。
 
@@ -229,11 +339,23 @@ Docker Swarm 标签不影响引擎标签。在启动 Docker 引擎时可以指�
 
 标签对于对节点进行分类很有用。当您启动服务时，您可以使用标签来过滤和决定在哪里物理生成容器。例如，如果您想要将一堆带有 SSD 的节点专门用于托管 MySQL，您实际上可以：
 
-[PRE13]
+```
+docker node update --label-add type=ssd --label-add type=mysql 
+    worker1
+docker node update --label-add type=ssd --label-add type=mysql 
+    worker2
+docker node update --label-add type=ssd --label-add type=mysql 
+    worker3
+
+```
 
 稍后，当您使用副本因子启动服务，比如三个，您可以确保它将在`node.type`过滤器上准确地在 worker1、worker2 和 worker3 上启动 MySQL 容器：
 
-[PRE14]
+```
+docker service create --replicas 3 --constraint 'node.type == 
+    mysql' --name mysql-service mysql:5.5.
+
+```
 
 ## 删除节点
 
@@ -243,13 +365,19 @@ Docker Swarm 标签不影响引擎标签。在启动 Docker 引擎时可以指�
 
 如果一个工作节点的状态是下线（例如，因为它被物理关闭），那么它目前没有运行任何任务，因此可以安全地移除：
 
-[PRE15]
+```
+docker node rm worker9
+
+```
 
 如果一个工作节点的状态是就绪，那么先前的命令将会引发错误，拒绝移除它。节点的可用性（活跃、暂停或排空）并不重要，因为它仍然可能在运行任务，或者在恢复时运行任务。
 
 因此，在这种情况下，操作员必须手动排空节点。这意味着强制释放节点上的任务，这些任务将被重新调度并移动到其他工作节点：
 
-[PRE16]
+```
+docker node update --availability drain worker9
+
+```
 
 排空后，节点可以关闭，然后在其状态为下线时移除。
 
@@ -257,7 +385,13 @@ Docker Swarm 标签不影响引擎标签。在启动 Docker 引擎时可以指�
 
 管理者不能被移除。在移除管理者节点之前，必须将其适当地降级为工作节点，最终排空，然后关闭：
 
-[PRE17]
+```
+docker node demote manager3
+docker node update --availability drain manager3
+# Node shutdown
+docker node rm manager3
+
+```
 
 当必须移除一个管理者时，应该确定另一个工作节点作为新的管理者，并在以后提升，以保持管理者的奇数数量。
 
@@ -273,19 +407,34 @@ Swarm 的健康状况基本上取决于集群中节点的可用性以及管理�
 
 节点可以用通常的方式列出：
 
-[PRE18]
+```
+docker node ls
+
+```
 
 这可以使用`--filter`选项来过滤输出。例如：
 
-[PRE19]
+```
+docker node ls --filter name=manager # prints nodes named *manager*
+docker node ls --filter "type=mysql" # prints nodes with a label 
+    type tagged "mysql"
+
+```
 
 要获取有关特定节点的详细信息，请使用 inspect 命令，如下所示：
 
-[PRE20]
+```
+docker inspect worker1
+
+```
 
 此外，过滤选项可用于从输出的 JSON 中提取特定数据：
 
-[PRE21]
+```
+docker node inspect --format '{{ .Description.Resources }}' worker2
+{1000000000 1044140032}
+
+```
 
 输出核心数量（一个）和分配内存的数量（`1044140032`字节，或 995M）。
 
@@ -325,15 +474,27 @@ Raft 日志使用的空间取决于集群上生成的任务数量以及它们的
 
 这将类似于通过 SSH 进入领导管理器主机并运行一行命令，例如：
 
-[PRE22]
+```
+curl -sSL https://shipyard-project.com/deploy | bash -s
+
+```
 
 如果我们仍然需要安装特定的非稳定分支，请从 Github 下载到领导管理器主机并安装 Docker Compose。
 
-[PRE23]
+```
+curl -L 
+    https://github.com/docker/compose/releases/download/1.8.0/docker-
+    compose-`uname -s`-`uname -m` > /usr/local/bin/docker-compose && 
+    chmod +x /usr/local/bin/docker-compose
+
+```
 
 最后从`compose`开始：
 
-[PRE24]
+```
+docker-compose up -d < docker-compose.yml
+
+```
 
 此命令将启动多个容器，最终默认公开端口`8080`，以便您可以连接到公共管理器 IP 的端口`8080`以进入 Shipyard UI。
 
@@ -349,7 +510,11 @@ Raft 日志使用的空间取决于集群上生成的任务数量以及它们的
 
 将其部署起来就像在领导管理者上启动容器一样简单：
 
-[PRE25]
+```
+docker run -d -p 9000:9000 -v /var/run/:/var/run 
+    portainer/portainer
+
+```
 
 ![Portainer](img/image_005_012.jpg)
 

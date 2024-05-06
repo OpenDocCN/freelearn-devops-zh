@@ -24,7 +24,11 @@
 
 要使用 Docker 运行这样的多层应用程序，需要在不同的终端会话中运行以下命令来启动容器：
 
-[PRE0]
+```
+- docker run <front-end>
+- docker run <back-end>
+- docker run <database>
+```
 
 ### 注意
 
@@ -246,7 +250,9 @@ Docker 和`docker-compose`帮助我们将所有应用程序组件作为一个单
 
 我们还可以在第 6 行定义 Dockerfile 的名称。例如，在 docker-compose.yml 中，`docker-compose`将搜索具有列出的名称的文件：
 
-[PRE1]
+```
+Line 5| web:build: Dockerfilevolumes:
+```
 
 第 7 到 10 行为 web 服务提供了更多的定义。
 
@@ -314,7 +320,15 @@ Docker 和`docker-compose`帮助我们将所有应用程序组件作为一个单
 
 在带有 WordPress `docker-compose.yml`的目录中，例如 sandbox，运行*Activity B-1*的命令，然后运行以下命令：
 
-[PRE2]
+```
+docker-compose up -d
+docker-compose stop
+docker-compose rm
+docker-compose start
+docker-compose up -d
+docker-compose stop
+docker-compose start
+```
 
 # 管理多个容器和分布式应用程序包
 
@@ -370,7 +384,13 @@ Docker 和`docker-compose`帮助我们将所有应用程序组件作为一个单
 
 第二个命令，拆解后的格式如下：
 
-[PRE3]
+```
+docker run (the command)
+          -p  shows the <workstation-port>:<container-port>   (8000:8000)
+          -v: shows the <present-working-directory>  `pwd` <working-directory-in-container>  (:/django_docker)
+          <docker image> (django-web)
+          <command-to-run-when-the-container-starts> (python3 manage.py runserver 0.0.0.0.8000)
+```
 
 因此，上述命令被翻译为以下内容：
 
@@ -394,7 +414,9 @@ Docker 和`docker-compose`帮助我们将所有应用程序组件作为一个单
 
 在主命令之后的 docker run 选项中：
 
-[PRE4]
+```
+-v .:/django_docker
+```
 
 这在`docker-compose.yml`文件中。
 
@@ -422,7 +444,9 @@ Django 和其他 Web 服务器一样，运行在特定端口上。用于构建 D
 
 考虑`docker run`选项中的以下行：
 
-[PRE5]
+```
+	-p 8000:8000
+```
 
 ![Ports](img/image02_17.jpg)
 
@@ -432,7 +456,9 @@ Django 和其他 Web 服务器一样，运行在特定端口上。用于构建 D
 
 `docker-compose`端口格式将本地工作站端口映射到容器端口。格式如下：
 
-[PRE6]
+```
+-p <workstation-port>:<container-port>
+```
 
 这允许我们从本地机器访问从容器端口映射的端口 8000。
 
@@ -514,7 +540,17 @@ Django 和其他 Web 服务器一样，运行在特定端口上。用于构建 D
 
 立即，您可能看不到 WordPress 站点中存在网络部分。这是一个片段：
 
-[PRE7]
+```
+DATABASES = {
+'default': {
+'ENGINE': 'django.db.backends.postgresql',
+'NAME': 'postgres',
+'USER': 'postgres',
+'HOST': 'db',
+'PORT': 5432,
+}
+}
+```
 
 问题是，我们怎么知道名称和用户是`postgres`，主机是`db`，端口是`5432`？
 

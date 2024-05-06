@@ -52,33 +52,47 @@ Docker Swarm 允许您为服务配置冗余和故障转移，同时根据负载�
 
 默认情况下，Docker Swarm 是禁用的，因此要在 swarm 模式下运行 Docker，您需要加入现有集群或创建一个新的 swarm。要创建一个新的 swarm 并在系统中激活它，您可以使用此处显示的`swarm init`命令：
 
-[PRE0]
+```
+docker swarm init
+```
 
 这将在您当前工作的节点上创建一个新的单节点 swarm 集群。您的系统将成为您刚刚创建的 swarm 的管理节点。当您运行`init`命令时，还将提供有关允许其他节点加入您的 swarm 所需的命令的详细信息。
 
 要加入集群的节点需要一个秘密令牌，工作节点的令牌与管理节点的不同。管理令牌需要得到强有力的保护，以免使您的集群集群变得脆弱。一旦您获得了节点需要加入的集群的令牌、IP 地址和端口，您可以运行类似于下面显示的命令，使用`--token`选项：
 
-[PRE1]
+```
+docker swarm join --token <swarm_token> <ip_address>:<port>
+```
 
 如果出于某种原因您需要更改令牌（可能是出于安全原因），您可以运行`join-token --rotate`选项来生成新的令牌，如下所示：
 
-[PRE2]
+```
+docker swarm join-token --rotate
+```
 
 从集群管理节点，以下`node ls`命令将允许您查看集群中可用的节点，并提供有关节点状态的详细信息，无论它是管理节点还是工作节点，以及节点是否存在任何问题：
 
-[PRE3]
+```
+docker node ls
+```
 
 一旦您的集群可用并准备好开始托管服务，您可以使用`service create`命令创建一个服务，提供服务的名称、容器镜像以及服务正确运行所需的命令，例如，如果您需要暴露端口或挂载卷：
 
-[PRE4]
+```
+docker service create --name <service> <image> <command>
+```
 
 然后可以对服务配置进行更改，或者您可以使用`update`命令更改服务的运行方式，如下所示：
 
-[PRE5]
+```
+docker service update <service> <changes>
+```
 
 最后，如果您需要删除或停止服务运行，您只需使用`service remove`命令：
 
-[PRE6]
+```
+docker service remove <service>
+```
 
 我们在这里提供了关于 Docker Swarm 的许多理论，希望它为您提供了清晰的了解，以及您如何使用 Swarm 来启动您的服务并在需求高时进行扩展以提供稳定的服务。以下练习将会将我们迄今为止学到的知识，并向您展示如何在您的项目中实施它。
 
@@ -92,53 +106,119 @@ Docker Swarm 允许您为服务配置冗余和故障转移，同时根据负载�
 
 1.  虽然 Swarm 默认包含在 Docker 安装中，但您仍然需要在系统上激活它。使用`docker swarm init`命令将您的本地系统置于 Docker Swarm 模式：
 
-[PRE7]
+```
+docker swarm init
+```
 
 您的输出可能与此处看到的有些不同，但如您所见，一旦创建了 swarm，输出将提供有关如何使用`docker swarm join`命令向集群添加额外节点的详细信息：
 
-[PRE8]
+```
+Swarm initialized: current node (j2qxrpf0a1yhvcax6n2ajux69) is 
+now a manager.
+To add a worker to this swarm, run the following command:
+    docker swarm join --token SWMTKN-1-2w0fk5g2e18118zygvmvdxartd43n0ky6cmywy0ucxj8j7net1-5v1xvrt7
+1ag6ss7trl480e1k7 192.168.65.3:2377
+To add a manager to this swarm, run 'docker swarm join-token 
+manager' and follow the instructions.
+```
 
 1.  现在使用`node ls`命令列出您在集群中拥有的节点：
 
-[PRE9]
+```
+docker node ls
+```
 
 您应该有一个您当前正在使用的节点，并且其状态应为`Ready`：
 
-[PRE10]
+```
+ID         HOSTNAME          STATUS    AVAILABILITY
+  MANAGER STATUS
+j2qx.. *   docker-desktop    Ready     Active
+  Leader 
+```
 
 为了清晰起见，我们已经从输出中删除了`Engine Version`列。
 
 1.  从您的节点上，使用`docker info`命令检查您的 swarm 的状态，提供有关 Swarm 集群以及节点与其交互方式的进一步详细信息。如果您需要以后排除故障，它还会为您提供额外的信息：
 
-[PRE11]
+```
+docker info
+```
 
 如您从输出中所见，您将获得有关您的 Docker Swarm 集群的所有具体细节，包括`NodeID`和`ClusterID`。如果您在系统上没有正确设置 Swarm，您将只看到`Swarm: inactive`的输出：
 
-[PRE12]
+```
+…
+Swarm: active
+  NodeID: j2qxrpf0a1yhvcax6n2ajux69
+  Is Manager: true
+  ClusterID: pyejfsj9avjn595voauu9pqjv
+  Managers: 1
+  Nodes: 1
+  Default Address Pool: 10.0.0.0/8  
+  SubnetSize: 24
+  Data Path Port: 4789
+  Orchestration:
+   Task History Retention Limit: 5
+  Raft:
+   Snapshot Interval: 10000
+   Number of Old Snapshots to Retain: 0
+   Heartbeat Tick: 1
+   Election Tick: 10
+  Dispatcher:
+   Heartbeat Period: 5 seconds
+  CA Configuration:
+   Expiry Duration: 3 months
+   Force Rotate: 0
+```
 
 1.  在新创建的 swarm 上启动您的第一个服务。使用`docker service create`命令和`--replicas`选项创建一个名为`web`的服务，以设置两个容器实例运行：
 
-[PRE13]
+```
+docker service create --replicas 2 -p 80:80 --name web nginx
+```
 
 您将看到成功创建了两个实例：
 
-[PRE14]
+```
+uws28u6yny7ltvutq38166alf
+overall progress: 2 out of 2 tasks 
+1/2: running   [==========================================>] 
+2/2: running   [==========================================>] 
+verify: Service converged
+```
 
 1.  类似于`docker ps`命令，您可以使用`docker service ls`命令查看集群上正在运行的服务的列表。执行`docker service ls`命令以查看在*步骤 4*中创建的`web`服务的详细信息：
 
-[PRE15]
+```
+docker service ls
+```
 
 该命令将返回`web`服务的详细信息：
 
-[PRE16]
+```
+ID              NAME  MODE          REPLICAS   IMAGE
+  PORTS
+uws28u6yny7l    web   replicated    2/2        nginx:latest
+  *:80->80/tcp
+```
 
 1.  要查看当前在您的 swarm 上运行的容器，请使用`docker service ps`命令并提供您的服务名称`web`：
 
-[PRE17]
+```
+docker service ps web
+```
 
 如您所见，您现在有一个正在运行我们服务的容器列表：
 
-[PRE18]
+```
+ID     NAME    IMAGE    NODE               DESIRED
+  CURRENT STATE
+viyz   web.1   nginx    docker-desktop     Running
+  Running about a minute ago
+mr4u   web.2   nginx    docker-desktop     Running
+  Running about a minute ago
+```
 
 1.  该服务将仅运行默认的`Welcome to nginx!`页面。使用节点 IP 地址查看页面。在这种情况下，它将是您的本地主机 IP，`0.0.0.0`：![图 9.1：来自 Docker Swarm 的 nginx 服务](img/B15021_09_01.jpg)
 
@@ -146,77 +226,137 @@ Docker Swarm 允许您为服务配置冗余和故障转移，同时根据负载�
 
 1.  使用 Docker Swarm 轻松扩展运行服务的容器数量。只需提供`scale`选项和您想要运行的总容器数量，swarm 将为您完成工作。执行此处显示的命令，将您正在运行的 web 容器扩展到`3`：
 
-[PRE19]
+```
+docker service scale web=3
+```
 
 以下输出显示`web`服务现在扩展到`3`个容器：
 
-[PRE20]
+```
+web scaled to 3
+overall progress: 3 out of 3 tasks 
+1/3: running   [==========================================>]
+2/3: running   [==========================================>]
+3/3: running   [==========================================>]
+verify: Service converged
+```
 
 1.  如本练习的*步骤 5*中所述，运行`service ls`命令：
 
-[PRE21]
+```
+docker service ls
+```
 
 现在你应该看到你的集群上运行了三个`web`服务：
 
-[PRE22]
+```
+ID              NAME    MODE          REPLICAS   IMAGE
+    PORTS
+uws28u6yny7l    web     replicated    3/3        nginx:latest
+    *:80->80/tcp
+```
 
 1.  以下更改更适合于具有多个节点的集群，但你可以运行它来看看会发生什么。运行以下`node update`命令将可用性设置为`drain`，并使用你的节点 ID 号或名称。这将删除在该节点上运行的所有容器，因为它在你的集群上不再可用。你将得到节点 ID 作为输出：
 
-[PRE23]
+```
+docker node update --availability drain j2qxrpf0a1yhvcax6n2ajux69
+```
 
 1.  如果你运行`docker service ps web`命令，你会看到每个`web`服务在尝试启动新的`web`服务时关闭。由于你只有一个正在运行的节点，服务将处于等待状态，并显示`no suitable node`错误。运行`docker service ps web`命令：
 
-[PRE24]
+```
+docker service ps web
+```
 
 输出已经减少，只显示第二、第三、第五和第六列，但你可以看到服务无法启动。`CURRENT STATE`列同时具有`Pending`和`Shutdown`状态：
 
-[PRE25]
+```
+NAME         IMAGE            CURRENT STATE
+  ERROR
+web.1        nginx:latest     Pending 2 minutes ago
+  "no suitable node (1 node…"
+\_ web.1     nginx:latest     Shutdown 2 minutes ago
+web.2        nginx:latest     Pending 2 minutes ago
+  "no suitable node (1 node…"
+\_ web.2     nginx:latest     Shutdown 2 minutes ago
+web.3        nginx:latest     Pending 2 minutes ago
+  "no suitable node (1 node…"
+\_ web.3     nginx:latest     Shutdown 2 minutes ago
+```
 
 1.  运行`docker node ls`命令：
 
-[PRE26]
+```
+docker node ls
+```
 
 这表明你的节点已准备就绪，但处于`AVAILABILITY`状态为`Drain`：
 
-[PRE27]
+```
+ID         HOSTNAME          STATUS    AVAILABILITY
+  MANAGER STATUS
+j2qx.. *   docker-desktop    Ready     Drain
+  Leader 
+```
 
 1.  停止服务运行。使用`service rm`命令，后跟服务名称（在本例中为`web`）来停止服务运行：
 
-[PRE28]
+```
+docker service rm web
+```
 
 唯一显示的输出将是你要移除的服务的名称：
 
-[PRE29]
+```
+web
+```
 
 1.  你不想让你的节点处于`Drain`状态，因为你希望在练习的其余部分继续使用它。要使节点退出`Drain`状态并准备开始管理 Swarm，使用以下命令将可用性设置为`active`，并使用你的节点 ID：
 
-[PRE30]
+```
+docker node update --availability active j2qxrpf0a1yhvcax6n2ajux69
+```
 
 该命令将返回节点的哈希值，对于每个用户来说都是不同的。
 
 1.  运行`node ls`命令：
 
-[PRE31]
+```
+docker node ls
+```
 
 现在它将显示我们节点的可用性为`Active`，并准备好再次运行你的服务：
 
-[PRE32]
+```
+ID         HOSTNAME          STATUS    AVAILABILITY
+  MANAGER STATUS
+j2qx.. *   docker-desktop    Ready     Active
+  Leader 
+```
 
 1.  使用`docker node inspect`命令和`--format`选项，并搜索`ManagerStatus.Reachability`状态，以确保你的节点是可访问的：
 
-[PRE33]
+```
+docker node inspect j2qxrpf0a1yhvcax6n2ajux69 --format "{{ .ManagerStatus.Reachability }}"
+```
 
 如果节点可用并且可以联系，你应该看到一个`reachable`的结果：
 
-[PRE34]
+```
+reachable
+```
 
 1.  搜索`Status.State`以确保节点已准备就绪：
 
-[PRE35]
+```
+docker node inspect j2qxrpf0a1yhvcax6n2ajux69 --format "{{ .Status.State }}"
+```
 
 这应该产生`ready`：
 
-[PRE36]
+```
+ready
+```
 
 这个练习应该让你对 Docker Swarm 如何简化你的工作有一个很好的了解，特别是当你开始考虑将你的工作部署到生产环境时。我们使用了 Docker Hub NGINX 镜像，但我们可以轻松地使用我们创建的任何服务作为 Docker 镜像，这些镜像对我们的 Swarm 节点可用。
 
@@ -230,21 +370,29 @@ Docker Swarm 允许您为服务配置冗余和故障转移，同时根据负载�
 
 +   降级节点：如果节点是您集群中的管理节点，请尝试使用`node demote`命令降级节点：
 
-[PRE37]
+```
+docker node demote <node_id>
+```
 
 如果此节点是领导者，它将允许其他管理节点之一成为 swarm 的领导者，并希望解决您可能遇到的任何问题。
 
 +   从集群中删除节点：使用`node rm`命令，您可以从集群中删除节点：
 
-[PRE38]
+```
+docker node rm <node_id>
+```
 
 如果节点与 swarm 的其余部分没有正确通信，这也可能是一个问题，您可能需要使用`--force`选项从集群中删除节点：
 
-[PRE39]
+```
+docker node rm --force <node_id>
+```
 
 +   重新加入集群：如果前面的操作正确执行，您可以使用`swarm join`命令成功将节点重新加入集群。记得使用加入 swarm 时使用的令牌：
 
-[PRE40]
+```
+docker node swarm join --token <token> <swarm_ip>:<port>
+```
 
 注意
 
@@ -252,7 +400,9 @@ Docker Swarm 允许您为服务配置冗余和故障转移，同时根据负载�
 
 一组管理节点被称为**仲裁**，大多数管理节点需要就提议更新 swarm 达成一致意见，例如添加新节点或缩减容器数量。正如我们在前一节中看到的，您可以通过运行`docker node ls`命令来监视 swarm 管理节点或节点的健康状况，然后使用管理节点的 ID 来使用`docker node inspect`命令，如下所示：
 
-[PRE41]
+```
+docker node inspect <node_id>
+```
 
 注意
 
@@ -266,15 +416,21 @@ Docker Swarm 允许您为服务配置冗余和故障转移，同时根据负载�
 
 如果您已经有一个可用的`docker-compose.yml`文件来启动您的服务和应用程序，那么它很可能会在没有问题的情况下简单地工作。Swarm 将使用`stack deploy`命令在 Swarm 节点上部署所有您的服务。您只需要提供`compose`文件并为堆栈分配一个名称：
 
-[PRE42]
+```
+docker stack deploy --compose-file <compose_file> <swarm_name>
+```
 
 堆栈创建快速而无缝，但在后台会发生很多事情，以确保所有服务都正常运行，包括在所有服务之间设置网络，并按需要的顺序启动每个服务。使用在创建时提供的`swarm_name`运行`stack ps`命令将向您显示部署中所有服务是否正在运行：
 
-[PRE43]
+```
+docker stack ps <swarm_name>
+```
 
 一旦您完成了在您的 swarm 上使用服务，或者您需要清理部署的所有内容，您只需使用`stack rm`命令，提供您在创建堆栈部署时提供的`swarm_name`。这将自动停止和清理在您的 swarm 中运行的所有服务，并准备好让您重新分配给其他服务：
 
-[PRE44]
+```
+docker stack rm <swarm_name>
+```
 
 现在，既然我们知道了用于部署、运行和管理我们的 Swarm 堆栈的命令，我们可以看看如何为我们的服务执行滚动更新。
 
@@ -284,7 +440,9 @@ Swarm 还具有对正在运行的服务执行滚动更新的能力。这意味�
 
 在 Swarm 中对正在运行的服务执行滚动更新只是运行`service update`命令的简单问题。在以下命令中，您可以看到新的容器镜像名称和要更新的服务。Swarm 将处理其余部分。
 
-[PRE45]
+```
+docker service update --image <image_name:tag> <service_name>
+```
 
 您很快就有机会使用我们在这里解释过的所有命令。在以下示例中，您将使用 Django 和 PostgreSQL 创建一个小型测试应用程序。您将要设置的 Web 应用程序非常基本，因此没有必要事先了解 Django Web 框架。只需跟着做，我们将在练习中逐步解释发生的事情。
 
@@ -294,71 +452,160 @@ Swarm 还具有对正在运行的服务执行滚动更新的能力。这意味�
 
 1.  首先，创建一个目录来运行您的应用程序。将目录命名为`swarm`，并使用`cd`命令进入该目录。
 
-[PRE46]
+```
+mkdir swarm; cd swarm
+```
 
 1.  在新目录中为您的 Django 应用程序创建一个`Dockerfile`，并使用文本编辑器输入以下代码块中的详细信息。`Dockerfile`将使用默认的`Python3`镜像，设置与 Django 相关的环境变量，安装相关应用程序，并将代码复制到容器镜像的当前目录中。
 
-[PRE47]
+```
+FROM python:3
+ENV PYTHONUNBUFFERED 1
+RUN mkdir /application
+WORKDIR /application
+COPY requirements.txt /application/
+RUN pip install -r requirements.txt
+COPY . /application/
+```
 
 1.  创建`requirements.txt`文件，您的`Dockerfile`在上一步中使用它来安装运行所需的所有相关应用程序。使用文本编辑器添加以下两行以安装 Django 应用程序与 PostgreSQL 数据库通信所需的`Django`和`Psycopg2`版本。
 
-[PRE48]
+```
+1 Django>=2.0,<3.0
+2 psycopg2>=2.7,<3.0
+```
 
 1.  使用文本编辑器创建一个`docker-compose.yml`文件。根据以下代码添加第一个数据库服务。`db`服务将使用 Docker Hub 上的最新`postgres`镜像，公开端口`5432`，并设置`POSTGRES_PASSWORD`环境变量。
 
-[PRE49]
+```
+1 version: '3.3'
+2
+3 services:
+4   db:
+5     image: postgres
+6     ports:
+7       - 5432:5432
+8     environment:
+9       - POSTGRES_PASSWORD=docker
+```
 
 1.  `docker-compose.yml`文件的后半部分构建和部署您的 web 应用程序。在*第 10 行*中构建您的`Dockerfile`，将端口`8000`暴露出来，以便从 Web 浏览器访问，并将数据库密码设置为与您的`db`服务匹配。您还会注意到*第 13 行*中的 Python 命令，它将启动 Django 应用程序的开发 Web 服务器：
 
-[PRE50]
+```
+10   web:
+11     build: .
+12     image: swarm_web:latest
+13     command: python manage.py runserver 0.0.0.0:8000
+14     volumes:
+15       - .:/application
+16     ports:
+17       - 8000:8000
+18     environment:
+19       - PGPASSWORD=docker
+20     depends_on:
+21       - db
+```
 
 1.  运行以下命令来拉取和构建`docker-compose.yml`中的`db`和`web`服务。然后该命令将运行`django-admin startproject`，这将创建您的基本 Django 项目，名为`chapter_nine`：
 
-[PRE51]
+```
+docker-compose run web django-admin startproject chapter_nine .
+```
 
 该命令应返回以下输出，其中您可以看到正在拉取和构建的容器：
 
-[PRE52]
+```
+…
+Status: Downloaded newer image for postgres:latest
+Creating swarm_db_1 ... done
+Building web
+…
+Successfully built 41ff06e17fe2
+Successfully tagged swarm_web:latest
+```
 
 1.  在上一步中运行的`startproject`命令应该在您的 swarm 目录中创建了一些额外的文件和目录。运行`ls`命令列出 swarm 目录中的所有文件和目录：
 
-[PRE53]
+```
+ls -l
+```
 
 您之前创建了`Dockerfile`、`docker-compose.yml`文件和`requirements.txt`文件，但现在容器的构建已经添加了`chapter_nine` Django 目录和`manage.py`文件：
 
-[PRE54]
+```
+-rw-r--r--  1 user  staff  175  3 Mar 13:45 Dockerfile
+drwxr-xr-x  6 user  staff  192  3 Mar 13:48 chapter_nine
+-rw-r--r--  1 user  staff  304  3 Mar 13:46 docker-compose.yml
+-rwxr-xr-x  1 user  staff  634  3 Mar 13:48 manage.py
+-rw-r--r--  1 user  staff   36  3 Mar 13:46 requirements.txt
+```
 
 1.  要使您的基本应用程序运行，您需要对 Django 项目设置进行一些微小的更改。用文本编辑器打开`chapter_nine/settings.py`文件，并找到以`DATABASES`开头的条目。这控制 Django 如何连接到您的数据库，默认情况下，Django 设置为使用 SQLite 数据库。`DATABASES`条目应如下所示：
 
-[PRE55]
+```
+76 DATABASES = {
+77     'default': {
+78         'ENGINE': 'django.db.backends.sqlite3',
+79         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+80     }
+81 }
+```
 
 您有一个要部署到 Swarm 的 PostgreSQL 数据库作为我们安装的一部分，因此使用以下八行编辑`DATABASES`设置，以便 Django 将访问此 PostgreSQL 数据库：
 
 settings.py
 
-[PRE56]
+```
+76 DATABASES = {
+77     'default': {
+78         'ENGINE': 'django.db.backends.postgresql',
+79         'NAME': 'postgres',
+80         'USER': 'postgres',
+81         'PASSWORD': 'docker',
+82         'HOST': 'db',
+83         'PORT': 5432,
+84     }
+85 }
+```
 
 此步骤的完整代码可在[`packt.live/2DWP9ov`](https://packt.live/2DWP9ov)找到。
 
 1.  在我们的`settings.py`文件的*第 28 行*，我们还需要添加我们将用作`ALLOWED_HOSTS`配置的 IP 地址。我们将配置我们的应用程序可以从 IP 地址`0.0.0.0`访问。对设置文件进行相关更改，使其在*第 28 行*看起来像下面的代码：
 
-[PRE57]
+```
+ 27 
+ 28 ALLOWED_HOSTS = ["0.0.0.0"]
+```
 
 1.  现在测试一下，看看您的基本项目是否按预期工作。从命令行，使用`stack deploy`命令将您的服务部署到 Swarm。在以下命令中，使用`--compose-file`选项指定要使用的`docker-compose.yml`文件，并命名堆栈为`test_swarm`：
 
-[PRE58]
+```
+docker stack deploy --compose-file docker-compose.yml test_swarm
+```
 
 该命令应该设置 swarm 网络、数据库和 web 服务：
 
-[PRE59]
+```
+Creating network test_swarm_default
+Creating service test_swarm_db
+Creating service test_swarm_web
+```
 
 1.  运行`docker service ls`命令，您应该能够看到`test_swarm_db`和`test_swarm_web`服务的状态：
 
-[PRE60]
+```
+docker service ls
+```
 
 如下输出所示，它们都显示了`REPLICAS`值为`1/1`：
 
-[PRE61]
+```
+ID     NAME            MODE        REPLICAS  IMAGE
+  PORTS
+dsr.   test_swarm_db   replicated  1/1       postgres
+kq3\.   test_swarm_web  replicated  1/1       swarm_web:latest
+  *:8000.
+```
 
 1.  如果您的工作成功，可以通过打开 Web 浏览器并转到`http://0.0.0.0:8000`来进行测试。如果一切正常，您应该在 Web 浏览器上看到以下 Django 测试页面显示：![图 9.2：使用 Docker Compose 文件将服务部署到 Swarm](img/B15021_09_02.jpg)
 
@@ -366,59 +613,128 @@ settings.py
 
 1.  要查看当前在您的系统上运行的堆栈，请使用`stack ls`命令：
 
-[PRE62]
+```
+docker stack ls
+```
 
 您应该看到以下输出，显示了两个以`test_swarm`名称运行的服务：
 
-[PRE63]
+```
+NAME                SERVICES            ORCHESTRATOR
+test_swarm          2                   Swarm
+```
 
 1.  使用您的 swarm 名称运行`stack ps`命令，查看正在运行的服务并检查是否存在任何问题：
 
-[PRE64]
+```
+docker stack ps test_swarm
+```
 
 `ID`、`DESIRED STATE`和`ERROR`列未包含在以下精简输出中。还可以看到`test_swarm_web.1`和`test_swarm_db.1`服务正在运行：
 
-[PRE65]
+```
+NAME                IMAGE               NODE
+  CURRENT STATE
+test_swarm_web.1    swarm_web:latest    docker-desktop
+  Running
+test_swarm_db.1     postgres:latest     docker-desktop
+  Running
+```
 
 1.  就像您可以使用`deploy`命令一次启动所有服务一样，您也可以一次停止所有服务。使用`stack rm`命令加上您的 swarm 名称来停止所有正在运行的服务并移除堆栈：
 
-[PRE66]
+```
+docker stack rm test_swarm
+```
 
 请注意，以下输出中所有服务都已停止：
 
-[PRE67]
+```
+Removing service test_swarm_db
+Removing service test_swarm_web
+Removing network test_swarm_default
+```
 
 1.  作为本练习的一部分，您仍然希望在 swarm 上执行一些额外的工作，但首先对`compose`文件进行一些微小的更改。使用文本编辑器打开`docker-compose.yml`文件，并向您的 web 服务添加以下行，以便在部署到 swarm 时创建两个副本 web 服务：
 
-[PRE68]
+```
+22     deploy:
+23       replicas: 2
+```
 
 完整的`docker-compose.yml`文件应该如下所示：
 
-[PRE69]
+```
+version: '3.3'
+services:
+  db:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=docker
+  web:
+    build: .
+    image: swarm_web:latest
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/application
+    ports:
+      - 8000:8000
+    environment:
+      - PGPASSWORD=docker
+    deploy:
+      replicas: 2
+    depends_on:
+      - db
+```
 
 1.  使用相同的命令再次部署 swarm，就像在*步骤 8*中所做的那样。即使`test_swarm`堆栈仍在运行，它也会注意并对服务进行相关更改：
 
-[PRE70]
+```
+docker stack deploy --compose-file docker-compose.yml test_swarm
+```
 
 1.  运行以下`docker ps`命令：
 
-[PRE71]
+```
+docker ps | awk '{print $1 "\t" $2 }'
+```
 
 这里显示的输出中只打印了前两列。现在您可以看到有两个`swarm_web`服务正在运行：
 
-[PRE72]
+```
+CONTAINER         ID
+2f6eb92414e6      swarm_web:latest
+e9241c352e12      swarm_web:latest
+d5e6ece8a9bf      postgres:latest
+```
 
 1.  要在不停止服务的情况下将`swarm_web`服务的新版本部署到您的 swarm 中，首先构建我们 Web 服务的新 Docker 镜像。不要对图像进行任何更改，但是这次使用`patch1`标签标记图像以演示在服务运行时的更改：
 
-[PRE73]
+```
+docker build . -t swarm_web:patch1
+```
 
 1.  要执行滚动更新，请使用`service update`命令，提供要更新到的图像的详细信息和服务名称。运行以下命令，该命令使用您刚刚创建的带有`patch1`标签的图像，在`test_swarm_web`服务上：
 
-[PRE74]
+```
+docker service update --image swarm_web:patch1 test_swarm_web
+```
 
 Swarm 将管理更新，以确保在将更新应用于其余图像之前，其中一个服务始终在运行：
 
-[PRE75]
+```
+image swarm_web:patch1 could not be accessed on a registry 
+to record its digest. Each node will access 
+swarm_web:patch1 independently, possibly leading to different 
+nodes running different versions of the image.
+test_swarm_web
+overall progress: 2 out of 2 tasks 
+1/2: running   [=========================================>]
+2/2: running   [=========================================>]
+verify: Service converged
+```
 
 注意
 
@@ -426,23 +742,39 @@ Swarm 将管理更新，以确保在将更新应用于其余图像之前，其�
 
 1.  运行此处给出的`docker ps`命令，将其输出传输到`awk`命令，以仅打印`CONTAINER`和`ID`的前两列：
 
-[PRE76]
+```
+docker ps | awk '{print $1 "\t" $2 }'
+```
 
 该命令将返回以下输出：
 
-[PRE77]
+```
+CONTAINER         ID
+ef4107b35e09      swarm_web:patch1
+d3b03d8219dd      swarm_web:patch1
+d5e6ece8a9bf      postgres:latest
+```
 
 1.  如果您想要控制滚动更新的方式怎么办？运行以下命令对`test_swarm_web`服务执行新的滚动更新。撤消对使用`latest`标签部署图像所做的更改，但是这次确保在执行更新时有`30`秒的延迟，这将给您的 Web 服务额外的时间在第二次更新运行之前启动：
 
-[PRE78]
+```
+docker service update --update-delay 30s --image swarm_web:latest test_swarm_web
+```
 
 1.  再次运行`docker ps`命令：
 
-[PRE79]
+```
+docker ps | awk '{print $1 "\t" $2 }'
+```
 
 请注意，在执行滚动更新后，容器现在再次运行`swarm_web:latest`图像：
 
-[PRE80]
+```
+CONTAINER         ID
+414e62f6eb92      swarm_web:latest
+352e12e9241c      swarm_web:latest
+d5e6ece8a9bf      postgres:latest
+```
 
 到目前为止，您应该看到使用 swarm 的好处，特别是当我们开始使用 Docker Compose 扩展我们的应用程序时。在这个练习中，我们演示了如何使用 Docker Compose 轻松部署和管理一组服务到您的 swarm，并使用滚动更新升级服务。
 
@@ -458,29 +790,41 @@ Swarm 将管理更新，以确保在将更新应用于其余图像之前，其�
 
 创建一个 Swarm `config`很简单，特别是如果你已经有一个现有的文件可以使用。以下代码展示了我们如何使用`config create`命令创建一个新的`config`，并提供我们的`config_name`和`configuration_file`的名称：
 
-[PRE81]
+```
+docker config create <config_name> <configuration_file> 
+```
 
 这个命令创建了一个作为 Swarm 一部分存储的`config`，并且可以在集群中的所有节点上使用。要查看系统和 Swarm 上可用的配置，可以使用`config`命令的`ls`选项运行：
 
-[PRE82]
+```
+docker config ls
+```
 
 您还可以使用`config inspect`命令查看配置的详细信息。确保使用`--pretty`选项，因为输出以长 JSON 格式呈现，如果没有该选项，几乎无法阅读：
 
-[PRE83]
+```
+docker config inspect --pretty <config_name>
+```
 
 在 Swarm 中使用 secrets 提供了一种安全的方式来创建和存储环境中的敏感信息，比如用户名和密码，以加密的方式存储，然后可以被我们的服务使用。
 
 要创建一个只包含单个值的 secret，比如用户名或密码，我们可以简单地从命令行创建 secret，将 secret 值传递到`secret create`命令中。以下示例命令提供了如何做到这一点的示例。记得在创建时给 secret 命名：
 
-[PRE84]
+```
+echo "<secret_password>" | docker secret create <secret_name> –
+```
 
 您可以从文件中创建一个秘密。例如，假设您想将证书文件设置为一个秘密。以下命令显示如何使用`secret create`命令来创建秘密，提供秘密的名称和您需要从中创建秘密的文件的名称：
 
-[PRE85]
+```
+docker secret create <secret_name> <secret_file> 
+```
 
 创建后，您的秘密将在您的集群上运行的所有节点上都可用。就像您能够查看您的`config`一样，您可以使用`secret ls`命令来查看集群中所有可用秘密的列表：
 
-[PRE86]
+```
+docker secret ls
+```
 
 我们可以看到，Swarm 为我们提供了灵活的选项，在我们的编排中实现配置和秘密，而不需要将其设置为我们的 Docker 镜像的一部分。
 
@@ -492,7 +836,11 @@ Swarm 将管理更新，以确保在将更新应用于其余图像之前，其�
 
 1.  目前，Web 服务正在使用 Django 开发 Web 服务器通过`runserver`命令来处理 Web 请求。NGINX 将无法将流量请求路由到这个开发服务器，而是需要将`gunicorn`应用程序安装到我们的 Django Web 服务上，以便通过 NGINX 路由流量。首先打开您的`requirements.txt`文件，使用文本编辑器添加应用程序，如下所示的第三行：
 
-[PRE87]
+```
+Django>=2.0,<3.0
+psycopg2>=2.7,<3.0
+gunicorn==19.9.0
+```
 
 注意
 
@@ -500,93 +848,202 @@ Gunicorn 是**Green Unicorn**的缩写，用作 Python 应用程序的**Web 服�
 
 1.  要将 Gunicorn 作为您的 Web 应用程序的一部分运行，请调整您的`docker-compose.yml`文件。使用文本编辑器打开`docker-compose.yml`文件，并将*第 13 行*更改为运行`gunicorn`应用程序，而不是 Django 的`manage.py runserver`命令。以下`gunicorn`命令通过其 WSGI 服务运行`chapter_nine` Django 项目，并绑定到 IP 地址和端口`0.0.0.0:8000`：
 
-[PRE88]
+```
+12     image: swarm_web:latest
+13     command: gunicorn chapter_nine.wsgi:application          --bind 0.0.0.0:8000
+14     volumes:
+```
 
 1.  重新构建您的 web 服务，以确保 Gunicorn 应用程序已安装在容器上并可运行。运行`docker-compose build`命令：
 
-[PRE89]
+```
+docker-compose build
+```
 
 1.  Gunicorn 也可以在没有 NGINX 代理的情况下运行，因此通过再次运行`stack deploy`命令来测试您所做的更改。如果您已经部署了服务，不用担心，您仍然可以再次运行此命令。它将简单地对您的 swarm 进行相关更改，并匹配您的`docker-compose.yml`中的更改：
 
-[PRE90]
+```
+docker stack deploy --compose-file docker-compose.yml test_swarm
+```
 
 该命令将返回以下输出：
 
-[PRE91]
+```
+Ignoring unsupported options: build
+Creating network test_swarm_default
+Creating service test_swarm_web
+Creating service test_swarm_db
+```
 
 1.  为确保更改已生效，请确保打开您的 web 浏览器，并验证 Django 测试页面仍然由您的 web 服务提供，然后再进行下一步。根据您的更改，页面应该仍然显示在`http://0.0.0.0:8000`。
 
 1.  要启动 NGINX 的实现，请再次打开`docker-compose.yml`文件，并将*第 16 行和第 17 行*更改为从原始`ports`命令中暴露端口`8000`：
 
-[PRE92]
+```
+10   web:
+11     build: .
+12     image: swarm_web:latest
+13     command: gunicorn chapter_nine.wsgi:application          --bind 0.0.0.0:8000
+14     volumes:
+15       - .:/application
+16     ports:
+17       - 8000:8000
+18     environment:
+19       - PGPASSWORD=docker
+20     deploy:
+21       replicas: 2
+22     depends_on:
+23       - db
+```
 
 1.  保持`docker-compose.yml`文件打开，将您的`nginx`服务添加到`compose`文件的末尾。现在，这里的所有信息对您来说应该都很熟悉。*第 25 行*提供了一个新的 NGINX 目录的位置，您将很快创建的`Dockerfile`，以及服务部署时要使用的镜像的名称。*第 27 行*和*第 28 行*将端口`1337`映射到端口`80`，*第 29 行*和*第 30 行*显示 NGINX 需要依赖`web`服务才能运行：
 
-[PRE93]
+```
+24   nginx:
+25     build: ./nginx
+26     image: swarm_nginx:latest
+27     ports:
+28       - 1337:80
+29     depends_on:
+30       - web
+```
 
 1.  现在，为服务设置 NGINX `Dockerfile`和配置。首先创建一个名为`nginx`的目录，如下命令所示：
 
-[PRE94]
+```
+mkdir nginx
+```
 
 1.  在`nginx`目录中创建一个新的`Dockerfile`，用文本编辑器打开文件，并添加这里显示的细节。`Dockerfile`是从 Docker Hub 上可用的最新`nginx`镜像创建的。它删除了*第 3 行*中的默认配置`nginx`文件，然后添加了一个您需要很快设置的新配置：
 
-[PRE95]
+```
+FROM nginx
+RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d
+```
 
 1.  创建`nginx.conf`文件，`Dockerfile`将使用它来创建您的新镜像。在`nginx`目录中创建一个名为`nginx.conf`的新文件，并使用文本编辑器添加以下配置细节：
 
-[PRE96]
+```
+upstream chapter_nine {
+    server web:8000;
+}
+server {
+    listen 80;
+    location / {
+        proxy_pass http://chapter_nine;
+        proxy_set_header X-Forwarded-For             $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host;
+        proxy_redirect off;
+    }
+}
+```
 
 如果您对 NGINX 配置不熟悉，上述细节只是在寻找对 web 服务的请求，并将请求路由到`chapter_nine` Django 应用程序。
 
 1.  现在所有细节都已就绪，请为在您的`docker-compose.yml`文件中设置的 NGINX 服务构建新的映像。运行以下命令构建映像：
 
-[PRE97]
+```
+docker-compose build
+```
 
 1.  再次运行`stack deploy`命令：
 
-[PRE98]
+```
+docker stack deploy --compose-file docker-compose.yml test_swarm
+```
 
 这次，您会注意到您的输出显示`test_swarm_nginx`服务已被创建并应该正在运行：
 
-[PRE99]
+```
+Creating network test_swarm_default
+Creating service test_swarm_db
+Creating service test_swarm_web
+Creating service test_swarm_nginx
+```
 
 1.  使用`stack ps`命令验证所有服务是否作为 swarm 的一部分运行：
 
-[PRE100]
+```
+docker stack ps test_swarm
+```
 
 结果输出已减少，仅显示了八列中的四列。您可以看到`test_swarm_nginx`服务现在正在运行：
 
-[PRE101]
+```
+NAME                  IMAGE                 NODE
+  DESIRED STATE
+test_swarm_nginx.1    swarm_nginx:latest    docker-desktop
+  Running
+test_swarm_web.1      swarm_web:latest      docker-desktop
+  Running
+test_swarm_db.1       postgres:latest       docker-desktop
+  Running
+test_swarm_web.2      swarm_web:latest      docker-desktop
+  Running
+```
 
 1.  为了证明请求正在通过 NGINX 代理路由，请使用端口`1337`而不是端口`8000`。确保仍然可以从您的 Web 浏览器中使用新的 URL `http://0.0.0.0:1337`提供网页。
 
 1.  这是对在 Swarm 上运行的服务的一个很好的补充，但它没有使用正确的配置管理功能。您之前在此练习中已经创建了一个 NGINX 配置。使用`config create`命令和新配置的名称以及要创建配置的文件来创建一个 Swarm 配置。运行以下命令从您的`nginx/nginx.conf`文件创建新配置：
 
-[PRE102]
+```
+docker config create nginx_config nginx/nginx.conf 
+```
 
 该命令的输出将为您提供创建的配置 ID：
 
-[PRE103]
+```
+u125x6f6lhv1x6u0aemlt5w2i
+```
 
 1.  Swarm 还提供了一种列出作为 Swarm 一部分创建的所有配置的方法，使用`config ls`命令。确保在上一步中已创建新的`nginx_config`文件，并运行以下命令：
 
-[PRE104]
+```
+docker config ls
+```
 
 `nginx_config`已在以下输出中创建：
 
-[PRE105]
+```
+ID           NAME           CREATED           UPDATED
+u125x6f6…    nginx_config   19 seconds ago    19 seconds ago
+```
 
 1.  使用`docker config inspect`命令查看您创建的配置的完整细节。运行以下命令并使用`--pretty`选项，以确保配置输出以可读形式显示：
 
-[PRE106]
+```
+docker config inspect --pretty nginx_config
+```
 
 输出应该看起来类似于您在这里看到的内容，显示了您刚刚创建的 NGINX 配置的细节：
 
-[PRE107]
+```
+ID:             u125x6f6lhv1x6u0aemlt5w2i
+Name:           nginx_config
+Created at:          2020-03-04 19:55:52.168746807 +0000 utc
+Updated at:          2020-03-04 19:55:52.168746807 +0000 utc
+Data:
+upstream chapter_nine {
+    server web:8000;
+}
+server {
+    listen 80;
+    location / {
+        proxy_pass http://chapter_nine;
+        proxy_set_header X-Forwarded-For             $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host;
+        proxy_redirect off;
+    }
+}
+```
 
 1.  由于您现在已经在 Swarm 中设置了配置，请确保配置不再内置到容器映像中。相反，它将在部署 Swarm 时提供。打开`nginx`目录中的`Dockerfile`并删除`Dockerfile`的第四行。现在它应该看起来类似于这里给出的细节：
 
-[PRE108]
+```
+FROM nginx:1.17.4-alpine
+RUN rm /etc/nginx/conf.d/default.conf
+```
 
 注意
 
@@ -594,57 +1051,129 @@ Gunicorn 是**Green Unicorn**的缩写，用作 Python 应用程序的**Web 服�
 
 1.  在这个练习的上一步中，对`nginx`的`Dockerfile`进行了更改，现在重新构建镜像以确保其是最新的：
 
-[PRE109]
+```
+docker-compose build
+```
 
 1.  用文本编辑器打开`docker-compose.yml`文件，更新`compose`文件，以便我们的`nginx`服务现在将使用新创建的 Swarm`config`。在`nginx`服务的底部，添加配置细节，使用你之前创建的`nginx_cof`配置的源名称。确保将其添加到运行的`nginx`服务中，以便容器可以使用它。然后，为文件设置一个单独的配置。即使你在之前的步骤中手动创建了它，当部署时你的 Swarm 也需要知道它。将以下内容添加到你的`docker-compose.yml`中：
 
-[PRE110]
+```
+25   nginx:
+26     build: ./nginx
+27     image: swarm_nginx:latest
+28     ports:
+29       - 1337:80
+30     depends_on:
+31       - web
+32     configs:
+33       - source: nginx_conf
+34         target: /etc/nginx/conf.d/nginx.conf
+35 
+36 configs:
+37   nginx_conf:
+38     file: nginx/nginx.conf
+```
 
 1.  再次部署你的 Swarm：
 
-[PRE111]
+```
+docker stack deploy --compose-file docker-compose.yml test_swarm
+```
 
 在下面的输出中，你现在应该看到一个额外的行，显示`Creating config test_swarm_nginx_conf`：
 
-[PRE112]
+```
+Creating network test_swarm_default
+Creating config test_swarm_nginx_conf
+Creating service test_swarm_db
+Creating service test_swarm_web
+Creating service test_swarm_nginx
+```
 
 1.  还有更多你可以做来利用 Swarm，一个尚未使用的额外功能是秘密功能。就像你在这个练习中之前创建配置一样，你可以使用类似的命令创建一个`secret`。这里显示的命令首先使用`echo`来输出你想要作为秘密值的密码，然后使用`secret create`命令，它使用这个输出来创建名为`pg_password`的秘密。运行以下命令来命名你的新秘密`pg_password`：
 
-[PRE113]
+```
+echo "docker" | docker secret create pg_password –
+```
 
 该命令将输出创建的秘密的 ID：
 
-[PRE114]
+```
+4i1cwxst1j9qoh2e6uq5fjb8c
+```
 
 1.  使用`secret ls`命令查看你的 Swarm 中的秘密。现在运行这个命令：
 
-[PRE115]
+```
+docker secret ls
+```
 
 你可以看到你的秘密已成功创建，名称为`pg_password`：
 
-[PRE116]
+```
+ID                          NAME           CREATED
+  UPDATED
+4i1cwxst1j9qoh2e6uq5fjb8c   pg_password    51 seconds ago
+  51 seconds ago
+```
 
 1.  现在，对您的`docker-compose.yml`文件进行相关更改。以前，您只需输入您想要为您的`postgres`用户设置的密码。如下面的代码所示，在这里，您将把环境变量指向您之前创建的秘密，作为`/run/secrets/pg_password`。这意味着它将搜索您的 Swarm 中可用的秘密，并分配存储在`pg_password`中的秘密。您还需要在`db`服务中引用秘密以允许其访问。使用文本编辑器打开文件，并对文件进行以下更改：
 
-[PRE117]
+```
+4   db:
+5     image: postgres
+6     ports:
+7       - 5432:5432
+8     environment:
+9       - POSTGRES_PASSWORD=/run/secrets/pg_password
+10    secrets:
+11      - pg_password
+```
 
 1.  `web`服务使用相同的秘密来访问 PostgreSQL 数据库。进入`docker-compose.yml`的`web`服务部分，并将*第 21 行*更改为以下内容，因为它现在将使用您创建的秘密：
 
-[PRE118]
+```
+20    environment:
+21       - PGPASSWORD=/run/secrets/pg_password
+22    deploy:
+```
 
 1.  最后，就像您对配置所做的那样，在`docker-compose.yml`的末尾定义秘密。在您的`compose`文件的末尾添加以下行：
 
-[PRE119]
+```
+41 secrets:
+42  pg_password:
+43    external: true
+```
 
 1.  在部署更改之前，您已经对`compose`文件进行了许多更改，因此您的`docker-compose.yml`文件应该与下面的代码块中显示的内容类似。您有三个服务正在运行，使用`db`、`web`和`nginx`服务设置，现在我们有一个`config`实例和一个`secret`实例：
 
 docker-compose.yml
 
-[PRE120]
+```
+version: '3.3'
+services:
+  db:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=/run/secrets/pg_password
+    secrets:
+      - pg_password
+  web:
+    build: .
+    image: swarm_web:latest
+```
 
 命令：gunicorn chapter_nine.wsgi:application --bind 0.0.0.0:8000
 
-[PRE121]
+```
+    volumes:
+      - .:/application
+    ports:
+      - 8000:8000
+```
 
 此步骤的完整代码可以在[`packt.live/3miUJD8`](https://packt.live/3miUJD8)找到。
 
@@ -654,11 +1183,19 @@ docker-compose.yml
 
 这是本练习中 Swarm 部署的最终运行：
 
-[PRE122]
+```
+docker stack deploy --compose-file docker-compose.yml test_swarm
+```
 
 1.  运行部署，并确保服务成功运行和部署：
 
-[PRE123]
+```
+Creating network test_swarm_default
+Creating config test_swarm_nginx_conf
+Creating service test_swarm_db
+Creating service test_swarm_web
+Creating service test_swarm_nginx
+```
 
 在这个练习中，您已经练习使用 Swarm 来部署一整套服务，使用您的`docker-compose.yml`文件，并让它们在几分钟内运行。本章的这一部分还演示了 Swarm 的一些额外功能，使用`config`和`secret`实例来帮助我们减少将服务移动到不同环境所需的工作量。现在您知道如何从命令行管理 Swarm，您可以在下一节中进一步探索 Swarm 集群管理，使用 Swarmpit 的 Web 界面。
 
@@ -676,7 +1213,9 @@ Swarmpit 是一个简单易用的安装 Docker 镜像，当在您的系统上运
 
 要在您的系统上运行安装程序以启动 Swarm，请执行以下`docker run`命令。通过这样做，您可以将容器命名为`swampit-installer`，并挂载容器卷到`/var/run/docker.sock`，以便它可以管理我们系统上的其他容器，使用`swarmpit/install:1.8`镜像：
 
-[PRE124]
+```
+docker run -it --rm   --name swarmpit-installer   --volume /var/run/docker.sock:/var/run/docker.sock   swarmpit/install:1.8
+```
 
 安装程序将设置一个带有数据库、代理、Web 应用程序和网络的 Swarm，并引导您设置一个管理用户，以便首次登录到界面。一旦您登录到 Web 应用程序，界面就直观且易于导航。
 
@@ -688,7 +1227,9 @@ Swarmpit 是一个简单易用的安装 Docker 镜像，当在您的系统上运
 
 1.  这并不是完全必要的，但如果您已经停止了`test_swarm`堆栈的运行，请再次启动它。这将为您提供一些额外的服务，以便从 Swarmpit 进行监视：
 
-[PRE125]
+```
+docker stack deploy --compose-file docker-compose.yml test_swarm
+```
 
 注意
 
@@ -696,27 +1237,67 @@ Swarmpit 是一个简单易用的安装 Docker 镜像，当在您的系统上运
 
 1.  运行以下`docker run`命令：
 
-[PRE126]
+```
+docker run -it --rm   --name swarmpit-installer   --volume /var/run/docker.sock:/var/run/docker.sock   swarmpit/install:1.8
+```
 
 它从`swarmpit`存储库中提取`install:1.8`镜像，然后通过设置环境详细信息的过程，允许用户对堆栈名称、端口、管理员用户名和密码进行更改。然后创建运行应用程序所需的相关服务：
 
-[PRE127]
+```
+_____      ____ _ _ __ _ __ ___  _ __ (_) |_ 
+/ __\ \ /\ / / _` | '__| '_ ` _ \| '_ \| | __|
+\__ \\ V  V / (_| | |  | | | | | | |_) | | |_ 
+|___/ \_/\_/ \__,_|_|  |_| |_| |_| .__/|_|\__|
+                                 |_|          
+Welcome to Swarmpit
+Version: 1.8
+Branch: 1.8
+…
+Application setup
+Enter stack name [swarmpit]: 
+Enter application port [888]: 
+Enter database volume driver [local]: 
+Enter admin username [admin]: 
+Enter admin password (min 8 characters long): ****
+DONE.
+Application deployment
+Creating network swarmpit_net
+Creating service swarmpit_influxdb
+Creating service swarmpit_agent
+Creating service swarmpit_app
+Creating service swarmpit_db
+DONE.
+```
 
 1.  在命令行上运行`stack ls`命令，确保您已经将 Swarmpit swarm 部署到您的节点上：
 
-[PRE128]
+```
+docker stack ls
+```
 
 以下输出确认了 Swarmpit 已部署到我们的节点上：
 
-[PRE129]
+```
+NAME               SERVICES         ORCHESTRATOR
+swarmpit           4                Swarm
+test_swarm         3                Swarm
+```
 
 1.  使用`service ls`命令验证 Swarmpit 所需的服务是否正在运行：
 
-[PRE130]
+```
+docker service ls | grep swarmpit
+```
 
 为了清晰起见，这里显示的输出仅显示了前四列。输出还显示每个服务的`REPLICAS`值为`1/1`：
 
-[PRE131]
+```
+ID              NAME                 MODE          REPLICAS
+vi2qbwq5y9c6    swarmpit_agent       global        1/1
+4tpomyfw93wy    swarmpit_app         replicated    1/1
+nuxi5egfa3my    swarmpit_db          replicated    1/1
+do77ey8wz49a    swarmpit_influxdb    replicated    1/1
+```
 
 现在是时候登录到 Swarmpit web 界面了。打开您的网络浏览器，使用`http://0.0.0.0:888`打开 Swarmpit 登录页面，并输入您在安装过程中设置的管理员用户名和密码：
 
@@ -772,7 +1353,14 @@ Swarmpit 是一个简单易用的安装 Docker 镜像，当在您的系统上运
 
 您的运行服务应该类似于此处显示的输出：
 
-[PRE132]
+```
+ID       NAME                MODE         REPLICAS
+  IMAGE
+k6kh…    activity_swarm_db   replicated   1/1
+  postgres:latest
+copa…    activity_swarm_web  replicated   1/1
+  activity_web:latest  
+```
 
 注意
 

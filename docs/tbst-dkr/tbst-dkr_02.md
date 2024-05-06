@@ -46,11 +46,17 @@ Docker 需要 64 位安装，无论 Ubuntu 版本如何。内核必须至少为 
 
 让我们使用以下命令检查我们的内核版本：
 
-[PRE0]
+```
+$ uname -r
+
+```
 
 输出是 3.13.x 的内核版本，这很好：
 
-[PRE1]
+```
+3.13.0-74-generic
+
+```
 
 ## 更新软件包信息
 
@@ -58,11 +64,17 @@ Docker 需要 64 位安装，无论 Ubuntu 版本如何。内核必须至少为 
 
 1.  Docker 的 APT 存储库包含 Docker 1.7.x 或更高版本。要设置 APT 以使用新存储库中的软件包：
 
-[PRE2]
+```
+$ sudo apt-get update
+
+```
 
 1.  运行以下命令以确保 APT 使用 HTTPS 方法并安装 CA 证书：
 
-[PRE3]
+```
+$ sudo apt-get install apt-transport-https ca-certificates
+
+```
 
 `apt-transport-https`软件包使我们能够在`/etc/apt/sources.list`中使用`deb https://foo distro main`行，以便使用`libapt-pkg`库的软件包管理器可以访问通过 HTTPS 可访问的源中的元数据和软件包。
 
@@ -72,17 +84,30 @@ Docker 需要 64 位安装，无论 Ubuntu 版本如何。内核必须至少为 
 
 **GNU 隐私保护**（称为**GPG**或**GnuPG)**是一款符合 OpenPGP（RFC4880）标准的免费加密软件：
 
-[PRE4]
+```
+$ sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+
+```
 
 输出将类似于以下清单：
 
-[PRE5]
+```
+Executing: gpg --ignore-time-conflict --no-options --no-default-keyring --homedir /tmp/tmp.SaGDv5OvNN --no-auto-check-trustdb --trust-model always --keyring /etc/apt/trusted.gpg --primary-keyring /etc/apt/trusted.gpg --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D 
+gpg: requesting key 2C52609D from hkp server p80.pool.sks-keyservers.net 
+gpg: key 2C52609D: public key "Docker Release Tool (releasedocker) <docker@docker.com>" imported 
+gpg: Total number processed: 1 
+gpg:               imported: 1  (RSA: 1)
+
+```
 
 ## 故障排除
 
 如果您发现`sks-keyservers`不可用，可以尝试以下命令：
 
-[PRE6]
+```
+$ sudo apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+
+```
 
 ## 为 Docker 添加新的软件包源
 
@@ -92,33 +117,75 @@ Docker 需要 64 位安装，无论 Ubuntu 版本如何。内核必须至少为 
 
 1.  打开`/etc/apt/sources.list.d/docker.list`文件，并使用以下条目进行更新：
 
-[PRE7]
+```
+deb https://apt.dockerproject.org/repo ubuntu-trusty main
+
+```
 
 ## 更新 Ubuntu 软件包
 
 在添加 Docker 存储库后，可以更新 Ubuntu 软件包，如下所示：
 
-[PRE8]
+```
+$ sudo apt-get update
+
+```
 
 ## 安装 linux-image-extra
 
 对于 Ubuntu Trusty，建议安装`linux-image-extra`内核包；`linux-image-extra`包允许使用 AUFS 存储驱动程序：
 
-[PRE9]
+```
+$ sudo apt-get install linux-image-extra-$(uname -r)
+
+```
 
 输出将类似于以下清单：
 
-[PRE10]
+```
+Reading package lists... Done 
+Building dependency tree        
+Reading state information... Done 
+The following extra packages will be installed: 
+  crda iw libnl-3-200 libnl-genl-3-200 wireless-regdb 
+The following NEW packages will be installed: 
+  crda iw libnl-3-200 libnl-genl-3-200 linux-image-extra-3.13.0-74-generic 
+  wireless-regdb 
+0 upgraded, 6 newly installed, 0 to remove and 70 not upgraded. 
+Need to get 36.9 MB of archives. 
+After this operation, 152 MB of additional disk space will be used. 
+Do you want to continue? [Y/n] Y 
+Get:1 http://ap-northeast-1.ec2.archive.ubuntu.com/ubuntu/ trusty/main libnl-3-200 amd64 3.2.21-1 44 ..
+Updating /boot/grub/menu.lst ... done 
+run-parts: executing /etc/kernel/postinst.d/zz-update-grub 3.13.0-74-generic /boot/vmlinuz-3.13.0-74-generic 
+Generating grub configuration file ... 
+Found linux image: /boot/vmlinuz-3.13.0-74-generic 
+Found initrd image: /boot/initrd.img-3.13.0-74-generic 
+done 
+Processing triggers for libc-bin (2.19-0ubuntu6.6) ...
+
+```
 
 ## 可选 - 安装 AppArmor
 
 如果尚未安装，使用以下命令安装 AppArmor：
 
-[PRE11]
+```
+$ apt-get install apparmor
+
+```
 
 输出将类似于以下清单：
 
-[PRE12]
+```
+sudo: unable to resolve host ip-172-30-0-227 
+Reading package lists... Done 
+Building dependency tree        
+Reading state information... Done 
+apparmor is already the newest version. 
+0 upgraded, 0 newly installed, 0 to remove and 70 not upgraded.
+
+```
 
 ## Docker 安装
 
@@ -126,23 +193,46 @@ Docker 需要 64 位安装，无论 Ubuntu 版本如何。内核必须至少为 
 
 1.  更新 APT 软件包索引：
 
-[PRE13]
+```
+$ sudo apt-get update
+
+```
 
 1.  安装 Docker Engine：
 
-[PRE14]
+```
+$ sudo apt-get install docker-engine
+
+```
 
 1.  启动 Docker 守护程序：
 
-[PRE15]
+```
+$ sudo service docker start
+
+```
 
 1.  验证 Docker 是否正确安装：
 
-[PRE16]
+```
+$ sudo docker run hello-world
+
+```
 
 1.  输出将如下所示：
 
-[PRE17]
+```
+Latest: Pulling from library/hello-world 
+        03f4658f8b78: Pull complete  
+        a3ed95caeb02: Pull complete  
+        Digest: sha256:8be990ef2aeb16dbcb9271ddfe2610fa6658d13f6dfb8b
+        c72074cc1ca36966a7 
+        Status: Downloaded newer image for hello-world:latest 
+        Hello from Docker. 
+        This message shows that your installation appears to be working 
+        correctly.
+
+```
 
 # 在 Red Hat Linux 上安装 Docker
 
@@ -154,63 +244,147 @@ Docker 在 Red Hat Enterprise Linux 7.x 上受支持。本节概述了使用 Doc
 
 可以使用以下命令检查 Linux 内核版本：
 
-[PRE18]
+```
+$ uname -r
+
+```
 
 在我们的情况下，输出是内核版本 3.10.x，这将很好地工作：
 
-[PRE19]
+```
+3.10.0-327.el7.x86 _64
+
+```
 
 ## 更新 YUM 软件包
 
 可以使用以下命令更新 YUM 存储库：
 
-[PRE20]
+```
+$ sudo yum update
+
+```
 
 给出输出列表；确保最后显示`Complete!`，如下所示：
 
-[PRE21]
+```
+Loaded plugins: amazon-id, rhui-lb, search-disabled-repos 
+rhui-REGION-client-config-server-7       | 2.9 kB   
+.... 
+Running transaction check 
+Running transaction test 
+Transaction test succeeded 
+Running transaction 
+  Installing : linux-firmware-20150904-43.git6ebf5d5.el7.noarch      1/138  
+  Updating   : tzdata-2016c-1.el7.noarch                             2/138  
+  ....                              
+Complete!
+
+```
 
 ## 添加 YUM 存储库
 
 让我们将 Docker 存储库添加到 YUM 存储库列表中：
 
-[PRE22]
+```
+$ sudo tee /etc/yum.repos.d/docker.repo <<-EOF 
+[dockerrepo] 
+name=Docker Repository 
+baseurl=https://yum.dockerproject.org/repo/main/centos/7 
+enabled=1 
+gpgcheck=1 
+gpgkey=https://yum.dockerproject.org/gpg 
+EOF
+
+```
 
 ## 安装 Docker 软件包
 
 Docker 引擎可以使用 YUM 存储库进行安装，如下所示：
 
-[PRE23]
+```
+$ sudo yum install docker-engine
+
+```
 
 ## 启动 Docker 服务
 
 可以使用以下命令启动 Docker 服务：
 
-[PRE24]
+```
+$ sudo service docker start
+Redirecting to /bin/systemctl start docker.service
+
+```
 
 ## 测试 Docker 安装
 
 使用以下命令列出 Docker 引擎中的所有进程可以验证 Docker 服务的安装是否成功：
 
-[PRE25]
+```
+$ sudo docker ps -a
+
+```
 
 以下是前述命令的输出：
 
-[PRE26]
+```
+CONTAINER   ID   IMAGE   COMMAND   CREATED   STATUS   PORTS   NAMES
+
+```
 
 检查 Docker 版本以确保它是最新的：
 
-[PRE27]
+```
+$ docker --version
+Docker version 1.11.0, build 4dc5990
+
+```
 
 ## 检查安装参数
 
 让我们运行 Docker 信息以查看默认安装参数：
 
-[PRE28]
+```
+$ sudo docker info
+
+```
 
 输出列表如下；请注意`存储驱动程序`为`devicemapper`：
 
-[PRE29]
+```
+Containers: 0 
+ Running: 0 
+ Paused: 0 
+ Stopped: 0 
+Images: 0 
+Server Version: 1.11.0 
+Storage Driver: devicemapper 
+ Pool Name: docker-202:2-33659684-pool 
+ Pool Blocksize: 65.54 kB 
+ Base Device Size: 10.74 GB 
+ Backing Filesystem: xfs 
+ Data file: /dev/loop0 
+ Metadata file: /dev/loop1 
+... 
+Cgroup Driver: cgroupfs 
+Plugins:  
+ Volume: local 
+ Network: null host bridge 
+Kernel Version: 3.10.0-327.el7.x86_64 
+Operating System: Red Hat Enterprise Linux Server 7.2 (Maipo) 
+OSType: linux 
+Architecture: x86_64 
+CPUs: 1 
+Total Memory: 991.7 MiB 
+Name: ip-172-30-0-16.ap-northeast-1.compute.internal 
+ID: VW2U:FFSB:A2VP:DL5I:QEUF:JY6D:4SSC:LG75:IPKU:HTOK:63HD:7X5H 
+Docker Root Dir: /var/lib/docker 
+Debug mode (client): false 
+Debug mode (server): false 
+Registry: https://index.docker.io/v1/
+
+```
 
 ## 故障排除提示
 
@@ -236,7 +410,10 @@ Docker 引擎可以使用 YUM 存储库进行安装，如下所示：
 
 SSH 进入实例并按照以下步骤进行安装：
 
-[PRE30]
+```
+$ ssh -i "ubuntu-1404-1.pem" centos@54.238.154.134
+
+```
 
 ![在 AWS 上部署 CentOS VM 来运行 Docker 容器](img/image_02_005.jpg)
 
@@ -244,11 +421,17 @@ SSH 进入实例并按照以下步骤进行安装：
 
 可以使用以下命令检查 Linux 操作系统的内核版本：
 
-[PRE31]
+```
+$ uname -r
+
+```
 
 在我们的情况下，输出是内核版本 3.10.x，这将很好地工作：
 
-[PRE32]
+```
+3.10.0-327.10.1.el7.x86_64
+
+```
 
 注意它与 Red Hat 内核版本 3.10.0-327.el7.x86_64 有多相似。
 
@@ -256,47 +439,121 @@ SSH 进入实例并按照以下步骤进行安装：
 
 YUM 包和存储库可以更新，如下所示：
 
-[PRE33]
+```
+$ sudo yum update 
+Output listing is given, make sure it shows complete at the end 
+
+Loaded plugins: fastestmirror 
+base                                                     | 3.6 kB     00:00      
+extras                                                   | 3.4 kB     00:00      
+updates                                                  | 3.4 kB     00:00      
+(1/4): base/7/x86_64/group_gz                            | 155 kB   00:00      
+(2/4): extras/7/x86_64/primary_db                        | 117 kB   00:00      
+(3/4): updates/7/x86_64/primary_db                       | 4.1 MB   00:00      
+(4/4): base/7/x86_64/primary_db                          | 5.3 MB   00:00      
+Determining fastest mirrors 
+ * base: ftp.riken.jp 
+ * extras: ftp.riken.jp 
+ * updates: ftp.riken.jp 
+Resolving Dependencies 
+--> Running transaction check 
+---> Package bind-libs-lite.x86_64 32:9.9.4-29.el7_2.2 will be updated 
+---> Package bind-libs-lite.x86_64 32:9.9.4-29.el7_2.3 will be an update 
+---> Package bind-license.noarch 32:9.9.4-29.el7_2.2 will be updated 
+---> Package bind-license.noarch 32:9.9.4-29.el7_2.3 will be an update 
+.... 
+  teamd.x86_64 0:1.17-6.el7_2                                                    
+  tuned.noarch 0:2.5.1-4.el7_2.3                                                 
+  tzdata.noarch 0:2016c-1.el7                                                    
+  util-linux.x86_64 0:2.23.2-26.el7_2.2                                          
+Complete!
+
+```
 
 ## 添加 YUM 存储库
 
 让我们将 Docker 存储库添加到 YUM 存储库中：
 
-[PRE34]
+```
+$ sudo tee /etc/yum.repos.d/docker.repo <<-EOF 
+[dockerrepo] 
+name=Docker Repository 
+baseurl=https://yum.dockerproject.org/repo/main/centos/7 
+enabled=1 
+gpgcheck=1 
+gpgkey=https://yum.dockerproject.org/gpg 
+EOF
+
+```
 
 ## 安装 Docker 包
 
 以下命令可用于使用 YUM 存储库安装 Docker Engine：
 
-[PRE35]
+```
+$ sudo yum install docker-engine
+
+```
 
 ## 启动 Docker 服务
 
 Docker 服务可以通过以下方式启动：
 
-[PRE36]
+```
+$ sudo service docker start
+Redirecting to /bin/systemctl start docker.service
+
+```
 
 ## 测试 Docker 安装
 
-[PRE37]
+```
+$ sudo docker ps -a
+
+```
 
 输出：
 
-[PRE38]
+```
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+
+```
 
 检查 Docker 版本以确保它是最新的：
 
-[PRE39]
+```
+$ docker --version
+Docker version 1.11.0, build 4dc5990
+
+```
 
 ## 检查安装参数
 
 让我们运行 Docker 信息来查看默认安装参数：
 
-[PRE40]
+```
+$ sudo docker info
+
+```
 
 输出如下；请注意`Storage Driver`是`devicemapper`：
 
-[PRE41]
+```
+Server Version: 1.11.0 
+Storage Driver: devicemapper 
+ ... 
+Kernel Version: 3.10.0-327.10.1.el7.x86_64 
+Operating System: CentOS Linux 7 (Core) 
+OSType: linux 
+Architecture: x86_64 
+CPUs: 1 
+Total Memory: 991.7 MiB 
+Name: ip-172-30-0-236 
+ID: EG2K:G4ZR:YHJ4:APYL:WV3S:EODM:MHKT:UVPE:A2BE:NONM:A7E2:LNED 
+Docker Root Dir: /var/lib/docker 
+Registry: https://index.docker.io/v1/
+
+```
 
 # 在 CoreOS 上安装 Docker
 
@@ -330,7 +587,48 @@ CoreOS 可以在各种平台上运行，包括 Vagrant、Amazon EC2、QEMU/KVM�
 
 这些参数可以在默认模板中设置如下：
 
-[PRE42]
+```
+{ 
+  "Parameters": { 
+    "InstanceType": { 
+      "Description": "EC2 PV instance type (m3.medium, etc).", 
+      "Type": "String", 
+      "Default": "m3.medium", 
+      "ConstraintDescription": "Must be a valid EC2 PV instance type." 
+    }, 
+    "ClusterSize": { 
+      "Default": "3", 
+      "MinValue": "3", 
+      "MaxValue": "12", 
+      "Description": "Number of nodes in cluster (3-12).", 
+      "Type": "Number" 
+    }, 
+    "DiscoveryURL": { 
+      "Description": "An unique etcd cluster discovery URL. Grab a new token from https://discovery.etcd.io/new?size=<your cluster size>", 
+      "Type": "String" 
+    }, 
+    "AdvertisedIPAddress": { 
+      "Description": "Use 'private' if your etcd cluster is within one region or 'public' if it spans regions or cloud providers.", 
+      "Default": "private", 
+      "AllowedValues": [ 
+        "private", 
+        "public" 
+      ], 
+      "Type": "String" 
+    }, 
+    "AllowSSHFrom": { 
+      "Description": "The net block (CIDR) that SSH is available to.", 
+      "Default": "0.0.0.0/0", 
+      "Type": "String" 
+    }, 
+    "KeyPair": { 
+      "Description": "The name of an EC2 Key Pair to allow SSH access to the instance.", 
+      "Type": "String" 
+    } 
+  } 
+} 
+
+```
 
 以下步骤将提供在 AWS 上使用截图进行 CoreOS 安装的完整步骤：
 
@@ -352,7 +650,11 @@ CoreOS 可以在各种平台上运行，包括 Vagrant、Amazon EC2、QEMU/KVM�
 
 SSH 进入实例并检查 Docker 版本：
 
-[PRE43]
+```
+core@ip-10-184-155-153 ~ $ docker --version
+Docker version 1.9.1, build 9894698
+
+```
 
 # 在 Fedora 上安装 Docker
 
@@ -362,41 +664,102 @@ Docker 支持 Fedora 22 和 23 版本。以下是在 Fedora 23 上安装 Docker 
 
 Docker 需要 64 位安装，无论 Fedora 版本如何。此外，内核版本应至少为 3.10。使用以下命令在安装之前检查内核版本：
 
-[PRE44]
+```
+$ uname -r
+4.4.7-300.fc23.x86_64
+Switch to root user
+[os@osboxes ~]# su -
+Password:
+[root@vkohli ~]#
+
+```
 
 ## 使用 DNF 安装
 
 使用以下命令更新现有的 DNF 软件包：
 
-[PRE45]
+```
+$ sudo dnf update
+
+```
 
 ## 添加到 YUM 存储库
 
 让我们将 Docker 存储库添加到 YUM 存储库中：
 
-[PRE46]
+```
+$ sudo tee /etc/yum.repos.d/docker.repo <<-'EOF' 
+> [dockerrepo] 
+> name=Docker Repository 
+> baseurl=https://yum.dockerproject.org/repo/main/fedora/$releasever/ 
+> enabled=1 
+> gpgcheck=1 
+> gpgkey=https://yum.dockerproject.org/gpg 
+> EOF 
+[dockerrepo] 
+name=Docker Repository 
+baseurl=https://yum.dockerproject.org/repo/main/fedora/$releasever/ 
+enabled=1 
+gpgcheck=1 
+gpgkey=https://yum.dockerproject.org/gpg
+
+```
 
 ## 安装 Docker 软件包
 
 可以使用 DNF 软件包安装 Docker 引擎：
 
-[PRE47]
+```
+$ sudo dnf install docker-engine
+
+```
 
 输出将类似于以下列表（此列表已被截断）：
 
-[PRE48]
+```
+Docker Repository                                32 kB/s | 7.8 kB     00:00 
+Last metadata expiration check: 0:00:01 ago on Thu Apr 21 15:45:25 2016\. 
+Dependencies resolved. 
+Install  7 Packages 
+... 
+Running transaction test 
+Transaction test succeeded. 
+Running transaction 
+  Installing: python-IPy-0.81-13.fc23.noarch                                                                     .... 
+Installed: 
+... 
+Complete!
+
+```
 
 使用`systemctl`启动 Docker 服务：
 
-[PRE49]
+```
+$ sudo systemctl start docker
+
+```
 
 使用 Docker 的 hello-world 示例来验证 Docker 是否成功安装：
 
-[PRE50]
+```
+[root@osboxes ~]# docker run hello-world
+
+```
 
 输出将类似于以下列表：
 
-[PRE51]
+```
+Unable to find image 'hello-world:last' locally 
+latest: Pulling from library/hello-world 
+03f4658f8b78: Pull complete 
+a3ed95caeb02: Pull complete 
+Digest: sha256:8be990ef2aeb16dbcb9271ddfe2610fa6658d13f6dfb8bc72074cc1ca36966a7 
+Status: Downloaded newer image for hello-world:latest 
+
+Hello from Docker. 
+This message shows that your installation appears to be working correctly.
+
+```
 
 为了生成这条消息，Docker 采取了以下步骤：
 
@@ -410,7 +773,10 @@ Docker 需要 64 位安装，无论 Fedora 版本如何。此外，内核版本�
 
 要尝试更雄心勃勃的事情，您可以使用以下命令运行 Ubuntu 容器：
 
-[PRE52]
+```
+$ docker run -it ubuntu bash
+
+```
 
 通过免费的 Docker Hub 帐户[`hub.docker.com`](https://hub.docker.com)共享图像，自动化工作流程等。
 
@@ -420,37 +786,75 @@ Docker 需要 64 位安装，无论 Fedora 版本如何。此外，内核版本�
 
 更新您的 DNF 包，如下所示：
 
-[PRE53]
+```
+$ sudo dnf update
+
+```
 
 ## 运行 Docker 安装脚本
 
 Docker 安装也可以通过执行 shell 脚本并从官方 Docker 网站获取来快速简便地完成：
 
-[PRE54]
+```
+$ curl -fsSL https://get.docker.com/ | sh
++ sh -c 'sleep 3; dnf -y -q install docker-engine'
+
+```
 
 启动 Docker 守护程序：
 
-[PRE55]
+```
+$ sudo systemctl start docker
+
+```
 
 Docker 运行`hello-world`：
 
-[PRE56]
+```
+$ sudo docker run hello-world
+
+```
 
 要创建 Docker 组并添加用户，请按照以下步骤进行操作：
 
-[PRE57]
+```
+$ sudo groupadd docker
+$ sudo usermod -aG docker your_username
+
+```
 
 注销并使用用户登录以确保您的用户已成功创建：
 
-[PRE58]
+```
+$ docker run hello-world
+
+```
 
 要卸载 Docker，请按照以下步骤进行操作：
 
-[PRE59]
+```
+# sudo dnf -y remove docker-engine.x86_64
+
+```
 
 上述命令的截断输出如下所示：
 
-[PRE60]
+```
+Dependencies resolved. 
+Transaction Summary 
+================================================================ 
+Remove  7 Packages 
+Installed size: 57 M 
+Running transaction check 
+Transaction check succeeded. 
+Running transaction test 
+Transaction test succeeded. 
+Running transaction 
+... 
+Complete! 
+[root@osboxes ~]# rm -rf /var/lib/docker
+
+```
 
 # 在 SUSE Linux 上安装 Docker
 
@@ -472,11 +876,23 @@ Docker 运行`hello-world`：
 
 VM 启动后，请从终端登录到 VM：
 
-[PRE61]
+```
+$ ssh -i "ubuntu-1404-1.pem" ec2-user@54.199.222.91
+
+```
 
 截断的输出如下所示：
 
-[PRE62]
+```
+The authenticity of host '54.199.222.91 (54.199.222.91)' can't be established. 
+... 
+Management and Config: https://www.suse.com/suse-in-the-cloud-basics 
+Documentation: http://www.suse.com/documentation/sles12/ 
+Forum: https://forums.suse.com/forumdisplay.php?93-SUSE-Public-Cloud 
+Have a lot of fun...  
+ec2-user@ip-172-30-0-104:~>
+
+```
 
 由于我们已经启动了 VM，让我们专注于安装 docker。以下图表概述了在 SUSE Linux 上安装 docker 的步骤：
 
@@ -486,7 +902,10 @@ VM 启动后，请从终端登录到 VM：
 
 内核版本应至少为 3.10。在继续安装之前，请使用以下命令检查内核版本：
 
-[PRE63]
+```
+$ uname -r
+
+```
 
 ## 添加 Containers-Module
 
@@ -496,37 +915,75 @@ VM 启动后，请从终端登录到 VM：
 
 执行以下命令：
 
-[PRE64]
+```
+ec2-user@ip-172-30-0-104:~> sudo SUSEConnect -p sle-module-containers/12/x86_64 -r ''
+
+```
 
 输出将类似于此：
 
-[PRE65]
+```
+Registered sle-module-containers 12 x86_64
+To server: https://smt-ec2.susecloud.net
+ec2-user@ip-172-30-0-104:~>
+
+```
 
 ## 安装 Docker
 
 执行以下命令：
 
-[PRE66]
+```
+ec2-user@ip-172-30-0-104:~> sudo zypper in Docker
+
+```
 
 截断的输出如下所示：
 
-[PRE67]
+```
+... 
+ (2/2) Installing: docker-1.10.3-66.1 ...........................................................[done] 
+Additional rpm output: 
+creating group docker... 
+Updating /etc/sysconfig/docker...
+
+```
 
 ## 启动 Docker 服务
 
 Docker 服务可以启动，如下所示：
 
-[PRE68]
+```
+ec2-user@ip-172-30-0-104:~> sudo systemctl start docker
+
+```
 
 ## 检查 Docker 安装
 
 执行 Docker 运行，如下所示，以测试安装：
 
-[PRE69]
+```
+ec2-user@ip-172-30-0-104:~> sudo docker run hello-world
+
+```
 
 输出将类似于这样：
 
-[PRE70]
+```
+Unable to find image 'hello-world:latest' locally 
+latest: Pulling from library/hello-world 
+4276590986f6: Pull complete  
+a3ed95caeb02: Pull complete  
+Digest: sha256:4f32210e234b4ad5cac92efacc0a3d602b02476c754f13d517e1ada048e5a8ba 
+Status: Downloaded newer image for hello-world:latest 
+Hello from Docker. 
+This message shows that your installation appears to be working correctly. 
+.... 
+For more examples and ideas, visit: 
+ https://docs.docker.com/engine/userguide/ 
+ec2-user@ip-172-30-0-104:~>
+
+```
 
 ## 故障排除
 

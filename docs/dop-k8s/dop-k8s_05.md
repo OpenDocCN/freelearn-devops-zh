@@ -36,23 +36,79 @@ Veth 总是成对出现，一个在网络命名空间中，另一个在桥接中
 
 让我们仔细看看。在以下示例中，我们将使用 minikube 节点作为 docker 主机。首先，我们必须使用`minikube ssh`来 ssh 进入节点，因为我们还没有使用 Kubernetes。进入 minikube 节点后，让我们启动一个容器与我们进行交互：
 
-[PRE0]
+```
+// launch a busybox container with `top` command, also, expose container port 8080 to host port 8000.
+# docker run -d -p 8000:8080 --name=busybox busybox top
+737e4d87ba86633f39b4e541f15cd077d688a1c8bfb83156d38566fc5c81f469 
+```
 
 让我们看看容器内部的出站流量实现。`docker exec <container_name or container_id>`可以在运行中的容器中运行命令。让我们使用`ip link list`列出所有接口：
 
-[PRE1]
+```
+// show all the network interfaces in busybox container
+// docker exec <container_name> <command>
+# docker exec busybox ip link list
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1
+ link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: sit0@NONE: <NOARP> mtu 1480 qdisc noop qlen 1
+ link/sit 0.0.0.0 brd 0.0.0.0
+53**: **eth0@if54**: <BROADCAST,MULTICAST,UP,LOWER_UP,M-DOWN> 
+    mtu 1500 qdisc noqueue
+ link/ether 02:42:ac:11:00:07 brd ff:ff:ff:ff:ff:ff  
+```
 
 我们可以看到`busybox`容器内有三个接口。其中一个是 ID 为`53`的接口，名称为`eth0@if54`。`if`后面的数字是配对中的另一个接口 ID。在这种情况下，配对 ID 是`54`。如果我们在主机上运行相同的命令，我们可以看到主机中的 veth 指向容器内的`eth0`。
 
-[PRE2]
+```
+// show all the network interfaces from the host
+# ip link list
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue  
+   state UNKNOWN mode DEFAULT group default qlen 1
+ link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc 
+   pfifo_fast state UP mode DEFAULT group default qlen  
+   1000
+ link/ether 08:00:27:ca:fd:37 brd ff:ff:ff:ff:ff:ff
+...
+54**: **vethfeec36a@if53**: <BROADCAST,MULTICAST,UP,LOWER_UP> 
+    mtu 1500 qdisc noqueue master docker0 state UP mode  
+    DEFAULT group default
+ link/ether ce:25:25:9e:6c:07 brd ff:ff:ff:ff:ff:ff link-netnsid 5  
+```
 
 主机上有一个名为`vethfeec36a@if53`的 veth**。**它与容器网络命名空间中的`eth0@if54`配对。veth 54 连接到`docker0`桥接口，并最终通过 eth0 访问互联网。如果我们查看 iptables 规则，我们可以找到 Docker 为出站流量创建的伪装规则（也称为 SNAT），这将使容器可以访问互联网：
 
-[PRE3]
+```
+// list iptables nat rules. Showing only POSTROUTING rules which allows packets to be altered before they leave the host.
+# sudo iptables -t nat -nL POSTROUTING
+Chain POSTROUTING (policy ACCEPT)
+target     prot opt source               destination
+...
+MASQUERADE  all  --  172.17.0.0/16        0.0.0.0/0
+...  
+```
 
 另一方面，对于入站流量，Docker 在预路由上创建自定义过滤器链，并动态创建`DOCKER`过滤器链中的转发规则。如果我们暴露一个容器端口`8080`并将其映射到主机端口`8000`，我们可以看到我们正在监听任何 IP 地址（`0.0.0.0/0`）的端口`8000`，然后将其路由到容器端口`8080`：
 
-[PRE4]
+```
+// list iptables nat rules
+# sudo iptables -t nat -nL
+Chain PREROUTING (policy ACCEPT)
+target     prot opt source               destination
+...
+DOCKER     all  --  0.0.0.0/0            0.0.0.0/0            ADDRTYPE match dst-type LOCAL
+...
+Chain OUTPUT (policy ACCEPT)
+target     prot opt source               destination
+DOCKER     all  --  0.0.0.0/0           !127.0.0.0/8          ADDRTYPE match dst-type LOCAL
+...
+Chain DOCKER (2 references)
+target     prot opt source               destination
+RETURN     all  --  0.0.0.0/0            0.0.0.0/0
+...
+DNAT       tcp  --  0.0.0.0/0            0.0.0.0/0            tcp dpt:8000 to:172.17.0.7:8080
+...  
+```
 
 现在我们知道数据包如何进出容器。让我们看看 pod 中的容器如何相互通信。
 
@@ -60,19 +116,59 @@ Veth 总是成对出现，一个在网络命名空间中，另一个在桥接中
 
 Kubernetes 中的 Pod 具有自己的真实 IP 地址。Pod 中的容器共享网络命名空间，因此它们将彼此视为*localhost*。这是默认情况下由**网络容器**实现的，它充当桥接口以为 pod 中的每个容器分发流量。让我们看看以下示例中的工作原理。让我们使用第三章中的第一个示例，*开始使用 Kubernetes*，其中包括一个 pod 中的两个容器，`nginx`和`centos`：
 
-[PRE5]
+```
+#cat 5-1-1_pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+ name: example
+spec:
+ containers:
+ - name: web
+ image: nginx
+ - name: centos
+ image: centos
+ command: ["/bin/sh", "-c", "while : ;do curl http://localhost:80/; sleep 10; done"]
+
+// create the Pod
+#kubectl create -f 5-1-1_pod.yaml
+pod "example" created  
+```
 
 然后，我们将描述 pod 并查看其容器 ID：
 
-[PRE6]
+```
+# kubectl describe pods example
+Name:       example
+Node:       minikube/192.168.99.100
+...
+Containers:
+ web:
+ Container ID: docker:// **d9bd923572ab186870284535044e7f3132d5cac11ecb18576078b9c7bae86c73
+ Image:        nginx
+...
+centos:
+ Container ID: docker: **//f4c019d289d4b958cd17ecbe9fe22a5ce5952cb380c8ca4f9299e10bf5e94a0f
+ Image:        centos
+...  
+```
 
 在这个例子中，`web` 的容器 ID 是 `d9bd923572ab`，`centos` 的容器 ID 是 `f4c019d289d4`。如果我们使用 `docker ps` 进入节点 `minikube/192.168.99.100`，我们可以检查 Kubernetes 实际启动了多少个容器，因为我们在 minikube 中，它启动了许多其他集群容器。通过 `CREATED` 列可以查看最新的启动时间，我们会发现有三个刚刚启动的容器：
 
-[PRE7]
+```
+# docker ps
+CONTAINER ID        IMAGE                                      COMMAND                  CREATED             STATUS              PORTS                                      NAMES
+f4c019d289d4        36540f359ca3                               "/bin/sh -c 'while : "   2 minutes ago        Up 2 minutes k8s_centos_example_default_9843fc27-677b-11e7-9a8c-080027cafd37_1
+d9bd923572ab        e4e6d42c70b3                               "nginx -g 'daemon off"   2 minutes ago        Up 2 minutes k8s_web_example_default_9843fc27-677b-11e7-9a8c-080027cafd37_1
+4ddd3221cc47        gcr.io/google_containers/pause-amd64:3.0   "/pause"                 2 minutes ago        Up 2 minutes  
+```
 
 还有一个额外的容器 `4ddd3221cc47` 被启动了。在深入了解它是哪个容器之前，让我们先检查一下我们的 `web` 容器的网络模式。我们会发现我们示例中的 pod 中的容器是在映射容器模式下运行的：
 
-[PRE8]
+```
+# docker inspect d9bd923572ab | grep NetworkMode
+"NetworkMode": "container:4ddd3221cc4792207ce0a2b3bac5d758a5c7ae321634436fa3e6dd627a31ca76",  
+```
 
 `4ddd3221cc47` 容器在这种情况下被称为网络容器，它持有网络命名空间，让 `web` 和 `centos` 容器加入。在同一网络命名空间中的容器共享相同的 IP 地址和网络配置。这是 Kubernetes 中实现容器间通信的默认方式，这也是对第一个要求的映射。
 
@@ -96,25 +192,81 @@ Kubernetes 中的 Pod 具有自己的真实 IP 地址。Pod 中的容器共享�
 
 假设我们有一个从 pod1 到 pod4 的数据包。数据包从容器接口离开并到达 veth 对，然后通过桥接和节点的网络接口。网络实现在第 4 步发挥作用。只要数据包能够路由到目标节点，您可以自由使用任何选项。在下面的示例中，我们将使用`--network-plugin=cni`选项启动 minikube。启用 CNI 后，参数将通过节点中的 kubelet 传递。Kubelet 具有默认的网络插件，但在启动时可以探测任何支持的插件。在启动 minikube 之前，如果已经启动，您可以首先使用`minikube stop`，或者在进一步操作之前使用`minikube delete`彻底删除整个集群。尽管 minikube 是一个单节点环境，可能无法完全代表我们将遇到的生产场景，但这只是让您对所有这些工作原理有一个基本的了解。我们将在第九章的*在 AWS 上的 Kubernetes*和第十章的*在 GCP 上的 Kubernetes*中学习网络选项的部署。
 
-[PRE9]
+```
+// start minikube with cni option
+# minikube start --network-plugin=cni
+...
+Kubectl is now configured to use the cluster.  
+```
 
 当我们指定`network-plugin`选项时，它将在启动时使用`--network-plugin-dir`中指定的目录中的插件。在 CNI 插件中，默认的插件目录是`/opt/cni/net.d`。集群启动后，让我们登录到节点并通过`minikube ssh`查看内部设置：
 
-[PRE10]
+```
+# minikube ssh
+$ ifconfig 
+...
+mybridge  Link encap:Ethernet  HWaddr 0A:58:0A:01:00:01
+ inet addr:10.1.0.1  Bcast:0.0.0.0  
+          Mask:255.255.0.0
+...  
+```
 
 我们会发现节点中有一个新的桥接，如果我们再次通过`5-1-1_pod.yml`创建示例 pod，我们会发现 pod 的 IP 地址变成了`10.1.0.x`，它连接到了`mybridge`而不是`docker0`。
 
-[PRE11]
+```
+# kubectl create -f 5-1-1_pod.yaml
+pod "example" created
+# kubectl describe po example
+Name:       example
+Namespace:  default
+Node:       minikube/192.168.99.100
+Start Time: Sun, 23 Jul 2017 14:24:24 -0400
+Labels:           <none>
+Annotations:      <none>
+Status:           Running
+IP:         10.1.0.4  
+```
 
 为什么会这样？因为我们指定了要使用 CNI 作为网络插件，而不使用`docker0`（也称为**容器网络模型**或**libnetwork**）。CNI 创建一个虚拟接口，将其连接到底层网络，并最终设置 IP 地址和路由，并将其映射到 pod 的命名空间。让我们来看一下位于`/etc/cni/net.d/`的配置：
 
-[PRE12]
+```
+# cat /etc/cni/net.d/k8s.conf
+{
+ "name": "rkt.kubernetes.io",
+ "type": "bridge",
+ "bridge": "mybridge",
+ "mtu": 1460,
+ "addIf": "true",
+ "isGateway": true,
+ "ipMasq": true,
+ "ipam": {
+ "type": "host-local",
+ "subnet": "10.1.0.0/16",
+ "gateway": "10.1.0.1",
+ "routes": [
+      {
+       "dst": "0.0.0.0/0"
+      }
+ ]
+ }
+}
+```
 
 在这个例子中，我们使用桥接 CNI 插件来重用用于 pod 容器的 L2 桥接。如果数据包来自`10.1.0.0/16`，目的地是任何地方，它将通过这个网关。就像我们之前看到的图表一样，我们可以有另一个启用了 CNI 的节点，使用`10.1.2.0/16`子网，这样 ARP 数据包就可以传输到目标 pod 所在节点的物理接口上。然后实现节点之间的 pod 到 pod 通信。
 
 让我们来检查 iptables 中的规则：
 
-[PRE13]
+```
+// check the rules in iptables 
+# sudo iptables -t nat -nL
+... 
+Chain POSTROUTING (policy ACCEPT)
+target     prot opt source               destination
+KUBE-POSTROUTING  all  --  0.0.0.0/0            0.0.0.0/0            /* kubernetes postrouting rules */
+MASQUERADE  all  --  172.17.0.0/16        0.0.0.0/0
+CNI-25df152800e33f7b16fc085a  all  --  10.1.0.0/16          0.0.0.0/0            /* name: "rkt.kubernetes.io" id: "328287949eb4d4483a3a8035d65cc326417ae7384270844e59c2f4e963d87e18" */
+CNI-f1931fed74271104c4d10006  all  --  10.1.0.0/16          0.0.0.0/0            /* name: "rkt.kubernetes.io" id: "08c562ff4d67496fdae1c08facb2766ca30533552b8bd0682630f203b18f8c0a" */  
+```
 
 所有相关规则都已切换到`10.1.0.0/16` CIDR。
 
@@ -130,15 +282,53 @@ Kubernetes 是动态的。Pod 不断地被创建和删除。Kubernetes 服务是
 
 让我们重用第三章中的`3-2-3_rc1.yaml`和`3-2-3_nodeport.yaml`的例子，*开始使用 Kubernetes*，来观察默认行为：
 
-[PRE14]
+```
+// create two pods with nginx and one service to observe default networking. Users are free to use any other kind of solution.
+# kubectl create -f 3-2-3_rc1.yaml
+replicationcontroller "nginx-1.12" created
+# kubectl create -f 3-2-3_nodeport.yaml
+service "nginx-nodeport" created  
+```
 
 让我们观察 iptables 规则，看看它是如何工作的。如下所示，我们的服务 IP 是`10.0.0.167`，下面的两个 pod IP 地址分别是`10.1.0.4`和`10.1.0.5`。
 
-[PRE15]
+```
+// kubectl describe svc nginx-nodeport
+Name:             nginx-nodeport
+Namespace:        default
+Selector:         project=chapter3,service=web
+Type:             NodePort
+IP:               10.0.0.167
+Port:             <unset>     80/TCP
+NodePort:         <unset>     32261/TCP
+Endpoints:        10.1.0.4:80,10.1.0.5:80
+...  
+```
 
 让我们通过`minikube ssh`进入 minikube 节点并检查其 iptables 规则：
 
-[PRE16]
+```
+# sudo iptables -t nat -nL
+...
+Chain KUBE-SERVICES (2 references)
+target     prot opt source               destination
+KUBE-SVC-37ROJ3MK6RKFMQ2B  tcp  --  0.0.0.0/0            **10.0.0.167**           /* default/nginx-nodeport: cluster IP */ tcp dpt:80
+KUBE-NODEPORTS  all  --  0.0.0.0/0            0.0.0.0/0            /* kubernetes service nodeports; NOTE: this must be the last rule in this chain */ ADDRTYPE match dst-type LOCAL
+
+Chain **KUBE-SVC-37ROJ3MK6RKFMQ2B** (2 references)
+target     prot opt source               destination
+KUBE-SEP-SVVBOHTYP7PAP3J5**  all  --  0.0.0.0/0            0.0.0.0/0            /* default/nginx-nodeport: */ statistic mode random probability 0.50000000000
+KUBE-SEP-AYS7I6ZPYFC6YNNF**  all  --  0.0.0.0/0            0.0.0.0/0            /* default/nginx-nodeport: */
+Chain **KUBE-SEP-SVVBOHTYP7PAP3J5** (1 references)
+target     prot opt source               destination
+KUBE-MARK-MASQ  all  --  10.1.0.4             0.0.0.0/0            /* default/nginx-nodeport: */
+DNAT       tcp  --  0.0.0.0/0            0.0.0.0/0            /* default/nginx-nodeport: */ tcp to:10.1.0.4:80
+Chain KUBE-SEP-AYS7I6ZPYFC6YNNF (1 references)
+target     prot opt source               destination
+KUBE-MARK-MASQ  all  --  10.1.0.5             0.0.0.0/0            /* default/nginx-nodeport: */
+DNAT       tcp  --  0.0.0.0/0            0.0.0.0/0            /* default/nginx-nodeport: */ tcp to:10.1.0.5:80
+...  
+```
 
 这里的关键点是服务将集群 IP 暴露给来自目标`KUBE-SVC-37ROJ3MK6RKFMQ2B`的外部流量，该目标链接到两个自定义链`KUBE-SEP-SVVBOHTYP7PAP3J5`和`KUBE-SEP-AYS7I6ZPYFC6YNNF`，统计模式为随机概率 0.5。这意味着，iptables 将生成一个随机数，并根据概率分布 0.5 调整目标。这两个自定义链的`DNAT`目标设置为相应的 pod IP。`DNAT`目标负责更改数据包的目标 IP 地址。默认情况下，当流量进入时，启用 conntrack 来跟踪连接的目标和源。所有这些都导致了一种路由行为。当流量到达服务时，iptables 将随机选择一个 pod 进行路由，并将目标 IP 从服务 IP 修改为真实的 pod IP，并取消 DNAT 以返回全部路由。
 
@@ -180,29 +370,167 @@ Ingress 定义了一组规则，允许入站连接访问 Kubernetes 集群服务
 
 现在，我们将通过一个示例来看看这是如何工作的。在这个例子中，我们将创建两个名为`nginx`和`echoserver`的服务，并配置 ingress 路径`/welcome`和`/echoserver`。我们可以在 minikube 中运行这个。旧版本的 minikube 默认不启用 ingress；我们需要先启用它：
 
-[PRE17]
+```
+// start over our minikube local
+# minikube delete && minikube start
+
+// enable ingress in minikube
+# minikube addons enable ingress
+ingress was successfully enabled 
+
+// check current setting for addons in minikube
+# minikube addons list
+- registry: disabled
+- registry-creds: disabled
+- addon-manager: enabled
+- dashboard: enabled
+- default-storageclass: enabled
+- kube-dns: enabled
+- heapster: disabled
+- ingress: **enabled
+```
 
 在 minikube 中启用 ingress 将创建一个 nginx ingress 控制器和一个`ConfigMap`来存储 nginx 配置（参考[`github.com/kubernetes/ingress/blob/master/controllers/nginx/README.md`](https://github.com/kubernetes/ingress/blob/master/controllers/nginx/README.md)），以及一个 RC 和一个服务作为默认的 HTTP 后端，用于处理未映射的请求。我们可以通过在`kubectl`命令中添加`--namespace=kube-system`来观察它们。接下来，让我们创建我们的后端资源。这是我们的 nginx `Deployment`和`Service`：
 
-[PRE18]
+```
+# cat 5-2-1_nginx.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+ name: nginx
+spec:
+ replicas: 2
+ template:
+ metadata:
+ labels:
+ project: chapter5
+ service: nginx
+ spec:
+ containers:
+ - name: nginx
+ image: nginx
+ ports:
+ - containerPort: 80
+---
+kind: Service
+apiVersion: v1
+metadata:
+ name: nginx
+spec:
+ type: NodePort
+  selector:
+ project: chapter5
+ service: nginx
+ ports:
+ - protocol: TCP
+ port: 80
+ targetPort: 80
+// create nginx RS and service
+# kubectl create -f 5-2-1_nginx.yaml
+deployment "nginx" created
+service "nginx" created
+```
 
 然后，我们将创建另一个带有 RS 的服务：
 
-[PRE19]
+```
+// another backend named echoserver
+# cat 5-2-1_echoserver.yaml
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+ name: echoserver
+spec:
+ replicas: 1
+ template:
+ metadata:
+ name: echoserver
+ labels:
+ project: chapter5
+ service: echoserver
+ spec:
+ containers:
+ - name: echoserver
+ image: gcr.io/google_containers/echoserver:1.4
+ ports:
+ - containerPort: 8080
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+ name: echoserver
+spec:
+ type: NodePort
+ selector:
+ project: chapter5
+ service: echoserver
+ ports:
+ - protocol: TCP
+ port: 8080
+ targetPort: 8080
+
+// create RS and SVC by above configuration file
+# kubectl create -f 5-2-1_echoserver.yaml
+deployment "echoserver" created
+service "echoserver" created  
+```
 
 接下来，我们将创建 ingress 资源。有一个名为`ingress.kubernetes.io/rewrite-target`的注释。如果服务请求来自根 URL，则需要此注释。如果没有重写注释，我们将得到 404 作为响应。有关 nginx ingress 控制器中更多支持的注释，请参阅[`github.com/kubernetes/ingress/blob/master/controllers/nginx/configuration.md#annotations`](https://github.com/kubernetes/ingress/blob/master/controllers/nginx/configuration.md#annotations)。
 
-[PRE20]
+```
+# cat 5-2-1_ingress.yaml
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+ name: ingress-example
+ annotations:
+ ingress.kubernetes.io/rewrite-target: /
+spec:
+ rules:
+ - host: devops.k8s
+ http:
+ paths:
+ - path: /welcome
+ backend:
+ serviceName: nginx
+ servicePort: 80
+ - path: /echoserver
+ backend:
+ serviceName: echoserver
+ servicePort: 8080
+
+// create ingress
+# kubectl create -f 5-2-1_ingress.yaml
+ingress "ingress-example" created
+```
 
 在一些云提供商中，支持服务负载均衡器控制器。它可以通过配置文件中的`status.loadBalancer.ingress`语法与 ingress 集成。有关更多信息，请参阅[`github.com/kubernetes/contrib/tree/master/service-loadbalancer`](https://github.com/kubernetes/contrib/tree/master/service-loadbalancer)。
 
 由于我们的主机设置为`devops.k8s`，只有在从该主机名访问时才会返回。您可以在 DNS 服务器中配置 DNS 记录，或者在本地修改 hosts 文件。为简单起见，我们将在主机文件中添加一行，格式为`ip hostname`：
 
-[PRE21]
+```
+// normally host file located in /etc/hosts in linux
+# sudo sh -c "echo `minikube ip` devops.k8s >> /etc/hosts"  
+```
 
 然后我们应该能够直接通过 URL 访问我们的服务：
 
-[PRE22]
+```
+# curl http://devops.k8s/welcome
+...
+<title>Welcome to nginx!</title>
+...
+// check echoserver 
+# curl http://devops.k8s/echoserver
+CLIENT VALUES:
+client_address=172.17.0.4
+command=GET
+real path=/
+query=nil
+request_version=1.1
+request_uri=http://devops.k8s:8080/  
+```
 
 Pod ingress 控制器根据 URL 路径分发流量。路由路径类似于外部到服务的通信。数据包在节点和 Pod 之间跳转。Kubernetes 是可插拔的。正在进行许多第三方实现。我们在这里只是浅尝辄止，而 iptables 只是一个默认和常见的实现。网络在每个发布版本中都有很大的发展。在撰写本文时，Kubernetes 刚刚发布了 1.7 版本。
 
@@ -212,27 +540,83 @@ Pod ingress 控制器根据 URL 路径分发流量。路由路径类似于外部
 
 目前，有多个网络提供商支持网络策略，例如 Calico ([`www.projectcalico.org/calico-network-policy-comes-to-kubernetes/`](https://www.projectcalico.org/calico-network-policy-comes-to-kubernetes/))、Romana ([`github.com/romana/romana`](https://github.com/romana/romana)))、Weave Net ([`www.weave.works/docs/net/latest/kube-addon/#npc)`](https://www.weave.works/docs/net/latest/kube-addon/#npc))、Contiv ([`contiv.github.io/documents/networking/policies.html)`](http://contiv.github.io/documents/networking/policies.html))和 Trireme ([`github.com/aporeto-inc/trireme-kubernetes`](https://github.com/aporeto-inc/trireme-kubernetes))。用户可以自由选择任何选项。为了简单起见，我们将使用 Calico 与 minikube。为此，我们将不得不使用`--network-plugin=cni`选项启动 minikube。在这一点上，Kubernetes 中的网络策略仍然是相当新的。我们正在运行 Kubernetes 版本 v.1.7.0，使用 v.1.0.7 minikube ISO 来通过自托管解决方案部署 Calico ([`docs.projectcalico.org/v1.5/getting-started/kubernetes/installation/hosted/`](http://docs.projectcalico.org/v1.5/getting-started/kubernetes/installation/hosted/))。首先，我们需要下载一个`calico.yaml` ([`github.com/projectcalico/calico/blob/master/v2.4/getting-started/kubernetes/installation/hosted/calico.yaml`](https://github.com/projectcalico/calico/blob/master/v2.4/getting-started/kubernetes/installation/hosted/calico.yaml)))文件来创建 Calico 节点和策略控制器。需要配置`etcd_endpoints`。要找出 etcd 的 IP，我们需要访问 localkube 资源。
 
-[PRE23]
+```
+// find out etcd ip
+# minikube ssh -- "sudo /usr/local/bin/localkube --host-ip"
+2017-07-27 04:10:58.941493 I | proto: duplicate proto type registered: google.protobuf.Any
+2017-07-27 04:10:58.941822 I | proto: duplicate proto type registered: google.protobuf.Duration
+2017-07-27 04:10:58.942028 I | proto: duplicate proto type registered: google.protobuf.Timestamp
+localkube host ip:  10.0.2.15  
+```
 
 etcd 的默认端口是`2379`。在这种情况下，我们将在`calico.yaml`中修改`etcd_endpoint`，从`http://127.0.0.1:2379`改为`http://10.0.2.15:2379`：
 
-[PRE24]
+```
+// launch calico
+# kubectl apply -f calico.yaml
+configmap "calico-config" created
+secret "calico-etcd-secrets" created
+daemonset "calico-node" created
+deployment "calico-policy-controller" created
+job "configure-calico" created
+
+// list the pods in kube-system
+# kubectl get pods --namespace=kube-system
+NAME                                        READY     STATUS    RESTARTS   AGE
+calico-node-ss243                           2/2       Running   0          1m
+calico-policy-controller-2249040168-r2270   1/1       Running   0          1m  
+```
 
 让我们重用`5-2-1_nginx.yaml`作为示例：
 
-[PRE25]
+```
+# kubectl create -f 5-2-1_nginx.yaml
+replicaset "nginx" created
+service "nginx" created
+// list the services
+# kubectl get svc
+NAME         CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
+kubernetes   10.0.0.1     <none>        443/TCP        47m
+nginx        10.0.0.42    <nodes>       80:31071/TCP   5m
+```
 
 我们将发现我们的 nginx 服务的 IP 是`10.0.0.42`。让我们启动一个简单的 bash 并使用`wget`来看看我们是否可以访问我们的 nginx：
 
-[PRE26]
+```
+# kubectl run busybox -i -t --image=busybox /bin/sh
+If you don't see a command prompt, try pressing enter.
+/ # wget --spider 10.0.0.42 
+Connecting to 10.0.0.42 (10.0.0.42:80)  
+```
 
 `--spider`参数用于检查 URL 是否存在。在这种情况下，busybox 可以成功访问 nginx。接下来，让我们将`NetworkPolicy`应用到我们的 nginx pod 中：
 
-[PRE27]
+```
+// declare a network policy
+# cat 5-3-1_networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+ name: nginx-networkpolicy
+spec:
+ podSelector:
+ matchLabels:
+ service: nginx
+ ingress:
+ - from:
+ - podSelector:
+ matchLabels:
+ project: chapter5  
+```
 
 我们可以在这里看到一些重要的语法。`podSelector`用于选择 pod，应该与目标 pod 的标签匹配。另一个是`ingress[].from[].podSelector`，用于定义谁可以访问这些 pod。在这种情况下，所有具有`project=chapter5`标签的 pod 都有资格访问具有`server=nginx`标签的 pod。如果我们回到我们的 busybox pod，现在我们无法再联系 nginx，因为 nginx pod 现在已经有了 NetworkPolicy。默认情况下，它是拒绝所有的，所以 busybox 将无法与 nginx 通信。
 
-[PRE28]
+```
+// in busybox pod, or you could use `kubectl attach <pod_name> -c busybox -i -t` to re-attach to the pod 
+# wget --spider --timeout=1 10.0.0.42
+Connecting to 10.0.0.42 (10.0.0.42:80)
+wget: download timed out  
+```
 
 我们可以使用`kubectl edit deployment busybox`将标签`project=chaper5`添加到 busybox pod 中。
 
@@ -240,15 +624,37 @@ etcd 的默认端口是`2379`。在这种情况下，我们将在`calico.yaml`�
 
 之后，我们可以再次联系 nginx pod：
 
-[PRE29]
+```
+// inside busybox pod
+/ # wget --spider 10.0.0.42 
+Connecting to 10.0.0.42 (10.0.0.42:80)  
+```
 
 通过前面的例子，我们了解了如何应用网络策略。我们还可以通过调整选择器来应用一些默认策略，拒绝所有或允许所有。例如，拒绝所有的行为可以通过以下方式实现：
 
-[PRE30]
+```
+# cat 5-3-1_np_denyall.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+ name: default-deny
+spec:
+ podSelector:  
+```
 
 这样，所有不匹配标签的 pod 将拒绝所有其他流量。或者，我们可以创建一个`NetworkPolicy`，其入口列表来自任何地方。然后，运行在这个命名空间中的 pod 可以被任何其他人访问。
 
-[PRE31]
+```
+# cat 5-3-1_np_allowall.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+ name: allow-all
+spec:
+ podSelector:
+ ingress:
+ - {}  
+```
 
 # 总结
 

@@ -42,7 +42,9 @@ Kubernetes 提供了几种资源类型，用于处理允许集群外部和内部
 
 在 Kubernetes 中运行的 Pod 的典型完全限定域名（FQDN）如下所示：
 
-[PRE0]
+```
+my-hostname.my-subdomain.my-namespace.svc.my-cluster-domain.example
+```
 
 让我们从最右边开始分解：
 
@@ -60,7 +62,9 @@ Kubernetes 提供了几种资源类型，用于处理允许集群外部和内部
 
 让我们来看看服务的 A 记录 DNS 名称：
 
-[PRE1]
+```
+my-svc.my-namespace.svc.cluster-domain.example
+```
 
 正如您所看到的，这与 Pod DNS 名称非常相似，不同之处在于我们在命名空间左侧只有一个值 - 就是服务名称（与 Pod 一样，这是基于元数据名称生成的）。
 
@@ -112,7 +116,22 @@ ClusterIP 是在集群内部公开的一种简单类型的服务。这种类型�
 
 clusterip-service.yaml
 
-[PRE2]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+Spec:
+  type: ClusterIP
+  selector:
+    app: web-application
+    environment: staging
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+```
 
 与其他 Kubernetes 资源一样，我们有我们的元数据块和我们的`name`值。正如您可以从我们关于 DNS 的讨论中回忆起来，这个`name`值是您如何可以从集群中的其他地方访问您的服务的。因此，ClusterIP 是一个很好的选择，适用于只需要被集群内其他 Pod 访问的服务。
 
@@ -158,21 +177,53 @@ NodePort 听起来像它的名字 - 这种类型的服务在集群中的每个�
 
 NodePort 服务.yaml
 
-[PRE3]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+Spec:
+  type: NodePort
+  selector:
+    app: web-application
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+```
 
 正如您所看到的，与 ClusterIP 服务唯一的区别是服务类型 - 然而，重要的是要注意，我们在“端口”部分中的预期端口`80`只有在访问自动创建的 ClusterIP 版本的服务时才会被使用。从集群外部，我们需要查看生成的端口链接以访问我们的节点 IP 上的服务。
 
 为了做到这一点，我们可以使用以下命令创建我们的服务：
 
-[PRE4]
+```
+kubectl apply -f svc.yaml 
+```
 
 然后运行这个命令：
 
-[PRE5]
+```
+kubectl describe service my-svc
+```
 
 上述命令的结果将是以下输出：
 
-[PRE6]
+```
+Name:                   my-svc
+Namespace:              default
+Labels:                 app=web-application
+Annotations:            <none>
+Selector:               app=web-application
+Type:                   NodePort
+IP:                     10.32.0.8
+Port:                   <unset> 8080/TCP
+TargetPort:             8080/TCP
+NodePort:               <unset> 31598/TCP
+Endpoints:              10.200.1.3:8080,10.200.1.5:8080
+Session Affinity:       None
+Events:                 <none>
+```
 
 从这个输出中，我们看`NodePort`行，看到我们为这个服务分配的端口是`31598`。因此，这个服务可以在任何节点上通过`[NODE_IP]:[ASSIGNED_PORT]`访问。
 
@@ -180,7 +231,22 @@ NodePort 服务.yaml
 
 手动 NodePort 服务.yaml
 
-[PRE7]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+Spec:
+  type: NodePort
+  selector:
+    app: web-application
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+      nodePort: 31233
+```
 
 正如您所看到的，我们选择了一个在`30000`-`32767`范围内的`nodePort`，在这种情况下是`31233`。要确切地了解这个 NodePort 服务在节点之间是如何工作的，请看下面的图表：
 
@@ -202,7 +268,23 @@ LoadBalancer 是 Kubernetes 中的特殊服务类型，根据集群运行的位�
 
 loadbalancer-service.yaml
 
-[PRE8]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws.. 
+spec:
+  type: LoadBalancer
+  selector:
+    app: web-application
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+```
 
 虽然我们可以创建没有任何注释的 LoadBalancer，但是支持的 AWS 特定注释使我们能够（如前面的 YAML 代码所示）指定要附加到我们的负载均衡器的 TLS 证书（通过其在 Amazon 证书管理器中的 ARN）。AWS 注释还允许配置负载均衡器的日志等。
 
@@ -232,13 +314,37 @@ loadbalancer-service.yaml
 
 clusterip-for-external-service.yaml
 
-[PRE9]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+  namespace: dev
+Spec:
+  type: ClusterIP
+  selector:
+    app: newly-containerized-app
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+```
 
 在`prod`命名空间中，这个 Service 将会是一个`ExternalName` Service：
 
 externalname-service.yaml
 
-[PRE10]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+  namespace: prod
+spec:
+  type: ExternalName
+  externalName: myoldapp.mydomain.com
+```
 
 由于我们的`ExternalName` Service 实际上并不转发请求到 Pods，所以我们不需要一个选择器。相反，我们指定一个`ExternalName`，这是我们希望 Service 指向的 DNS 名称。
 
@@ -272,7 +378,9 @@ Ingress 与 Kubernetes 中的其他服务不同。仅仅创建 Ingress 本身是
 
 安装可能因控制器而异，但对于 `ingress-nginx`，有两个主要部分。首先，要部署主控制器本身，请运行以下命令，具体取决于目标环境和最新的 Nginx Ingress 版本：
 
-[PRE11]
+```
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.41.2/deploy/static/provider/cloud/deploy.yaml
+```
 
 其次，我们可能需要根据我们运行的环境来配置我们的 Ingress。对于在 AWS 上运行的集群，我们可以配置 Ingress 入口点以使用我们在 AWS 中创建的弹性负载均衡器。
 
@@ -296,25 +404,77 @@ Nginx Ingress 控制器是一组 Pod，它将在创建新的 Ingress 资源（�
 
 service-a.yaml
 
-[PRE12]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-a
+Spec:
+  type: ClusterIP
+  selector:
+    app: application-a
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+```
 
 1.  您可以通过运行以下命令来创建我们的服务 A：
 
-[PRE13]
+```
+kubectl apply -f service-a.yaml
+```
 
 1.  接下来，让我们创建我们的服务 B，其 YAML 代码看起来非常相似：
 
-[PRE14]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-b
+Spec:
+  type: ClusterIP
+  selector:
+    app: application-b
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+```
 
 1.  通过运行以下命令来创建我们的服务 B：
 
-[PRE15]
+```
+kubectl apply -f service-b.yaml
+```
 
 1.  最后，我们可以为每个路径创建 Ingress 规则。以下是我们的 Ingress 的 YAML 代码，根据基于路径的路由规则，将根据需要拆分请求：
 
 ingress.yaml
 
-[PRE16]
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-first-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: my.application.com
+    http:
+      paths:
+      - path: /a
+        backend:
+          serviceName: service-a
+          servicePort: 80
+      - path: /b
+        backend:
+          serviceName: service-b
+          servicePort: 80
+```
 
 在我们之前的 YAML 中，ingress 有一个单一的`host`值，这对应于通过 Ingress 传入的流量的主机请求头。然后，我们有两个路径，`/a`和`/b`，它们分别指向我们之前创建的两个`ClusterIP`服务。为了将这个配置以图形的形式呈现出来，让我们看一下下面的图表：
 
@@ -328,7 +488,26 @@ ingress.yaml
 
 ingress-no-host.yaml
 
-[PRE17]
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-first-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+   - http:
+      paths:
+      - path: /a
+        backend:
+          serviceName: service-a
+          servicePort: 80
+      - path: /b
+        backend:
+          serviceName: service-b
+          servicePort: 80
+```
 
 这个先前的 Ingress 定义将流量流向基于路径的路由规则，即使没有主机头值。
 
@@ -336,13 +515,50 @@ ingress-no-host.yaml
 
 ingress-branching.yaml
 
-[PRE18]
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: multiple-branches-ingress
+spec:
+  rules:
+  - host: my.application.com
+    http:
+      paths:
+      - backend:
+          serviceName: service-a
+          servicePort: 80
+  - host: my.otherapplication.com
+    http:
+      paths:
+      - backend:
+          serviceName: service-b
+          servicePort: 80
+```
 
 最后，在许多情况下，您还可以使用 TLS 来保护您的 Ingress，尽管这个功能在每个 Ingress 控制器的基础上有所不同。对于 Nginx，可以使用 Kubernetes Secret 来实现这一点。我们将在下一章介绍这个功能，但现在，请查看 Ingress 端的配置：
 
 ingress-secure.yaml
 
-[PRE19]
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: secured-ingress
+spec:
+  tls:
+  - hosts:
+    - my.application.com
+    secretName: my-tls-secret
+  rules:
+    - host: my.application.com
+      http:
+        paths:
+        - path: /
+          backend:
+            serviceName: service-a
+            servicePort: 8080
+```
 
 此配置将查找名为`my-tls-secret`的 Kubernetes Secret，以附加到 Ingress 以进行 TLS。
 

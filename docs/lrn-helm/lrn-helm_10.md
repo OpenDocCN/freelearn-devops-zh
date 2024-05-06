@@ -68,11 +68,16 @@ Kubernetes 是一个支持声明式配置的平台。与任何编程语言编写
 
 1.  首先，鉴于本章的内存要求增加，如果在[*第二章*]（B15458_02_Final_JM_ePub.xhtml#_idTextAnchor098）中未使用 4g 内存初始化`minikube`集群，则应删除该集群并使用 4g 内存重新创建。可以通过运行以下命令来完成：
 
-[PRE0]
+```
+$ minikube delete
+$ minikube start --memory=4g
+```
 
 1.  Minikube 启动后，创建一个名为`chapter7`的新命名空间：
 
-[PRE1]
+```
+$ kubectl create namespace chapter7
+```
 
 此外，您还应该 fork Packt 存储库，这将允许您根据这些练习中描述的步骤对存储库进行修改：
 
@@ -84,7 +89,9 @@ Kubernetes 是一个支持声明式配置的平台。与任何编程语言编写
 
 1.  创建 Packt 存储库的分支后，通过运行以下命令将此分支克隆到本地计算机：
 
-[PRE2]
+```
+$ git clone https://github.com/$GITHUB_USERNAME/-Learn-Helm.git Learn-Helm
+```
 
 除了创建 Packt 存储库的分支外，您可能还希望从您的 Helm 存储库中删除`guestbook`图表，该图表是从您的 GitHub Pages 存储库中提供的，我们在[*第五章*]（B15458_05_Final_JM_ePub.xhtml#_idTextAnchor265）中创建了*构建您的第一个 Helm 图表*。虽然这并不是绝对必要的，但本章中的示例将假定一个干净的状态。
 
@@ -92,15 +99,27 @@ Kubernetes 是一个支持声明式配置的平台。与任何编程语言编写
 
 1.  导航到 Helm 图表存储库的本地克隆。您会记得，我们建议的图表存储库的名称是`Learn-Helm-Chart-Repository`，因此在本章中我们将使用这个名称来引用您的基于 GitHub Pages 的图表存储库：
 
-[PRE3]
+```
+$ cd $LEARN_HELM_CHART_REPOSITORY_DIR
+$ ls
+guestbook-1.0.0.tgz   index.yaml   README.md
+```
 
 1.  从图表存储库中删除`guestbook-1.0.0.tgz`和`index.yaml`文件：
 
-[PRE4]
+```
+$ rm guestbook-1.0.0.tgz index.yaml
+$ ls
+README.md
+```
 
 1.  将这些更改推送到您的远程存储库：
 
-[PRE5]
+```
+$ git add --all
+$ git commit -m 'Preparing for chapter 7'
+$ git push origin master
+```
 
 1.  您应该能够在 GitHub 中确认您的图表和索引文件已被删除，只留下`README.md`文件：
 
@@ -154,7 +173,9 @@ Jenkins 还非常适合 GitOps 的概念，因为它提供了扫描源代码存�
 
 与许多通常部署在 Kubernetes 上的应用程序一样，Jenkins 可以使用来自 Helm Hub 的许多不同社区 Helm 图之一进行部署。在本章中，我们将使用来自**Codecentric**软件开发公司的 Jenkins Helm 图。添加`codecentric`图存储库以开始安装 Codecentric Jenkins Helm 图：
 
-[PRE6]
+```
+$ helm repo add codecentric https://codecentric.github.io/helm-charts
+```
 
 在预期的与 Kubernetes 相关的值中，例如配置资源限制和服务类型，`codecentric` Jenkins Helm 图包含其他用于自动配置不同 Jenkins 组件的 Jenkins 相关值。
 
@@ -190,7 +211,9 @@ Jenkins 还非常适合 GitOps 的概念，因为它提供了扫描源代码存�
 
 虽然 Go 模板通常在`values.yaml`文件中无效，但 Codecentric Jenkins Helm 图表向模板函数`tpl`提供了`fileContent`配置。在模板方面，这看起来如下所示：
 
-[PRE7]
+```
+{{- tpl .Values.fileContent }}
+```
 
 `tpl`命令将解析`fileContent`值作为 Go 模板，使其可以包含 Go 模板，即使它是在`values.yaml`文件中定义的。
 
@@ -210,17 +233,31 @@ Jenkins 还非常适合 GitOps 的概念，因为它提供了扫描源代码存�
 
 使用以下示例作为参考，使用`helm install`命令安装您的`Jenkins`实例：
 
-[PRE8]
+```
+$ helm install jenkins codecentric/jenkins \
+  -n chapter7 --version 1.5.1 \
+  --values Learn-Helm/jenkins/values.yaml \
+  --set githubUsername=$GITHUB_USERNAME \
+  --set githubPassword=$GITHUB_PASSWORD \
+  --set githubForkUrl=https://github.com/$GITHUB_USERNAME/-Learn-Helm.git \
+  --set githubPagesRepoUrl=https://github.com/$GITHUB_USERNAME/Learn-Helm-Chart-Repository.git
+```
 
 您可以通过对`chapter7`命名空间中的 Pod 运行监视来监视安装。
 
-[PRE9]
+```
+$ kubectl get Pods -n chapter7 -w
+```
 
 请注意，在极少数情况下，您的 Pod 可能会在`Init:0/1`阶段卡住。如果外部依赖出现可用性问题，比如 Jenkins 插件站点及其镜像正在经历停机时间，就会发生这种情况。如果发生这种情况，请尝试在几分钟后删除您的发布并重新安装它。
 
 一旦您的 Jenkins Pod 在`READY`列下报告`1/1`，您的`Jenkins`实例就可以被访问了。复制并粘贴显示的安装后说明的以下内容以显示 Jenkins URL：
 
-[PRE10]
+```
+$ export NODE_PORT=$(kubectl get service --namespace chapter7 -o jsonpath='{.spec.ports[0].nodePort}' jenkins-master)
+$ export NODE_IP=$(kubectl get nodes --namespace chapter7 -o jsonpath='{.items[0].status.addresses[0].address}')
+echo "http://$NODE_IP:$NODE_PORT"
+```
 
 当您访问 Jenkins 时，您的首页应该看起来类似于以下屏幕截图：
 
@@ -236,7 +273,9 @@ Jenkins 还非常适合 GitOps 的概念，因为它提供了扫描源代码存�
 
 触发“测试和部署 Helm 图表”作业时发生的第一件事是创建一个新的 Jenkins 代理。通过利用`Learn-Helm/jenkins/values.yaml`中提供的值，Jenkins 图表安装会自动配置一个名为`chart-testing-agent`的 Jenkins 代理。以下一行指定该代理为此`Jenkinsfile`文件的代理：
 
-[PRE11]
+```
+agent { label 'chart-testing-agent' }
+```
 
 此代理由 Jenkins 图表值配置，使用 Helm 社区提供的图表测试图像运行。位于`quay.io/helmpack/chart-testing`的图表测试图像包含了*第六章*中讨论的许多工具，*测试 Helm 图表*。具体来说，该图像包含以下工具：
 
@@ -258,13 +297,17 @@ Jenkins 还非常适合 GitOps 的概念，因为它提供了扫描源代码存�
 
 Jenkins 代理克隆您的存储库后，将开始执行`Jenkinsfile`文件中定义的阶段。阶段是管道中的逻辑分组，可以帮助可视化高级步骤。将执行的第一个阶段是 lint 阶段，其中包含以下命令：
 
-[PRE12]
+```
+sh 'ct lint'
+```
 
 前述命令中的`sh`部分是用于运行 bash shell 或脚本并调用`ct`工具的`lint`子命令。您会记得，此命令会针对已修改的所有图表的`Chart.yaml`和`values.yaml`文件对主分支进行检查，我们在*第六章*中已经讨论过这一点，*测试 Helm 图表*。
 
 如果 linting 成功，流水线将继续进行到测试阶段，并执行以下命令：
 
-[PRE13]
+```
+sh 'ct install --upgrade'
+```
 
 这个命令也应该很熟悉。它会从主分支上的版本安装每个修改的图表，并执行定义的测试套件。它还确保从上一个版本的任何升级都成功，有助于防止回归。
 
@@ -272,13 +315,30 @@ Jenkins 代理克隆您的存储库后，将开始执行`Jenkinsfile`文件中�
 
 如果测试阶段成功，流水线将继续进行到打包图表阶段，执行以下命令：
 
-[PRE14]
+```
+sh 'helm package --dependency-update helm-charts/charts/*'
+```
 
 在这个阶段，命令将简单地打包`helm-charts/charts`文件夹下包含的每个图表。它还将更新和下载每个声明的依赖项。
 
 如果打包成功，管道将继续进行到最后一个阶段，称为`推送图表到存储库`。这是最复杂的阶段，所以我们将把它分解成较小的步骤。第一步可以在这里看到：
 
-[PRE15]
+```
+// Clone GitHub Pages repository to a folder called 'chart-repo'
+sh "git clone ${env.GITHUB_PAGES_REPO_URL} chart-repo"
+// Determine if these charts should be pushed to 'stable' or 'staging' based on the branch
+def repoType
+if (env.BRANCH_NAME == 'master') {
+  repoType = 'stable'
+} else {
+  repoType = 'staging'
+}
+// Create the corresponding 'stable' or 'staging' folder if it does not exist
+def files = sh(script: 'ls chart-repo', returnStdout: true)
+if (!files.contains(repoType)) {
+  sh "mkdir chart-repo/${repoType}"
+}
+```
 
 由于 Helm 图表存储库是一个单独的 GitHub Pages 存储库，我们必须克隆该存储库，以便我们可以添加新的图表并推送更改。一旦克隆了 GitHub Pages 存储库，就会设置一个名为`repoType`的变量，具体取决于 CI/CD 管道针对的分支。该变量用于确定前一阶段打包的图表应该推送到`stable`或`staging`图表存储库。
 
@@ -286,7 +346,11 @@ Jenkins 代理克隆您的存储库后，将开始执行`Jenkinsfile`文件中�
 
 `stable`和`staging`作为两个单独的图表存储库提供；这可以通过在 GitHub Pages 存储库的顶层创建两个单独的目录来完成：
 
-[PRE16]
+```
+Learn-Helm-Repository/
+  stable/
+  staging/
+```
 
 然后，稳定和暂存文件夹包含它们自己的`index.yaml`文件，以区分它们作为单独的图表存储库。
 
@@ -294,7 +358,15 @@ Jenkins 代理克隆您的存储库后，将开始执行`Jenkinsfile`文件中�
 
 现在确定了图表应该推送到的存储库类型，我们继续进行管道的下一个阶段，如下所示：
 
-[PRE17]
+```
+// Move charts from the packaged-charts folder to the corresponding 'stable' or 'staging' folder
+sh "mv packaged-charts/*.tgz chart-repo/${repoType}"
+// Generate the updated index.yaml
+sh "helm repo index chart-repo/${repoType}"
+// Update git config details
+sh "git config --global user.email 'chartrepo-robot@example.com'"
+sh "git config --global user.name 'chartrepo-robot'"
+```
 
 第一条命令将从前一阶段复制每个打包的图表到`stable`或`staging`文件夹。接下来，使用`helm repo index`命令更新`stable`或`staging`的`index.yaml`文件，以反映已更改或添加的图表。
 
@@ -304,7 +376,18 @@ Jenkins 代理克隆您的存储库后，将开始执行`Jenkinsfile`文件中�
 
 最后一步是推送更改。这个操作在最终的管道片段中被捕获，如下所示：
 
-[PRE18]
+```
+// Add and commit the changes
+sh 'git add --all'
+sh "git commit -m 'pushing charts from branch ${env.BRANCH_NAME}'"
+withCredentials([usernameColonPassword(credentialsId: 'github-auth', variable: 'USERPASS')]) {
+    script {
+    // Inject GitHub auth and push to the master branch, where the charts are being served
+    def authRepo = env.GITHUB_PAGES_REPO_URL.replace('://', "://${USERPASS}@")
+    sh "git push ${authRepo} master"
+    }
+}
+```
 
 打包的图表首先使用`git add`和`git commit`命令添加和提交。接下来，使用`git push`命令对存储库进行推送，使用名为`github-auth`的凭据。这个凭据是在安装过程中从`githubUsername`和`githubPassword`值创建的。`github-auth`凭据允许您安全地引用这些机密，而不会在管道代码中以明文形式打印出来。
 
@@ -324,19 +407,38 @@ Jenkins 代理克隆您的存储库后，将开始执行`Jenkinsfile`文件中�
 
 Jenkins 中的每个流水线构建都有一个关联的日志，其中包含执行的输出。您可以通过在左侧选择蓝色圆圈旁边的**#1**链接，然后在下一个屏幕上选择**控制台输出**来访问此构建的日志。此构建的日志显示第一个阶段`Lint`成功，显示了这条消息：
 
-[PRE19]
+```
+All charts linted successfully
+----------------------------------
+No chart changes detected.
+```
 
 这是我们所期望的，因为从主分支的角度来看，没有任何图表发生变化。在安装阶段也可以看到类似的输出：
 
-[PRE20]
+```
+All charts installed successfully
+-----------------------------------
+No chart changes detected.
+```
 
 因为 Lint 和 Install 阶段都没有错误，所以流水线继续到了 Package Charts 阶段。在这里，您可以查看输出：
 
-[PRE21]
+```
++ helm package --dependency-update helm-charts/charts/guestbook helm-charts/charts/nginx
+Successfully packaged chart and saved it to: /home/jenkins/agent/workspace/t_and_Release_Helm_Charts_master/guestbook-1.0.0.tgz
+Successfully packaged chart and saved it to: /home/jenkins/agent/workspace/t_and_Release_Helm_Charts_master/nginx-1.0.0.tgz
+```
 
 最后，流水线通过克隆您的 GitHub Pages 存储库，在其中创建一个`stable`文件夹，将打包的图表复制到`stable`文件夹中，将更改提交到 GitHub Pages 存储库本地，并将更改推送到 GitHub。我们可以观察到每个添加到我们存储库的文件都在以下行中输出：
 
-[PRE22]
+```
++ git commit -m 'pushing charts from branch master'
+[master 9769f5a] pushing charts from branch master
+ 3 files changed, 32 insertions(+)
+ create mode 100644 stable/guestbook-1.0.0.tgz
+ create mode 100644 stable/index.yaml
+ create mode 100644 stable/nginx-1.0.0.tgz
+```
 
 您可能会好奇在自动推送后您的 GitHub Pages 存储库是什么样子。您的存储库应该如下所示，其中包含一个新的`stable`文件夹，其中包含 Helm 图表：
 
@@ -354,21 +456,39 @@ Jenkins 中的每个流水线构建都有一个关联的日志，其中包含执
 
 首先，从主分支创建一个名为 `chapter7` 的新分支：
 
-[PRE23]
+```
+$ cd $PACKT_FORK_DIR
+$ git checkout master
+$ git checkout -b chapter7
+```
 
 在这个分支上，我们将简单地修改`ngnix`图表的版本以触发图表的 linting 和测试。NGINX 是一个 Web 服务器和反向代理。它比我们在本书中一直使用的 Guestbook 应用程序要轻量得多，因此，为了避免 Jenkins 在您的 Minikube 环境中运行时可能出现的任何资源限制，我们将在本示例中使用 Packt 存储库中的`ngnix`图表。
 
 在`helm-charts/charts/nginx/Chart.yaml`文件中，将图表的版本从`1.0.0`更改为`1.0.1`：
 
-[PRE24]
+```
+version: 1.0.1
+```
 
 运行 `git status` 确认已检测到变化：
 
-[PRE25]
+```
+$ git status
+On branch chapter7
+Changes not staged for commit:
+  (use 'git add <file>...' to update what will be committed)
+  (use 'git checkout -- <file>...' to discard changes in working directory)
+        modified:   helm-charts/charts/nginx/Chart.yaml
+no changes added to commit (use 'git add' and/or 'git commit -a')
+```
 
 注意`ngnix`的`Chart.yaml`文件已经被修改。添加文件，然后提交更改。最后，您可以继续将更改推送到您的分支：
 
-[PRE26]
+```
+$ git add helm-charts
+$ git commit -m 'bumping NGINX chart version to demonstrate chart testing pipeline'
+$ git push origin chapter7
+```
 
 在 Jenkins 中，我们需要触发仓库扫描，以便 Jenkins 可以检测并针对此分支启动新的构建。转到**测试和发布 Helm Charts**页面。您可以通过点击顶部标签栏上的**测试和发布 Helm Charts**标签轻松实现：
 
@@ -384,11 +504,17 @@ Jenkins 中的每个流水线构建都有一个关联的日志，其中包含执
 
 由于`chapter7`作业包含经过修改的 Helm 图表，并使用图表测试工具进行测试，因此`chapter7`作业的运行时间将比主作业长。您可以通过导航到`chapter7`的控制台输出来观察此流水线的运行情况。从**测试和发布 Helm 图表**概述页面，选择*第七章*分支，然后在左下角选择**#1**链接。最后，选择**控制台输出**链接。如果您在流水线仍在运行时导航到此页面，您将实时收到日志更新。等到流水线结束，在那里应该显示以下消息：
 
-[PRE27]
+```
+Finished: SUCCESS
+```
 
 在控制台输出日志的开始处，注意`ct lint`和`ct install`命令是针对`ngnix`图表运行的，因为这是唯一发生更改的图表：
 
-[PRE28]
+```
+Charts to be processed:
+---------------------------------------------------------------
+ nginx => (version: '1.0.1', path: 'helm-charts/charts/nginx')
+```
 
 每个命令的附加输出应该已经很熟悉，因为它与*第六章*中描述的输出相同，*测试 Helm 图表*。
 
@@ -400,7 +526,11 @@ Jenkins 中的每个流水线构建都有一个关联的日志，其中包含执
 
 要发布`nginx-1.0.1.tgz`图表，您需要将`chapter7`分支合并到主分支，这将导致该图表被推送到稳定存储库。在命令行上，将您的`chapter7`分支合并到主分支并将其推送到`remote`存储库：
 
-[PRE29]
+```
+$ git checkout master
+$ git merge chapter7
+$ git push origin master
+```
 
 在 Jenkins 中，通过返回到**测试和发布 Helm 图表**页面并点击**master**作业来导航到主流水线作业。您的屏幕应该如下所示：
 
@@ -416,17 +546,23 @@ Jenkins 中的每个流水线构建都有一个关联的日志，其中包含执
 
 您可以通过在本地添加`helm repo add`来验证这些图表是否已正确部署到 GitHub Pages 的`stable`存储库。在*第五章*中，*构建您的第一个 Helm 图表*，您添加了 GitHub Pages 存储库的根位置。但是，我们修改了文件结构以包含`stable`和`staging`文件夹。如果仍然配置，您可以通过运行以下命令来删除此存储库：
 
-[PRE30]
+```
+$ helm repo remove learnhelm
+```
 
 可以使用`stable`存储库的更新位置再次添加存储库：
 
-[PRE31]
+```
+$ helm repo add learnhelm $GITHUB_PAGES_SITE_URL/stable
+```
 
 请注意，`$GITHUB_PAGES_SITE_URL`的值引用 GitHub 提供的静态站点，而不是您实际的`git`存储库。您的 GitHub Pages 站点 URL 应该类似于[`$GITHUB_USERNAME.github.io/Learn-Helm-Repository/stable`](https://$GITHUB_USERNAME.github.io/Learn-Helm-Repository/stable)。确切的链接可以在 GitHub Pages 存储库的**设置**选项卡中找到。
 
 在添加`stable`存储库后，运行以下命令查看在两个主构建过程中构建和推送的每个图表：
 
-[PRE32]
+```
+$ helm search repo learnhelm --versions
+```
 
 您应该看到三个结果，其中两个包含构建和推送的`nginx`图表的两个版本：
 
@@ -468,23 +604,36 @@ CD 工作流包含在单独的`Jenkinsfile`文件中，与先前为 CI 管道创
 
 创建`dev`、`qa`和`prod`命名空间来表示每个环境：
 
-[PRE33]
+```
+$ kubectl create ns dev
+$ kubectl create ns qa
+$ kubectl create ns prod
+```
 
 您还应该删除在上一节中创建的`chapter7`分支。应删除此分支，因为当创建新的 CD 管道时，Jenkins 将尝试针对存储库的每个分支运行它。为简单起见，并避免资源限制，我们建议仅使用主分支进行推进。
 
 使用以下命令从存储库中删除`chapter7`分支：
 
-[PRE34]
+```
+$ git push -d origin chapter7
+$ git branch -D chapter7
+```
 
 最后，您需要升级您的 Jenkins 实例以设置一个名为`GITHUB_PAGES_SITE_URL`的环境变量。这是您在 GitHub Pages 中图表存储库的位置，格式为[`$GITHUB_USERNAME.github.io/Learn-Helm-Chart-Repository/stable`](https://$GITHUB_USERNAME.github.io/Learn-Helm-Chart-Repository/stable)。CD 流水线中引用了该环境变量，以通过`helm repo add`添加`stable` GitHub Pages 图表存储库。要添加此变量，您可以通过使用`--reuse-values`标志重新使用先前应用的值，同时使用`--set`指定一个名为`githubPagesSiteUrl`的附加值。
 
 执行以下命令来升级您的 Jenkins 实例：
 
-[PRE35]
+```
+$ helm upgrade jenkins codecentric/jenkins \
+  -n chapter7 --version 1.5.1 \
+  --reuse-values --set githubPagesSiteUrl=$GITHUB_PAGES_SITE_URL
+```
 
 此次升级将导致 Jenkins 实例重新启动。您可以通过针对`chapter7`命名空间的 Pod 运行 watch 来等待 Jenkins Pod 准备就绪：
 
-[PRE36]
+```
+$ kubectl get Pods -n chapter7 -w
+```
 
 当 Jenkins Pod 指示`1/1`个容器已准备就绪时，该 Jenkins Pod 可用。
 
@@ -504,7 +653,9 @@ CD 工作流包含在单独的`Jenkinsfile`文件中，与先前为 CI 管道创
 
 与之前的 CI 流水线一样，为了测试和发布 Helm 图表，CD 流水线首先通过动态创建一个新的 Jenkins 代理作为运行图表测试镜像的 Kubernetes Pod 来开始：
 
-[PRE37]
+```
+agent { label 'chart-testing-agent' }
+```
 
 虽然我们在这个流水线中没有使用`ct`工具，但是图表测试镜像包含了执行`nginx`部署所需的 Helm CLI，因此该镜像足以用于这个示例 CD 流水线。然而，也可以创建一个更小的镜像，删除未使用的工具也是可以接受的。
 
@@ -512,11 +663,17 @@ CD 工作流包含在单独的`Jenkinsfile`文件中，与先前为 CI 管道创
 
 流水线的第一个明确定义的阶段称为“设置”，它将托管在 GitHub Pages 上的您的`stable`图表存储库添加到 Jenkins 代理上的本地 Helm 客户端中。
 
-[PRE38]
+```
+sh "helm repo add learnhelm ${env.GITHUB_PAGES_SITE_URL}"
+```
 
 一旦存储库被添加，流水线就可以开始将 NGINX 部署到不同的环境中。下一个阶段称为“部署到开发环境”，将 NGINX 图表部署到您的`dev`命名空间：
 
-[PRE39]
+```
+dir('nginx-cd') {
+  sh "helm upgrade --install nginx-${env.BRANCH_NAME} learnhelm/nginx --values common-values.yaml --values dev/values.yaml -n dev --wait"
+}
+```
 
 您可能注意到这个阶段的第一个细节是`dir('nginx-cd')`闭包。这是`Jenkinsfile`语法，用于设置其中包含的命令的工作目录。我们将很快更详细地解释`nginx-cd`文件夹。
 
@@ -524,25 +681,50 @@ CD 工作流包含在单独的`Jenkinsfile`文件中，与先前为 CI 管道创
 
 关于这个`helm upgrade`命令的另一个有趣细节是它两次使用了`--values`标志——一次针对名为`common-values.yaml`的文件，一次针对名为`dev/values.yaml`的文件。这两个文件都位于`nginx-cd`文件夹中。以下内容位于`nginx-cd`文件夹中：
 
-[PRE40]
+```
+nginx-cd/
+  dev/
+    values.yaml
+  qa/
+    values.yaml
+  prod/
+    values.yaml
+  common-values.yaml
+  Jenkinsfile
+```
 
 在将应用程序部署到不同的环境时，您可能需要稍微修改应用程序的配置，以使其能够与环境中的其他服务集成。`dev`、`qa`和`prod`文件夹下的每个`values`文件都包含一个环境变量，该变量根据部署的环境设置在 NGINX 部署上。例如，这里显示了`dev/values.yaml`文件的内容：
 
-[PRE41]
+```
+env:
+ - name: ENVIRONMENT
+   value: dev
+```
 
 类似地，这里显示了`qa/values.yaml`文件的内容：
 
-[PRE42]
+```
+env:
+ - name: ENVIRONMENT
+   value: qa
+```
 
 `prod/values.yaml`文件的内容如下：
 
-[PRE43]
+```
+env:
+ - name: ENVIRONMENT
+   value: prod
+```
 
 虽然在这个示例中部署的 NGINX 图表是直接的，并且不严格要求指定这些值，但您会发现将环境特定的配置分开放在单独的`values`文件中，使用这里展示的方法对于复杂的真实用例非常有帮助。然后可以通过将相应的 values 文件传递给`helm upgrade --install`命令来应用安装，其中`${env}`表示`dev`、`qa`或`prod`。
 
 正如其名称所示，`common-values.yaml`文件用于所有部署环境中通用的值。这个示例的`common-values.yaml`文件写成如下形式：
 
-[PRE44]
+```
+service:
+ type: NodePort
+```
 
 这个文件表示在安装图表期间创建的每个 NGINX 服务都应该具有`NodePort`类型。由于它们没有在`common-values.yaml`文件或单独的`values.yaml`环境文件中被覆盖，NGINX 图表的`values.yaml`文件中设置的所有其他默认值也被应用到每个环境中。
 
@@ -576,19 +758,31 @@ CD 工作流包含在单独的`Jenkinsfile`文件中，与先前为 CI 管道创
 
 继续进行流水线，部署到`dev`后的下一个阶段是烟雾测试。该阶段运行以下命令：
 
-[PRE45]
+```
+sh 'helm test nginx -n dev'
+```
 
 NGINX 图表包含一个测试钩子，用于检查 NGINX Pod 的连接。如果`test`钩子能够验证可以与 Pod 建立连接，则测试将返回为成功。虽然`helm test`命令通常用于图表测试，但它也可以作为在 CD 过程中执行基本烟雾测试的良好方法。烟雾测试是部署后进行的测试，以确保应用的关键功能按设计工作。由于 NGINX 图表测试不会以任何方式干扰正在运行的应用程序或部署环境的其余部分，因此`helm test`命令是确保 NGINX 图表成功部署的适当方法。
 
 烟雾测试后，示例 CD 流水线运行下一个阶段，称为`部署到 QA`。该阶段包含一个条件，评估流水线正在执行的当前分支是否是主分支，如下所示：
 
-[PRE46]
+```
+when {
+  expression {
+    return env.BRANCH_NAME == 'master'
+  }
+}
+```
 
 该条件允许您使用功能分支来测试`values.yaml`文件中包含的部署代码，而无需将其提升到更高的环境。这意味着只有主分支中包含的 Helm 值应该是生产就绪的，尽管这不是您在 CD 流水线中发布应用时可以采取的唯一策略。另一种常见的策略是允许在以`release/`前缀开头的发布分支上进行更高级别的推广。
 
 `部署到 QA`阶段中使用的 Helm 命令显示如下：
 
-[PRE47]
+```
+dir('nginx-cd') {
+    sh "helm upgrade --install nginx-${env.BRANCH_NAME} learnhelm/nginx --values common-values.yaml --values qa/values.yaml -n qa --wait"
+}
+```
 
 鉴于您对`部署到 Dev`阶段和常见值与特定环境值的分离的了解，`部署到 QA`的代码是可以预测的。它引用了`qa/values.yaml`文件中的 QA 特定值，并传递了`-n qa`标志以部署到`qa`命名空间。
 
@@ -596,13 +790,30 @@ NGINX 图表包含一个测试钩子，用于检查 NGINX Pod 的连接。如果
 
 流水线的下一个阶段称为`等待输入`：
 
-[PRE48]
+```
+stage('Wait for Input') {
+    when {
+        expression {
+            return env.BRANCH_NAME == 'master'
+        }
+    }
+    steps {
+        container('chart-testing') {
+            input 'Deploy to Prod?'
+        }
+    }
+}
+```
 
 这个输入步骤暂停了 Jenkins 流水线，并用“部署到生产环境？”的问题提示用户。在运行作业的控制台日志中，用户有两个选择 - “继续”和“中止”。虽然可以自动执行生产部署而无需此手动步骤，但许多开发人员和公司更喜欢在“非生产”和“生产”部署之间设置一个人为的门。这个“输入”命令为用户提供了一个机会，让用户决定是否继续部署或在`qa`阶段之后中止流水线。
 
 如果用户决定继续，将执行最终阶段，称为“部署到生产环境”：
 
-[PRE49]
+```
+dir('nginx-cd') {
+  sh "helm upgrade --install nginx-${env.BRANCH_NAME} learnhelm/nginx --values common-values.yaml --values prod/values.yaml -n prod --wait"
+}
+```
 
 这个阶段几乎与“部署到 Dev”和“部署到 QA”阶段相同，唯一的区别是生产特定的`values`文件和作为`helm upgrade --install`命令的一部分定义的`prod`命名空间。
 
@@ -626,15 +837,50 @@ NGINX 图表包含一个测试钩子，用于检查 NGINX Pod 的连接。如果
 
 您可以看到的第一个部署是`dev`部署：
 
-[PRE50]
+```
++ helm upgrade --install nginx-master learnhelm/nginx --values common-values.yaml --values dev/values.yaml -n dev --wait
+Release 'nginx-master' does not exist. Installing it now.
+NAME: nginx-master
+LAST DEPLOYED: Thu Apr 30 02:07:55 2020
+NAMESPACE: dev
+STATUS: deployed
+REVISION: 1
+NOTES:
+1\. Get the application URL by running these commands:
+  export NODE_PORT=$(kubectl get --namespace dev -o jsonpath='{.spec.ports[0].nodePort}' services nginx-master)
+  export NODE_IP=$(kubectl get nodes --namespace dev -o jsonpath='{.items[0].status.addresses[0].address}')
+  echo http://$NODE_IP:$NODE_PORT
+```
 
 然后，您应该会看到由`helm test`命令运行的冒烟测试：
 
-[PRE51]
+```
++ helm test nginx-master -n dev
+Pod nginx-master-test-connection pending
+Pod nginx-master-test-connection pending
+Pod nginx-master-test-connection succeeded
+NAME: nginx-master
+LAST DEPLOYED: Thu Apr 30 02:07:55 2020
+NAMESPACE: dev
+STATUS: deployed
+REVISION: 1
+TEST SUITE:     nginx-master-test-connection
+Last Started:   Thu Apr 30 02:08:03 2020
+Last Completed: Thu Apr 30 02:08:05 2020
+Phase:          Succeeded
+```
 
 冒烟测试之后是`qa`部署：
 
-[PRE52]
+```
++ helm upgrade --install nginx-master learnhelm/nginx --values common-values.yaml --values qa/values.yaml -n qa --wait
+Release 'nginx-master' does not exist. Installing it now.
+NAME: nginx-master
+LAST DEPLOYED: Thu Apr 30 02:08:09 2020
+NAMESPACE: qa
+STATUS: deployed
+REVISION: 1
+```
 
 这将带我们到输入阶段，我们在首次打开日志时看到的：
 
@@ -644,27 +890,52 @@ NGINX 图表包含一个测试钩子，用于检查 NGINX Pod 的连接。如果
 
 点击**继续**链接以继续流水线执行，点击**中止**将导致流水线失败，并阻止生产部署的发生。然后您将看到`prod`部署发生：
 
-[PRE53]
+```
++ helm upgrade --install nginx-master learnhelm/nginx --values common-values.yaml --values prod/values.yaml -n prod --wait
+Release 'nginx-master' does not exist. Installing it now.
+NAME: nginx-master
+LAST DEPLOYED: Thu Apr 30 03:46:22 2020
+NAMESPACE: prod
+STATUS: deployed
+REVISION: 1
+```
 
 最后，如果生产部署成功，您将在流水线结束时看到以下消息：
 
-[PRE54]
+```
+[Pipeline] End of Pipeline
+Finished: SUCCESS
+```
 
 您可以手动验证部署是否成功。运行 `helm list` 命令查找 `nginx-master` 发布版本：
 
-[PRE55]
+```
+$ helm list -n dev
+$ helm list -n qa
+$ helm list -n prod
+```
 
 每个命令都应该列出每个命名空间中的 `nginx` 发布版本：
 
-[PRE56]
+```
+NAME 	            NAMESPACE	    REVISION  	
+nginx-master	      dev      	    1
+```
 
 您还可以使用 `kubectl` 列出每个命名空间中的 Pod，并验证 NGINX 是否已部署：
 
-[PRE57]
+```
+$ kubectl get Pods -n dev
+$ kubectl get Pods -n qa
+$ kubectl get Pods -n prod
+```
 
 每个命名空间的结果将类似于以下内容（`dev` 还将有一个在冒烟测试阶段执行的已完成测试 Pod）：
 
-[PRE58]
+```
+NAME                    READY   STATUS    RESTARTS   AGE
+nginx-fcb5d6b64-rmc2j   1/1     Running   0          46m
+```
 
 在本节中，我们讨论了如何在 Kubernetes 中的 CD 流水线中使用 Helm 来部署应用程序到多个环境中。该流水线依赖于 GitOps 实践，将配置（`values.yaml`文件）存储在源代码控制中，并引用这些文件来正确配置 NGINX。了解了 Helm 如何在 CD 环境中使用后，您现在可以清理您的 Minikube 集群。
 
@@ -672,11 +943,18 @@ NGINX 图表包含一个测试钩子，用于检查 NGINX Pod 的连接。如果
 
 要清理本章练习中的 Minikube 集群，请删除 `chapter7`、`dev`、`qa` 和 `prod` 命名空间：
 
-[PRE59]
+```
+$ kubectl delete ns chapter7
+$ kubectl delete ns dev
+$ kubectl delete ns qa
+$ kubectl delete ns prod
+```
 
 您还可以关闭您的 Minikube 虚拟机：
 
-[PRE60]
+```
+$ minikube stop
+```
 
 # 摘要
 

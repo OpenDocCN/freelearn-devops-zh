@@ -88,17 +88,38 @@ Helm 中的一个包被称为 chart，它是运行应用程序的配置、定义
 
 在获取 Helm 二进制文件后，它会获取我们的 kubectl 配置以连接到集群。我们需要在 Kubernetes 集群中有一个名为`Tiller`的管理器来管理 Helm 的每个部署任务：
 
-[PRE0]
+```
+$ helm init
+$HELM_HOME has been configured at /Users/myuser/.helm.
+
+Tiller (the Helm server-side component) has been installed into your Kubernetes Cluster.
+Happy Helming!  
+```
 
 如果我们想要在不将 Tiller 安装到我们的 Kubernetes 集群中的情况下初始化 Helm 客户端，我们可以在`helm init`中添加`--client-only`标志。此外，一起使用`--skip-refresh`标志可以让我们离线初始化客户端。
 
 Helm 客户端能够从命令行搜索可用的图表：
 
-[PRE1]
+```
+$ helm search
+NAME                          VERSION     DESCRIPTION
+stable/aws-cluster-autoscaler 0.2.1       Scales worker nodes within autoscaling groups.
+stable/chaoskube              0.5.0       Chaoskube periodically kills random pods in you...
+...
+stable/uchiwa                 0.2.1       Dashboard for the Sensu monitoring framework
+stable/wordpress              0.6.3       Web publishing platform for building blogs and ...  
+```
 
 让我们从存储库安装一个图表，比如最后一个`wordpress`：
 
-[PRE2]
+```
+$ helm install stable/wordpress
+NAME:   plinking-billygoat
+LAST DEPLOYED: Wed Sep  6 01:09:20 2017
+NAMESPACE: default
+STATUS: DEPLOYED
+...  
+```
 
 在 Helm 中部署的图表被称为发布。在这里，我们有一个名为`plinking-billygoat`的发布已安装。一旦 pod 和服务准备就绪，我们就可以连接到我们的站点并检查结果。
 
@@ -106,7 +127,10 @@ Helm 客户端能够从命令行搜索可用的图表：
 
 释放发布也只需要一行命令：
 
-[PRE3]
+```
+$ helm delete plinking-billygoat
+release "plinking-billygoat" deleted 
+```
 
 Helm 利用 ConfigMap 来存储发布的元数据，但使用`helm delete`删除发布不会删除其元数据。要完全清除这些元数据，我们可以手动删除这些 ConfigMaps，或者在执行`helm delete`时添加`--purge`标志。
 

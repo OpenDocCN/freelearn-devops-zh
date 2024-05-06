@@ -40,11 +40,19 @@ Docker 是一个开源的基于容器的平台，可以让任何人在任何地�
 
 代码块设置如下：
 
-[PRE0]
+```
+ENTRYPOINT /usr/sbin/sshd -D 
+VOLUME ["/home"] 
+EXPOSE 22 
+EXPOSE 8080
+```
 
 任何命令行输入或输出都以以下形式书写：
 
-[PRE1]
+```
+Docker build -t username/my-imagename -f /path/Dockerfile
+
+```
 
 **新术语**和**重要单词**以粗体显示。您在屏幕上看到的单词，例如菜单或对话框中的单词，会在文本中显示为：“指定**堆栈名称**、**密钥对**和集群 3。”
 

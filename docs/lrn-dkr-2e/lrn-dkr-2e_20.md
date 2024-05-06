@@ -64,7 +64,9 @@
 
 我们可以使用 kubectl 部署这个 Deployment 对象：
 
-[PRE0]
+```
+$ kubectl create -f web-deployment.yaml
+```
 
 我们可以使用我们的 Kubernetes CLI 再次检查部署是否已创建。我们应该看到以下输出：
 
@@ -88,7 +90,9 @@
 
 现在我们有了一个`Service`对象的规范，我们可以使用`kubectl`来创建它：
 
-[PRE1]
+```
+$ kubectl create -f web-service.yaml
+```
 
 我们可以列出所有的服务来查看前面命令的结果：
 
@@ -98,7 +102,11 @@
 
 如果我们想测试这个部署，我们需要找出 Minikube 的 IP 地址，然后使用这个 IP 地址来访问我们的 web 服务。以下是我们可以用来做这件事的命令：
 
-[PRE2]
+```
+$ IP=$(minikube ip)
+$ curl -4 $IP:31331/
+Pets Demo Application
+```
 
 好的，响应是`Pets Demo Application`，这是我们预期的。web 服务在 Kubernetes 集群中已经启动。接下来，我们要部署数据库。
 
@@ -114,7 +122,9 @@ Kubernetes 为有状态的组件定义了一种特殊类型的 ReplicaSet 对象
 
 一如既往，我们使用 kubectl 来部署 StatefulSet：
 
-[PRE3]
+```
+$ kubectl create -f db-stateful-set.yaml
+```
 
 现在，如果我们列出集群中的所有资源，我们将能够看到已创建的附加对象。
 
@@ -132,7 +142,9 @@ StatefulSet 及其 pod
 
 让我们使用以下命令部署此服务：
 
-[PRE4]
+```
+$ kubectl create -f db-service.yaml
+```
 
 现在，我们应该准备好测试应用程序了。这次我们可以使用浏览器来欣赏美丽的动物图片：
 
@@ -148,7 +160,12 @@ StatefulSet 及其 pod
 
 从集群中删除应用程序，我们可以使用以下小脚本：
 
-[PRE5]
+```
+kubectl delete svc/web
+kubectl delete deploy/web
+kubectl delete svc/db
+kubectl delete statefulset/db
+```
 
 接下来，我们将简化部署。
 
@@ -160,7 +177,43 @@ StatefulSet 及其 pod
 
 如果我们的应用程序由许多 Kubernetes 对象（如`Deployment`和`Service`对象）组成，那么我们可以将它们全部放在一个单独的文件中，并通过三个破折号分隔各个对象的定义。例如，如果我们想要在单个文件中为`web`组件定义`Deployment`和`Service`，则如下所示：
 
-[PRE6]
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pets
+      service: web
+  template:
+    metadata:
+      labels:
+        app: pets
+        service: web
+    spec:
+      containers:
+      - image: fundamentalsofdocker/ch11-web:2.0
+        name: web
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  type: NodePort
+  ports:
+  - port: 3000
+    protocol: TCP
+  selector:
+    app: pets
+    service: web
+```
 
 在这里，我们已经在`~/fod/ch16/pets.yaml`文件中收集了`pets`应用程序的所有四个对象定义，并且我们可以一次性部署该应用程序：
 
@@ -192,7 +245,22 @@ Kubernetes 使用活跃探针来决定何时需要终止一个容器，以及何
 
 我们可以在 pod 的规范中定义活跃探针如下：
 
-[PRE7]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+ ...
+spec:
+ containers:
+ - name: liveness-demo
+ image: postgres:12.10
+ ...
+ livenessProbe:
+ exec:
+ command: nc localhost 5432 || exit -1
+ initialDelaySeconds: 10
+ periodSeconds: 5
+```
 
 相关部分在`livenessProbe`部分。首先，我们定义一个命令，Kubernetes 将在容器内部执行作为探针。在我们的例子中，我们有一个 PostresSQL 容器，并使用`netcat` Linux 工具来探测 TCP 端口`5432`。一旦 Postgres 监听到它，`nc localhost 5432`命令就会成功。
 
@@ -200,13 +268,43 @@ Kubernetes 使用活跃探针来决定何时需要终止一个容器，以及何
 
 也可以探测 HTTP 端点，而不是使用命令。假设我们正在从一个镜像`acme.com/my-api:1.0`运行一个微服务，它有一个名为`/api/health`的端点，如果微服务健康则返回状态`200（OK）`，如果不健康则返回`50x（Error）`。在这里，我们可以定义活跃探针如下：
 
-[PRE8]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  ...
+spec:
+  containers:
+  - name: liveness
+    image: acme.com/my-api:1.0
+    ...
+    livenessProbe:
+ httpGet:
+ path: /api/health
+ port: 3000
+ initialDelaySeconds: 5
+ periodSeconds: 3
+```
 
 在上面的片段中，我已经定义了活跃探针，以便它使用 HTTP 协议，并在本地主机的端口`5000`上执行`GET`请求到`/api/health`端点。记住，探针是在容器内执行的，这意味着我可以使用本地主机。
 
 我们也可以直接使用 TCP 协议来探测容器上的端口。但等一下，我们刚刚在我们的第一个示例中做过这个，我们使用了基于任意命令的通用活跃探针？是的，你说得对，我们做了。但我们必须依赖容器中`netcat`工具的存在才能这样做。我们不能假设这个工具总是存在。因此，依赖 Kubernetes 来为我们执行基于 TCP 的探测是有利的。修改后的 pod 规范如下：
 
-[PRE9]
+```
+apiVersion: v1kind: Pod
+metadata:
+ ...
+spec:
+ containers:
+ - name: liveness-demo
+   image: postgres:12.10
+   ...
+ livenessProbe:
+ tcpSocket:
+ port: 5432
+ initialDelaySeconds: 10
+ periodSeconds: 5
+```
 
 这看起来非常相似。唯一的变化是探针的类型已从`exec`更改为`tcpSocket`，而不是提供一个命令，我们提供了要探测的`port`。
 
@@ -214,15 +312,21 @@ Kubernetes 使用活跃探针来决定何时需要终止一个容器，以及何
 
 1.  转到`~/fod/ch16/probes`文件夹，并使用以下命令构建 Docker 镜像：
 
-[PRE10]
+```
+$ docker image build -t fundamentalsofdocker/probes-demo:2.0 .
+```
 
 1.  使用`kubectl`部署在`probes-demo.yaml`中定义的示例 pod：
 
-[PRE11]
+```
+$ kubectl apply -f probes-demo.yaml
+```
 
 1.  描述 pod，特别分析输出的日志部分：
 
-[PRE12]
+```
+$ kubectl describe pods/probes-demo
+```
 
 在接下来的半分钟左右，你应该会得到以下输出：
 
@@ -238,11 +342,17 @@ Kubernetes 使用活跃探针来决定何时需要终止一个容器，以及何
 
 如果你获取 pod 列表，你会看到该 pod 已经重新启动了多次：
 
-[PRE13]
+```
+$ kubectl get pods
+NAME         READY   STATUS    RESTARTS   AGE
+probes-demo  1/1     Running   5          7m22s
+```
 
 当你完成示例后，使用以下命令删除 pod：
 
-[PRE14]
+```
+$ kubectl delete pods/probes-demo
+```
 
 接下来，我们将看一下 Kubernetes 的就绪探针。
 
@@ -252,7 +362,25 @@ Kubernetes 使用就绪探针来决定服务实例（即容器）何时准备好
 
 就绪探针的定义方式与活跃性探针完全相同：只需将 pod 规范中的`livenessProbe`键切换为`readinessProbe`。以下是使用我们之前的 pod 规范的示例：
 
-[PRE15]
+```
+ ...
+spec:
+ containers:
+ - name: liveness-demo
+   image: postgres:12.10
+   ...
+   livenessProbe:
+     tcpSocket:
+       port: 5432
+     failureThreshold: 2
+     periodSeconds: 5
+
+   readinessProbe:
+ tcpSocket:
+ port: 5432
+ initialDelaySeconds: 10
+ periodSeconds: 5
+```
 
 请注意，在这个例子中，我们不再需要活跃性探针的初始延迟，因为现在有了就绪探针。因此，我用一个名为`failureThreshold`的条目替换了活跃性探针的初始延迟条目，该条目指示 Kubernetes 在失败的情况下应重复探测多少次，直到假定容器不健康。
 
@@ -264,7 +392,17 @@ Kubernetes 使用就绪探针来决定服务实例（即容器）何时准备好
 
 毫不奇怪，启动探测的定义方式与就绪性和存活性探测完全相同。以下是一个例子：
 
-[PRE16]
+```
+spec:
+  containers:
+    ..
+    startupProbe:
+ tcpSocket:
+ port: 3000
+ failureThreshold: 30
+ periodSeconds: 5
+  ...
+```
 
 确保定义`failureThreshold * periodSeconds`产品，以便足够大以考虑最坏的启动时间。
 
@@ -286,15 +424,46 @@ Kubernetes 使用就绪探针来决定服务实例（即容器）何时准备好
 
 我们将使用与上一节相同的部署定义，但有一个重要的区别 - 我们将有五个 web 组件的副本在运行。以下定义也可以在`~/fod/ch16/web-deploy-rolling-v1.yaml`文件中找到：
 
-[PRE17]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: pets
+      service: web
+  template:
+    metadata:
+      labels:
+        app: pets
+        service: web
+    spec:
+      containers:
+      - image: fundamentalsofdocker/ch11-web:2.0
+        name: web
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+```
 
 现在，我们可以像往常一样创建这个部署，同时也创建使我们的组件可访问的服务：
 
-[PRE18]
+```
+$ kubectl create -f web-deploy-rolling-v1.yaml
+$ kubectl create -f web-service.yaml
+```
 
 一旦我们部署了 pod 和服务，我们可以使用以下命令测试我们的 web 组件：
 
-[PRE19]
+```
+$ PORT=$(kubectl get svc/web -o yaml | grep nodePort | cut -d' ' -f5)
+$ IP=$(minikube ip)
+$ curl -4 ${IP}:${PORT}/
+Pets Demo Application
+```
 
 我们可以看到，应用程序正在运行，并返回预期的消息`Pets Demo Application`。
 
@@ -304,23 +473,36 @@ Kubernetes 使用就绪探针来决定服务实例（即容器）何时准备好
 
 开发人员已经按以下方式构建了新的镜像：
 
-[PRE20]
+```
+$ docker image build -t fundamentalsofdocker/ch16-web:2.1 web
+```
 
 随后，他们将镜像推送到 Docker Hub，如下所示：
 
-[PRE21]
+```
+$ docker image push fundamentalsofdocker/ch16-web:2.1
+```
 
 现在，我们想要更新`web`部署对象中的 pod 所使用的镜像。我们可以使用`kubectl`的`set image`命令来实现这一点：
 
-[PRE22]
+```
+$ kubectl set image deployment/web \
+ web=fundamentalsofdocker/ch16-web:2.1
+```
 
 如果我们再次测试应用程序，我们将得到一个确认，更新确实已经发生：
 
-[PRE23]
+```
+$ curl -4 ${IP}:${PORT}/
+Pets Demo Application v2
+```
 
 现在，我们如何知道在此更新过程中没有发生任何停机时间？更新确实是以滚动方式进行的吗？滚动更新到底意味着什么？让我们来调查一下。首先，我们可以通过使用`rollout status`命令从 Kubernetes 那里得到确认，部署确实已经发生并且成功了：
 
-[PRE24]
+```
+$ kubectl rollout status deploy/web
+deployment "web" successfully rolled out
+```
 
 如果我们用`kubectl describe deploy/web`描述部署 web，我们会在输出的最后得到以下事件列表：
 
@@ -340,7 +522,12 @@ Kubernetes 使用就绪探针来决定服务实例（即容器）何时准备好
 
 为了回滚图像的更新，以防一些未被检测到的错误潜入新代码，我们可以使用`rollout undo`命令：
 
-[PRE25]
+```
+$ kubectl rollout undo deploy/web
+deployment "web"
+$ curl -4 ${IP}:${PORT}/
+Pets Demo Application
+```
 
 我还在前面的片段中列出了使用`curl`进行测试的命令，以验证回滚确实发生了。如果我们列出 ReplicaSets，我们将看到以下输出：
 
@@ -378,11 +565,19 @@ Kubernetes 服务支持蓝绿部署的 Web 组件
 
 然后，我们可以使用以下命令部署 Web 组件的蓝色版本：
 
-[PRE26]
+```
+$ kubectl create -f web-deploy-blue.yaml
+$ kubectl create -f web-svc-blue-green.yaml
+```
 
 一旦服务启动运行，我们可以确定其 IP 地址和端口号并进行测试：
 
-[PRE27]
+```
+$ PORT=$(kubectl get svc/web -o yaml | grep nodePort | cut -d' ' -f5)
+$ IP=$(minikube ip)
+$ curl -4 ${IP}:${PORT}/
+Pets Demo Application
+```
 
 正如预期的那样，我们得到了“宠物演示应用程序”的响应。现在，我们可以部署 Web 组件的绿色版本。其部署对象的定义可以在`~/fod/ch16/web-deploy-green.yaml`文件中找到，如下所示：
 
@@ -398,7 +593,9 @@ Kubernetes 服务支持蓝绿部署的 Web 组件
 
 现在，我们准备部署这个绿色版本的服务。它应该与蓝色服务分开运行。
 
-[PRE28]
+```
+$ kubectl create -f web-deploy-green.yaml
+```
 
 我们可以确保两个部署共存如下：
 
@@ -406,15 +603,23 @@ Kubernetes 服务支持蓝绿部署的 Web 组件
 
 正如预期的那样，蓝色和绿色都在运行。我们可以验证蓝色仍然是活动服务：
 
-[PRE29]
+```
+$ curl -4 ${IP}:${PORT}/
+Pets Demo Application
+```
 
 现在是有趣的部分。我们可以通过编辑 Web 组件的现有服务将流量从蓝色切换到绿色。为此，请执行以下命令：
 
-[PRE30]
+```
+$ kubectl edit svc/web
+```
 
 将标签颜色的值从蓝色更改为绿色。然后保存并退出编辑器。Kubernetes CLI 将自动更新服务。现在再次查询 web 服务时，我们会得到这个：
 
-[PRE31]
+```
+$ curl -4 ${IP}:${PORT}/
+Pets Demo Application v2
+```
 
 这证实了流量确实已经切换到 web 组件的绿色版本（注意响应`curl`命令末尾的`v2`）。
 
@@ -422,7 +627,9 @@ Kubernetes 服务支持蓝绿部署的 Web 组件
 
 一旦组件的绿色版本按预期运行并表现良好，我们可以停用蓝色版本：
 
-[PRE32]
+```
+$ kubectl delete deploy/web-blue
+```
 
 当我们准备部署新版本 3.0 时，这个版本成为蓝色版本。我们相应地更新`~/fod/ch16/web-deploy-blue.yaml`文件并部署它。然后，我们将服务 web 从绿色切换到蓝色，依此类推。
 
@@ -438,7 +645,16 @@ Kubernetes 服务支持蓝绿部署的 Web 组件
 
 我们可以像在 Kubernetes 中创建任何其他对象一样，声明性地创建一个秘密。以下是这样一个秘密的 YAML：
 
-[PRE33]
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pets-secret
+type: Opaque
+data:
+  username: am9obi5kb2UK
+  password: c0VjcmV0LXBhc1N3MHJECg==
+```
 
 前面的定义可以在`~/fod/ch16/pets-secret.yaml`文件中找到。现在，你可能想知道这些值是什么。这些是真实的（未加密）值吗？不，不是。它们也不是真正加密的值，而只是 base64 编码的值。因此，它们并不是真正安全的，因为 base64 编码的值可以很容易地恢复为明文值。我是如何得到这些值的？很简单：按照以下步骤：
 
@@ -458,7 +674,10 @@ Kubernetes 服务支持蓝绿部署的 Web 组件
 
 1.  解码之前获得的值：
 
-[PRE34]
+```
+$ echo "c0VjcmV0LXBhc1N3MHJECg==" | base64 --decode
+sEcret-pasSw0rD
+```
 
 因此，这种创建 Kubernetes 的方法的后果是不应该在除了开发环境之外的任何环境中使用，我们在那里处理非敏感数据。在所有其他环境中，我们需要更好的方法来处理秘密。
 
@@ -466,11 +685,19 @@ Kubernetes 服务支持蓝绿部署的 Web 组件
 
 定义秘密的一个更安全的方法是使用`kubectl`。首先，我们创建包含 base64 编码的秘密值的文件，类似于我们在前面的部分所做的，但是这次，我们将值存储在临时文件中：
 
-[PRE35]
+```
+$ echo "sue-hunter" | base64 > username.txt
+$ echo "123abc456def" | base64 > password.txt
+```
 
 现在，我们可以使用`kubectl`从这些文件中创建一个秘密，如下所示：
 
-[PRE36]
+```
+$ kubectl create secret generic pets-secret-prod \
+ --from-file=./username.txt \
+ --from-file=./password.txt
+secret "pets-secret-prod" created
+```
 
 秘密可以像手动创建的秘密一样使用。
 
@@ -482,7 +709,9 @@ Kubernetes 服务支持蓝绿部署的 Web 组件
 
 假设我们想要创建一个`Deployment`对象，其中`web`组件使用我们在前一节中介绍的秘密`pets-secret`。我们可以使用以下命令在集群中创建秘密：
 
-[PRE37]
+```
+$ kubectl create -f pets-secret.yaml
+```
 
 在`~/fod/ch16/web-deploy-secret.yaml`文件中，我们可以找到`Deployment`对象的定义。我们不得不添加从第`23`行开始的部分到`Deployment`对象的原始定义中：
 

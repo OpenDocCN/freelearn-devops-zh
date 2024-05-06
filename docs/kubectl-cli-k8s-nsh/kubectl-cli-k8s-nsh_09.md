@@ -16,15 +16,45 @@
 
 在上一章中，我们删除了一个正在运行的应用程序。因此，在本章中，让我们安装另一个。为了调试应用程序，我们将使用 Docker Hub（[`hub.docker.com/r/bitnami/postgresql`](https://hub.docker.com/r/bitnami/postgresql)）上的`bitnami/postgresql` Docker 镜像，并使用`deployment-postgresql.yaml`文件安装应用程序：
 
-[PRE0]
+```
+$ cat deployment-postgresql.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+      - image: bitnami/postgresql:10.12.10
+        imagePullPolicy: IfNotPresent
+        name: postgresql
+```
 
 要安装 PostgreSQL 部署，请运行以下命令：
 
-[PRE1]
+```
+$ kubectl apply –f deployment-postgresql.yaml
+Deployment.apps/postgresql created
+$ kubectl get pods
+NAME                        READY   STATUS        RESTARTS   AGE
+postgresql-867df7d69-r84nl  0/1     ErrImagePull  0          9s
+```
 
 哎呀，发生了什么？通过运行`$ kubectl get pods`命令，我们看到了一个`ErrImagePull`错误。让我们来看看。在*第一章*，*介绍和安装 kubectl*中，我们学习了`kubectl describe`命令；让我们使用它来检查 pod 状态。要描述 PostgreSQL pod，请运行以下命令：
 
-[PRE2]
+```
+$ kubectl describe pod postgresql-8675df7d69-r84nl
+```
 
 在运行前述命令后，我们得到了以下`Events`的输出：
 
@@ -36,15 +66,26 @@
 
 就在这里，我们看到为什么无法拉取镜像：
 
-[PRE3]
+```
+Failed to pull image "bitnami/postgresql:10.12.10": rpc error: code = Unknown desc = Error response from daemon: manifest for bitnami/postgresql:10.12.10 not found: manifest unknown: manifest unknown
+```
 
 看着前面的错误，我们可以看到我们引用了错误的标签`postgresql` Docker 镜像。让我们在`deployment-postgresql.yaml`文件中将其更改为`10.13.0`，然后再次运行`kubectl apply`。要更新`postgresql`部署，请运行以下命令：
 
-[PRE4]
+```
+$ kubectl apply –f deployment-postgresql.yaml
+Deployment.apps/postgresql configured
+$ kubectl get pods
+NAME                         READY   STATUS            RESTARTS   AGE
+postgresql-56dcb95567-8rdmd  0/1     CrashLoopBackOff  0          36s
+postgresql-8675df7d69-r84nl  0/1     ImagePullBackOff  0          35m
+```
 
 我们看到了一个新的 pod，`postgresql-56dcb95567-8rdmd`，它也崩溃了。要检查这个`postgresql` pod，请运行以下命令：
 
-[PRE5]
+```
+$ kubectl describe pod postgresql-56dcb95567-8rdmd
+```
 
 在运行前述命令后，我们得到了以下输出：
 
@@ -68,7 +109,10 @@
 
 现在，让我们在崩溃的`postgresql` pod 上检查这个命令，并尝试找出它失败的原因。要获取 pod 列表并检查 pod 日志，请运行以下命令：
 
-[PRE6]
+```
+$ kubectl get pods
+$ kubectl logs postgresql-56dcb95567-njsp6
+```
 
 上述命令的输出如下截图所示：
 
@@ -80,11 +124,46 @@
 
 让我们使用一些密码更新`deployment-postgresql.yaml`文件中的`POSTGRESQL_PASSWORD`环境变量设置：
 
-[PRE7]
+```
+$ cat deployment-postgresql.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  labels:
+    app: postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      containers:
+      - image: bitnami/postgresql:10.13.0
+        imagePullPolicy: IfNotPresent
+        name: postgresql
+        env:
+        - name: POSTGRESQL_PASSWORD
+          value: "VerySecurePassword:-)"
+```
 
 要更新`postgresql`部署，请运行以下命令：
 
-[PRE8]
+```
+$ kubectl apply –f deployment-postgresql.yaml
+Deployment.apps/postgresql configured
+$ kubectl get pods
+NAME                         READY   STATUS            RESTARTS   AGE
+postgresql-56dcb95567-njsp6  0/1     CrashLoopBackOff  11         36m
+postgresql-57578b68d9-b6lkv  0/1     ContainerCreating 0          1s
+$ kubectl get pods
+NAME                         READY   STATUS     RESTARTS   AGE
+postgresql-57578b68d9-b6lkv  1/1     Running    0          21s
+```
 
 正如您在上面的代码块中所看到的，`postgresql`部署已经更新，成功创建了一个新的 pod，并且崩溃的 pod 已经被终止。
 
@@ -94,7 +173,9 @@
 
 现在让我们实时查看`postgresql` pod 日志。要实时检查 pod 日志，请运行以下命令：
 
-[PRE9]
+```
+$ kubectl logs postgresql-57578b68d9-b6lkv -f
+```
 
 上述命令的输出如下截图所示：
 
@@ -110,7 +191,21 @@
 
 让我们看看如何使用`kubectl exec`命令获取`postgresql.conf`文件的内容：
 
-[PRE10]
+```
+$ kubectl exec postgresql-57578b68d9-6wvpw cat \ /opt/bitnami/postgresql/conf/postgresql.conf
+# -----------------------------
+# PostgreSQL configuration file
+# -----------------------------
+#
+# This file consists of lines of the form:
+#
+#   name = value
+#
+# (The "=" is optional.)  Whitespace may be used.  Comments are introduced with
+# "#" anywhere on a line.  The complete list of parameter names and allowed
+# values can be found in the PostgreSQL documentation.
+…
+```
 
 上面的命令将显示`postgresql.conf`文件的内容，以便您可以检查 PostgreSQL 的设置，这些设置在这种情况下是默认设置。
 
@@ -118,7 +213,9 @@
 
 要进入`postgresql` pod，请运行以下命令：
 
-[PRE11]
+```
+$ kubectl exec –it postgresql-57578b68d9-6wvpw – bash
+```
 
 上面命令的输出显示在下面的屏幕截图中：
 

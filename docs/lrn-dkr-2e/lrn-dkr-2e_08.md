@@ -36,39 +36,78 @@
 
 1.  创建一个新的项目文件夹并导航到它：
 
-[PRE0]
+```
+$ mkdir -p ~/fod/ch06 && cd ~/fod/ch06
+```
 
 1.  让我们使用`npm`来创建一个新的 Node.js 项目：
 
-[PRE1]
+```
+$ npm init
+```
 
 1.  接受所有默认设置。请注意，将创建一个`package.json`文件，内容如下：
 
-[PRE2]
+```
+{
+  "name": "ch06",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
+```
 
 1.  我们想在我们的 Node 应用程序中使用 Express.js 库；因此，使用`npm`来安装它：
 
-[PRE3]
+```
+$ npm install express --save
+```
 
 这将在我们的机器上安装最新版本的 Express.js，并且由于`--save`参数，会向我们的`package.json`文件添加一个类似于这样的引用：
 
-[PRE4]
+```
+"dependencies": {
+  "express": "⁴.17.1"
+}
+```
 
 1.  从该文件夹中启动 VS Code：
 
-[PRE5]
+```
+$ code .
+```
 
 1.  在 VS Code 中，创建一个新的`index.js`文件，并将以下代码片段添加到其中。不要忘记保存：
 
-[PRE6]
+```
+const express = require('express');
+const app = express();
+
+app.listen(3000, '0.0.0.0', ()=>{
+    console.log('Application listening at 0.0.0.0:3000');
+})
+
+app.get('/', (req,res)=>{
+    res.send('Sample Application: Hello World!');
+})
+```
 
 1.  从终端窗口中再次启动应用程序：
 
-[PRE7]
+```
+$ node index.js
+```
 
 您应该看到以下输出：
 
-[PRE8]
+```
+Application listening at 0.0.0.0:3000
+```
 
 这意味着应用程序正在运行并准备在`0.0.0.0:3000`上监听。您可能会问自己主机地址`0.0.0.0`的含义是什么，为什么我们选择了它。稍后我们会回到这个问题，当我们在容器内运行应用程序时。暂时只需知道`0.0.0.0`是一个具有特殊含义的保留 IP 地址，类似于环回地址`127.0.0.1`。`0.0.0.0`地址简单地意味着*本地机器上的所有 IPv4 地址*。如果主机有两个 IP 地址，比如`52.11.32.13`和`10.11.0.1`，并且在主机上运行的服务器监听`0.0.0.0`，它将在这两个 IP 上可达。
 
@@ -82,21 +121,37 @@
 
 1.  现在我们想通过在容器内运行来测试我们迄今为止开发的应用程序。为此，我们首先必须创建一个`Dockerfile`，以便我们可以构建一个容器镜像，然后从中运行一个容器。让我们再次使用 VS Code 将一个名为`Dockerfile`的文件添加到我们的项目文件夹中，并给它以下内容：
 
-[PRE9]
+```
+FROM node:latest
+WORKDIR /app
+COPY package.json ./
+RUN npm install
+COPY . .
+CMD node index.js
+```
 
 1.  然后我们可以使用这个`Dockerfile`来构建一个名为`sample-app`的镜像，如下所示：
 
-[PRE10]
+```
+$ docker image build -t sample-app .
+```
 
 1.  构建后，使用以下命令在容器中运行应用程序：
 
-[PRE11]
+```
+$ docker container run --rm -it \
+    --name my-sample-app \
+    -p 3000:3000 \
+    sample-app
+```
 
 上述命令从容器镜像`sample-app`运行一个名为`my-sample-app`的容器，并将容器端口`3000`映射到等效的主机端口。端口映射是必要的；否则，我们无法从容器外部访问在容器内运行的应用程序。我们将在*第十章*，*单主机网络*中学到更多关于端口映射的知识。
 
 与我们在主机上直接运行应用程序时类似，输出如下：
 
-[PRE12]
+```
+Application listening at 0.0.0.0:3000
+```
 
 1.  刷新之前的浏览器标签（或者打开一个新的浏览器标签并导航到`localhost:3000`，如果你关闭了它）。你应该看到应用程序仍然运行，并产生与本地运行时相同的输出。这很好。我们刚刚证明了我们的应用不仅在我们的主机上运行，而且在容器内部也可以运行。
 
@@ -104,17 +159,32 @@
 
 1.  现在让我们修改我们的代码并添加一些额外的功能。我们将在`/hobbies`处定义另一个`HTTP GET`端点。请将以下代码片段添加到您的`index.js`文件中：
 
-[PRE13]
+```
+const hobbies = [
+  'Swimming', 'Diving', 'Jogging', 'Cooking', 'Singing'
+];
+
+app.get('/hobbies', (req,res)=>{
+  res.send(hobbies);
+})
+```
 
 我们可以首先在主机上运行应用程序，通过`node index.js`运行应用程序，并在浏览器中导航到`localhost:3000/hobbies`。我们应该在浏览器窗口中看到预期的输出。测试完成后，不要忘记使用*Ctrl* + *C*停止应用程序。
 
 1.  接下来，我们需要测试代码在容器内运行时的情况。因此，首先，我们创建一个新版本的容器映像：
 
-[PRE14]
+```
+$ docker image build -t sample-app .
+```
 
 1.  接下来，我们从这个新映像运行一个容器：
 
-[PRE15]
+```
+$ docker container run --rm -it \
+    --name my-sample-app \
+    -p 3000:3000 \
+    sample-app 
+```
 
 现在，我们可以在浏览器中导航到`localhost:3000/hobbies`，并确认应用程序在容器内部也按预期工作。再次强调，测试完成后，请不要忘记通过按*Ctrl* + *C*停止容器。
 
@@ -128,13 +198,21 @@
 
 在*第五章*中，*数据卷和配置*，我们看到了如何将主机文件夹映射为容器中的卷。例如，如果我想要将主机文件夹`/projects/sample-app`挂载到容器中的`/app`，则其语法如下：
 
-[PRE16]
+```
+$ docker container run --rm -it \
+ --volume /projects/sample-app:/app \
+ alpine /bin/sh
+```
 
 注意行`--volume <host-folder>:<container-folder>`。主机文件夹的路径需要是绝对路径，就像示例中的`/projects/sample-app`一样。
 
 如果我们现在想要从我们的`sample-app`容器映像运行一个容器，并且如果我们从项目文件夹中这样做，那么我们可以将当前文件夹映射到容器的`/app`文件夹中，如下所示：
 
-[PRE17]
+```
+$ docker container run --rm -it \
+ --volume $(pwd):/app \
+    -p 3000:3000 \
+```
 
 请注意`$(pwd)`代替主机文件夹路径。`$(pwd)`会计算为当前文件夹的绝对路径，这非常方便。
 
@@ -146,17 +224,30 @@
 
 1.  然后将以下代码片段添加到`index.js`文件的末尾：
 
-[PRE18]
+```
+app.get('/status', (req,res)=>{
+  res.send('OK');
+})
+```
 
 不要忘记保存。
 
 1.  然后再次运行容器 - 这次不需要先重新构建镜像 - 看看会发生什么：
 
-[PRE19]
+```
+$ docker container run --rm -it \
+    --name my-sample-app \
+ --volume $(pwd):/app \
+ -p 3000:3000 \
+ sample-app
+```
 
 1.  在浏览器中，导航到`localhost:3000/status`，并期望在浏览器窗口中看到`OK`输出。或者，您可以在另一个终端窗口中使用`curl`。
 
-[PRE20]
+```
+$ curl localhost:3000/status
+OK
+```
 
 对于所有在 Windows 和/或 Docker for Windows 上工作的人，您可以使用 PowerShell 命令`Invoke-WebRequest`或`iwr`代替`curl`。然后，前面命令的等效命令将是`iwr -Url localhost:3000/status`。
 
@@ -166,17 +257,32 @@
 
 1.  好吧，让我们再次仔细检查更改是否已在运行的容器中传播。为此，让我们执行以下命令：
 
-[PRE21]
+```
+$ docker container exec my-sample-app cat index.js
+```
 
 我们应该看到类似这样的东西 - 我已经缩短了输出以便阅读：
 
-[PRE22]
+```
+...
+app.get('/hobbies', (req,res)=>{
+ res.send(hobbies);
+})
+
+app.get('/status', (req,res)=>{
+ res.send('OK, all good');
+})
+...
+```
 
 显然，我们的更改已经按预期传播到容器中。那么，为什么更改没有反映在运行的应用程序中呢？嗯，答案很简单：要应用更改到应用程序，必须重新启动应用程序。
 
 1.  让我们试试看。通过按*Ctrl* + *C*停止运行应用程序的容器。然后重新执行前面的`docker container run`命令，并使用`curl`来探测端点`localhost:3000/status`。现在，应该显示以下新消息：
 
-[PRE23]
+```
+$ curl localhost:3000/status
+ OK, all good
+```
 
 因此，通过在运行的容器中映射源代码，我们在开发过程中实现了摩擦的显著减少。现在，我们可以添加新的或修改现有的代码并进行测试，而无需首先构建容器镜像。然而，仍然存在一些摩擦。每次想要测试一些新的或修改过的代码时，我们必须手动重新启动容器。我们能自动化这个过程吗？答案是肯定的！我们将在下一节中具体演示这一点。
 
@@ -190,7 +296,9 @@
 
 如果你编程一段时间了，肯定听说过一些有用的工具，可以在发现代码库中的更改时运行应用程序并自动重启它们。对于 Node.js 应用程序，最流行的工具就是`nodemon`。我们可以使用以下命令在系统上全局安装`nodemon`：
 
-[PRE24]
+```
+$ npm install -g nodemon
+```
 
 现在，有了`nodemon`，我们可以不再用`node index.js`在主机上启动应用程序，而是直接执行`nodemon`，我们应该会看到以下内容：
 
@@ -202,11 +310,19 @@
 
 现在尝试更改一些代码，例如，在`index.js`的末尾添加以下代码片段，然后保存文件：
 
-[PRE25]
+```
+app.get('/colors', (req,res)=>{
+ res.send(['red','green','blue']);
+})
+```
 
 看一下终端窗口。你看到有什么发生了吗？你应该看到这个额外的输出：
 
-[PRE26]
+```
+[nodemon] restarting due to changes...
+[nodemon] starting `node index.js`
+Application listening at 0.0.0.0:3000
+```
 
 这清楚地表明`nodemon`已经认识到了一些更改，并自动重新启动了应用程序。通过浏览器尝试一下，导航到`localhost:3000/colors`。你应该在浏览器中看到以下预期的输出：
 
@@ -216,7 +332,9 @@
 
 这很酷——你得到了这个结果，而不必手动重新启动应用程序。这使我们又多了一点生产力。现在，我们能在容器内做同样的事情吗？是的，我们可以。我们不会使用在我们的`Dockerfile`的最后一行中定义的启动命令`node index.js`：
 
-[PRE27]
+```
+CMD node index.js
+```
 
 我们将使用`nodemon`代替。
 
@@ -224,17 +342,32 @@
 
 我们的原始`Dockerfile`创建了一个不幸不包含`nodemon`的镜像。因此，我们需要创建一个新的`Dockerfile`。让我们称之为`Dockerfile-dev`。它应该是这样的：
 
-[PRE28]
+```
+FROM node:latest          
+RUN npm install -g nodemon
+WORKDIR /app
+COPY package.json ./
+RUN npm install
+COPY . .
+CMD nodemon
+```
 
 与我们的原始 Dockerfile 相比，我们添加了第 2 行，安装了`nodemon`。我们还改变了最后一行，现在使用`nodemon`作为我们的启动命令。
 
 让我们按照以下方式构建我们的开发镜像：
 
-[PRE29]
+```
+$ docker image build -t sample-app-dev .
+```
 
 我们将像这样运行一个容器：
 
-[PRE30]
+```
+$ docker container run --rm -it \
+   -v $(pwd):/app \
+   -p 3000:3000 \
+   sample-app-dev
+```
 
 现在，当应用程序在容器中运行时，改变一些代码，保存，并注意到容器内的应用程序会自动重新启动。因此，我们在容器中运行时实现了与直接在主机上运行时相同的减少摩擦。
 
@@ -246,7 +379,9 @@
 
 1.  首先，为我们的示例 Python 应用程序创建一个新的项目文件夹，并导航到它：
 
-[PRE31]
+```
+$ mkdir -p ~/fod/ch06/python && cd ~/fod/ch06/python
+```
 
 1.  使用命令`code .`从这个文件夹中打开 VS Code。
 
@@ -254,19 +389,33 @@
 
 1.  接下来，添加一个`main.py`文件，并给它这个内容：
 
-[PRE32]
+```
+from flask import Flask
+app = Flask(__name__)
+
+@app.route("/")
+def hello():
+  return "Hello World!"
+
+if __name__ == "__main__":
+  app.run()
+```
 
 这是一个简单的**Hello World**类型的应用程序，在`localhost:5000/`上实现了一个 RESTful 端点。
 
 1.  在我们可以运行和测试这个应用程序之前，我们需要安装依赖项——在我们的情况下是 Flask。在终端中运行以下命令：
 
-[PRE33]
+```
+$ pip install -r requirements.txt
+```
 
 这应该在你的主机上安装 Flask。我们现在准备好了。
 
 1.  在使用 Python 时，我们也可以使用`nodemon`来在代码发生任何更改时自动重新启动我们的应用程序。例如，假设你的启动 Python 应用程序的命令是`python main.py`。那么你只需要像下面这样使用`nodemon`：
 
-[PRE34]
+```
+$ nodemon main.py
+```
 
 你应该看到这个：
 
@@ -274,11 +423,20 @@
 
 1.  使用`nodemon`启动和监视 Python 应用程序，我们可以使用`curl`测试该应用程序，并应该看到这个：
 
-[PRE35]
+```
+$ curl localhost:5000/
+Hello World!
+```
 
 1.  现在让我们通过将此片段添加到`main.py`中的`/`端点的定义之后，并保存来修改代码：
 
-[PRE36]
+```
+from flask import jsonify
+
+@app.route("/colors")
+def colors():
+   return jsonify(["red", "green", "blue"])
+```
 
 `nodemon`将发现更改并重新启动 Python 应用程序，正如我们可以在终端产生的输出中看到的那样：
 
@@ -288,7 +446,10 @@ nodemon 发现 Python 代码的更改
 
 1.  再次，相信是好的，测试更好。因此，让我们再次使用我们的朋友`curl`来探测新的端点，看看我们得到了什么：
 
-[PRE37]
+```
+$ curl localhost:5000/colors
+["red", "green", "blue"]
+```
 
 很好-它有效！有了这个，我们已经涵盖了 Python。.NET 是另一个流行的平台。让我们看看在.NET 上开发 C#应用程序时是否可以做类似的事情。
 
@@ -298,21 +459,29 @@ nodemon 发现 Python 代码的更改
 
 1.  首先，为我们的示例 C#应用程序创建一个新的项目文件夹并导航到它：
 
-[PRE38]
+```
+$ mkdir -p ~/fod/ch06/csharp && cd ~/fod/ch06/csharp
+```
 
 如果您以前没有这样做，请在您的笔记本电脑或工作站上安装.NET Core。您可以在[`dotnet.microsoft.com/download/dotnet-core`](https://dotnet.microsoft.com/download/dotnet-core)上获取它。在撰写本文时，版本 2.2 是当前稳定版本。安装完成后，使用`dotnet --version`检查版本。对我来说是`2.2.401`。
 
 1.  导航到本章的源文件夹：
 
-[PRE39]
+```
+$ cd ~/fod/ch06
+```
 
 1.  从这个文件夹内，使用`dotnet`工具创建一个新的 Web API，并将其放在`dotnet`子文件夹中：
 
-[PRE40]
+```
+$ dotnet new webapi -o dotnet
+```
 
 1.  导航到这个新项目文件夹：
 
-[PRE41]
+```
+$ cd dotnet
+```
 
 1.  再次使用`code .`命令从`dotnet`文件夹内打开 VS Code。
 
@@ -334,7 +503,9 @@ nodemon 发现 Python 代码的更改
 
 1.  我们可以使用 `curl` 测试应用程序，例如：
 
-[PRE42]
+```
+$ curl --insecure https://localhost:5001/api/values ["value1","value2"]
+```
 
 应用程序运行并返回了预期的结果。
 
@@ -342,7 +513,13 @@ nodemon 发现 Python 代码的更改
 
 1.  现在我们可以尝试修改 `ValuesController.cs` 中的代码，并从第一个 `GET` 端点返回三个项目而不是两个。
 
-[PRE43]
+```
+[HttpGet]
+public ActionResult<IEnumerable<string>> Get()
+{
+    return new string[] { "value1", "value2", "value3" };
+}
+```
 
 1.  保存您的更改并重新运行 `curl` 命令。注意结果不包含新添加的值。这与我们观察到的 Node.js 和 Python 的问题相同。要查看新更新的返回值，我们需要（手动）重新启动应用程序。
 
@@ -364,15 +541,29 @@ nodemon 发现 Python 代码的更改
 
 1.  通过对代码进行更改，应用程序会自动重新启动，结果立即对我们可用，并且我们可以通过运行 `curl` 命令轻松测试它：
 
-[PRE44]
+```
+$ curl --insecure https://localhost:5001/api/values ["value1","value2","value3","value4"]
+```
 
 1.  现在我们在主机上有自动重启工作，我们可以编写一个 Dockerfile，在容器内运行的应用程序也可以实现相同的功能。在 VS Code 中，向项目添加一个名为 `Dockerfile-dev` 的新文件，并向其中添加以下内容：
 
-[PRE45]
+```
+FROM mcr.microsoft.com/dotnet/core/sdk:2.2
+WORKDIR /app
+COPY dotnet.csproj ./
+RUN dotnet restore
+COPY . .
+CMD dotnet watch run
+```
 
 1.  在我们继续构建容器镜像之前，我们需要对.NET 应用程序的启动配置进行轻微修改，使得 Web 服务器（在这种情况下是 Kestrel）监听，例如，`0.0.0.0:3000`，因此能够在容器内运行并且能够从容器外部访问。打开`Program.cs`文件，并对`CreateWebHostBuilder`方法进行以下修改：
 
-[PRE46]
+```
+public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
+    WebHost.CreateDefaultBuilder(args)
+    .UseUrls("http://0.0.0.0:3000")
+    .UseStartup<Startup>();
+```
 
 通过`UseUrls`方法，我们告诉 Web 服务器监听所需的端点。
 
@@ -380,11 +571,18 @@ nodemon 发现 Python 代码的更改
 
 1.  使用以下命令构建镜像：
 
-[PRE47]
+```
+$ docker image build -f Dockerfile-dev -t sample-app-dotnet .
+```
 
 1.  一旦镜像构建完成，我们就可以从中运行一个容器：
 
-[PRE48]
+```
+$ docker container run --rm -it \
+   -p 3000:3000 \
+   -v $(pwd):/app \
+   sample-app-dotnet
+```
 
 我们应该看到类似于本地运行时看到的输出：
 
@@ -394,7 +592,13 @@ nodemon 发现 Python 代码的更改
 
 1.  让我们用我们的朋友`curl`来测试应用程序：
 
-[PRE49]
+```
+$ curl localhost:3000/api/values
+["value1","value2","value3","value4"]
+$
+$ curl localhost:3000/api/values/1
+value
+```
 
 这里没有什么意外——它按预期工作。
 
@@ -420,11 +624,21 @@ nodemon 发现 Python 代码的更改
 
 1.  确保您导航到此项目文件夹并从其中打开 VS Code：
 
-[PRE50]
+```
+$ cd ~/fod/ch06/node
+$ code .
+```
 
 1.  在终端窗口中，从项目文件夹内部，运行一个带有我们示例 Node.js 应用程序的容器：
 
-[PRE51]
+```
+$ docker container run --rm -it \
+   --name my-sample-app \
+   -p 3000:3000 \
+   -p 9229:9229 \
+   -v $(pwd):/app \
+   sample-app node --inspect=0.0.0.0 index.js
+```
 
 注意我是如何将端口`9229`映射到主机的。这个端口是调试器使用的，VS Studio 将通过这个端口与我们的 Node 应用程序通信。因此，重要的是您打开这个端口——但只在调试会话期间！还要注意，我们用`node --inspect=0.0.0.0 index.js`覆盖了 Dockerfile 中定义的标准启动命令（`node index.js`）。`--inspect=0.0.0.0`告诉 Node 以调试模式运行，并在容器中监听所有 IP4 地址。
 
@@ -436,7 +650,14 @@ nodemon 发现 Python 代码的更改
 
 1.  从选项中选择`Docker: Attach to Node`。新条目将被添加到`launch.json`文件的配置列表中。它应该看起来类似于这样：
 
-[PRE52]
+```
+{
+  "type": "node",
+  "request": "attach",
+  "name": "Docker: Attach to Node",
+  "remoteRoot": "/usr/src/app"
+},
+```
 
 由于我们的代码在`/app`文件夹中，容器内部，我们需要相应地更改`remoteRoot`的值。将`/usr/src/app`的值更改为`/app`。不要忘记保存您的更改。就是这样，我们已经准备好了。
 
@@ -464,11 +685,20 @@ nodemon 发现 Python 代码的更改
 
 1.  要停止容器，请在终端中输入以下命令：
 
-[PRE53]
+```
+$ docker container rm -f my-sample-app
+```
 
 1.  如果我们想要使用`nodemon`来获得更大的灵活性，那么我们必须稍微改变`container run`命令：
 
-[PRE54]
+```
+$ docker container run --rm -it \
+   --name my-sample-app \
+   -p 3000:3000 \
+   -p 9229:9229 \
+   -v $(pwd):/app \
+   sample-app-dev nodemon --inspect=0.0.0.0 index.js
+```
 
 注意我们如何使用启动命令`nodemon --inspect=0.0.0.0 index.js`。这将带来一个好处，即在任何代码更改时，容器内运行的应用程序将自动重新启动，就像我们在本章前面学到的那样。您应该看到以下内容：
 
@@ -478,7 +708,15 @@ nodemon 发现 Python 代码的更改
 
 1.  不幸的是，应用程序重新启动的后果是调试器与 VS Code 失去了连接。但别担心，我们可以通过在`launch.json`文件中的启动任务中添加`"restart": true`来减轻这一点。修改任务，使其看起来像这样：
 
-[PRE55]
+```
+{
+  "type": "node",
+  "request": "attach",
+  "name": "Docker: Attach to Node",
+  "remoteRoot": "/app",
+  "restart": true
+},
+```
 
 1.  保存更改后，通过单击调试窗口中的绿色启动按钮在 VS Code 中启动调试器。在终端中，您应该再次看到输出`Debugger attached.`。除此之外，VS Code 在底部显示一个橙色状态栏，指示编辑器处于调试模式。
 
@@ -500,23 +738,46 @@ nodemon 发现 Python 代码的更改
 
 1.  转到项目文件夹并从其中打开 VS Code：
 
-[PRE56]
+```
+$ cd ~/fod/ch06/dotnet
+$ code .
+```
 
 1.  要使用调试器，我们首先需要在容器中安装调试器。因此，让我们在项目目录中创建一个新的`Dockerfile`。将其命名为`Dockerfile-debug`并添加以下内容：
 
-[PRE57]
+```
+FROM mcr.microsoft.com/dotnet/core/sdk:2.2
+RUN apt-get update && apt-get install -y unzip && \
+    curl -sSL https://aka.ms/getvsdbgsh | \
+        /bin/sh /dev/stdin -v latest -l ~/vsdbg
+WORKDIR /app
+COPY dotnet.csproj ./
+RUN dotnet restore
+COPY . .
+CMD dotnet watch run
+```
 
 请注意`Dockerfile`的第二行，它使用`apt-get`安装`unzip`工具，然后使用`curl`下载并安装调试器。
 
 1.  我们可以按照以下方式从这个`Dockerfile`构建一个名为`sample-app-dotnet-debug`的镜像：
 
-[PRE58]
+```
+$ docker image build -t sample-app-dotnet-debug .
+```
 
 这个命令可能需要一些时间来执行，因为调试器需要下载和安装。
 
 1.  完成后，我们可以从这个镜像中交互式运行一个容器：
 
-[PRE59]
+```
+$ docker run --rm -it \
+   -v $(pwd):/app \
+   -w /app \
+   -p 3000:3000 \
+   --name my-sample-app \
+   --hostname sample-app \
+   sample-app-dotnet-debug
+```
 
 我们会看到类似这样的东西：
 
@@ -526,7 +787,27 @@ nodemon 发现 Python 代码的更改
 
 1.  在 VS Code 中，打开`launch.json`文件并添加以下启动任务：
 
-[PRE60]
+```
+{
+   "name": ".NET Core Docker Attach",
+   "type": "coreclr",
+   "request": "attach",
+   "processId": "${command:pickRemoteProcess}",
+   "pipeTransport": {
+      "pipeProgram": "docker",
+      "pipeArgs": [ "exec", "-i", "my-sample-app" ],
+      "debuggerPath": "/root/vsdbg/vsdbg",
+      "pipeCwd": "${workspaceRoot}",
+      "quoteArgs": false
+   },
+   "sourceFileMap": {
+      "/app": "${workspaceRoot}"
+   },
+   "logging": {
+      "engineLogging": true
+   }
+},
+```
 
 1.  保存您的更改，并切换到 VS Code 的调试窗口（使用*command* + *Shift* + *D*或*Ctrl* + *Shift* + *D *打开它）。确保您已选择了正确的调试启动任务——它的名称是`.NET Core Docker Attach`：
 
@@ -542,7 +823,9 @@ nodemon 发现 Python 代码的更改
 
 1.  让我们在`ValuesController.cs`文件的第一个`GET`请求中设置一个断点，然后执行一个`curl`命令：
 
-[PRE61]
+```
+$ curl localhost:3000/api/values
+```
 
 代码执行应该在断点处停止，如下所示：
 
@@ -585,7 +868,10 @@ nodemon 发现 Python 代码的更改
 
 1.  首先，在您的终端中，导航到项目文件夹并打开 VS Code：
 
-[PRE62]
+```
+$ cd ~/fob/ch06/python
+$ code .
+```
 
 1.  打开`main.py`文件，并在顶部添加以下代码片段：
 
@@ -615,7 +901,9 @@ nodemon 发现 Python 代码的更改
 
 1.  现在让我们运行应用程序，看看我们得到什么输出：
 
-[PRE63]
+```
+$ python main.py
+```
 
 1.  然后，在浏览器中，首先导航到`localhost:5000/`，然后导航到`localhost:5000/colors`。您应该看到类似于这样的输出：
 
@@ -631,15 +919,22 @@ nodemon 发现 Python 代码的更改
 
 1.  首先，导航到项目文件夹，从那里您将打开 VS Code：
 
-[PRE64]
+```
+$ cd ~/fod/ch06/dotnet
+$ code .
+```
 
 1.  接下来，我们需要向项目添加一个包含日志库的 NuGet 包：
 
-[PRE65]
+```
+$ dotnet add package Microsoft.Extensions.Logging
+```
 
 这应该会将以下行添加到您的`dotnet.csproj`项目文件中：
 
-[PRE66]
+```
+<PackageReference  Include="Microsoft.Extensions.Logging"  Version="2.2.0"  />
+```
 
 1.  打开`Program.cs`类，并注意我们在第`21`行调用了`CreateDefaultBuilder(args)`方法。
 
@@ -651,7 +946,9 @@ nodemon 发现 Python 代码的更改
 
 1.  接下来，在`Controllers`文件夹中打开`ValuesController.cs`文件，并在文件顶部添加以下`using`语句：
 
-[PRE67]
+```
+using Microsoft.Extensions.Logging;
+```
 
 1.  然后，在类主体中，添加一个名为`_logger`的实例变量，类型为`ILogger`，并添加一个具有类型为`ILogger<T>`的参数的构造函数。将此参数分配给实例变量`_logger`：
 
@@ -675,7 +972,9 @@ nodemon 发现 Python 代码的更改
 
 1.  让我们使用以下内容运行应用程序：
 
-[PRE68]
+```
+$ dotnet run
+```
 
 1.  当导航到`localhost:3000/api/values`时，我们应该看到这个：
 
@@ -709,13 +1008,32 @@ nodemon 发现 Python 代码的更改
 
 1.  接下来，我们需要用 Jaeger 称为`span`的代码来包装每个方法。`span`有一个名称，并为我们提供一个`scope`对象。让我们看一些 C#伪代码，以说明这一点：
 
-[PRE69]
+```
+public void SayHello(string helloTo) {
+  using(var scope = _tracer.BuildSpan("say-hello").StartActive(true)) {
+    // here is the actual logic of the method
+    ...
+    var helloString = FormatString(helloTo);
+    ...
+  }
+}
+```
 
 正如你所看到的，我们正在为`SayHello`方法进行仪器化。通过使用`using`语句创建一个 span，我们将整个该方法的应用代码进行包装。我们将 span 命名为`"say-hello"`，这将是我们在 Jaeger 生成的跟踪日志中用来识别该方法的 ID。
 
 请注意，该方法调用另一个嵌套方法`FormatString`。就需要为其进行仪器化所需的代码而言，这个方法看起来会非常相似：
 
-[PRE70]
+```
+public void string Format(string helloTo) {
+   using(var scope = _tracer.BuildSpan("format-string").StartActive(true)) {
+       // here is the actual logic of the method
+       ...
+       _logger.LogInformation(helloTo);
+       return 
+       ...
+   }
+}
+```
 
 我们的`tracer`对象在此方法中构建的 span 将是调用方法的子 span。这里的子 span 称为`"format-string"`。还要注意，我们在前面的方法中使用`logger`对象显式生成了一个级别为`INFO`的日志项。
 
@@ -723,11 +1041,24 @@ nodemon 发现 Python 代码的更改
 
 1.  转到项目文件夹：
 
-[PRE71]
+```
+$ cd ~/fod/ch06/jaeger-sample
+```
 
 1.  接下来，启动 Jaeger 服务器容器：
 
-[PRE72]
+```
+$ docker run -d --name jaeger \
+   -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
+   -p 5775:5775/udp \
+   -p 6831:6831/udp \
+   -p 6832:6832/udp \
+   -p 5778:5778 \
+   -p 16686:16686 \
+   -p 14268:14268 \
+   -p 9411:9411 \
+   jaegertracing/all-in-one:1.13
+```
 
 1.  接下来，我们需要运行 API，它是作为 ASP.NET Core 2.2 Web API 组件实现的。转到`api`文件夹并启动组件：
 
@@ -737,7 +1068,10 @@ nodemon 发现 Python 代码的更改
 
 1.  现在打开一个新的终端窗口，然后进入`client`子文件夹，然后运行应用程序：
 
-[PRE73]
+```
+$ cd ~/fod/ch06/jaeger-sample/client
+ $ dotnet run Gabriel Bonjour
+```
 
 请注意我传递的两个参数—`Gabriel`和`Bonjour`—它们对应于`<name>`和`<greeting>`。您应该看到类似于这样的内容：
 
@@ -767,7 +1101,9 @@ Jaeger 报告的请求细节
 
 1.  清理时，请停止 Jaeger 服务器容器：
 
-[PRE74]
+```
+$ docker container rm -f jaeger
+```
 
 同时停止 API，使用*Ctrl* + *C*。
 

@@ -88,7 +88,14 @@ Packer 模板围绕着四个常见的顶级参数进行组织，如下例所示�
 
 +   **post-processors**：Packer 后处理器的列表或数组，一旦机器镜像构建和发布完成，将执行后处理任务。
 
-[PRE0]
+```
+{
+    "variables": {},
+    "builders": [],
+    "provisioners": [],
+    "post-processors": []
+}
+```
 
 Packer 模板结构
 
@@ -96,7 +103,33 @@ Packer 模板结构
 
 让我们开始配置我们的 Packer 模板，首先在 packer-ecs 存储库的根目录下创建一个名为`packer.json`的文件，然后定义构建器部分，如下例所示：
 
-[PRE1]
+```
+{
+  "variables": {},
+  "builders": [
+ {
+ "type": "amazon-ebs",
+ "access_key": "{{user `aws_access_key_id`}}",
+ "secret_key": "{{user `aws_secret_access_key`}}",
+ "token": "{{user `aws_session_token`}}",
+ "region": "us-east-1",
+ "source_ami": "ami-5e414e24",
+ "instance_type": "t2.micro",
+ "ssh_username": "ec2-user",
+ "associate_public_ip_address": "true",
+ "ami_name": "docker-in-aws-ecs {{timestamp}}",
+ "tags": {
+ "Name": "Docker in AWS ECS Base Image 2017.09.h",
+ "SourceAMI": "{{ .SourceAMI }}",
+ "DockerVersion": "17.09.1-ce",
+ "ECSAgentVersion": "1.17.0-2"
+ }
+ }
+ ],
+  "provisioners": [],
+  "post-processors": []
+}
+```
 
 定义一个 EBS-backed AMI 构建器
 
@@ -132,7 +165,38 @@ Packer 模板使用 Go 的模板语言进行处理，您可以在[`golang.org/pk
 
 在前面的示例中，您在定义 AWS 凭据设置时引用了用户变量，这些变量必须在 Packer 模板的变量部分中定义，就像在前面的示例中演示的那样：
 
-[PRE2]
+```
+{
+  "variables": {
+ "aws_access_key_id": "{{env `AWS_ACCESS_KEY_ID`}}",
+ "aws_secret_access_key": "{{env `AWS_SECRET_ACCESS_KEY`}}",
+ "aws_session_token": "{{env `AWS_SESSION_TOKEN`}}",
+ "timezone": "US/Eastern"
+ },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "access_key": "{{user `aws_access_key_id`}}",
+      "secret_key": "{{user `aws_secret_access_key`}}",
+      "token": "{{user `aws_session_token`}}",
+      "region": "us-east-1",
+      "source_ami": "ami-5e414e24",
+      "instance_type": "t2.micro",
+      "ssh_username": "ec2-user",
+      "associate_public_ip_address": "true",
+      "ami_name": "docker-in-aws-ecs {{timestamp}}",
+      "tags": {
+        "Name": "Docker in AWS ECS Base Image 2017.09.h",
+        "SourceAMI": "{{ .SourceAMI }}",
+        "DockerVersion": "17.09.1-ce",
+        "ECSAgentVersion": "1.17.0-2"
+      }
+    }
+  ],
+  "provisioners": [],
+  "post-processors": []
+}
+```
 
 定义变量
 
@@ -164,7 +228,45 @@ Packer 支持许多不同类型的配置程序，包括流行的配置管理工�
 
 作为配置程序的介绍，让我们定义一个简单的 shell 配置程序，更新已安装的操作系统软件包，如下例所示：
 
-[PRE3]
+```
+{
+  "variables": {
+    "aws_access_key_id": "{{env `AWS_ACCESS_KEY_ID`}}",
+    "aws_secret_access_key": "{{env `AWS_SECRET_ACCESS_KEY`}}",
+    "aws_session_token": "{{env `AWS_SESSION_TOKEN`}}",
+    "timezone": "US/Eastern"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "access_key": "{{user `aws_access_key_id`}}",
+      "secret_key": "{{user `aws_secret_access_key`}}",
+      "token": "{{user `aws_session_token`}}",
+      "region": "us-east-1",
+      "source_ami": "ami-5e414e24",
+      "instance_type": "t2.micro",
+      "ssh_username": "ec2-user",
+      "associate_public_ip_address": "true",
+      "ami_name": "docker-in-aws-ecs {{timestamp}}",
+      "tags": {
+        "Name": "Docker in AWS ECS Base Image 2017.09.h",
+        "SourceAMI": "ami-5e414e24",
+        "DockerVersion": "17.09.1-ce",
+        "ECSAgentVersion": "1.17.0-2"
+      }
+    }
+  ],
+  "provisioners": [
+ {
+ "type": "shell",
+ "inline": [
+ "sudo yum -y -x docker\\* -x ecs\\* update"
+ ] 
+ }
+ ],
+  "post-processors": []
+}
+```
 
 定义内联 shell 配置程序
 
@@ -184,7 +286,51 @@ Packer 支持许多不同类型的配置程序，包括流行的配置管理工�
 
 以下示例演示了如何向您的 Packer 模板添加清单后处理器：
 
-[PRE4]
+```
+{
+  "variables": {
+    "aws_access_key_id": "{{env `AWS_ACCESS_KEY_ID`}}",
+    "aws_secret_access_key": "{{env `AWS_SECRET_ACCESS_KEY`}}",
+    "aws_session_token": "{{env `AWS_SESSION_TOKEN`}}",
+    "timezone": "US/Eastern"
+  },
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "access_key": "{{user `aws_access_key_id`}}",
+      "secret_key": "{{user `aws_secret_access_key`}}",
+      "token": "{{user `aws_session_token`}}",
+      "region": "us-east-1",
+      "source_ami": "ami-5e414e24",
+      "instance_type": "t2.micro",
+      "ssh_username": "ec2-user",
+      "associate_public_ip_address": "true",
+      "ami_name": "docker-in-aws-ecs {{timestamp}}",
+      "tags": {
+        "Name": "Docker in AWS ECS Base Image 2017.09.h",
+        "SourceAMI": "ami-5e414e24",
+        "DockerVersion": "17.09.1-ce",
+        "ECSAgentVersion": "1.17.0-2"
+      }
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum -y -x docker\\* -x ecs\\* update"
+      ] 
+    }
+  ],
+  "post-processors": [
+ {
+ "type": "manifest",
+ "output": "manifest.json",
+ "strip_path": true
+ }
+ ]
+}
+```
 
 定义清单后处理器
 
@@ -202,7 +348,26 @@ Packer 支持许多不同类型的配置程序，包括流行的配置管理工�
 
 要生成临时会话凭据，假设您已经使用`AWS_PROFILE`环境变量配置了适当的配置文件，您可以运行`aws sts assume-role`命令来生成凭据：
 
-[PRE5]
+```
+> export AWS_PROFILE=docker-in-aws
+> aws sts assume-role --role-arn=$(aws configure get role_arn) --role-session-name=$(aws configure get role_session_name)
+Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga: ****
+{
+    "Credentials": {
+        "AccessKeyId": "ASIAIIEUKCAR3NMIYM5Q",
+        "SecretAccessKey": "JY7HmPMf/tPDXsgQXHt5zFZObgrQJRvNz7kb4KDM",
+        "SessionToken": "FQoDYXdzEM7//////////wEaDP0PBiSeZvJ9GjTP5yLwAVjkJ9ZCMbSY5w1EClNDK2lS3nkhRg34/9xVgf9RmKiZnYVywrI9/tpMP8LaU/xH6nQvCsZaVTxGXNFyPz1BcsEGM6Z2ebIFX5rArT9FWu3v7WVs3QQvXeDTasgdvq71eFs2+qX7zbjK0YHXaWuu7GA/LGtNj4i+yi6EZ3OIq3hnz3+QY2dXL7O1pieMLjfZRf98KHucUhiokaq61cXSo+RJa3yuixaJMSxJVD1myx/XNritkawUfI8Xwp6g6KWYQAzDYz3MIWbA5LyX9Q0jk3yXTRAQOjLwvL8ZK/InJCDoPBFWFJwrz+Wxgep+I8iYoijOhqTUBQ==",
+        "Expiration": "2018-02-18T05:38:38Z"
+    },
+    "AssumedRoleUser": {
+        "AssumedRoleId": "AROAJASB32NFHLLQHZ54S:justin.menga",
+        "Arn": "arn:aws:sts::385605022855:assumed-role/admin/justin.menga"
+    }
+}
+> export AWS_ACCESS_KEY_ID="ASIAIIEUKCAR3NMIYM5Q"
+> export AWS_SECRET_ACCESS_KEY="JY7HmPMf/tPDXsgQXHt5zFZObgrQJRvNz7kb4KDM"
+> export AWS_SESSION_TOKEN="FQoDYXdzEM7//////////wEaDP0PBiSeZvJ9GjTP5yLwAVjkJ9ZCMbSY5w1EClNDK2lS3nkhRg34/9xVgf9RmKiZnYVywrI9/tpMP8LaU/xH6nQvCsZaVTxGXNFyPz1BcsEGM6Z2ebIFX5rArT9FWu3v7WVs3QQvXeDTasgdvq71eFs2+qX7zbjK0YHXaWuu7GA/LGtNj4i+yi6EZ3OIq3hnz3+QY2dXL7O1pieMLjfZRf98KHucUhiokaq61cXSo+RJa3yuixaJMSxJVD1myx/XNritkawUfI8Xwp6g6KWYQAzDYz3MIWbA5LyX9Q0jk3yXTRAQOjLwvL8ZK/InJCDoPBFWFJwrz+Wxgep+I8iYoijOhqTUBQ=="
+```
 
 生成临时会话凭据
 
@@ -220,7 +385,27 @@ Packer 支持许多不同类型的配置程序，包括流行的配置管理工�
 
 虽然您可以使用上面示例中演示的方法根据需要生成临时会话凭据，但这种方法会很快变得繁琐。有许多方法可以自动将生成的临时会话凭据注入到您的环境中，但考虑到本书使用 Make 作为自动化工具，以下示例演示了如何使用一个相当简单的 Makefile 来实现这一点：
 
-[PRE6]
+```
+.PHONY: build
+.ONESHELL:
+
+build:
+  @ $(if $(AWS_PROFILE),$(call assume_role))
+  packer build packer.json
+
+# Dynamically assumes role and injects credentials into environment
+define assume_role
+  export AWS_DEFAULT_REGION=$$(aws configure get region)
+  eval $$(aws sts assume-role --role-arn=$$(aws configure get role_arn) \
+    --role-session-name=$$(aws configure get role_session_name) \
+    --query "Credentials.[ \
+        [join('=',['export AWS_ACCESS_KEY_ID',AccessKeyId])], \
+        [join('=',['export AWS_SECRET_ACCESS_KEY',SecretAccessKey])], \
+        [join('=',['export AWS_SESSION_TOKEN',SessionToken])] \
+      ]" \
+    --output text)
+endef
+```
 
 使用 Make 自动生成临时会话凭据确保您的 Makefile 中的所有缩进都是使用制表符而不是空格。
 
@@ -232,7 +417,13 @@ Packer 支持许多不同类型的配置程序，包括流行的配置管理工�
 
 `assume_role`函数使用高级的 JMESPath 查询表达式（如`--query`标志所指定的）来生成一组`export`语句，这些语句引用了在前面示例中运行的命令的**Credentials**字典输出上的各种属性，并使用 JMESPath join 函数将值分配给相关的环境变量。这些语句被包裹在一个命令替换中，使用`eval`命令来执行每个输出的`export`语句。如果你不太理解这个查询，不要担心，但要认识到 AWS CLI 确实包含一个强大的查询语法，可以创建一些相当复杂的一行命令。
 
-在上面的示例中，注意你可以使用反引号（[PRE7]
+在上面的示例中，注意你可以使用反引号（```) as an alternative syntax for bash command substitutions. In other words, `$(command)` and ``command`` both represent command substitutions that will execute the command and return the output.
+
+# Building the image
+
+Now that we have a mechanism of automating the generation of temporary session credentials, assuming that your `packer.json` file and Makefile are in the root of your packer-ecs repository, let's test out building your Packer image by running `make build`:
+
+```
 
 > export AWS_PROFILE=docker-in-aws
 > 
@@ -424,7 +615,23 @@ packer build packer.json
 
 us-east-1: ami-57415b2d
 
-[PRE8]
+```
+
+Running a Packer build
+
+Referring back to the previous example and the output of the preceding one, notice in the `build` task that the command to build a Packer image is simply `packer build <template-file>`, which in this case is `packer build packer.json`.
+
+If you review the output of the preceding example, you can see the following steps are performed by Packer:
+
+*   Packer initially validates the source AMI and then generates a temporary SSH key pair and security group so that it is able to access the temporary EC2 instance.
+*   Packer launches a temporary EC2 instance from the source AMI and then waits until it is able to establish SSH access.
+*   Packer executes the provisioning actions as defined in the provisioners section of the template. In this case, you can see the output of the yum `update` command, which is our current single provisioning action.
+*   Once complete, Packer stops the instance and creates a snapshot of the EBS volume instance, which produces an AMI with an appropriate name and ID.
+*   With the AMI created, Packer terminates the instance, deletes the temporary SSH key pair and security group, and outputs the new AMI ID.
+
+Recall in the earlier example, that you added a manifest post-processor to your template, and you should find a file called `manifest.json` has been output at the root of your repository, which you typically would not want to commit to your **packer-ecs** repository:
+
+```
 
 > cat manifest.json
 
@@ -456,7 +663,44 @@ us-east-1: ami-57415b2d
 
 > echo manifest.json >> .gitignore
 
-[PRE9]
+```
+
+Viewing the Packer build manifest
+
+# Building custom ECS container instance images using Packer
+
+In the previous section, you established a base template for building a custom AMI using Packer, and proceed to build and publish your first custom AMI. At this point, you have not performed any customization that is specific to the use case of provisioning ECS container instances, so this section will focus on enhancing your Packer template to include such customizations.
+
+The customizations you will learn about now include the following:
+
+*   Defining a custom storage configuration
+*   Installing additional packages and configuring operating system settings
+*   Configuring a cleanup script
+*   Creating a first-run script
+
+With these customizations in place, we will complete the chapter by building your final custom ECS Container Instance AMI and launching an instance to verify the various customizations.
+
+# Defining a custom storage configuration
+
+The AWS ECS-Optimized AMI includes a default storage configuration that uses a 30 GB EBS volume, which is partitioned as follows:
+
+*   `/dev/xvda`: An 8 GB volume that is mounted as the root filesystem and serves as the operating system partition.
+*   `dev/xvdcz`: A 22 GB volume that is configured as a logical volume management (LVM) device and is used for Docker image and metadata storage.
+
+The ECS-Optimized AMI uses the devicemapper storage driver for Docker image and metadata storage, which you can learn more about at [`docs.docker.com/v17.09/engine/userguide/storagedriver/device-mapper-driver/`](https://docs.docker.com/storage/storagedriver/device-mapper-driver/).
+
+For most use cases, this storage configuration should be sufficient, however there are a couple of scenarios in which you may want to modify the default configuration:
+
+*   **You need more Docker image and metadata storage**: This is easily addressed by simply configuring your ECS container instances with a larger volume size. The default storage configuration will always reserve 8GB for the operating system and root filesystem, with the remainder of the storage allocated for Docker image and metadata storage.
+*   **You need to support Docker volumes that have large storage requirements**: By default, the ECS-Optimized AMI stores Docker volumes at `/var/lib/docker/volumes`, which is part of the root filesystem on the 8GB `/dev/xvda` partition. If you have larger volume requirements, this can cause your operating system partition to quickly become full, so in this scenario you should separate out the volume storage to a separate EBS volume.
+
+Let's now see how you can modify your Packer template to add a new dedicated volume for Docker volume storage and ensure this volume is mounted correctly on instance creation.
+
+# Adding EBS volumes
+
+To add an EBS volume to your custom AMIs, you can configure the `launch_block_device_mappings` parameter within the Amazon EBS builder:
+
+```
 
 {
 
@@ -524,7 +768,19 @@ us-east-1: ami-57415b2d
 
 }
 
-[PRE10]
+```
+
+Adding a launch block device mapping
+
+In the preceding example, I have truncated other portions of the Packer template for brevity, and you can see that we have added a single 20 GB volume called `/dev/xvdcy`, which is configured to be destroyed on instance termination. Notice that the `volume_type` parameter is set to `gp2`, which is the general-purpose SSD storage type that typically offers the best overall price/performance in AWS.
+
+# Formatting and mounting volumes
+
+With the configuration of the preceding example in place, we next need to format and mount that new volume. Because we used the `launch_block_device_mappings` parameter (as opposed to the `ami_block_device_mappings` parameter), the block device is actually attached at image build time (the latter parameter is attached upon image creation only) and we can perform all formatting and mount configuration settings at build time.
+
+To perform this configuration, we will add a shell provisioner that references a file called `scripts/storage.sh` to your Packer template:
+
+```
 
 {
 
@@ -560,7 +816,13 @@ us-east-1: ami-57415b2d
 
 }
 
-[PRE11]
+```
+
+Adding a shell provisioner for configuring storage
+
+The referenced script is expressed as a path relative to the the Packer template, so you now need to create this script:
+
+```
 
 > mkdir -p scripts
 > 
@@ -582,7 +844,13 @@ us-east-1: ami-57415b2d
 
 1 个目录，4 个文件
 
-[PRE12]
+```
+
+Creating a scripts folder
+
+With the script file in place, you can now define the various shell provisioning actions in this script as demonstrated in the following example:
+
+```
 
 #!/usr/bin/env bash
 
@@ -598,7 +866,31 @@ echo -e "LABEL=docker\t/data\t\text4\tdefaults,noatime\t0\t0" | sudo tee -a /etc
 
 sudo mount -a
 
-[PRE13]
+```
+
+Storage provisioning script
+
+As you can see in the preceding example, the script is a regular bash script, and it's important to always set the error flag for all of your Packer shell scripts (`set -e`), which ensures the script will exit with an error code should any command fail within the script.
+
+You first create a folder called `/data`, which you will use to store Docker volumes, and then format the `/dev/xvdcy` device you attached earlier in the earlier example with the `.ext4` filesystem, and attach a label called `docker`, which makes mount operations simpler to perform. The next `echo` command adds an entry to the `/etc/fstab` file, which defines all filesystem mounts that will be applied at boot, and notice that you must pipe the `echo` command through to `sudo tee -a /etc/fstab`, which appends the `echo` output to the `/etc/fstab` file with the correct sudo privileges.
+
+Finally, you auto-mount the new entry in the `/etc/fstab` file by running the `mount -a` command, which although not required at image build time, is a simple way to verify that the mount is actually configured correctly (if not, this command will fail and the resulting build will fail).
+
+# Installing additional packages and configuring system settings
+
+The next customizations you will perform are to install additional packages and configuring system settings.
+
+# Installing additional packages
+
+There are a few additional packages that we need to install into our custom ECS container instance, which include the following:
+
+*   **CloudFormation helper scripts**: When you use CloudFormation to deploy your infrastructure, AWS provide a set of CloudFormation helper scripts, collectively referred to as **cfn-bootstrap**, that work with CloudFormation to obtain initialization metadata that allows you to perform custom initialization tasks at instance-creation time, and also signal CloudFormation when the instance has successfully completed initialization. We will explore the benefits of this approach in later chapters, however, for now you need to ensure these helper scripts are present in your custom ECS container-instance image.
+*   **CloudWatch logs agent**: The AWS CloudWatch logs service offers central storage of logs from various sources, including EC2 instances, ECS containers, and other AWS services. To ship your ECS container instance (EC2 instance) logs to CloudWatch logs, you must install the CloudWatch logs agent locally, which you can then use to forward various system logs, including operating system, Docker, and ECS agent logs.
+*   **`jq` utility**: The `jq` utility ([`stedolan.github.io/jq/manual/`](https://stedolan.github.io/jq/manual/)) is handy for parsing JSON output, and you will need this utility later on in this chapter when you define a simple health check that verifies the ECS container instance has joined to the configured ECS cluster.
+
+Installing these additional packages is very straightforward, and can be achieved by modifying the inline shell provisioner you created earlier:
+
+```
 
 {
 
@@ -636,7 +928,26 @@ sudo mount -a
 
 }
 
-[PRE14]
+```
+
+Installing additional operating system packages
+
+As you can see in the preceding example, each of the required packages can be easily installed using the `yum` package manager.
+
+# Configuring system settings
+
+There are a few minor system settings that you need to make to your custom ECS container instance:
+
+*   Configure time-zone settings
+*   Modify default cloud-init behavior
+
+# Configuring timezone settings
+
+Earlier, you defined a variable called `timezone`, which so far you have not referenced in your template. You can use this variable to configure the timezone of your custom ECS container instance image.
+
+To do this, you first need to add a new shell provisioner into your Packer template:
+
+```
 
 {
 
@@ -688,7 +999,15 @@ sudo mount -a
 
 }
 
-[PRE15]
+```
+
+Adding a provisioner to configure time settings
+
+In the preceding example, we reference a script called `scripts/time.sh`, which you will create shortly, but notice that we also include a parameter called `environment_vars`, which allows you to inject your Packer variables (`timezone` in this example) as environment variables into your shell provisioning scripts.
+
+The following example shows the required `scripts/time.sh` script that is referenced in the new Packer template provisioning task:
+
+```
 
 #!/usr/bin/env bash
 
@@ -718,7 +1037,25 @@ echo "server 169.254.169.123 prefer iburst" | sudo tee -a /etc/ntp.conf
 
 sudo chkconfig ntpd on
 
-[PRE16]
+```
+
+Time settings provisioning script
+
+In the preceding example, you first configure the [AWS recommended settings for configuring time](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html), configuring the `/etc/sysconfig/clock` file with the configured `TIMEZONE` environment variable, creating the symbolic `/etc/localtime` link, and finally ensuring the `ntpd` service is configured to use the [AWS NTP sync](https://aws.amazon.com/blogs/aws/keeping-time-with-amazon-time-sync-service/) service and start at instance boot.
+
+The AWS NTP sync service is a free AWS service that provides an NTP server endpoint at the `169.254.169.123` local address, ensuring your EC2 instances can obtain accurate time without having to traverse the network or internet.
+
+# Modifying default cloud-init behavior
+
+cloud-init is a standard set of utilities for performing initialization of cloud images and associated instances. The most popular feature of cloud-init is the user-data mechanism, which is a simple means of running your own custom initialization commands at instance creation.
+
+cloud-init is also used in the ECS-Optimized AMI to perform automatic security patching at instance creation, and although this sounds like a useful feature, it can cause problems, particularly in environments where your instances are located in private subnets and require an HTTP proxy to communicate with the internet.
+
+The issue with the cloud-init security mechanism is that although it can be configured to work with an HTTP proxy by setting proxy environment variables, it is invoked prior to when userdata is executed, leading to a chicken-and-egg scenario where you have no option but to disable automated security patching if you are using a proxy.
+
+To disable this mechanism, you first need to configure a new shell provisioner in your Packer template:
+
+```
 
 {
 
@@ -778,7 +1115,11 @@ sudo chkconfig ntpd on
 
 }
 
-[PRE17]
+```
+
+Adding a provisioner to configure cloud-init settingsThe referenced `scripts/cloudinit.sh` script can now be created as follows:
+
+```
 
 #!/usr/bin/env bash
 
@@ -790,7 +1131,19 @@ sudo sed -i -e '/^repo_update: /{h;s/: .*/: false/};${x;/^$/{s//repo_update: fal
 
 sudo sed -i -e '/^repo_upgrade: /{h;s/: .*/: none/};${x;/^$/{s//repo_upgrade: none/;H};x}' /etc/cloud/cloud.cfg
 
-[PRE18]
+```
+
+Disabling security updates for cloud-init
+
+In the following example, the rather scary-looking `sed` expressions will either add or replace lines beginning with `repo_update` and `repo_upgrade` in the `/etc/cloud/cloud.cfg` cloud-init configuration file and ensure they are set to `false` and `none`, respectively.
+
+# Configuring a cleanup script
+
+At this point, we have performed all required installation and configuration shell provisioning tasks. We will create one final shell provisioner, a cleanup script, which will remove any log files created while the instance used to build the custom image was running and to ensure the machine image is in a state ready to be launched.
+
+You first need to add a shell provisioner to your Packer template that references the `scripts/cleanup.sh` script:
+
+```
 
 {
 
@@ -856,7 +1209,13 @@ sudo sed -i -e '/^repo_upgrade: /{h;s/: .*/: none/};${x;/^$/{s//repo_upgrade: no
 
 }
 
-[PRE19]
+```
+
+Adding a provisioner to clean up the Image
+
+With the provisioner defined in the Packer template, you next need to create the cleanup script, as defined here:
+
+```
 
 #!/usr/bin/env bash
 
@@ -872,7 +1231,27 @@ sudo chkconfig docker off
 
 sudo rm -rf /var/log/docker /var/log/ecs/*
 
-[PRE20]
+```
+
+Cleanup script
+
+In the following example, notice you don't execute the command `set -e`, given this is a cleanup script that you are not too worried about if there is an error and you don't want your build to fail should a service already be stopped. The ECS agent is first stopped, with the `docker system prune` command used to clear any ECS container state that may be present, and next the Docker service is stopped and then disabled using the `chkconfig` command. The reason for this is that on instance creation, we will always invoke a first-run script that will perform initial configuration of the instance and requires the Docker service to be stopped. Of course this means that once the first-run script has completed its initial configuration, it will be responsible for ensuring the Docker service is both started and enabled to start on boot.
+
+Finally, the cleanup script removes any Docker and ECS agent log files that may have been created during the short period the instance was up during the custom machine-image build process.
+
+# Creating a first-run script
+
+The final set of customizations we will apply to your custom ECS container instance image is to create a first-run script, which will be responsible for performing runtime configuration of your ECS container instance at instance creation, by performing the following tasks:
+
+*   Configuring ECS cluster membership
+*   Configuring HTTP proxy support
+*   Configuring the CloudWatch logs agent
+*   Starting required services
+*   Performing health checks
+
+To provision the first-run script, you need to define a file provisioner task in your Packer template, as demonstrated here:
+
+```
 
 {
 
@@ -950,7 +1329,19 @@ sudo rm -rf /var/log/docker /var/log/ecs/*
 
 }
 
-[PRE21]
+```
+
+Adding a file provisioner
+
+Notice that the provisioner type is configured as `file`, and specifies a local source file that needs to be located in `files/firstrun.sh`. The `destination` parameter defines the location within the AMI where the first-run script will be located. Note that the file provisioner task copies files as the `ec2-user` user, hence it has limited permissions as to where this script can be copied.
+
+# Configuring ECS cluster membership
+
+You can now create the first-run script at the files/firstrun.sh location referenced by your Packer template. Before you get started configuring this file, it is important to bear in mind that the first-run script is designed to be run at initial boot of an instance created from your custom machine image, so you must consider this when configuring the various commands that will be executed.
+
+We will first create configure the ECS agent to join the ECS cluster that the ECS container instance is intended to join, as demonstrated in the following example:
+
+```
 
 #!/usr/bin/env bash
 
@@ -960,7 +1351,28 @@ set -e
 
 echo "ECS_CLUSTER=${ECS_CLUSTER}" > /etc/ecs/ecs.config
 
-[PRE22]
+```
+
+Configuring ECS cluster membership
+
+Back in Chapter 5, *Publishing Docker Images using ECR*, you saw how the ECS cluster wizard configured ECS container instances using this same approach, although one difference is that the script is expecting an environment variable called `ECS_CLUSTER` to be configured in the environment, as designated by the `${ECS_CLUSTER}` expression. Rather than hardcode the ECS cluster name, which would make the first-run script very inflexible, the idea here is that the configuration being applied to a given instance defines the `ECS_CLUSTER` environment variable with the correct cluster name, meaning the script is reusable and can be configured with any given ECS cluster.
+
+# Configuring HTTP proxy support
+
+A common security best practice is to place your ECS container instances in private subnets, meaning they are located in subnets that possess no default route to the internet. This approach makes it more difficult for attackers to compromise your systems, and even if they do, provides a means to restrict what information they can transmit back to the internet.
+
+Depending on the nature of your application, you typically will require your ECS container instances to be able to connect to the internet, and using an HTTP proxy provides an effective mechanism to provide such access in a controlled manner with Layer 7 application-layer inspection capabilities.
+
+Regardless of the nature of your application, it is important to understand that ECS container instances require internet connectivity for the following purposes:
+
+*   ECS agent control-plane and management-plane communications with ECS
+*   Docker Engine communication with ECR and other repositories for downloading Docker images
+*   CloudWatch logs agent communication with the CloudWatch logs service
+*   CloudFormation helper-script communication with the CloudFormation service
+
+Although configuring a complete end-to-end proxy solution is outside the scope of this book, it is useful to understand how you can customize your ECS container instances to use an HTTP proxy, as demonstrated in the following example:
+
+```
 
 #!/usr/bin/env bash
 
@@ -990,7 +1402,35 @@ echo NO_PROXY=169.254.169.254 >> /etc/awslogs/proxy.conf
 
 fi
 
-[PRE23]
+```
+
+Configuring HTTP proxy support
+
+In the preceding example, the script checks for the existence of a non-empty environment variable called `PROXY_URL`, and if present proceeds to configure proxy settings for various components of the ECS container instance:
+
+*   Docker Engine: Configured via `/etc/sysconfig/docker`
+*   ECS agent: Configured via `/etc/ecs/ecs.config`
+*   CloudWatch logs agent: Configured via `/etc/awslogs/proxy.conf`
+
+Notice that in some cases you need to configure the `NO_PROXY` setting, which disables proxy communications for the following IP addresses:
+
+*   `169.254.169.254`: This is a special local address that is used to communicate with the EC2 metadata service to obtain instance metadata, such as EC2 instance role credentials.
+*   `169.254.170.2`: This is a special local address that is used to obtained ECS task credentials.
+
+# Configuring the CloudWatch logs agent
+
+The next configuration task that you will perform in the first-run script is to configure the CloudWatch logs agent. On an ECS container instance, the CloudWatch logs agent is responsible for collecting system logs, such as operating system, Docker, and ECS agent logs.
+
+Note that this agent is NOT required to implement CloudWatch logs support for your Docker containers - this is already implemented within the Docker Engine via the `awslogs` logging driver.
+
+Configuring the CloudWatch logs agent requires you to perform the following configuration tasks:
+
+*   **Configure the correct AWS region**: For this task, you will inject the value of an environment variable called `AWS_DEFAULT_REGION` and write this to the `/etc/awslogs/awscli.conf` file.
+*   **Define the various log group and log stream settings that the CloudWatch logs agent will log to**: For this task, you will define the recommended set of log groups for ECS container instances, which is described at [`docs.aws.amazon.com/AmazonECS/latest/developerguide/using_cloudwatch_logs.html#configure_cwl_agent`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_cloudwatch_logs.html#configure_cwl_agent)
+
+The following example demonstrates the required configuration:
+
+```
 
 #!/usr/bin/env bash
 
@@ -1108,7 +1548,28 @@ time_zone = UTC
 
 EOF
 
-[PRE24]
+```
+
+Configuring the CloudWatch logs agent
+
+You can see that the first-run script includes references to environment variables in the `log_group_name` parameter for each defined log group, which helps ensure unique log group naming in your AWS account:
+
+*   `STACK_NAME`: The name of the CloudFormation stack
+*   `AUTOSCALING_GROUP`: The name of the Autoscaling Group
+
+Again, these environment variables must be injected at instance creation to the first-run script, so bear this in mind for future chapters when we will learn how to do this.
+
+One other point to note in the preceding example is the value of each `log_stream_name` parameter - this is set to a special variable called `{instance_id}`, which the CloudWatch logs agent will automatically configure with the EC2 instance ID of the instance.
+
+The end result is that you will get several log groups for each type of log, which are scoped to the context of a given CloudFormation stack and EC2 auto scaling group, and within each log group, a log stream for each ECS container instance will be created, as illustrated in the following diagram:
+
+![](img/a199eec7-ad83-4e86-bd90-ac0febe0df2f.png)CloudWatch logs group configuration for ECS container instances
+
+# Starting required services
+
+Recall in the previous examples, that you added a cleanup script as part of the image-build process, which disables the Docker Engine service from starting on boot. This approach allows you to perform required initialization tasks prior to starting the Docker Engine, and at this point in the first-run script we are ready to start the Docker Engine and other important system services:
+
+```
 
 #!/usr/bin/env bash
 
@@ -1146,7 +1607,19 @@ sudo service docker start
 
 sudo start ecs
 
-[PRE25]
+```
+
+Starting services
+
+In the preceding example, note that I have omitted the earlier parts of the first-run script for brevity. Notice that you first start the awslogs service, which ensures the CloudWatch logs agent will pick up all Docker Engine logs, and then proceed to enable Docker to start on boot, start Docker, and finally start the ECS agent.
+
+# Performing required health checks
+
+The final task we need to perform in the first-run script is a health check, which ensures the ECS container instance has initialized and successfully registered to the configured ECS cluster. This is a reasonable health check for your ECS container instances, given the ECS agent can only run if the Docker Engine is operational, and the ECS agent must be registered with the ECS cluster in order to deploy your applications.
+
+Recall in the previous chapter, when you examined the internals of an ECS container instance that the ECS agent exposes a local HTTP endpoint that can be queried for current ECS agent status. You can use this endpoint to create a very simple health check, as demonstrated here:
+
+```
 
 #!/usr/bin/env bash
 
@@ -1196,7 +1669,17 @@ do printf '.'
 
 echo "ECS 代理成功加入到${ECS_CLUSTER}"
 
-[PRE26]
+```
+
+Performing a health check
+
+In the preceding example, a bash `until` loop is configured, which uses curl to query the `http://localhost:51678/v1/metadata` endpoint every five seconds. The output of this command is piped through to `jq`, which will either return the Cluster property or an empty value if this property is not present. Once the ECS agent registers to the correct ECS cluster and returns this property in the JSON response, the loop will complete and the first-run script will complete.
+
+# Testing your custom ECS container instance image
+
+You have now completed all customizations and it is time to rebuild your image using the `packer build` command. Before you do this, now is a good time to verify you have the correct Packer template in place, and also have created the associated supporting files. The following example shows the folder and file structure you should now have in your packer-ecs repository:
+
+```
 
 > 树
 
@@ -1224,7 +1707,31 @@ echo "ECS 代理成功加入到${ECS_CLUSTER}"
 
 2 个目录，8 个文件
 
-[PRE27]
+```
+
+Verifying the Packer repository
+
+Assuming everything is in place, you can now run your Packer build once again by running the `make build` command.
+
+Once everything is complete and your AMI has been successfully created, you can now view your AMI in the AWS console by navigating to **Services** | **EC2** and selecting AMIs from the menu on the left:
+
+![](img/286a5d2f-7e98-467b-a671-5f3ad55eaf24.png)EC2 dashboard AMIs
+
+In the preceding screenshot, you can see the two AMIs you built earlier in this chapter and just now. Notice that the most recent AMI now includes three block devices, with `/dev/xvdcy` representing the additional 20 GB gp2 volume you added earlier in this chapter.
+
+At this point, you can actually test out your AMI by clicking on the **Launch** button, which will start the EC2 Instance Wizard. After clicking the **Review and Launch** button, click on the **Edit security groups** link to grant your IP address access via SSH to the instance, as shown in the following screenshot:
+
+![](img/c0fd0ffb-bc0b-4026-b9c0-9d8232b143cd.png)Launching a new EC2 instance
+
+Once complete, click on **Review and Launch**, then click the **Launch** button, and finally configure an appropriate SSH key pair that you have access to.
+
+On the launching instance screen, you can now click the link to your new EC2 instance, and copy the public IP address so that you can SSH to the instance, as shown in the following screenshot:
+
+![](img/99e70e6b-1183-437c-bf3b-7d2c04fde547.png)Connecting to a new EC2 instance
+
+Once you have connected to the instance, you can verify that the additional 20 GB volume you configured for Docker volume storage has been successfully mounted:
+
+```
 
 > sudo mount
 
@@ -1244,7 +1751,13 @@ tmpfs 在/dev/shm 上的类型为 tmpfs（rw，relatime）
 
 none 在/proc/sys/fs/binfmt_misc 上的类型为 binfmt_misc（rw，relatime）
 
-[PRE28]
+```
+
+Verifying storage mounts
+
+You can check the timezone is configured correctly by running the `date` command, which should display the correct timezone (US/Eastern), and also verify the `ntpd` service is running:
+
+```
 
 > 日期
 
@@ -1254,7 +1767,13 @@ Wed Feb 21 06:45:40 EST 2018
 
 ntpd 正在运行
 
-[PRE29]
+```
+
+Verifying time settings
+
+Next, you can verify the cloud-init configuration has been configured to disable security updates, by viewing the `/etc/cloud/cloud.cfg` file:
+
+```
 
 > cat /etc/cloud/cloud.cfg
 
@@ -1294,7 +1813,13 @@ mounts:
 
 repo_update: false
 
-[PRE30]
+```
+
+Verifying cloud-init settings
+
+You should also verify that the Docker service is stopped and was disabled on boot, as per the cleanup script you configured:
+
+```
 
 > sudo service docker status
 
@@ -1304,7 +1829,13 @@ docker 已停止
 
 docker 0:off 1:off 2:off 3:off 4:off 5:off 6:off
 
-[PRE31]
+```
+
+Verifying disabled services
+
+Finally, you can verify that the first-run script is present in the `ec2-user` home directory:
+
+```
 
 > pwd
 

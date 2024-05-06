@@ -4,7 +4,10 @@
 
 在本章中，我们将更仔细地了解如何控制容器的运行方式。尽管 Docker 容器被隔离，但这并不能阻止其中一个容器中的流浪进程占用其他容器（包括主机）可用的资源。例如，要小心这个命令（不要运行它）：
 
-[PRE0]
+```
+$ docker run ubuntu /bin/bash -c ":(){ :|:& };:"
+
+```
 
 通过运行前面的命令，您将 fork bomb 容器以及运行它的主机。
 
@@ -52,7 +55,10 @@
 
 可以使用`docker run`命令中的`-c`选项来控制容器所占用的 CPU 份额：
 
-[PRE1]
+```
+$ docker run -c 10 -it ubuntu /bin/bash
+
+```
 
 值`10`是相对于其他容器给予该容器的优先级。默认情况下，所有容器都具有相同的优先级，因此具有相同的 CPU 处理周期比率，您可以通过运行`$ cat /sys/fs/cgroup/cpu/docker/cpu.shares`来检查（如果您使用的是 OS X 或 Windows，请在执行此操作之前将 SSH 添加到 boot2Docker VM）。但是，您可以在运行容器时提供自己的优先级值。
 
@@ -68,19 +74,29 @@
 
 类似地，容器被允许消耗的 RAM 量在启动容器时也可以受到限制：
 
-[PRE2]
+```
+$ docker run -m <value><optional unit>
+
+```
 
 在这里，`unit`可以是`b`、`k`、`m`或`g`，分别表示字节、千字节、兆字节和千兆字节。
 
 单位的示例可以表示如下：
 
-[PRE3]
+```
+$ docker run -m 1024m -dit ubuntu /bin/bash
+
+```
 
 这为容器设置了 1GB 的内存限制。
 
 与限制 CPU 份额一样，您可以通过运行以下代码来检查默认的内存限制：
 
-[PRE4]
+```
+$ cat /sys/fs/cgroup/memory/docker/memory.limit_in_bytes
+18446744073709551615
+
+```
 
 正如文件名所示，前面的代码以字节为单位打印限制。输出中显示的值对应于 1.8 x 1010 千字节，这实际上意味着没有限制。
 
@@ -88,7 +104,10 @@
 
 与 CPU 份额一样，内存限制是通过`cgroup`文件强制执行的，这意味着我们可以通过更改容器的`cgroup`内存文件的值来动态更改限制：
 
-[PRE5]
+```
+$ echo 1073741824 > \ /sys/fs/cgroup/memory/docker/<container_id>/memory.limit_in_bytes
+
+```
 
 ### 注意
 
@@ -130,23 +149,38 @@
 
 +   `dm.basesize`：这指定了基础设备的大小，容器和镜像将使用它。默认情况下，这被设置为 10 GB。创建的设备是稀疏的，因此最初不会占用 10 GB。相反，它将随着数据写入而填满，直到达到 10 GB 的限制。
 
-[PRE6]
+```
+$ docker -d -s devicemapper --storage-opt dm.basesize=50G
+
+```
 
 +   `dm.loopdatasize`：这是“薄”池的大小。默认大小为 100 GB。需要注意的是，这个文件是稀疏的，因此最初不会占用这个空间；相反，随着越来越多的数据被写入，它将逐渐填满：
 
-[PRE7]
+```
+$ docker -d -s devicemapper --storage-opt dm.loopdatasize=1024G
+
+```
 
 +   `dm.loopmetadatasize`：如前所述，创建了两个块设备，一个用于数据，另一个用于元数据。此选项指定创建此块设备时要使用的大小限制。默认大小为 2 GB。这个文件也是稀疏的，因此最初不会占用整个大小。建议的最小大小是总池大小的 1％：
 
-[PRE8]
+```
+$ docker -d -s devicemapper --storage-opt dm.loopmetadatasize=10G
+
+```
 
 +   `dm.fs`：这是用于基础设备的文件系统类型。支持`ext4`和`xfs`文件系统，尽管默认情况下采用`ext4`：
 
-[PRE9]
+```
+$ docker -d -s devicemapper --storage-opt dm.fs=xfs
+
+```
 
 +   `dm.datadev`：这指定要使用的自定义块设备（而不是回环）用于`thin`池。如果您使用此选项，建议同时为数据和元数据指定块设备，以完全避免使用回环设备：
 
-[PRE10]
+```
+$ docker -d -s devicemapper --storage-opt dm.datadev=/dev/sdb1 \-storage-opt dm.metadatadev=/dev/sdc1
+
+```
 
 还有更多选项可用，以及关于所有这些工作原理的清晰解释，请参阅[`github.com/docker/docker/tree/master/daemon/graphdriver/devmapper/README.md`](https://github.com/docker/docker/tree/master/daemon/graphdriver/devmapper/README.md)。
 
@@ -158,11 +192,22 @@
 
 在本节的开头提到了有可能通过一个黑客手段实现配额并仍然使用 AUFS。这个黑客手段涉及根据需要创建基于`ext4`文件系统的回环文件系统，并将其作为容器的卷进行绑定挂载：
 
-[PRE11]
+```
+$ DIR=$(mktemp -d)
+$ DB_DIR=(mktemp -d)
+$ dd if=/dev/zero of=$DIR/data count=102400
+$ yes | mkfs -t ext4 $DIR/data
+$ mkdir $DB_DIR/db
+$ sudo mount -o loop=/dev/loop0 $DIR/data $DB_DIR
+
+```
 
 您现在可以使用`docker run`命令的`-v`选项将`$DB_DIR`目录绑定到容器：
 
-[PRE12]
+```
+$ docker run -v $DB_DIR:/var/lib/mysql mysql mysqld_safe.
+
+```
 
 # 使用卷管理容器中的数据
 
@@ -182,7 +227,10 @@ Docker 卷的一些显着特点如下所述：
 
 创建卷很容易。只需使用`-v`选项启动容器：
 
-[PRE13]
+```
+$ docker run -d -p 80:80 --name apache-1 -v /var/www apache.
+
+```
 
 现在请注意，卷没有`ID`参数，因此您无法像命名容器或标记图像一样确切地命名卷。但是，可以利用一个容器使用它至少一次的条件来使卷持久存在，这引入了仅包含数据的容器的概念。
 
@@ -190,7 +238,10 @@ Docker 卷的一些显着特点如下所述：
 
 自 Docker 版本 1.1 以来，如果您愿意，可以使用`-v`选项将主机的整个文件系统绑定到容器，就像这样：
 
-[PRE14]
+```
+$ docker run -v /:/my_host ubuntu:ro ls /my_host****.
+
+```
 
 但是，禁止挂载到容器的/，因此出于安全原因，您无法替换容器的`root`文件系统。
 
@@ -214,11 +265,17 @@ MongoDB 是一个文档数据库，提供高性能、高可用性和易扩展性
 
 1.  首先，我们需要一个数据专用容器。该容器的任务只是公开 MongoDB 存储数据的卷：
 
-[PRE15]
+```
+$ docker run -v /data/db --name data-only mongo \ echo "MongoDB stores all its data in /data/db"
+
+```
 
 1.  然后，我们需要运行 MongoDB 服务器，该服务器使用数据专用容器创建的卷：
 
-[PRE16]
+```
+$ docker run -d --volumes-from data-only -p 27017:27017 \ --name mongodb-server mongo mongod
+
+```
 
 ### 注意
 
@@ -226,7 +283,10 @@ MongoDB 是一个文档数据库，提供高性能、高可用性和易扩展性
 
 1.  最后，我们需要运行`backup`实用程序。在这种情况下，我们只是将 MongoDB 数据存储转储到主机上的当前目录：
 
-[PRE17]
+```
+$ docker run -d --volumes-from data-only --name mongo-backup \ -v $(pwd):/backup mongo $(mkdir -p /backup && cd /backup && mongodump)
+
+```
 
 ### 注意
 
@@ -242,7 +302,10 @@ MongoDB 是一个文档数据库，提供高性能、高可用性和易扩展性
 
 切换到 devicemapper 驱动程序很容易。只需使用-s 选项启动 docker 守护程序：
 
-[PRE18]
+```
+$ docker -d -s devicemapper
+
+```
 
 此外，您可以使用--storage-opts 标志提供各种 devicemapper 驱动程序选项。devicemapper 驱动程序的各种可用选项和示例已在本章的*限制资源存储*部分中介绍。
 
@@ -258,23 +321,39 @@ MongoDB 是一个文档数据库，提供高性能、高可用性和易扩展性
 
 1.  首先，您需要安装 btrfs 及其依赖项：
 
-[PRE19]
+```
+# apt-get -y btrfs-tools
+
+```
 
 1.  接下来，您需要创建一个 btrfs 文件系统类型的块设备：
 
-[PRE20]
+```
+# mkfs btrfs /dev/sdb
+
+```
 
 1.  现在为 Docker 创建目录（到此时，您应该已经备份了所有重要的镜像并清理了/var/lib/docker）。
 
-[PRE21]
+```
+# mkdir /var/lib/docker
+
+```
 
 1.  然后在/var/lib/docker 挂载 btrfs 块设备：
 
-[PRE22]
+```
+# mount /dev/sdb var/lib/docker
+
+```
 
 1.  检查挂载是否成功：
 
-[PRE23]
+```
+$ mount | grep btrfs
+/dev/sdb on /var/lib/docker type btrfs (rw)
+
+```
 
 ### 注意
 
@@ -282,7 +361,10 @@ MongoDB 是一个文档数据库，提供高性能、高可用性和易扩展性
 
 现在，您可以使用-s 选项启动 docker 守护程序：
 
-[PRE24]
+```
+$ docker -d -s btrfs
+
+```
 
 切换存储驱动程序后，您可以通过运行 docker info 命令来验证其中的更改。
 
@@ -336,7 +418,10 @@ Docker 为每个容器创建一个单独的网络堆栈和一个虚拟桥（dock
 
 +   `--ip`：此选项允许我们在面向容器的`docker0`接口上设置主机的 IP 地址。因此，这将是绑定容器端口时使用的默认 IP 地址。例如，此选项可以显示如下：
 
-[PRE25]
+```
+$ docker -d --ip 172.16.42.1
+
+```
 
 +   `--ip-forward`：这是一个`布尔`选项。如果设置为`false`，则运行守护程序的主机将不会在容器之间或从外部世界到容器之间转发数据包，从网络角度完全隔离它。
 
@@ -344,7 +429,12 @@ Docker 为每个容器创建一个单独的网络堆栈和一个虚拟桥（dock
 
 可以使用`sysctl`命令来检查此设置：
 
-[PRE26]
+```
+$ sysctl net.ipv4.ip_forward
+net.ipv4.ip_forward = 1
+.
+
+```
 
 +   `--icc`：这是另一个`布尔`选项，代表`容器间通信`。如果设置为`false`，容器将彼此隔离，但仍然可以向包管理器等发出一般的 HTTP 请求。
 
@@ -384,7 +474,10 @@ Docker 为每个容器创建一个单独的网络堆栈和一个虚拟桥（dock
 
 设置自己的子网范围非常容易。`docker`守护程序的`--bip`选项可用于设置桥接的 IP 地址以及它将创建容器的子网：
 
-[PRE27]
+```
+$ docker -d --bip 192.168.0.1/24
+
+```
 
 在这种情况下，我们已将 IP 地址设置为`192.168.0.1`，并指定它必须将 IP 地址分配给子网范围`192.168.0.0/24`中的容器（即从`192.168.0.2`到`192.168.0.254`，共 252 个可能的 IP 地址）。
 
@@ -398,7 +491,10 @@ Docker 为每个容器创建一个单独的网络堆栈和一个虚拟桥（dock
 
 可以在启动容器时使用`--link`选项指定链接：
 
-[PRE28]
+```
+$ docker run --link CONTAINER_IDENTIFIER:ALIAS . . .
+
+```
 
 这是如何工作的？当给出链接选项时，Docker 会向容器的`/etc/hosts`文件添加一个条目，其中`ALIAS`命令作为主机名，容器命名为`CONTAINER_IDENTIFIER`的 IP 地址。
 
@@ -408,7 +504,11 @@ Docker 为每个容器创建一个单独的网络堆栈和一个虚拟桥（dock
 
 例如，下面显示了命令行代码：
 
-[PRE29]
+```
+$ docker run --name pg -d postgres
+$ docker run --link pg:postgres postgres-app
+
+```
 
 上面的命令运行了一个 PostgreSQL 服务器（其 Dockerfile 公开了端口 5432，PostgeSQL 的默认端口），第二个容器将使用`postgres`别名链接到它。
 
@@ -444,23 +544,38 @@ Redis 是一个开源的、网络化的、内存中的、可选的持久性键�
 
 在第一个主机上，运行以下命令：
 
-[PRE30]
+```
+$ docker run -d --name redis --expose 6379 dockerfile/redis
+
+```
 
 这个命令启动了一个 Redis 服务器，并暴露了端口`6379`（这是 Redis 服务器运行的默认端口），但没有将其绑定到任何主机端口。
 
 以下命令启动一个大使容器，链接到 Redis 服务器，并将端口 6379 绑定到其私有网络 IP 地址的 6379 端口（在这种情况下是 192.168.0.100）。这仍然不是公开的，因为主机是私有的（不暴露给公共互联网）：
 
-[PRE31]
+```
+$ docker run -d --name redis-ambassador-h1 \
+-p 192.168.0.100:6379:6379 --link redis:redis \
+progrium/ambassadord --links
+
+```
 
 #### 主机 2
 
 在另一个主机（如果您在开发中使用 Vagrant，则是另一个虚拟机），运行以下命令：
 
-[PRE32]
+```
+$ docker run -d --name redis-ambassador-h2 --expose 6379 \
+progrium/ambassadord 192.168.0.100:6379
+
+```
 
 这个大使容器监听目标 IP 的端口，这种情况下是主机 1 的 IP 地址。我们已经暴露了端口 6379，这样它现在可以被我们的应用容器连接：
 
-[PRE33]
+```
+$ docker run -d --name application-container \--link redis-ambassador-h2:redis myimage mycommand
+
+```
 
 这将是在互联网上公开的容器。由于 Redis 服务器在私有主机上运行，因此无法从私有网络外部受到攻击。
 

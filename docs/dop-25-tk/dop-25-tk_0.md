@@ -84,15 +84,35 @@ Kubernetes 已经有了提供指标和日志可见性的工具。它允许我们
 
 代码块设置如下：
 
-[PRE0]
+```
+ 1  sum(label_join(
+ 2      rate(
+ 3          container_cpu_usage_seconds_total{
+ 4              namespace!="kube-system",
+ 5              pod_name!=""
+ 6          }[5m]
+ 7      )
+```
 
 当我们希望引起您对代码块的特定部分的注意时，相关的行或项目将以粗体显示：
 
-[PRE1]
+```
+ 1  sum(label_join(
+ 2      rate(
+ 3          container_cpu_usage_seconds_total{
+ 4              namespace!="kube-system",
+ 5              pod_name!=""
+ 6          }[5m]
+ 7      )
+```
 
 任何命令行输入或输出都以以下方式编写：
 
-[PRE2]
+```
+ 1  cd k8s-specs
+ 2
+ 3  git pull
+```
 
 **粗体**：表示一个新术语，一个重要的词，或者你在屏幕上看到的词。例如，菜单或对话框中的单词会以这种方式出现在文本中。这是一个例子：“选择 Prometheus，并单击导入按钮。”
 

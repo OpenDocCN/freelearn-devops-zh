@@ -68,17 +68,33 @@ docker0 可以通过`--net`标志进行配置，通常有四种模式：
 
 在容器和 Linux 桥之间创建了一个**虚拟以太网**（**vEthernet**或**vEth**）链接。从容器的`eth0`端口发送的流量通过 vEth 接口到达桥接，然后进行切换：
 
-[PRE0]
+```
+# show linux bridges 
+$ sudo brctl show 
+
+```
 
 上述命令的输出将类似于以下内容，其中包括桥接名称和容器上的 vEth 接口：
 
-[PRE1]
+```
+$ bridge name  bridge            id    STP       enabled interfaces 
+docker0        8000.56847afe9799 no    veth44cb727    veth98c3700 
+
+```
 
 ### 将容器连接到外部世界
 
 主机上的**iptables NAT**表用于伪装所有外部连接，如下所示：
 
-[PRE2]
+```
+$ sudo iptables -t nat -L -n 
+... 
+Chain POSTROUTING (policy ACCEPT) target prot opt 
+source destination MASQUERADE all -- 172.17.0.0/16 
+!172.17.0.0/16 
+... 
+
+```
 
 ### 从外部世界访问容器
 
@@ -90,19 +106,54 @@ docker0 可以通过`--net`标志进行配置，通常有四种模式：
 
 Docker 服务器默认在 Linux 内核中创建了一个`docker0`桥，可以在其他物理或虚拟网络接口之间传递数据包，使它们表现为单个以太网网络：
 
-[PRE3]
+```
+root@ubuntu:~# ifconfig 
+docker0   Link encap:Ethernet  HWaddr 56:84:7a:fe:97:99 
+inet addr:172.17.42.1  Bcast:0.0.0.0  Mask:255.255.0.0 
+inet6 addr: fe80::5484:7aff:fefe:9799/64 Scope:Link 
+inet6 addr: fe80::1/64 Scope:Link 
+... 
+collisions:0 txqueuelen:0 
+RX bytes:516868 (516.8 KB)  TX bytes:46460483 (46.4 MB) 
+eth0      Link encap:Ethernet  HWaddr 00:0c:29:0d:f4:2c 
+inet addr:192.168.186.129  Bcast:192.168.186.255  
+    Mask:255.255.255.0 
+
+```
 
 一旦我们有一个或多个容器正在运行，我们可以通过在主机上运行 `brctl` 命令并查看输出的接口列来确认 Docker 是否已将它们正确连接到 docker0 桥接。首先，使用以下命令安装桥接实用程序：
 
-[PRE4]
+```
+$ apt-get install bridge-utils 
+
+```
 
 这里有一个主机，连接了两个不同的容器：
 
-[PRE5]
+```
+root@ubuntu:~# brctl show 
+bridge name     bridge id           STP enabled   interfaces
+docker0         8000.56847afe9799   no            veth21b2e16
+                                                  veth7092a45 
+
+```
 
 Docker 在创建容器时使用 docker0 桥接设置。每当创建新容器时，它会从桥接可用的范围中分配一个新的 IP 地址：
 
-[PRE6]
+```
+root@ubuntu:~# docker run -t -i --name container1 ubuntu:latest /bin/bash 
+root@e54e9312dc04:/# ifconfig 
+eth0 Link encap:Ethernet HWaddr 02:42:ac:11:00:07 
+inet addr:172.17.0.7 Bcast:0.0.0.0 Mask:255.255.0.0 
+inet6 addr: 2001:db8:1::242:ac11:7/64 Scope:Global 
+inet6 addr: fe80::42:acff:fe11:7/64 Scope:Link 
+UP BROADCAST RUNNING MULTICAST MTU:1500 Metric:1 
+... 
+root@e54e9312dc04:/# ip route 
+default via 172.17.42.1 dev eth0 
+172.17.0.0/16 dev eth0 proto kernel scope link src 172.17.0.7 
+
+```
 
 ### 注意
 
@@ -112,11 +163,37 @@ Docker 在创建容器时使用 docker0 桥接设置。每当创建新容器时�
 
 将默认的桥接从 `docker0` 更改为 `br0`：
 
-[PRE7]
+```
+# sudo service docker stop 
+# sudo ip link set dev docker0 down 
+# sudo brctl delbr docker0 
+# sudo iptables -t nat -F POSTROUTING 
+# echo 'DOCKER_OPTS="-b=br0"' >> /etc/default/docker 
+# sudo brctl addbr br0 
+# sudo ip addr add 192.168.10.1/24 dev br0 
+# sudo ip link set dev br0 up 
+# sudo service docker start 
+
+```
 
 以下命令显示了 Docker 服务的新桥接名称和 IP 地址范围：
 
-[PRE8]
+```
+root@ubuntu:~# ifconfig 
+br0       Link encap:Ethernet  HWaddr ae:b2:dc:ed:e6:af 
+inet addr:192.168.10.1  Bcast:0.0.0.0  Mask:255.255.255.0 
+inet6 addr: fe80::acb2:dcff:feed:e6af/64 Scope:Link 
+UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1 
+RX packets:0 errors:0 dropped:0 overruns:0 frame:0 
+TX packets:7 errors:0 dropped:0 overruns:0 carrier:0 
+collisions:0 txqueuelen:0 
+RX bytes:0 (0.0 B)  TX bytes:738 (738.0 B) 
+eth0      Link encap:Ethernet  HWaddr 00:0c:29:0d:f4:2c 
+inet addr:192.168.186.129  Bcast:192.168.186.255  Mask:255.255.255.0 
+inet6 addr: fe80::20c:29ff:fe0d:f42c/64 Scope:Link 
+... 
+
+```
 
 # 配置 DNS
 
@@ -142,21 +219,40 @@ Docker 为每个容器提供主机名和 DNS 配置，而无需构建自定义�
 
 主要的 DNS 文件如下：
 
-[PRE9]
+```
+/etc/hostname 
+/etc/resolv.conf 
+/etc/hosts 
+
+```
 
 以下是添加 DNS 服务器的命令：
 
-[PRE10]
+```
+# docker run --dns=8.8.8.8 --net="bridge" -t -i  ubuntu:latest /bin/bash 
+
+```
 
 以下是添加主机名的命令：
 
-[PRE11]
+```
+#docker run --dns=8.8.8.8 --hostname=docker-vm1  -t -i  ubuntu:latest 
+    /bin/bash 
+
+```
 
 # 解决容器与外部网络之间的通信问题
 
 只有在将 `ip_forward` 参数设置为 `1` 时，数据包才能在容器之间传递。通常情况下，您会将 Docker 服务器保留在默认设置 `--ip-forward=true`，并且当服务器启动时，Docker 会为您设置 `ip_forward` 为 `1`。要检查设置，请使用以下命令：
 
-[PRE12]
+```
+# cat /proc/sys/net/ipv4/ip_forward 
+0 
+# echo 1 > /proc/sys/net/ipv4/ip_forward 
+# cat /proc/sys/net/ipv4/ip_forward 
+1 
+
+```
 
 通过启用`ip-forward`，用户可以使容器与外部世界之间的通信成为可能；如果您处于多个桥接设置中，还需要进行容器间通信：
 
@@ -176,7 +272,10 @@ ip-forward = false 将所有数据包转发到/从容器到外部网络
 
 例如，您可以限制外部访问，使只有源 IP`10.10.10.10`可以使用以下命令访问容器：
 
-[PRE13]
+```
+#iptables -I DOCKER -i ext_if ! -s 10.10.10.10 -j DROP 
+
+```
 
 ### 注意
 
@@ -194,39 +293,120 @@ ip-forward = false 将所有数据包转发到/从容器到外部网络
 
 1.  创建两个容器，c1 和 c2：
 
-[PRE14]
+```
+# docker run -i -t --name c1 ubuntu:latest /bin/bash 
+root@7bc2b6cb1025:/# ifconfig 
+eth0 Link encap:Ethernet HWaddr 02:42:ac:11:00:05 
+inet addr:172.17.0.5 Bcast:0.0.0.0 Mask:255.255.0.0 
+inet6 addr: 2001:db8:1::242:ac11:5/64 Scope:Global 
+inet6 addr: fe80::42:acff:fe11:5/64 Scope:Link 
+... 
+# docker run -i -t --name c2 ubuntu:latest /bin/bash 
+root@e58a9bf7120b:/# ifconfig
+        eth0 Link encap:Ethernet HWaddr 02:42:ac:11:00:06
+         inet addr:172.17.0.6 Bcast:0.0.0.0 Mask:255.255.0.0
+         inet6 addr: 2001:db8:1::242:ac11:6/64 Scope:Global
+         inet6 addr: fe80::42:acff:fe11:6/64 Scope:Link 
+
+```
 
 1.  我们可以使用刚刚发现的 IP 地址测试容器之间的连通性。现在让我们使用`ping`工具来看一下。
 
 1.  让我们进入另一个容器 c1，并尝试 ping c2：
 
-[PRE15]
+```
+root@7bc2b6cb1025:/# ping 172.17.0.6
+        PING 172.17.0.6 (172.17.0.6) 56(84) bytes of data.
+        64 bytes from 172.17.0.6: icmp_seq=1 ttl=64 time=0.139 ms
+        64 bytes from 172.17.0.6: icmp_seq=2 ttl=64 time=0.110 ms
+        ^C
+        --- 172.17.0.6 ping statistics ---
+        2 packets transmitted, 2 received, 0% packet loss, time 999ms
+        rtt min/avg/max/mdev = 0.110/0.124/0.139/0.018 ms
+        root@7bc2b6cb1025:/#
+        root@e58a9bf7120b:/# ping 172.17.0.5
+        PING 172.17.0.5 (172.17.0.5) 56(84) bytes of data.
+        64 bytes from 172.17.0.5: icmp_seq=1 ttl=64 time=0.270 ms
+        64 bytes from 172.17.0.5: icmp_seq=2 ttl=64 time=0.107 ms
+        ^C
+        --- 172.17.0.5 ping statistics ---
+
+        2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+        rtt min/avg/max/mdev = 0.107/0.188/0.270/0.082 ms
+        root@e58a9bf7120b:/# 
+
+```
 
 1.  在两个容器上安装`openssh-server`：
 
-[PRE16]
+```
+#apt-get install openssh-server 
+
+```
 
 1.  在主机上启用 iptables。最初，您将能够从一个容器 SSH 到另一个容器。
 
 1.  停止 Docker 服务，并在主机机器的`default docker`文件中添加`DOCKER_OPTS="--icc=false --iptables=true"`。此选项将启用 iptables 防火墙并在容器之间关闭所有端口。默认情况下，主机上未启用 iptables：
 
-[PRE17]
+```
+root@ubuntu:~# iptables -L -n
+        Chain INPUT (policy ACCEPT)
+        target prot opt source destination
+        Chain FORWARD (policy ACCEPT)
+        target prot opt source destination
+        DOCKER all -- 0.0.0.0/0 0.0.0.0/0
+        ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 ctstate RELATED,ESTABLISHED
+        ACCEPT all -- 0.0.0.0/0 0.0.0.0/0
+        DOCKER all -- 0.0.0.0/0 0.0.0.0/0
+        ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 ctstate RELATED,ESTABLISHED
+        ACCEPT all -- 0.0.0.0/0 0.0.0.0/0
+        ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 
+ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 
+#service docker stop 
+#vi /etc/default/docker 
+
+```
 
 1.  Docker Upstart 和 SysVinit 配置文件，自定义 Docker 二进制文件的位置（特别是用于开发测试）：
 
-[PRE18]
+```
+#DOCKER="/usr/local/bin/docker" 
+
+```
 
 1.  使用`DOCKER_OPTS`来修改守护程序的启动选项：
 
-[PRE19]
+```
+#DOCKER_OPTS="--dns 8.8.8.8 --dns 8.8.4.4" 
+#DOCKER_OPTS="--icc=false --iptables=true" 
+
+```
 
 1.  重启 Docker 服务：
 
-[PRE20]
+```
+# service docker start 
+
+```
 
 1.  检查 iptables：
 
-[PRE21]
+```
+root@ubuntu:~# iptables -L -n 
+Chain INPUT (policy ACCEPT) 
+target prot opt source destination 
+Chain FORWARD (policy ACCEPT) 
+target prot opt source destination 
+DOCKER all -- 0.0.0.0/0 0.0.0.0/0 
+ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 ctstate RELATED, ESTABLISHED 
+ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 
+DOCKER all -- 0.0.0.0/0 0.0.0.0/0 
+ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 ctstate RELATED, ESTABLISHED 
+ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 
+ACCEPT all -- 0.0.0.0/0 0.0.0.0/0 
+DROP all -- 0.0.0.0/0 0.0.0.0/0 
+
+```
 
 `DROP`规则已添加到主机机器的 iptables 中，这会中断容器之间的连接。现在您将无法在容器之间进行 SSH 连接。
 
@@ -236,15 +416,51 @@ ip-forward = false 将所有数据包转发到/从容器到外部网络
 
 1.  创建将充当服务器的第一个容器-`sshserver`：
 
-[PRE22]
+```
+root@ubuntu:~# docker run -i -t -p 2222:22 --name sshserver ubuntu bash 
+root@9770be5acbab:/# 
+Execute the iptables command and you can find a Docker chain rule added. 
+#root@ubuntu:~# iptables -L -n 
+Chain INPUT (policy ACCEPT) 
+target     prot opt source               destination 
+Chain FORWARD (policy ACCEPT) 
+target     prot opt source               destination 
+Chain OUTPUT (policy ACCEPT) 
+target     prot opt source               destination 
+Chain DOCKER (0 references) 
+target     prot opt source               destination 
+ACCEPT     tcp  --  0.0.0.0/0            172.17.0.3           tcp dpt:22 
+
+```
 
 1.  创建一个充当 SSH 客户端的第二个容器：
 
-[PRE23]
+```
+root@ubuntu:~# docker run -i -t --name sshclient --link 
+        sshserver:sshserver 
+        ubuntu bash 
+root@979d46c5c6a5:/# 
+
+```
 
 1.  我们可以看到 Docker 链规则中添加了更多规则：
 
-[PRE24]
+```
+root@ubuntu:~# iptables -L -n 
+Chain INPUT (policy ACCEPT) 
+target     prot opt source               destination 
+Chain FORWARD (policy ACCEPT) 
+target     prot opt source               destination 
+Chain OUTPUT (policy ACCEPT) 
+target     prot opt source               destination 
+Chain DOCKER (0 references) 
+target     prot opt source               destination 
+ACCEPT     tcp  --  0.0.0.0/0            172.17.0.3           tcp dpt:22 
+ACCEPT     tcp  --  172.17.0.4           172.17.0.3           tcp dpt:22 
+ACCEPT     tcp  --  172.17.0.3           172.17.0.4           tcp spt:22 
+root@ubuntu:~# 
+
+```
 
 以下图解释了使用`--link`标志的容器之间的通信：
 
@@ -254,11 +470,18 @@ Docker--link 在容器之间创建私有通道
 
 1.  您可以使用`docker inspect`检查您的链接容器：
 
-[PRE25]
+```
+root@ubuntu:~# docker inspect -f "{{ .HostConfig.Links }}" sshclient 
+[/sshserver:/sshclient/sshserver] 
+
+```
 
 1.  现在您可以成功地通过 SSH 连接到 SSH 服务器：
 
-[PRE26]
+```
+**#ssh root@172.17.0.3 -p 22** 
+
+```
 
 使用`--link`参数，Docker 在容器之间创建了一个安全通道，无需在容器上外部公开任何端口。
 
@@ -302,11 +525,35 @@ libnetwork 利用特定于操作系统的参数来填充由沙盒表示的网络
 
 以下数据结构显示了沙盒的运行时元素：
 
-[PRE27]
+```
+    type sandbox struct {
+          id            string
+           containerID   string
+          config        containerConfig
+          osSbox        osl.Sandbox
+          controller    *controller
+          refCnt        int
+          endpoints     epHeap
+          epPriority    map[string]int
+          joinLeaveDone chan struct{}
+          dbIndex       uint64
+          dbExists      bool
+          isStub        bool
+          inDelete      bool
+          sync.Mutex
+    }
+
+```
 
 一个新的沙盒是从网络控制器实例化的（稍后将详细解释）：
 
-[PRE28]
+```
+    func (c *controller) NewSandbox(containerID string, options ...SandboxOption) 
+     (Sandbox, error) {
+        .....
+    }
+
+```
 
 ### 端点
 
@@ -316,7 +563,26 @@ libnetwork 利用特定于操作系统的参数来填充由沙盒表示的网络
 
 一个端点由以下结构指定：
 
-[PRE29]
+```
+    type endpoint struct { 
+       name          string 
+       id            string 
+       network       *network 
+       iface         *endpointInterface 
+       joinInfo      *endpointJoinInfo 
+       sandboxID     string 
+       exposedPorts  []types.TransportPort 
+       anonymous     bool 
+       generic      map[string]interface{} 
+       joinLeaveDone chan struct{} 
+       prefAddress   net.IP 
+       prefAddressV6 net.IP 
+       ipamOptions   map[string]string 
+       dbIndex       uint64 
+       dbExists      bool 
+       sync.Mutex 
+    }
+```
 
 一个端点与唯一的 ID 和名称相关联。它附加到一个网络和一个沙盒 ID。它还与 IPv4 和 IPv6 地址空间相关联。每个端点与一个端点接口相关联。
 
@@ -326,13 +592,57 @@ libnetwork 利用特定于操作系统的参数来填充由沙盒表示的网络
 
 网络是从网络控制器中控制的，我们将在下一节中讨论。每个网络都有名称、地址空间、ID 和网络类型：
 
-[PRE30]
+```
+    type network struct { 
+       ctrlr        *controller 
+       name         string 
+       networkType  string 
+       id           string 
+       ipamType     string 
+       addrSpace    string 
+       ipamV4Config []*IpamConf 
+       ipamV6Config []*IpamConf 
+       ipamV4Info   []*IpamInfo 
+       ipamV6Info   []*IpamInfo 
+       enableIPv6   bool 
+       postIPv6     bool 
+       epCnt        *endpointCnt 
+       generic      options.Generic 
+       dbIndex      uint64 
+       svcRecords   svcMap 
+       dbExists     bool 
+       persist      bool 
+       stopWatchCh  chan struct{} 
+       drvOnce      *sync.Once 
+       internal     bool 
+       sync.Mutex   
+    }
+```
 
 ### 网络控制器
 
 网络控制器对象提供 API 来创建和管理网络对象。它是通过将特定驱动程序绑定到给定网络来绑定到 libnetwork 的入口点，并支持多个活动驱动程序，包括内置和远程驱动程序。网络控制器允许用户将特定驱动程序绑定到给定网络：
 
-[PRE31]
+```
+    type controller struct { 
+       id             string 
+       drivers        driverTable 
+       ipamDrivers    ipamTable 
+       sandboxes      sandboxTable 
+       cfg            *config.Config 
+       stores         []datastore.DataStore 
+       discovery     hostdiscovery.HostDiscovery 
+       extKeyListener net.Listener 
+       watchCh        chan *endpoint 
+       unWatchCh      chan *endpoint 
+       svcDb          map[string]svcMap 
+       nmap           map[string]*netWatch 
+       defOsSbox      osl.Sandbox 
+       sboxOnce       sync.Once 
+       sync.Mutex 
+    }   
+
+```
 
 每个网络控制器都引用以下内容：
 
@@ -444,7 +754,34 @@ Calico 架构包含四个重要组件，以提供更好的网络解决方案：
 
 +   **calicoctl**是用于配置和启动 Calico 服务的命令行。它甚至允许使用数据存储（`etcd`）定义和应用安全策略。该工具还提供了通用管理 Calico 配置的简单界面，无论 Calico 是在虚拟机、容器还是裸机上运行，都支持以下命令在`calicoctl`上。
 
-[PRE32]
+```
+$ calicoctl 
+Override the host:port of the ETCD server by setting the 
+         environment 
+        variable 
+ETCD_AUTHORITY [default: 127.0.0.1:2379] 
+Usage: calicoctl <command> [<args>...] 
+status            Print current status information 
+node              Configure the main calico/node container and 
+         establish 
+                          Calico 
+networking 
+container         Configure containers and their addresses 
+profile           Configure endpoint profiles 
+endpoint          Configure the endpoints assigned to existing 
+         containers 
+pool              Configure ip-pools 
+bgp               Configure global bgp 
+ipam              Configure IP address management 
+checksystem       Check for incompatibilities on the host 
+         system 
+diags             Save diagnostic information 
+version           Display the version of calicoctl 
+config            Configure low-level component configuration 
+        See 'calicoctl <command> --help' to read about a specific 
+         subcommand. 
+
+```
 
 根据 Calico 存储库的官方 GitHub 页面（[`github.com/projectcalico/calico-containers`](https://github.com/projectcalico/calico-containers)），存在以下 Calico 集成：
 
@@ -474,11 +811,35 @@ Calico 架构
 
 Docker-machine 的安装如下：
 
-[PRE33]
+```
+$ curl -L https://github.com/docker/machine/releases/download/
+    v0.7.0/docker-machine-`uname -s`-`uname -m` > /usr/local/bin/
+    docker-machine && \ 
+> chmod +x /usr/local/bin/docker-machine 
+% Total    % Received % Xferd  Average Speed   Time    Time    Time  Current 
+                                     Dload  Upload   Total   Spent   Left  Speed 
+100   601    0   601    0     0    266      0 --:--:--  0:00:02 --:--:--   266 
+100 38.8M  100 38.8M    0     0  1420k      0  0:00:28  0:00:28 --:--:-- 1989k 
+$ docker-machine version 
+docker-machine version 0.7.0, build a650a40 
+
+```
 
 多主机网络需要一个用于服务发现的存储，因此我们将创建一个 Docker 机器来运行该服务，创建新的 Docker 守护程序：
 
-[PRE34]
+```
+$ docker-machine create \ 
+>   -d vmwarefusion \ 
+>   swarm-consul 
+Running pre-create checks... 
+(swarm-consul) Default Boot2Docker ISO is out-of-date, downloading the latest 
+    release... 
+(swarm-consul) Latest release for github.com/boot2docker/boot2docker is 
+    v1.12.1 
+(swarm-consul) Downloading 
+... 
+
+```
 
 ### 提示
 
@@ -486,11 +847,46 @@ Docker-machine 的安装如下：
 
 我们将启动 consul 容器进行服务发现：
 
-[PRE35]
+```
+$(docker-machine config swarm-consul) run \ 
+>         -d \ 
+>         --restart=always \ 
+>         -p "8500:8500" \ 
+>         -h "consul" \ 
+>         progrium/consul -server -bootstrap 
+Unable to find image 'progrium/consul:latest' locally 
+latest: Pulling from progrium/consul 
+... 
+Digest: 
+    sha256:8cc8023462905929df9a79ff67ee435a36848ce7a10f18d6d0faba9306b97274 
+Status: Downloaded newer image for progrium/consul:latest 
+d482c88d6a1ab3792aa4d6a3eb5e304733ff4d622956f40d6c792610ea3ed312 
+
+```
 
 创建两个 Docker 守护程序来运行 Docker 集群，第一个守护程序是 swarm 节点，将自动运行用于协调集群的 Swarm 容器：
 
-[PRE36]
+```
+$ docker-machine create \ 
+>   -d vmwarefusion \ 
+>   --swarm \ 
+>   --swarm-master \ 
+>   --swarm-discovery="consul://$(docker-machine ip swarm-
+     consul):8500" \ 
+>   --engine-opt="cluster-store=consul://$(docker-machine ip swarm-
+    consul):8500" \ 
+>   --engine-opt="cluster-advertise=eth0:2376" \ 
+>   swarm-0 
+Running pre-create checks... 
+Creating machine... 
+(swarm-0) Copying 
+     /Users/vkohli/.docker/machine/cache/boot2docker.iso to 
+    /Users/vkohli/.docker/machine/machines/swarm-0/boot2docker.iso... 
+(swarm-0) Creating SSH key... 
+(swarm-0) Creating VM... 
+... 
+
+```
 
 Docker 已经启动运行！
 
@@ -500,7 +896,26 @@ Docker 已经启动运行！
 
 第二个守护程序是 Swarm 的`secondary`节点，将自动运行一个 Swarm 容器并将状态报告给`master`节点：
 
-[PRE37]
+```
+$ docker-machine create \ 
+>   -d vmwarefusion \ 
+>   --swarm \ 
+>   --swarm-discovery="consul://$(docker-machine ip swarm-
+     consul):8500" \ 
+>   --engine-opt="cluster-store=consul://$(docker-machine ip swarm-
+    consul):8500" \ 
+>   --engine-opt="cluster-advertise=eth0:2376" \ 
+>   swarm-1 
+Running pre-create checks... 
+Creating machine... 
+(swarm-1) Copying 
+     /Users/vkohli/.docker/machine/cache/boot2docker.iso to 
+    /Users/vkohli/.docker/machine/machines/swarm-1/boot2docker.iso... 
+(swarm-1) Creating SSH key... 
+(swarm-1) Creating VM... 
+... 
+
+```
 
 Docker 已经启动运行！
 
@@ -510,23 +925,77 @@ Docker 已经启动运行！
 
 Docker 可执行文件将与一个 Docker 守护程序通信。由于我们在一个集群中，我们将通过运行以下命令来确保 Docker 守护程序与集群的通信：
 
-[PRE38]
+```
+$ eval $(docker-machine env --swarm swarm-0) 
+
+```
 
 之后，我们将使用覆盖驱动程序创建一个私有的`prod`网络：
 
-[PRE39]
+```
+$ docker $(docker-machine config swarm-0) network create --driver 
+    overlay prod 
+
+```
 
 我们将使用`--net 参数`启动两个虚拟的`ubuntu:12.04`容器：
 
-[PRE40]
+```
+$ docker run -d -it --net prod --name dev-vm-1 ubuntu:12.04 
+426f39dbcb87b35c977706c3484bee20ae3296ec83100926160a39190451e57a 
+
+```
 
 在以下代码片段中，我们可以看到这个 Docker 容器有两个网络接口：一个连接到私有覆盖网络，另一个连接到 Docker 桥接口：
 
-[PRE41]
+```
+$ docker attach 426 
+root@426f39dbcb87:/# ip address 
+23: eth0@if24: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc 
+     noqueue state 
+    UP 
+link/ether 02:42:0a:00:00:02 brd ff:ff:ff:ff:ff:ff 
+inet 10.0.0.2/24 scope global eth0 
+valid_lft forever preferred_lft forever 
+inet6 fe80::42:aff:fe00:2/64 scope link 
+valid_lft forever preferred_lft forever 
+25: eth1@if26: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc 
+     noqueue state 
+    UP 
+link/ether 02:42:ac:12:00:02 brd ff:ff:ff:ff:ff:ff 
+inet 172.18.0.2/16 scope global eth1 
+valid_lft forever preferred_lft forever 
+inet6 fe80::42:acff:fe12:2/64 scope link 
+valid_lft forever preferred_lft forever 
+
+```
 
 另一个容器也将连接到另一个主机上现有的`prod`网络接口：
 
-[PRE42]
+```
+$ docker run -d -it --net prod --name dev-vm-7 ubuntu:12.04 
+d073f52a7eaacc0e0cb925b65abffd17a588e6178c87183ae5e35b98b36c0c25 
+$ docker attach d073 
+root@d073f52a7eaa:/# ip address 
+26: eth0@if27: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc 
+     noqueue state 
+    UP 
+link/ether 02:42:0a:00:00:03 brd ff:ff:ff:ff:ff:ff 
+inet 10.0.0.3/24 scope global eth0 
+valid_lft forever preferred_lft forever 
+inet6 fe80::42:aff:fe00:3/64 scope link 
+valid_lft forever preferred_lft forever 
+28: eth1@if29: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc 
+     noqueue state 
+    UP 
+link/ether 02:42:ac:12:00:02 brd ff:ff:ff:ff:ff:ff 
+inet 172.18.0.2/16 scope global eth1 
+valid_lft forever preferred_lft forever 
+inet6 fe80::42:acff:fe12:2/64 scope link 
+valid_lft forever preferred_lft forever 
+root@d073f52a7eaa:/# 
+
+```
 
 这是在 Docker Swarm 集群中跨主机配置私有网络的方法。
 
@@ -562,11 +1031,20 @@ Docker 可执行文件将与一个 Docker 守护程序通信。由于我们在�
 
 1.  安装 OVS：
 
-[PRE43]
+```
+$ sudo apt-get install openvswitch-switch 
+
+```
 
 1.  安装`ovs-docker`实用程序：
 
-[PRE44]
+```
+$ cd /usr/bin 
+$ wget https://raw.githubusercontent.com/openvswitch/ovs/master 
+/utilities/ovs-docker 
+$ chmod a+rwx ovs-docker 
+
+```
 
 ![故障排除 OVS 单主机设置](img/image_07_015.jpg)
 
@@ -576,25 +1054,63 @@ Docker 可执行文件将与一个 Docker 守护程序通信。由于我们在�
 
 1.  在这里，我们将添加一个新的 OVS 桥并对其进行配置，以便我们可以将容器连接到不同的网络上：
 
-[PRE45]
+```
+$ ovs-vsctl add-br ovs-br1 
+$ ifconfig ovs-br1 173.16.1.1 netmask 255.255.255.0 up 
+
+```
 
 1.  从 OVS 桥添加端口到 Docker 容器。
 
 1.  创建两个`ubuntu` Docker 容器：
 
-[PRE46]
+```
+$ docker run -i-t --name container1 ubuntu /bin/bash 
+$ docker run -i-t --name container2 ubuntu /bin/bash 
+
+```
 
 1.  将容器连接到 OVS 桥：
 
-[PRE47]
+```
+# ovs-docker add-port ovs-br1 eth1 container1 --
+         ipaddress=173.16.1.2/24 
+# ovs-docker add-port ovs-br1 eth1 container2 --
+         ipaddress=173.16.1.3/24 
+
+```
 
 1.  使用`ping`命令测试使用 OVS 桥连接的两个容器之间的连接。首先找出它们的 IP 地址：
 
-[PRE48]
+```
+# docker exec container1 ifconfig 
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:10:11:02 
+inet addr:172.16.17.2  Bcast:0.0.0.0  Mask:255.255.255.0 
+inet6 addr: fe80::42:acff:fe10:1102/64 Scope:Link 
+... 
+# docker exec container2 ifconfig 
+eth0      Link encap:Ethernet  HWaddr 02:42:ac:10:11:03 
+inet addr:172.16.17.3  Bcast:0.0.0.0  Mask:255.255.255.0 
+inet6 addr: fe80::42:acff:fe10:1103/64 Scope:Link 
+... 
+
+```
 
 1.  由于我们知道`container1`和`container2`的 IP 地址，我们可以运行以下命令：
 
-[PRE49]
+```
+# docker exec container2 ping 172.16.17.2 
+PING 172.16.17.2 (172.16.17.2) 56(84) bytes of data. 
+64 bytes from 172.16.17.2: icmp_seq=1 ttl=64 time=0.257 ms 
+64 bytes from 172.16.17.2: icmp_seq=2 ttl=64 time=0.048 ms 
+64 bytes from 172.16.17.2: icmp_seq=3 ttl=64 time=0.052 ms 
+# docker exec container1 ping 172.16.17.2 
+PING 172.16.17.2 (172.16.17.2) 56(84) bytes of data. 
+64 bytes from 172.16.17.2: icmp_seq=1 ttl=64 time=0.060 ms 
+64 bytes from 172.16.17.2: icmp_seq=2 ttl=64 time=0.035 ms 
+64 bytes from 172.16.17.2: icmp_seq=3 ttl=64 time=0.031 ms 
+
+```
 
 ## 故障排除 OVS 多主机设置
 
@@ -604,11 +1120,21 @@ Docker 可执行文件将与一个 Docker 守护程序通信。由于我们在�
 
 1.  在两台主机上安装 Docker 和 OVS：
 
-[PRE50]
+```
+# wget -qO- https://get.docker.com/ | sh 
+# sudo apt-get install openvswitch-switch 
+
+```
 
 1.  安装`ovs-docker`实用程序：
 
-[PRE51]
+```
+# cd /usr/bin 
+# wget https://raw.githubusercontent.com/openvswitch/ovs
+        /master/utilities/ovs-docker 
+# chmod a+rwx ovs-docker 
+
+```
 
 ![故障排除 OVS 多主机设置](img/image_07_016.jpg)
 
@@ -620,55 +1146,122 @@ Docker 可执行文件将与一个 Docker 守护程序通信。由于我们在�
 
 1.  在`Host1`上执行以下命令：
 
-[PRE52]
+```
+$ service docker stop 
+$ ip link set dev docker0 down 
+$ ip addr del 172.17.42.1/16 dev docker0 
+$ ip addr add 192.168.10.1/24 dev docker0 
+$ ip link set dev docker0 up 
+$ ip addr show docker0 
+$ service docker start 
+
+```
 
 1.  添加`br0` OVS 桥：
 
-[PRE53]
+```
+$ ovs-vsctl add-br br0 
+
+```
 
 1.  创建到另一个主机的隧道：
 
-[PRE54]
+```
+$ ovs-vsctl add-port br0 gre0 -- set interface gre0 type=gre 
+        options:remote_ip=30.30.30.8 
+
+```
 
 1.  将`br0`桥添加到`docker0`桥：
 
-[PRE55]
+```
+$ brctl addif docker0 br0 
+
+```
 
 1.  在 Host2 上执行以下命令：
 
-[PRE56]
+```
+$ service docker stop 
+$ iptables -t nat -F POSTROUTING 
+$ ip link set dev docker0 down 
+$ ip addr del 172.17.42.1/16 dev docker0 
+$ ip addr add 192.168.10.2/24 dev docker0 
+$ ip link set dev docker0 up 
+$ ip addr show docker0 
+$ service docker start 
+
+```
 
 1.  添加`br0` OVS 桥：
 
-[PRE57]
+```
+$ ip link set br0 up 
+$ ovs-vsctl add-br br0 
+
+```
 
 1.  创建到另一个主机的隧道并将其附加到：
 
-[PRE58]
+```
+# br0 bridge  
+        $ ovs-vsctl add-port br0 gre0 -- set interface gre0 type=gre 
+        options:remote_ip=30.30.30.7 
+
+```
 
 1.  将`br0`桥添加到`docker0`桥：
 
-[PRE59]
+```
+$ brctl addif docker0 br0 
+
+```
 
 docker0 桥连接到另一个桥-`br0`。这次，它是一个 OVS 桥，这意味着容器之间的所有流量也通过`br0`路由。此外，我们需要连接两个主机上的网络，容器正在其中运行。为此目的使用了 GRE 隧道。这个隧道连接到`br0` OVS 桥，结果也连接到`docker0`。在两个主机上执行上述命令后，您应该能够从两个主机上 ping 通`docker0`桥的地址。
 
 在 Host1 上：
 
-[PRE60]
+```
+$ ping 192.168.10.2 
+PING 192.168.10.2 (192.168.10.2) 56(84) bytes of data. 
+64 bytes from 192.168.10.2: icmp_seq=1 ttl=64 time=0.088 ms 
+64 bytes from 192.168.10.2: icmp_seq=2 ttl=64 time=0.032 ms 
+^C 
+--- 192.168.10.2 ping statistics --- 
+2 packets transmitted, 2 received, 0% packet loss, time 999ms 
+rtt min/avg/max/mdev = 0.032/0.060/0.088/0.028 ms 
+
+```
 
 在 Host2 上：
 
-[PRE61]
+```
+$ ping 192.168.10.1 
+PING 192.168.10.1 (192.168.10.1) 56(84) bytes of data. 
+64 bytes from 192.168.10.1: icmp_seq=1 ttl=64 time=0.088 ms 
+64 bytes from 192.168.10.1: icmp_seq=2 ttl=64 time=0.032 ms 
+^C 
+--- 192.168.10.1 ping statistics --- 
+2 packets transmitted, 2 received, 0% packet loss, time 999ms 
+rtt min/avg/max/mdev = 0.032/0.060/0.088/0.028 ms 
+
+```
 
 1.  在主机上创建容器。
 
 在 Host1 上，使用以下命令：
 
-[PRE62]
+```
+$ docker run -t -i --name container1 ubuntu:latest /bin/bash 
+
+```
 
 在 Host2 上，使用以下命令：
 
-[PRE63]
+```
+$ docker run -t -i --name container2 ubuntu:latest /bin/bash 
+
+```
 
 现在我们可以从`container1` ping `container2`。这样，我们使用 OVS 在多个主机上连接 Docker 容器。
 

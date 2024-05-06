@@ -104,13 +104,47 @@ ECR 的核心组件包括：
 
 查看您的 AWS 帐户和本地区域中的 ECR 存储库列表，您可以使用`aws ecr list-repositories`命令，而要删除 ECR 存储库，您可以使用`aws ecr delete-repository`命令，如下所示：
 
-[PRE0]
+```
+> aws ecr list-repositories
+{
+    "repositories": [
+        {
+            "repositoryArn": "arn:aws:ecr:us-east-1:385605022855:repository/docker-in-aws/todobackend",
+            "registryId": "385605022855",
+            "repositoryName": "docker-in-aws/todobackend",
+            "repositoryUri": "385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend",
+            "createdAt": 1517692382.0
+        }
+    ]
+}
+> aws ecr delete-repository --repository-name docker-in-aws/todobackend
+{
+    "repository": {
+        "repositoryArn": "arn:aws:ecr:us-east-1:385605022855:repository/docker-in-aws/todobackend",
+        "registryId": "385605022855",
+        "repositoryName": "docker-in-aws/todobackend",
+        "repositoryUri": "385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend",
+        "createdAt": 1517692382.0
+    }
+}
+```
 
 使用 AWS CLI 描述和删除 ECR 存储库
 
 现在，您已经使用 AWS 控制台删除了之前创建的仓库，您可以按照这里演示的方法重新创建它：
 
-[PRE1]
+```
+> aws ecr create-repository --repository-name docker-in-aws/todobackend
+{
+    "repository": {
+        "repositoryArn": "arn:aws:ecr:us-east-1:385605022855:repository/docker-in-aws/todobackend",
+        "registryId": "385605022855",
+        "repositoryName": "docker-in-aws/todobackend",
+        "repositoryUri": "385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend",
+        "createdAt": 1517693074.0
+    }
+}
+```
 
 使用 AWS CLI 创建 ECR 仓库
 
@@ -122,11 +156,29 @@ AWS CloudFormation 支持通过`AWS::ECR::Repository`资源类型创建 ECR 仓�
 
 遵循这个建议，并为将来的章节，让我们创建一个名为**todobackend-aws**的仓库，您可以用来存储您将在本书中创建和管理的各种基础架构配置。我会让您在 GitHub 上创建相应的仓库，之后您可以将您的 GitHub 仓库配置为远程仓库：
 
-[PRE2]
+```
+> mkdir todobackend-aws
+> touch todobackend-aws/ecr.yml > cd todobackend-aws
+> git init Initialized empty Git repository in /Users/jmenga/Source/docker-in-aws/todobackend-aws/.git/
+> git remote add origin https://github.com/jmenga/todobackend-aws.git
+> tree .
+.
+└── ecr.yml
+```
 
 现在，您可以配置一个名为`ecr.yml`的 CloudFormation 模板文件，该文件定义了一个名为`todobackend`的单个 ECR 仓库：
 
-[PRE3]
+```
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: ECR Repositories
+
+Resources:
+  TodobackendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: docker-in-aws/todobackend
+```
 
 使用 AWS CloudFormation 定义 ECR 仓库
 
@@ -134,7 +186,12 @@ AWS CloudFormation 支持通过`AWS::ECR::Repository`资源类型创建 ECR 仓�
 
 假设您已经删除了之前的 todobackend ECR 仓库，就像之前演示的那样，现在您可以使用`aws cloudformation deploy`命令使用 CloudFormation 创建 todobackend 仓库：
 
-[PRE4]
+```
+> aws cloudformation deploy --template-file ecr.yml --stack-name ecr-repositories
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+Successfully created/updated stack - ecr-repositories
+```
 
 使用 AWS CloudFormation 创建 ECR 仓库
 
@@ -152,7 +209,11 @@ AWS CloudFormation 支持通过`AWS::ECR::Repository`资源类型创建 ECR 仓�
 
 显示的第一个命令是`aws ecr get-login`命令，它将生成一个包含临时身份验证令牌的`docker login`表达式，有效期为 12 小时（请注意，出于节省空间的考虑，命令输出已被截断）：
 
-[PRE5]
+```
+> aws ecr get-login --no-include-email
+docker login -u AWS -p eyJwYXl2ovSUVQUkJkbGJ5cjQ1YXJkcnNLV29ubVV6TTIxNTk3N1RYNklKdllvanZ1SFJaeUNBYk84NTJ2V2RaVzJUYlk9Iiw
+idmVyc2lvbiI6IjIiLCJ0eXBlIjoiREFUQV9LRVkiLCJleHBpcmF0aW9uIjoxNTE4MTIyNTI5fQ== https://385605022855.dkr.ecr.us-east-1.amazonaws.com
+```
 
 为 ECR 生成登录命令
 
@@ -160,7 +221,10 @@ AWS CloudFormation 支持通过`AWS::ECR::Repository`资源类型创建 ECR 仓�
 
 尽管您可以复制并粘贴前面示例中生成的命令输出，但更快的方法是使用 bash 命令替换自动执行`aws ecr get-login`命令的输出，方法是用`$(...)`将命令括起来：
 
-[PRE6]
+```
+> $(aws ecr get-login --no-include-email)
+Login Succeeded
+```
 
 登录到 ECR
 
@@ -182,7 +246,28 @@ AWS CloudFormation 支持通过`AWS::ECR::Repository`资源类型创建 ECR 仓�
 
 以下示例演示了构建`todobackend`镜像，使用您的新 ECR 存储库的 URI 标记图像（用于您的存储库的实际 URI），并使用`docker images`命令验证图像名称：
 
-[PRE7]
+```
+> cd ../todobackend
+> docker build -t 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend .
+Sending build context to Docker daemon 129.5kB
+Step 1/25 : FROM alpine AS build
+ ---> 3fd9065eaf02
+Step 2/25 : LABEL application=todobackend
+ ---> Using cache
+ ---> f955808a07fd
+...
+...
+...
+Step 25/25 : USER app
+ ---> Running in 4cf3fcab97c9
+Removing intermediate container 4cf3fcab97c9
+---> 2b2d8d17367c
+Successfully built 2b2d8d17367c
+Successfully tagged 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest
+> docker images
+REPOSITORY                                                             TAG    IMAGE ID     SIZE 
+385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend latest 2b2d8d17367c 99.4MB
+```
 
 为 ECR 标记图像
 
@@ -192,7 +277,18 @@ AWS CloudFormation 支持通过`AWS::ECR::Repository`资源类型创建 ECR 仓�
 
 因为您已经登录到 ECR，所以只需使用`docker push`命令并引用您的 Docker 图像的名称即可：
 
-[PRE8]
+```
+> docker push 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
+The push refers to repository [385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend]
+1cdf73b07ed7: Pushed
+0dfffc4aa16e: Pushed
+baaced0ec8f8: Pushed
+e3b27097ac3f: Pushed
+3a29354c4bcc: Pushed
+a031167f960b: Pushed
+cd7100a72410: Pushed
+latest: digest: sha256:322c8b378dd90b3a1a6dc8553baf03b4eb13ebafcc926d9d87c010f08e0339fa size: 1787
+```
 
 将图像推送到 ECR
 
@@ -206,13 +302,47 @@ AWS CloudFormation 支持通过`AWS::ECR::Repository`资源类型创建 ECR 仓�
 
 Docker Compose 包括一个名为`image`的服务配置属性，通常用于指定要运行的容器的图像：
 
-[PRE9]
+```
+version: '2.4'
+
+services:
+  web:
+    image: nginx
+```
 
 示例 Docker Compose 文件
 
 尽管这是 Docker Compose 的一个非常常见的使用模式，但如果您结合`build`和`image`属性，还存在另一种配置和行为集，如在 todobackend 存储库的`docker-compose.yml`文件中所示：
 
-[PRE10]
+```
+version: '2.4'
+
+volumes:
+  public:
+    driver: local
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+  release:
+ image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: todobackend.settings_release
+      MYSQL_HOST: db
+      MYSQL_USER: todo
+      MYSQL_PASSWORD: password
+  app:
+    image: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:${APP_VERSION}
+    extends:
+  ...
+  ...
+```
 
 Todobackend Docker Compose 文件
 
@@ -222,27 +352,79 @@ Todobackend Docker Compose 文件
 
 请注意，对于`app`服务，我们引用环境变量`APP_VERSION`，这意味着要使用在 todobackend 存储库根目录的 Makefile 中定义的当前应用程序版本标记图像：
 
-[PRE11]
+```
+.PHONY: test release clean version
+
+export APP_VERSION ?= $(shell git rev-parse --short HEAD)
+
+version:
+  @ echo '{"Version": "$(APP_VERSION)"}'
+```
 
 在上面的示例中，用您自己 AWS 账户生成的适当 URI 替换存储库 URI。
 
 为了演示当您结合`image`和`build`属性时的标记行为，首先删除本章前面创建的 Docker 图像，如下所示：
 
-[PRE12]
+```
+> docker rmi 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend
+Untagged: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest
+Untagged: 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend@sha256:322c8b378dd90b3a1a6dc8553baf03b4eb13ebafcc926d9d87c010f08e0339fa
+Deleted: sha256:2b2d8d17367c32993b0aa68f407e89bf4a3496a1da9aeb7c00a8e49f89bf5134
+Deleted: sha256:523126379df325e1bcdccdf633aa10bc45e43bdb5ce4412aec282e98dbe076fb
+Deleted: sha256:54521ab8917e466fbf9e12a5e15ac5e8715da5332f3655e8cc51f5ad3987a034
+Deleted: sha256:03d95618180182e7ae08c16b4687a7d191f3f56d909b868db9e889f0653add46
+Deleted: sha256:eb56d3747a17d5b7d738c879412e39ac2739403bbf992267385f86fce2f5ed0d
+Deleted: sha256:9908bfa1f773905e0540d70e65d6a0991fa1f89a5729fa83e92c2a8b45f7bd29
+Deleted: sha256:d9268f192cb01d0e05a1f78ad6c41bc702b11559d547c0865b4293908d99a311
+Deleted: sha256:c6e4f60120cdf713253b24bba97a0c2a80d41a0126eb18f4ea5269034dbdc7e1
+Deleted: sha256:0b780adf8501c8a0dbf33f49425385506885f9e8d4295f9bc63c3f895faed6d1
+```
 
 删除 Docker 图像
 
 如果您现在运行`docker-compose build release`命令，一旦命令完成，Docker Compose 将构建一个新的图像，并标记为您的 ECR 存储库 URI：
 
-[PRE13]
+```
+> docker-compose build release WARNING: The APP_VERSION variable is not set. Defaulting to a blank string.
+Building release
+Step 1/25 : FROM alpine AS build
+ ---> 3fd9065eaf02
+Step 2/25 : LABEL application=todobackend
+ ---> Using cache
+ ---> f955808a07fd
+...
+...
+Step 25/25 : USER app
+ ---> Using cache
+ ---> f507b981227f
 
-[PRE14]
+Successfully built f507b981227f
+Successfully tagged 385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest
+> docker images
+```
+
+```
+REPOSITORY                                                               TAG                 IMAGE ID            CREATED             SIZE
+385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend   latest              f507b981227f        4 days ago          99.4MB
+```
 
 使用 Docker Compose 构建带标签的图像
 
 当您的图像构建并正确标记后，您现在可以执行`docker-compose push`命令，该命令可用于推送在 Docker Compose 文件中定义了`build`和`image`属性的服务：
 
-[PRE15]
+```
+> docker-compose push release
+Pushing release (385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest)...
+The push refers to repository [385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend]
+9ae8d6169643: Layer already exists
+cdbc5d8be7d1: Pushed
+08a1fb32c580: Layer already exists
+2e3946df4029: Pushed
+3a29354c4bcc: Layer already exists
+a031167f960b: Layer already exists
+cd7100a72410: Layer already exists
+latest: digest: sha256:a1b029d347a2fabd3f58d177dcbbcd88066dc54ccdc15adad46c12ceac450378 size: 1787
+```
 
 使用 Docker Compose 发布图像
 
@@ -264,7 +446,33 @@ Todobackend Docker Compose 文件
 
 以下示例演示了添加名为`login`和`logout`的两个新任务，这些任务将使用 Docker 客户端执行这些操作：
 
-[PRE16]
+```
+.PHONY: test release clean version login logout
+
+export APP_VERSION ?= $(shell git rev-parse --short HEAD)
+
+version:
+  @ echo '{"Version": "$(APP_VERSION)"}'
+
+login:
+ $$(aws ecr get-login --no-include-email)
+
+logout:
+ docker logout https://385605022855.dkr.ecr.us-east-1.amazonaws.com test:
+    docker-compose build --pull release
+    docker-compose build
+    docker-compose run test
+
+release:
+    docker-compose up --abort-on-container-exit migrate
+    docker-compose run app python3 manage.py collectstatic --no-input
+    docker-compose up --abort-on-container-exit acceptance
+    @ echo App running at http://$$(docker-compose port app 8000 | sed s/0.0.0.0/localhost/g)
+
+clean:
+    docker-compose down -v
+    docker images -q -f dangling=true -f label=application=todobackend | xargs -I ARGS docker rmi -f ARGS
+```
 
 登录和注销 ECR
 
@@ -274,7 +482,14 @@ Todobackend Docker Compose 文件
 
 有了这些任务，您现在可以轻松地使用`make logout`和`make login`命令注销和登录 ECR：
 
-[PRE17]
+```
+> make logout docker logout https://385605022855.dkr.ecr.us-east-1.amazonaws.com
+Removing login credentials for 385605022855.dkr.ecr.us-east-1.amazonaws.com
+ > make login
+$(aws ecr get-login --no-include-email)
+WARNING! Using --password via the CLI is insecure. Use --password-stdin.
+Login Succeeded
+```
 
 运行 make logout 和 make login
 
@@ -282,7 +497,29 @@ Todobackend Docker Compose 文件
 
 要自动化发布工作流，您可以在 Makefile 中添加一个名为`publish`的新任务，该任务简单地调用标记为`release`和`app`服务的`docker-compose push`命令：
 
-[PRE18]
+```
+.PHONY: test release clean login logout publish
+
+export APP_VERSION ?= $(shell git rev-parse --short HEAD)
+
+version:
+  @ echo '{"Version": "$(APP_VERSION)"}'
+
+...
+...
+
+release:
+    docker-compose up --abort-on-container-exit migrate
+    docker-compose run app python3 manage.py collectstatic --no-input
+    docker-compose up --abort-on-container-exit acceptance
+    @ echo App running at http://$$(docker-compose port app 8000 | sed s/0.0.0.0/localhost/g)
+
+publish:
+ docker-compose push release app
+clean:
+    docker-compose down -v
+    docker images -q -f dangling=true -f label=application=todobackend | xargs -I ARGS docker rmi -f ARGS
+```
 
 自动发布到 ECR
 
@@ -290,7 +527,58 @@ Todobackend Docker Compose 文件
 
 现在让我们提交您的更改并运行完整的 Make 工作流来测试、构建和发布您的 Docker 镜像，如下例所示。请注意，一个带有提交哈希`97e4abf`标记的镜像被发布到了 ECR：
 
-[PRE19]
+```
+> git commit -a -m "Add publish tasks"
+[master 97e4abf] Add publish tasks
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+> make login
+$(aws ecr get-login --no-include-email)
+Login Succeeded
+
+> make test && make release
+docker-compose build --pull release
+Building release
+...
+...
+todobackend_db_1 is up-to-date
+Creating todobackend_app_1 ... done
+App running at http://localhost:32774
+$ make publish
+docker-compose push release app
+Pushing release (385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:latest)...
+The push refers to repository [385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend]
+53ca7006d9e4: Layer already exists
+ca208f4ebc53: Layer already exists
+1702a4329d94: Layer already exists
+e2aca0d7f367: Layer already exists
+c3e0af9081a5: Layer already exists
+20ae2e176794: Layer already exists
+cd7100a72410: Layer already exists
+latest: digest: sha256:d64e1771440208bde0cabe454f213d682a6ad31e38f14f9ad792fabc51008888 size: 1787
+Pushing app (385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend:97e4abf)...
+The push refers to repository [385605022855.dkr.ecr.us-east-1.amazonaws.com/docker-in-aws/todobackend]
+53ca7006d9e4: Layer already exists
+ca208f4ebc53: Layer already exists
+1702a4329d94: Layer already exists
+e2aca0d7f367: Layer already exists
+c3e0af9081a5: Layer already exists
+20ae2e176794: Layer already exists
+cd7100a72410: Layer already exists
+97e4abf: digest: sha256:d64e1771440208bde0cabe454f213d682a6ad31e38f14f9ad792fabc51008888 size: 1787
+
+> make clean
+docker-compose down -v
+Stopping todobackend_app_1 ... done
+Stopping todobackend_db_1 ... done
+...
+...
+
+> make logout
+docker logout https://385605022855.dkr.ecr.us-east-1.amazonaws.com
+Removing login credentials for 385605022855.dkr.ecr.us-east-1.amazonaws.com
+
+```
 
 运行更新后的 Make 工作流
 
@@ -308,7 +596,32 @@ Todobackend Docker Compose 文件
 
 当您的 ECS 容器实例在与您的 ECR 存储库相同的账户中运行时，推荐的方法是使用与运行为 ECS 容器实例的 EC2 实例应用的 IAM 实例角色相关联的 IAM 策略，以使在 ECS 容器实例内运行的 ECS 代理能够从 ECR 中拉取 Docker 镜像。您已经在上一章中看到了这种方法的实际操作，AWS 提供的 ECS 集群向导附加了一个名为`AmazonEC2ContainerServiceforEC2Role`的托管策略到集群中 ECS 容器实例的 IAM 实例角色，并注意到此策略中包含的以下 ECR 权限：
 
-[PRE20]
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:CreateCluster",
+        "ecs:DeregisterContainerInstance",
+        "ecs:DiscoverPollEndpoint",
+        "ecs:Poll",
+        "ecs:RegisterContainerInstance",
+        "ecs:StartTelemetrySession",
+        "ecs:Submit*",
+        "ecr:GetAuthorizationToken",
+ "ecr:BatchCheckLayerAvailability",
+ "ecr:GetDownloadUrlForLayer",
+ "ecr:BatchGetImage",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
 
 AmazonEC2ContainerServiceforEC2Role 策略
 
@@ -326,7 +639,29 @@ AmazonEC2ContainerServiceforEC2Role 策略
 
 根据您组织的安全要求，对所有存储库的广泛访问可能是可以接受的，也可能不可以接受 - 如果不可以接受，则需要创建自定义 IAM 策略，限制对特定存储库的访问，就像这里演示的那样：
 
-[PRE21]
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": [
+        "arn:aws:ecr:us-east-1:385605022855:repository/docker-in-aws/todobackend"
+      ]
+    }
+  ]
+}
+```
 
 授予特定存储库的 ECR 登录和拉取权限
 
@@ -334,7 +669,33 @@ AmazonEC2ContainerServiceforEC2Role 策略
 
 请注意，如果您还想要在前面的示例中授予对 ECR 存储库的推送访问权限，则需要额外的 ECR 权限：
 
-[PRE22]
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:PutImage",         
+        "ecr:InitiateLayerUpload",         
+        "ecr:UploadLayerPart",         
+        "ecr:CompleteLayerUpload"
+      ],
+      "Resource": [
+        "arn:aws:ecr:us-east-1:385605022855:repository/docker-in-aws/todobackend"
+      ]
+    }
+  ]
+}
+```
 
 授予特定存储库的 ECR 推送权限
 
@@ -364,7 +725,25 @@ AmazonEC2ContainerServiceforEC2Role 策略
 
 请注意，如果您尝试保存前图和上图中显示的配置，您将收到错误，因为我使用了无效的帐户。假设您使用了有效的帐户 ID 并保存了策略，则将为配置生成以下策略文档：
 
-[PRE23]
+```
+{
+    "Version": "2008-10-17",
+    "Statement": [
+        {
+            "Sid": "RemoteAccountAccess",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::*<remote-account-id>*:root"
+            },
+            "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability"
+            ]
+        }
+    ]
+}
+```
 
 示例 ECR 存储库策略文档
 
@@ -372,7 +751,25 @@ AmazonEC2ContainerServiceforEC2Role 策略
 
 您可以使用`aws ecr set-repository-policy`命令通过 AWS CLI 配置 ECR 资源策略，如下所示：
 
-[PRE24]
+```
+> aws ecr set-repository-policy --repository-name docker-in-aws/todobackend --policy-text '{
+    "Version": "2008-10-17",
+    "Statement": [
+        {
+            "Sid": "RemoteAccountAccess",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::*<remote-account-id>*:root"
+            },
+            "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability"
+            ]
+        }
+    ]
+}'
+```
 
 通过 AWS CLI 配置 ECR 资源策略
 
@@ -382,7 +779,28 @@ AmazonEC2ContainerServiceforEC2Role 策略
 
 在使用 AWS CloudFormation 定义 ECR 存储库时，您可以配置`AWS::ECR::Repository`资源的`RepositoryPolicyText`属性，以定义 ECR 资源策略：
 
-[PRE25]
+```
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: ECR Repositories
+
+Resources:
+  TodobackendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: docker-in-aws/todobackend
+      RepositoryPolicyText:
+ Version: "2008-10-17"
+ Statement:
+ - Sid: RemoteAccountAccess
+ Effect: Allow
+ Principal:
+ AWS: arn:aws:iam::*<remote-account-id>*:root
+ Action:
+ - ecr:GetDownloadUrlForLayer
+ - ecr:BatchGetImage
+ - ecr:BatchCheckLayerAvailability
+```
 
 使用 AWS CloudFormation 配置 ECR 资源策略
 
@@ -398,7 +816,28 @@ AmazonEC2ContainerServiceforEC2Role 策略
 
 以下示例扩展了前面的示例，将 AWS CodeBuild 服务添加到资源策略中：
 
-[PRE26]
+```
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: ECR Repositories
+
+Resources:
+  TodobackendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: docker-in-aws/todobackend
+      RepositoryPolicyText:
+        Version: "2008-10-17"
+        Statement:
+          - Sid: RemoteAccountAccess
+            Effect: Allow
+            Principal:
+              AWS: arn:aws:iam::*<remote-account-id>*:root              Service: codebuild.amazonaws.com
+            Action:
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+              - ecr:BatchCheckLayerAvailability
+```
 
 配置 AWS 服务访问 ECR 存储库
 
@@ -466,9 +905,39 @@ AWS CLI 支持与通过 AWS 控制台配置 ECR 生命周期策略类似的工�
 
 在使用 AWS CloudFormation 定义 ECR 存储库时，您可以配置之前创建的`AWS::ECR::Repository`资源的`LifecyclePolicy`属性，以定义 ECR 生命周期策略：
 
-[PRE27]
+```
+AWSTemplateFormatVersion: "2010-09-09"
 
-[PRE28]
+Description: ECR Repositories
+
+Resources:
+  TodobackendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: docker-in-aws/todobackend
+      LifecyclePolicy:
+ LifecyclePolicyText: |
+ {
+ "rules": [
+ {
+ "rulePriority": 10,
+ "description": "Untagged images",
+ "selection": {
+ "tagStatus": "untagged",
+ "countType": "sinceImagePushed",
+ "countUnit": "days",
+ "countNumber": 7
+ },
+ "action": {
+```
+
+```
+ "type": "expire"
+ }
+ }
+ ]
+ }
+```
 
 使用 AWS CloudFormation 配置 ECR 生命周期策略
 

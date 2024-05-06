@@ -126,13 +126,21 @@ Dockers 的安装过程非常简单，并且在其官方页面上有很好的描
 
 在 Ubuntu 16.04 的情况下，我执行了以下命令：
 
-[PRE0]
+```
+$ sudo apt-get update
+$ sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+$ sudo apt-add-repository 'deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial main stable'
+$ sudo apt-get update
+$ sudo apt-get install -y docker-ce
+```
 
 所有操作完成后，Docker 应该已安装。然而，目前唯一被允许使用 Docker 命令的用户是`root`。这意味着每个 Docker 命令前都必须加上`sudo`关键字。
 
 我们可以通过将他们添加到`docker`组来使其他用户使用 Docker：
 
-[PRE1]
+```
+$ sudo usermod -aG docker <username>
+```
 
 成功注销后，一切都设置好了。然而，通过最新的命令，我们需要采取一些预防措施，以免将 Docker 权限赋予不需要的用户，从而在 Docker 引擎中创建漏洞。这在服务器机器上安装时尤为重要。
 
@@ -166,7 +174,15 @@ Docker Machine 工具有助于在 Mac、Windows、公司网络、数据中心以
 
 无论您选择了哪种安装方式（Mac、Windows、Ubuntu、Linux 或其他），Docker 都应该已经设置好并准备就绪。测试的最佳方法是运行`docker info`命令。输出消息应该类似于以下内容：
 
-[PRE2]
+```
+$ docker info
+Containers: 0
+ Running: 0
+ Paused: 0
+ Stopped: 0
+ Images: 0
+...
+```
 
 # 在服务器上安装
 
@@ -186,7 +202,9 @@ Docker Machine 工具有助于在 Mac、Windows、公司网络、数据中心以
 
 在 Ubuntu 的情况下，Docker 守护程序由 systemd 配置，因此为了更改它的启动配置，我们需要修改`/lib/systemd/system/docker.service`文件中的一行：
 
-[PRE3]
+```
+ExecStart=/usr/bin/dockerd -H <server_ip>:2375
+```
 
 通过更改这一行，我们启用了通过指定的 IP 地址访问 Docker 守护程序。有关 systemd 配置的所有细节可以在[`docs.docker.com/engine/admin/systemd/`](https://docs.docker.com/engine/admin/systemd/)找到。
 
@@ -200,7 +218,18 @@ Docker 环境已经设置好，所以我们可以开始第一个示例。
 
 在控制台中输入以下命令：
 
-[PRE4]
+```
+$ docker run hello-world
+Unable to find image 'hello-world:latest' locally
+latest: Pulling from library/hello-world
+78445dd45222: Pull complete
+Digest: sha256:c5515758d4c5e1e838e9cd307f6c6a0d620b5e07e6f927b07d05f6d12a1ac8d7
+Status: Downloaded newer image for hello-world:latest
+
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+...
+```
 
 恭喜，您刚刚运行了您的第一个 Docker 容器。我希望您已经感受到 Docker 是多么简单。让我们逐步检查发生了什么：
 
@@ -282,11 +311,36 @@ Docker Engine 由三个组件组成：
 
 在第二种情况下，我们可以执行以下操作：
 
-[PRE5]
+```
+$ docker search mongo
+NAME DESCRIPTION STARS OFFICIAL AUTOMATED
+mongo MongoDB document databases provide high av... 2821 [OK] 
+mongo-express Web-based MongoDB admin interface, written... 106 [OK] 
+mvertes/alpine-mongo light MongoDB container 39 [OK]
+mongoclient/mongoclient Official docker image for Mongoclient, fea... 19 [OK]
+...
+```
 
 有很多有趣的选项。我们如何选择最佳镜像？通常，最吸引人的是没有任何前缀的镜像，因为这意味着它是一个官方的 Docker Hub 镜像，因此应该是稳定和维护的。带有前缀的镜像是非官方的，通常作为开源项目进行维护。在我们的情况下，最好的选择似乎是`mongo`，因此为了运行 MongoDB 服务器，我们可以运行以下命令：
 
-[PRE6]
+```
+$ docker run mongo
+Unable to find image 'mongo:latest' locally
+latest: Pulling from library/mongo
+5040bd298390: Pull complete
+ef697e8d464e: Pull complete
+67d7bf010c40: Pull complete
+bb0b4f23ca2d: Pull complete
+8efff42d23e5: Pull complete
+11dec5aa0089: Pull complete
+e76feb0ad656: Pull complete
+5e1dcc6263a9: Pull complete
+2855a823db09: Pull complete
+Digest: sha256:aff0c497cff4f116583b99b21775a8844a17bcf5c69f7f3f6028013bf0d6c00c
+Status: Downloaded newer image for mongo:latest
+2017-01-28T14:33:59.383+0000 I CONTROL [initandlisten] MongoDB starting : pid=1 port=27017 dbpath=/data/db 64-bit host=0f05d9df0dc2
+...
+```
 
 就这样，MongoDB 已经启动了。作为 Docker 容器运行应用程序是如此简单，因为我们不需要考虑任何依赖项；它们都与镜像一起提供。
 
@@ -302,45 +356,76 @@ Docker 可以被视为一个有用的工具来运行应用程序；然而，真�
 
 1.  从`ubuntu:16.04`运行一个容器，并连接到其命令行：
 
-[PRE7]
+```
+ $ docker run -i -t ubuntu:16.04 /bin/bash
+```
 
 我们拉取了`ubuntu:16.04`镜像，并将其作为容器运行，然后以交互方式（-i 标志）调用了`/bin/bash`命令。您应该看到容器的终端。由于容器是有状态的和可写的，我们可以在其终端中做任何我们想做的事情。
 
 1.  安装 Git 工具包：
 
-[PRE8]
+```
+ root@dee2cb192c6c:/# apt-get update
+ root@dee2cb192c6c:/# apt-get install -y git
+```
 
 1.  检查 Git 工具包是否已安装：
 
-[PRE9]
+```
+ root@dee2cb192c6c:/# which git
+ /usr/bin/git
+```
 
 1.  退出容器：
 
-[PRE10]
+```
+ root@dee2cb192c6c:/# exit
+```
 
 1.  检查容器中的更改，将其与`ubuntu`镜像进行比较：
 
-[PRE11]
+```
+ $ docker diff dee2cb192c6c
+```
 
 该命令应打印出容器中所有更改的文件列表。
 
 1.  将容器提交到镜像：
 
-[PRE12]
+```
+ $ docker commit dee2cb192c6c ubuntu_with_git
+```
 
 我们刚刚创建了我们的第一个 Docker 镜像。让我们列出 Docker 主机上的所有镜像，看看镜像是否存在：
 
-[PRE13]
+```
+$ docker images
+REPOSITORY       TAG      IMAGE ID      CREATED            SIZE
+ubuntu_with_git  latest   f3d674114fe2  About a minute ago 259.7 MB
+ubuntu           16.04    f49eec89601e  7 days ago         129.5 MB
+mongo            latest   0dffc7177b06  10 days ago        402 MB
+hello-world      latest   48b5124b2768  2 weeks ago        1.84 kB
+```
 
 如预期的那样，我们看到了`hello-world`，`mongo`（之前安装的），`ubuntu`（从 Docker Hub 拉取的基础镜像）和新构建的`ubuntu_with_git`。顺便说一句，我们可以观察到每个镜像的大小，它对应于我们在镜像上安装的内容。
 
 现在，如果我们从镜像创建一个容器，它将安装 Git 工具：
 
-[PRE14]
+```
+$ docker run -i -t ubuntu_with_git /bin/bash
+root@3b0d1ff457d4:/# which git
+/usr/bin/git
+root@3b0d1ff457d4:/# exit
+```
 
 使用完全相同的方法，我们可以在`ubuntu_with_git`镜像的基础上构建`ubuntu_with_git_and_jdk`：
 
-[PRE15]
+```
+$ docker run -i -t ubuntu_with_git /bin/bash
+root@6ee6401ed8b8:/# apt-get install -y openjdk-8-jdk
+root@6ee6401ed8b8:/# exit
+$ docker commit 6ee6401ed8b8 ubuntu_with_git_and_jdk
+```
 
 # Dockerfile
 
@@ -350,15 +435,30 @@ Docker 可以被视为一个有用的工具来运行应用程序；然而，真�
 
 1.  创建一个新目录和一个名为`Dockerfile`的文件，内容如下：
 
-[PRE16]
+```
+ FROM ubuntu:16.04
+ RUN apt-get update && \
+ apt-get install -y python
+```
 
 1.  运行命令以创建`ubuntu_with_python`镜像：
 
-[PRE17]
+```
+ $ docker build -t ubuntu_with_python .
+```
 
 1.  检查镜像是否已创建：
 
-[PRE18]
+```
+$ docker images
+REPOSITORY              TAG     IMAGE ID       CREATED            SIZE
+ubuntu_with_python      latest  d6e85f39f5b7  About a minute ago 202.6 MB
+ubuntu_with_git_and_jdk latest  8464dc10abbb  3 minutes ago      610.9 MB
+ubuntu_with_git         latest  f3d674114fe2  9 minutes ago      259.7 MB
+ubuntu                  16.04   f49eec89601e  7 days ago         129.5 MB
+mongo                   latest  0dffc7177b06   10 days ago        402 MB
+hello-world             latest  48b5124b2768   2 weeks ago        1.84 kB
+```
 
 现在我们可以从镜像创建一个容器，并检查 Python 解释器是否存在，方式与执行`docker commit`命令后的方式完全相同。请注意，即使`ubuntu`镜像是`ubuntu_with_git`和`ubuntu_with_python`的基础镜像，它也只列出一次。
 
@@ -386,7 +486,9 @@ Docker 可以被视为一个有用的工具来运行应用程序；然而，真�
 
 创建一个新目录，在这个目录中，创建一个名为`hello.py`的文件，内容如下：
 
-[PRE19]
+```
+print "Hello World from Python!"
+```
 
 关闭文件。这是我们应用程序的源代码。
 
@@ -406,19 +508,30 @@ Docker 可以被视为一个有用的工具来运行应用程序；然而，真�
 
 在同一目录中，创建 Dockerfile：
 
-[PRE20]
+```
+FROM ubuntu:16.04
+MAINTAINER Rafal Leszko
+RUN apt-get update && \
+    apt-get install -y python
+COPY hello.py .
+ENTRYPOINT ["python", "hello.py"]
+```
 
 # 构建镜像
 
 现在，我们可以以与之前完全相同的方式构建镜像：
 
-[PRE21]
+```
+$ docker build -t hello_world_python .
+```
 
 # 运行应用程序
 
 我们通过运行容器来运行应用程序：
 
-[PRE22]
+```
+$ docker run hello_world_python
+```
 
 您应该看到友好的 Hello World from Python!消息。这个例子中最有趣的是，我们能够在没有在主机系统中安装 Python 解释器的情况下运行 Python 编写的应用程序。这是因为作为镜像打包的应用程序在内部具有所需的所有环境。
 
@@ -434,23 +547,37 @@ Python 解释器的镜像已经存在于 Docker Hub 服务中，因此在实际�
 
 1.  更改 Python 脚本以使用环境变量：
 
-[PRE23]
+```
+        import os
+        print "Hello World from %s !" % os.environ['NAME']
+```
 
 1.  构建镜像：
 
-[PRE24]
+```
+ $ docker build -t hello_world_python_name .
+```
 
 1.  运行传递环境变量的容器：
 
-[PRE25]
+```
+ $ docker run -e NAME=Rafal hello_world_python_name
+ Hello World from Rafal !
+```
 
 1.  或者，我们可以在 Dockerfile 中定义环境变量的值，例如：
 
-[PRE26]
+```
+        ENV NAME Rafal
+```
 
 1.  然后，我们可以运行容器而不指定`-e`选项。
 
-[PRE27]
+```
+ $ docker build -t hello_world_python_name_default .
+ $ docker run hello_world_python_name_default
+ Hello World from Rafal !
+```
 
 当我们需要根据其用途拥有 Docker 容器的不同版本时，例如，为生产和测试服务器拥有单独的配置文件时，环境变量尤其有用。
 
@@ -460,15 +587,33 @@ Python 解释器的镜像已经存在于 Docker Hub 服务中，因此在实际�
 
 到目前为止，我们运行的每个应用程序都应该做一些工作然后停止。例如，我们打印了`Hello from Docker!`然后退出。但是，有些应用程序应该持续运行，比如服务。要在后台运行容器，我们可以使用`-d`（`--detach`）选项。让我们尝试一下`ubuntu`镜像：
 
-[PRE28]
+```
+$ docker run -d -t ubuntu:16.04
+```
 
 这个命令启动了 Ubuntu 容器，但没有将控制台附加到它上面。我们可以使用以下命令看到它正在运行：
 
-[PRE29]
+```
+$ docker ps
+CONTAINER ID IMAGE        COMMAND     STATUS PORTS NAMES
+95f29bfbaadc ubuntu:16.04 "/bin/bash" Up 5 seconds kickass_stonebraker
+```
 
 这个命令打印出所有处于运行状态的容器。那么我们的旧容器呢，已经退出了？我们可以通过打印所有容器来找到它们：
 
-[PRE30]
+```
+$ docker ps -a
+CONTAINER ID IMAGE        COMMAND        STATUS PORTS  NAMES
+95f29bfbaadc ubuntu:16.04 "/bin/bash"    Up 33 seconds kickass_stonebraker
+34080d914613 hello_world_python_name_default "python hello.py" Exited lonely_newton
+7ba49e8ee677 hello_world_python_name "python hello.py" Exited mad_turing
+dd5eb1ed81c3 hello_world_python "python hello.py" Exited thirsty_bardeen
+6ee6401ed8b8 ubuntu_with_git "/bin/bash" Exited        grave_nobel
+3b0d1ff457d4 ubuntu_with_git "/bin/bash" Exited        desperate_williams
+dee2cb192c6c ubuntu:16.04 "/bin/bash"    Exited        small_dubinsky
+0f05d9df0dc2 mongo        "/entrypoint.sh mongo" Exited trusting_easley
+47ba1c0ba90e hello-world  "/hello"       Exited        tender_bell
+```
 
 请注意，所有旧容器都处于退出状态。我们还没有观察到的状态有两种：暂停和重新启动。
 
@@ -482,7 +627,12 @@ Python 解释器的镜像已经存在于 Docker Hub 服务中，因此在实际�
 
 例如，我们可以停止正在运行的 Ubuntu 容器：
 
-[PRE31]
+```
+$ docker stop 95f29bfbaadc
+
+$ docker ps
+CONTAINER ID IMAGE COMMAND CREATED STATUS PORTS NAMES
+```
 
 我们一直使用`docker run`命令来创建和启动容器；但是，也可以只创建容器而不启动它。
 
@@ -494,27 +644,40 @@ Python 解释器的镜像已经存在于 Docker Hub 服务中，因此在实际�
 
 让我们从一个简单的例子开始，直接从 Docker Hub 运行 Tomcat 服务器：
 
-[PRE32]
+```
+$ docker run -d tomcat
+```
 
 Tomcat 是一个 Web 应用程序服务器，其用户界面可以通过端口`8080`访问。因此，如果我们在本机安装了 Tomcat，我们可以在`http://localhost:8080`上浏览它。
 
 然而，在我们的情况下，Tomcat 是在 Docker 容器内运行的。我们以与第一个`Hello World`示例相同的方式启动了它。我们可以看到它正在运行：
 
-[PRE33]
+```
+$ docker ps
+CONTAINER ID IMAGE  COMMAND           STATUS            PORTS    NAMES
+d51ad8634fac tomcat "catalina.sh run" Up About a minute 8080/tcp jovial_kare
+```
 
 由于它是作为守护进程运行的（使用`-d`选项），我们无法立即在控制台中看到日志。然而，我们可以通过执行以下代码来访问它：
 
-[PRE34]
+```
+$ docker logs d51ad8634fac
+```
 
 如果没有错误，我们应该会看到很多日志，说明 Tomcat 已经启动，并且可以通过端口`8080`访问。我们可以尝试访问`http://localhost:8080`，但是我们无法连接。原因是 Tomcat 已经在容器内启动，我们试图从外部访问它。换句话说，我们只能在连接到容器中的控制台并在那里检查时才能访问它。如何使正在运行的 Tomcat 可以从外部访问呢？
 
 我们需要启动容器并指定端口映射，使用`-p`（`--publish`）标志：
 
-[PRE35]
+```
+-p, --publish <host_port>:<container_port>
+```
 
 因此，让我们首先停止正在运行的容器并启动一个新的容器：
 
-[PRE36]
+```
+$ docker stop d51ad8634fac
+$ docker run -d -p 8080:8080 tomcat
+```
 
 等待几秒钟后，Tomcat 必须已经启动，我们应该能够打开它的页面，`http://localhost:8080`。
 
@@ -530,15 +693,37 @@ Docker 允许使用`-p <ip>:<host_port>:<container_port>`将指定的主机网�
 
 如果您检查您的机器上的网络接口，您会看到其中一个接口被称为`docker0`：
 
-[PRE37]
+```
+$ ifconfig docker0
+docker0 Link encap:Ethernet HWaddr 02:42:db:d0:47:db 
+ inet addr:172.17.0.1 Bcast:0.0.0.0 Mask:255.255.0.0
+...
+```
 
 `docker0`接口是由 Docker 守护程序创建的，以便与 Docker 容器连接。现在，我们可以使用`docker inspect`命令查看 Docker 容器内创建的接口：
 
-[PRE38]
+```
+$ docker inspect 03d1e6dc4d9e
+```
 
 它以 JSON 格式打印有关容器配置的所有信息。其中，我们可以找到与网络设置相关的部分。
 
-[PRE39]
+```
+"NetworkSettings": {
+     "Bridge": "",
+     "Ports": {
+          "8080/tcp": [
+               {
+                    "HostIp": "0.0.0.0",
+                    "HostPort": "8080"
+               }
+          ]
+          },
+     "Gateway": "172.17.0.1",
+     "IPAddress": "172.17.0.2",
+     "IPPrefixLen": 16,
+}
+```
 
 为了过滤`docker inspect`的响应，我们可以使用`--format`选项，例如，`docker inspect --format '{{ .NetworkSettings.IPAddress }}' <container_id>`。
 
@@ -556,7 +741,13 @@ Docker 允许使用`-p <ip>:<host_port>:<container_port>`将指定的主机网�
 
 不同的网络可以通过`docker network`命令列出和管理：
 
-[PRE40]
+```
+$ docker network ls
+NETWORK ID   NAME   DRIVER SCOPE
+b3326cb44121 bridge bridge local 
+84136027df04 host   host   local 
+80c26af0351c none   null   local
+```
 
 如果我们将`none`指定为网络，则将无法连接到容器，反之亦然；容器无法访问外部世界。`host`选项使容器网络接口与主机相同。它们共享相同的 IP 地址，因此容器上启动的所有内容在外部可见。最常用的选项是默认选项（`bridge`），因为它允许我们明确定义应发布哪些端口。它既安全又可访问。
 
@@ -564,7 +755,9 @@ Docker 允许使用`-p <ip>:<host_port>:<container_port>`将指定的主机网�
 
 我们多次提到容器暴露端口。实际上，如果我们深入研究 GitHub 上的 Tomcat 镜像（[`github.com/docker-library/tomcat`](https://github.com/docker-library/tomcat)），我们可以注意到 Dockerfile 中的以下行：
 
-[PRE41]
+```
+EXPOSE 8080
+```
 
 这个 Dockerfile 指令表示应该从容器中公开端口 8080。然而，正如我们已经看到的，这并不意味着端口会自动发布。EXPOSE 指令只是通知用户应该发布哪些端口。
 
@@ -572,7 +765,11 @@ Docker 允许使用`-p <ip>:<host_port>:<container_port>`将指定的主机网�
 
 让我们尝试在不停止第一个 Tomcat 容器的情况下运行第二个 Tomcat 容器：
 
-[PRE42]
+```
+$ docker run -d -p 8080:8080 tomcat
+0835c95538aeca79e0305b5f19a5f96cb00c5d1c50bed87584cfca8ec790f241
+docker: Error response from daemon: driver failed programming external connectivity on endpoint distracted_heyrovsky (1b1cee9896ed99b9b804e4c944a3d9544adf72f1ef3f9c9f37bc985e9c30f452): Bind for 0.0.0.0:8080 failed: port is already allocated.
+```
 
 这种错误可能很常见。在这种情况下，我们要么自己负责端口的唯一性，要么让 Docker 使用`publish`命令的以下版本自动分配端口：
 
@@ -580,7 +777,13 @@ Docker 允许使用`-p <ip>:<host_port>:<container_port>`将指定的主机网�
 
 +   `-P`（`--publish-all`）：将容器公开的所有端口发布到未使用的主机端口：
 
-[PRE43]
+```
+$ docker run -d -P tomcat
+ 078e9d12a1c8724f8aa27510a6390473c1789aa49e7f8b14ddfaaa328c8f737b
+
+$ docker port 078e9d12a1c8
+8080/tcp -> 0.0.0.0:32772
+```
 
 我们可以看到第二个 Tomcat 已发布到端口`32772`，因此可以在`http://localhost:32772`上浏览。
 
@@ -596,23 +799,43 @@ Docker 卷使容器的数据持久化和共享。卷还清楚地将处理与数�
 
 让我们从一个示例开始，并使用`-v <host_path>:<container_path>`选项指定卷并连接到容器：
 
-[PRE44]
+```
+$ docker run -i -t -v ~/docker_ubuntu:/host_directory ubuntu:16.04 /bin/bash
+```
 
 现在，我们可以在容器中的`host_directory`中创建一个空文件：
 
-[PRE45]
+```
+root@01bf73826624:/# touch host_directory/file.txt
+```
 
 让我们检查一下文件是否在 Docker 主机的文件系统中创建：
 
-[PRE46]
+```
+root@01bf73826624:/# exit
+exit
+
+$ ls ~/docker_ubuntu/
+file.txt
+```
 
 我们可以看到文件系统被共享，数据因此得以永久保存。现在我们可以停止容器并运行一个新的容器，看到我们的文件仍然在那里：
 
-[PRE47]
+```
+$ docker stop 01bf73826624
+
+$ docker run -i -t -v ~/docker_ubuntu:/host_directory ubuntu:16.04 /bin/bash
+root@a9e0df194f1f:/# ls host_directory/
+file.txt
+
+root@a9e0df194f1f:/# exit
+```
 
 不需要使用`-v`标志来指定卷，可以在 Dockerfile 中将卷指定为指令，例如：
 
-[PRE48]
+```
+VOLUME /host_directory
+```
 
 在这种情况下，如果我们运行 docker 容器而没有`-v`标志，那么容器的`/host_directory`将被映射到主机的默认卷目录`/var/lib/docker/vfs/`。如果您将应用程序作为镜像交付，并且知道它因某种原因需要永久存储（例如存储应用程序日志），这是一个很好的解决方案。
 
@@ -638,11 +861,15 @@ Docker 卷可能会更加复杂，特别是在数据库的情况下。然而，D
 
 要命名容器，我们使用`--name`参数：
 
-[PRE49]
+```
+$ docker run -d --name tomcat tomcat
+```
 
 我们可以通过`docker ps`检查容器是否有有意义的名称。此外，作为结果，任何操作都可以使用容器的名称执行，例如：
 
-[PRE50]
+```
+$ docker logs tomcat
+```
 
 请注意，当容器被命名时，它不会失去其身份。我们仍然可以像以前一样通过自动生成的哈希 ID 来寻址容器。
 
@@ -652,13 +879,17 @@ Docker 卷可能会更加复杂，特别是在数据库的情况下。然而，D
 
 图像可以被标记。我们在创建自己的图像时已经做过这个，例如，在构建`hello-world_python`图像的情况下：
 
-[PRE51]
+```
+$ docker build -t hello-world_python .
+```
 
 `-t`标志描述了图像的标签。如果我们没有使用它，那么图像将被构建而没有任何标签，结果我们将不得不通过其 ID（哈希）来寻址它以运行容器。
 
 图像可以有多个标签，并且它们应该遵循命名约定：
 
-[PRE52]
+```
+<registry_address>/<image_name>:<version>
+```
 
 标签由以下部分组成：
 
@@ -680,21 +911,46 @@ Docker 卷可能会更加复杂，特别是在数据库的情况下。然而，D
 
 首先，让我们看看存储在我们的机器上的容器。要打印所有容器（无论它们的状态如何），我们可以使用`docker ps -a`命令：
 
-[PRE53]
+```
+$ docker ps -a
+CONTAINER ID IMAGE  COMMAND           STATUS  PORTS  NAMES
+95c2d6c4424e tomcat "catalina.sh run" Up 5 minutes 8080/tcp tomcat
+a9e0df194f1f ubuntu:16.04 "/bin/bash" Exited         jolly_archimedes
+01bf73826624 ubuntu:16.04 "/bin/bash" Exited         suspicious_feynman
+078e9d12a1c8 tomcat "catalina.sh run" Up 14 minutes 0.0.0.0:32772->8080/tcp nauseous_fermi
+0835c95538ae tomcat "catalina.sh run" Created        distracted_heyrovsky
+03d1e6dc4d9e tomcat "catalina.sh run" Up 50 minutes 0.0.0.0:8080->8080/tcp drunk_ritchie
+d51ad8634fac tomcat "catalina.sh run" Exited         jovial_kare
+95f29bfbaadc ubuntu:16.04 "/bin/bash" Exited         kickass_stonebraker
+34080d914613 hello_world_python_name_default "python hello.py" Exited lonely_newton
+7ba49e8ee677 hello_world_python_name "python hello.py" Exited mad_turing
+dd5eb1ed81c3 hello_world_python "python hello.py" Exited thirsty_bardeen
+6ee6401ed8b8 ubuntu_with_git "/bin/bash" Exited      grave_nobel
+3b0d1ff457d4 ubuntu_with_git "/bin/bash" Exited      desperate_williams
+dee2cb192c6c ubuntu:16.04 "/bin/bash" Exited         small_dubinsky
+0f05d9df0dc2 mongo  "/entrypoint.sh mongo" Exited    trusting_easley
+47ba1c0ba90e hello-world "/hello"     Exited         tender_bell
+```
 
 为了删除已停止的容器，我们可以使用`docker rm`命令（如果容器正在运行，我们需要先停止它）：
 
-[PRE54]
+```
+$ docker rm 47ba1c0ba90e
+```
 
 如果我们想要删除所有已停止的容器，我们可以使用以下命令：
 
-[PRE55]
+```
+$ docker rm $(docker ps --no-trunc -aq)
+```
 
 `-aq`选项指定仅传递所有容器的 ID（没有额外数据）。另外，`--no-trunc`要求 Docker 不要截断输出。
 
 我们也可以采用不同的方法，并要求容器在停止时使用`--rm`标志自行删除，例如：
 
-[PRE56]
+```
+$ docker run --rm hello-world
+```
 
 在大多数实际场景中，我们不使用已停止的容器，它们只用于调试目的。
 
@@ -702,19 +958,38 @@ Docker 卷可能会更加复杂，特别是在数据库的情况下。然而，D
 
 图像和容器一样重要。它们可能占用大量空间，特别是在持续交付过程中，每次构建都会产生一个新的 Docker 图像。这很快就会导致设备上没有空间的错误。要检查 Docker 容器中的所有图像，我们可以使用`docker images`命令：
 
-[PRE57]
+```
+$ docker images
+REPOSITORY TAG                         IMAGE ID     CREATED     SIZE
+hello_world_python_name_default latest 9a056ca92841 2 hours ago 202.6 MB
+hello_world_python_name latest         72c8c50ffa89 2 hours ago 202.6 MB
+hello_world_python latest              3e1fa5c29b44 2 hours ago 202.6 MB
+ubuntu_with_python latest              d6e85f39f5b7 2 hours ago 202.6 MB
+ubuntu_with_git_and_jdk latest         8464dc10abbb 2 hours ago 610.9 MB
+ubuntu_with_git latest                 f3d674114fe2 3 hours ago 259.7 MB
+tomcat latest                          c822d296d232 2 days ago  355.3 MB
+ubuntu 16.04                           f49eec89601e 7 days ago  129.5 MB
+mongo latest                           0dffc7177b06 11 days ago 402 MB
+hello-world latest                     48b5124b2768 2 weeks ago 1.84 kB
+```
 
 要删除图像，我们可以调用以下命令：
 
-[PRE58]
+```
+$ docker rmi 48b5124b2768
+```
 
 在图像的情况下，自动清理过程稍微复杂一些。图像没有状态，所以我们不能要求它们在不使用时自行删除。常见的策略是设置 Cron 清理作业，删除所有旧的和未使用的图像。我们可以使用以下命令来做到这一点：
 
-[PRE59]
+```
+$ docker rmi $(docker images -q)
+```
 
 为了防止删除带有标签的图像（例如，不删除所有最新的图像），非常常见的是使用`dangling`参数：
 
-[PRE60]
+```
+$ docker rmi $(docker images -f "dangling=true" -q)
+```
 
 如果我们有使用卷的容器，那么除了图像和容器之外，还值得考虑清理卷。最简单的方法是使用`docker volume ls -qf dangling=true | xargs -r docker volume rm`命令。
 
@@ -722,11 +997,15 @@ Docker 卷可能会更加复杂，特别是在数据库的情况下。然而，D
 
 通过执行以下`help`命令可以找到所有 Docker 命令：
 
-[PRE61]
+```
+$ docker help
+```
 
 要查看任何特定 Docker 命令的所有选项，我们可以使用`docker help <command>`，例如：
 
-[PRE62]
+```
+$ docker help run
+```
 
 在官方 Docker 页面[`docs.docker.com/engine/reference/commandline/docker/`](https://docs.docker.com/engine/reference/commandline/docker/)上也有对所有 Docker 命令的很好的解释。真的值得阅读，或者至少浏览一下。
 

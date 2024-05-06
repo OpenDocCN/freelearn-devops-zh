@@ -52,17 +52,32 @@
 
 任何命令行输入或输出都将按如下方式编写：
 
-[PRE0]
+```
+user@net1:~$ sudo ifdown eth1 && sudo ifup eth1
+```
 
 在可能的情况下，任何多行命令行输入将使用 Linux 行继续方法编写，即在要继续的行的末尾包括一个尾随的`\`：
 
-[PRE1]
+```
+user@net1:~$ sudo ip netns exec ns_1 ip link set \
+dev edge_veth1 master edge_bridge1
+```
 
 在某些情况下，命令行输出也可能是多行的。在这种情况下，格式化是为了使输出易于阅读。
 
 当我们希望引起您对命令行输出的特别关注时，相关行或项目将以粗体显示：
 
-[PRE2]
+```
+user@net2:~$ ip addr show eth0
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP group default qlen 1000
+    link/ether 00:0c:29:59:ca:ca brd ff:ff:ff:ff:ff:ff
+    inet **172.16.10.2/26** brd 172.16.10.63 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::20c:29ff:fe59:caca/64 scope link
+       valid_lft forever preferred_lft forever
+user@net2:~$
+
+```
 
 ### 注意
 

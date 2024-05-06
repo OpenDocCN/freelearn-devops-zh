@@ -120,11 +120,15 @@ Docker 已经使安装过程变得非常简单。要启用 Kubernetes 支持，�
 
 打开终端并运行以下命令：
 
-[PRE0]
+```
+$ docker container ls -a
+```
 
 这应该显示没有异常运行。运行以下命令：
 
-[PRE1]
+```
+$ docker image ls
+```
 
 这应该显示一个与 Kubernetes 相关的图像列表：
 
@@ -154,11 +158,15 @@ Docker 已经使安装过程变得非常简单。要启用 Kubernetes 支持，�
 
 正如你可能已经猜到的，选中**显示系统容器（高级）**框，然后运行以下命令将显示在本地 Docker 安装上启用 Kubernetes 服务的所有正在运行的容器的列表：
 
-[PRE2]
+```
+$ docker container ls -a
+```
 
 由于运行上述命令时会产生大量输出，下面的屏幕截图只显示了容器的名称。为了做到这一点，我运行了以下命令：
 
-[PRE3]
+```
+$ docker container ls --format {{.Names}}
+```
 
 运行该命令给我以下结果：
 
@@ -178,23 +186,31 @@ Docker 已经使安装过程变得非常简单。要启用 Kubernetes 支持，�
 
 如前所述，`kubectl`是与之一起安装的。以下命令将显示有关客户端以及连接到的集群的一些信息：
 
-[PRE4]
+```
+$ kubectl version
+```
 
 ![](img/5005937f-00f6-4be5-a2a8-06ddbfdb23d1.png)
 
 接下来，我们可以运行以下命令来查看`kubectl`是否能够看到我们的节点：
 
-[PRE5]
+```
+$ kubectl get nodes
+```
 
 ![](img/05607ef3-a64a-4c33-96bf-8ead71987a7b.png)
 
 现在我们的客户端正在与我们的节点进行交互，我们可以通过运行以下命令查看 Kubernetes 默认配置的`namespaces`：
 
-[PRE6]
+```
+$ kubectl get namespaces
+```
 
 然后我们可以使用以下命令查看命名空间内的`pods`：
 
-[PRE7]
+```
+$ kubectl get --namespace kube-system pods
+```
 
 ![](img/f5f27507-e03d-458a-aca5-341fdda41a14.png)
 
@@ -202,31 +218,90 @@ Kubernetes 中的命名空间是在集群内隔离资源的好方法。从终端
 
 在启动我们自己的 pod 之前，让我们快速看一下我们如何与正在运行的 pod 进行交互，首先是如何找到有关我们的 pod 的更多信息：
 
-[PRE8]
+```
+$ kubectl describe --namespace kube-system pods kube-scheduler-docker-for-desktop 
+```
 
 上面的命令将打印出`kube-scheduler-docker-for-desktop` pod 的详细信息。您可能注意到我们必须使用`--namespace`标志传递命名空间。如果我们不这样做，那么`kubectl`将默认到默认命名空间，那里没有名为`kube-scheduler-docker-for-desktop`的 pod 在运行。
 
 命令的完整输出如下：
 
-[PRE9]
+```
+Name: kube-scheduler-docker-for-desktop
+Namespace: kube-system
+Node: docker-for-desktop/192.168.65.3
+Start Time: Sat, 22 Sep 2018 14:10:14 +0100
+Labels: component=kube-scheduler
+ tier=control-plane
+Annotations: kubernetes.io/config.hash=6d5c9cb98205e46b85b941c8a44fc236
+ kubernetes.io/config.mirror=6d5c9cb98205e46b85b941c8a44fc236
+ kubernetes.io/config.seen=2018-09-22T11:07:47.025395325Z
+ kubernetes.io/config.source=file
+ scheduler.alpha.kubernetes.io/critical-pod=
+Status: Running
+IP: 192.168.65.3
+Containers:
+ kube-scheduler:
+ Container ID: docker://7616b003b3c94ca6e7fd1bc3ec63f41fcb4b7ce845ef7a1fb8af1a2447e45859
+ Image: k8s.gcr.io/kube-scheduler-amd64:v1.10.3
+ Image ID: docker-pullable://k8s.gcr.io/kube-scheduler-amd64@sha256:4770e1f1eef2229138e45a2b813c927e971da9c40256a7e2321ccf825af56916
+ Port: <none>
+ Host Port: <none>
+ Command:
+ kube-scheduler
+ --kubeconfig=/etc/kubernetes/scheduler.conf
+ --address=127.0.0.1
+ --leader-elect=true
+ State: Running
+ Started: Sat, 22 Sep 2018 14:10:16 +0100
+ Ready: True
+ Restart Count: 0
+ Requests:
+ cpu: 100m
+ Liveness: http-get http://127.0.0.1:10251/healthz delay=15s timeout=15s period=10s #success=1 #failure=8
+ Environment: <none>
+ Mounts:
+ /etc/kubernetes/scheduler.conf from kubeconfig (ro)
+Conditions:
+ Type Status
+ Initialized True
+ Ready True
+ PodScheduled True
+Volumes:
+ kubeconfig:
+ Type: HostPath (bare host directory volume)
+ Path: /etc/kubernetes/scheduler.conf
+ HostPathType: FileOrCreate
+QoS Class: Burstable
+Node-Selectors: <none>
+Tolerations: :NoExecute
+Events: <none>
+```
 
 正如您所见，关于 pod 有很多信息，包括容器列表；我们只有一个叫做`kube-scheduler`。我们可以看到容器 ID，使用的镜像，容器启动时使用的标志，以及 Kubernetes 调度器用于启动和维护 pod 的数据。
 
 现在我们知道了容器名称，我们可以开始与其交互。例如，运行以下命令将打印我们一个容器的日志：
 
-[PRE10]
+```
+$ kubectl logs --namespace kube-system kube-scheduler-docker-for-desktop -c kube-scheduler 
+```
 
 ![](img/f153d87e-fd6b-40e0-a0c2-bd142037ee33.png)
 
 运行以下命令将获取 pod 中每个容器的`logs`：
 
-[PRE11]
+```
+$ kubectl logs --namespace kube-system kube-scheduler-docker-for-desktop
+```
 
 与 Docker 一样，您还可以在您的 pod 和容器上执行命令。例如，以下命令将运行`uname -a`命令：
 
 请确保在以下两个命令后添加`--`后面的空格。如果未这样做，将导致错误。
 
-[PRE12]
+```
+$ kubectl exec --namespace kube-system kube-scheduler-docker-for-desktop -c kube-scheduler -- uname -a
+$ kubectl exec --namespace kube-system kube-scheduler-docker-for-desktop -- uname -a
+```
 
 同样，我们可以选择在命名容器上运行命令，或者跨 pod 内的所有容器运行命令：
 
@@ -234,13 +309,18 @@ Kubernetes 中的命名空间是在集群内隔离资源的好方法。从终端
 
 通过安装并登录到基于 Web 的仪表板，让我们对 Kubernetes 集群有更多了解。虽然这不是 Docker 的默认功能，但使用 Kubernetes 项目提供的定义文件进行安装非常简单。我们只需要运行以下命令：
 
-[PRE13]
+```
+$ kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/recommended/kubernetes-dashboard.yaml
+```
 
 ![](img/20527938-448d-441a-bee4-90a1f5db0896.png)
 
 一旦服务和部署已经创建，启动需要几分钟。您可以通过运行以下命令来检查状态：
 
-[PRE14]
+```
+$ kubectl get deployments --namespace kube-system
+$ kubectl get services --namespace kube-system
+```
 
 一旦您的输出看起来像以下内容，您的仪表板应该已经安装并准备就绪：
 
@@ -248,7 +328,9 @@ Kubernetes 中的命名空间是在集群内隔离资源的好方法。从终端
 
 现在我们的仪表板正在运行，我们将找到一种访问它的方法。我们可以使用`kubectl`中的内置代理服务来实现。只需运行以下命令即可启动：
 
-[PRE15]
+```
+$ kubectl proxy
+```
 
 ![](img/315bb32e-3b82-4a00-b8af-91af2501ccd3.png)
 
@@ -272,27 +354,61 @@ Kubernetes 中的命名空间是在集群内隔离资源的好方法。从终端
 
 当我们启用 Kubernetes 时，我们选择了 Kubernetes 作为 Docker 堆栈命令的默认编排器。在上一章中，Docker `stack`命令将在 Docker Swarm 中启动我们的 Docker Compose 文件。我们使用的 Docker Compose 看起来像下面这样：
 
-[PRE16]
+```
+version: "3"
+services:
+ cluster:
+ image: russmckendrick/cluster
+ ports:
+ - "80:80"
+ deploy:
+ replicas: 6
+ restart_policy:
+ condition: on-failure
+ placement:
+ constraints:
+ - node.role == worker
+```
 
 在 Kubernetes 上启动应用程序之前，我们需要进行一些微调并删除放置，这样我们的文件看起来像下面这样：
 
-[PRE17]
+```
+version: "3"
+services:
+ cluster:
+ image: russmckendrick/cluster
+ ports:
+ - "80:80"
+ deploy:
+ replicas: 6
+ restart_policy:
+ condition: on-failure
+```
 
 编辑文件后，运行以下命令将启动`stack`：
 
-[PRE18]
+```
+$ docker stack deploy --compose-file=docker-compose.yml cluster
+```
 
 ![](img/1a9cfbdc-f787-4737-b52f-c5197eec5a00.png)
 
 正如您所看到的，Docker 会等到堆栈可用后才将您返回到提示符。我们还可以运行与我们在 Docker Swarm 上启动堆栈时使用的相同命令来查看有关我们的堆栈的一些信息：
 
-[PRE19]
+```
+$ docker stack ls
+$ docker stack services cluster
+$ docker stack ps cluster
+```
 
 ![](img/db628bed-b212-4e3a-9ab8-a28cd4264f59.png)
 
 我们还可以使用`kubectl`查看详细信息：
 
-[PRE20]
+```
+$ kubectl get deployments
+$ kubectl get services
+```
 
 ![](img/73e1ed2f-01d7-4cb2-82d3-ce93d24c7126.png)
 
@@ -308,7 +424,9 @@ Kubernetes 中的命名空间是在集群内隔离资源的好方法。从终端
 
 您可以通过运行以下命令来删除`stack`：
 
-[PRE21]
+```
+$ docker stack rm cluster
+```
 
 最后一件事 - 您可能会想，太好了，我可以在 Kubernetes 集群的任何地方运行我的 Docker Compose 文件。嗯，这并不完全正确。如前所述，当我们首次启用 Kubernetes 时，会启动一些仅适用于 Docker 的组件。这些组件旨在尽可能紧密地集成 Docker。但是，由于这些组件在非 Docker 管理的集群中不存在，因此您将无法再使用`docker stack`命令。
 
@@ -316,21 +434,31 @@ Kubernetes 中的命名空间是在集群内隔离资源的好方法。从终端
 
 要在 macOS 上安装 Kompose，请运行以下命令：
 
-[PRE22]
+```
+$ curl -L https://github.com/kubernetes/kompose/releases/download/v1.16.0/kompose-darwin-amd64 -o /usr/local/bin/kompose
+$ chmod +x /usr/local/bin/kompose
+```
 
 Windows 10 用户可以使用 Chocolatey 来安装二进制文件：
 
 **Chocolatey**是一个基于命令行的软件包管理器，可用于在基于 Windows 的机器上安装各种软件包，类似于在 Linux 机器上使用`yum`或`apt-get`，或在 macOS 上使用`brew`。
 
-[PRE23]
+```
+$ choco install kubernetes-kompose
+```
 
 最后，Linux 用户可以运行以下命令：
 
-[PRE24]
+```
+$ curl -L https://github.com/kubernetes/kompose/releases/download/v1.16.0/kompose-linux-amd64 -o /usr/local/bin/kompose
+$ chmod +x /usr/local/bin/kompose
+```
 
 安装完成后，您可以通过运行以下命令启动您的 Docker Compose 文件：
 
-[PRE25]
+```
+$ kompose up
+```
 
 您将得到类似以下输出：
 
@@ -338,19 +466,25 @@ Windows 10 用户可以使用 Chocolatey 来安装二进制文件：
 
 如输出所建议的，运行以下命令将为您提供刚刚启动的服务和 pod 的详细信息：
 
-[PRE26]
+```
+$ kubectl get deployment,svc,pods,pvc
+```
 
 ![](img/7dc83cb6-26c1-4e87-a584-802608ede4c7.png)
 
 您可以通过运行以下命令来删除服务和 pod：
 
-[PRE27]
+```
+$ kompose down
+```
 
 ![](img/d3076f4e-b5ad-4eda-8243-150499252542.png)
 
 虽然您可以使用`kompose up`和`kompose down`，但我建议生成 Kubernetes 定义文件并根据需要进行调整。要做到这一点，只需运行以下命令：
 
-[PRE28]
+```
+$ kompose convert
+```
 
 这将生成 pod 和 service 文件：
 
@@ -358,21 +492,64 @@ Windows 10 用户可以使用 Chocolatey 来安装二进制文件：
 
 您将能够看到 Docker Compose 文件和生成的两个文件之间有很大的区别。`cluster-pod.yaml`文件如下所示：
 
-[PRE29]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+ creationTimestamp: null
+ labels:
+ io.kompose.service: cluster
+ name: cluster
+spec:
+ containers:
+ - image: russmckendrick/cluster
+ name: cluster
+ ports:
+ - containerPort: 80
+ resources: {}
+ restartPolicy: OnFailure
+status: {}
+```
 
 `cluster-service.yaml`文件如下所示：
 
-[PRE30]
+```
+apiVersion: v1
+kind: Service
+metadata:
+ annotations:
+ kompose.cmd: kompose convert
+ kompose.version: 1.16.0 (0c01309)
+ creationTimestamp: null
+ labels:
+ io.kompose.service: cluster
+ name: cluster
+spec:
+ ports:
+ - name: "80"
+ port: 80
+ targetPort: 80
+ selector:
+ io.kompose.service: cluster
+status:
+ loadBalancer: {}
+```
 
 然后，您可以通过运行以下命令来启动这些文件：
 
-[PRE31]
+```
+$ kubectl create -f cluster-pod.yaml
+$ kubectl create -f cluster-service.yaml
+$ kubectl get deployment,svc,pods,pvc
+```
 
 ![](img/4909293e-096a-4729-9f2c-2af7c39e8d52.png)
 
 删除集群 pod 和服务，我们只需要运行以下命令：
 
-[PRE32]
+```
+$ kubectl delete service/cluster pod/cluster
+```
 
 虽然 Kubernetes 将在接下来的章节中出现，您可能希望在 Docker 桌面安装中禁用 Kubernetes 集成，因为它在空闲时会增加一些开销。要做到这一点，只需取消选中**启用 Kubernetes**。单击**应用**后，Docker 将停止运行 Kubernetes 所需的所有容器；但它不会删除镜像，因此当您重新启用它时，不会花费太长时间。
 

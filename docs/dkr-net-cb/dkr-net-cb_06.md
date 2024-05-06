@@ -28,7 +28,40 @@
 
 ICC 模式可以在原生的`docker0`桥以及使用桥驱动的任何用户定义的网络上进行配置。在本教程中，我们将介绍如何在`docker0`桥上配置 ICC 模式。正如我们在前几章中看到的，与`docker0`桥相关的设置需要在服务级别进行。这是因为`docker0`桥是作为服务初始化的一部分创建的。这也意味着，要对其进行更改，我们需要编辑 Docker 服务配置，然后重新启动服务以使更改生效。在进行任何更改之前，让我们有机会审查默认的 ICC 配置。为此，让我们首先查看`docker0`桥的配置：
 
-[PRE0]
+```
+user@docker1:~$ docker network inspect bridge
+[
+    {
+        "Name": "bridge",
+        "Id": "d88fa0a96585792f98023881978abaa8c5d05e4e2bbd7b4b44a6e7b0ed7d346b",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "172.17.0.0/16",
+                    "Gateway": "172.17.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Containers": {},
+        "Options": {
+            "com.docker.network.bridge.default_bridge": "true",
+            "com.docker.network.bridge.enable_icc": "true",
+            "com.docker.network.bridge.enable_ip_masquerade": "true",
+            "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+            "com.docker.network.bridge.name": "docker0",
+            "com.docker.network.driver.mtu": "1500"
+        },
+        "Labels": {}
+    }
+]
+user@docker1:~$
+```
 
 ### 注意
 
@@ -36,47 +69,161 @@ ICC 模式可以在原生的`docker0`桥以及使用桥驱动的任何用户定�
 
 正如我们所看到的，`docker0`桥配置为 ICC 模式（`true`）。这意味着 Docker 不会干预或阻止连接到这个桥的容器直接相互通信。为了证明这一点，让我们启动两个容器：
 
-[PRE1]
+```
+user@docker1:~$ docker run -d --name=web1 jonlangemak/web_server_1
+417dd2587dfe3e664b67a46a87f90714546bec9c4e35861476d5e4fa77e77e61
+user@docker1:~$ docker run -d --name=web2 jonlangemak/web_server_2
+a54db26074c00e6771d0676bb8093b1a22eb95a435049916becd425ea9587014
+user@docker1:~$
+```
 
 请注意，我们没有指定`-P`标志，这告诉 Docker 不要发布任何容器暴露的端口。现在，让我们获取每个容器的 IP 地址，以便验证连接：
 
-[PRE2]
+```
+user@docker1:~$ docker exec **web1** ip addr show dev eth0 | grep inet
+    inet **172.17.0.2/16** scope global eth0
+    inet6 fe80::42:acff:fe11:2/64 scope link
+ user@docker1:~$ docker exec **web2** ip addr show dev eth0 | grep inet
+    inet **172.17.0.3/16** scope global eth0
+    inet6 fe80::42:acff:fe11:3/64 scope link
+user@docker1:~$
+```
 
 现在我们知道了 IP 地址，我们可以验证每个容器是否可以访问另一个容器在其上监听的任何服务：
 
-[PRE3]
+```
+user@docker1:~$ docker exec -it **web1** ping **172.17.0.3** -c 2
+PING 172.17.0.3 (172.17.0.3): 48 data bytes
+56 bytes from 172.17.0.3: icmp_seq=0 ttl=64 time=0.198 ms
+56 bytes from 172.17.0.3: icmp_seq=1 ttl=64 time=0.082 ms
+--- 172.17.0.3 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 0.082/0.140/0.198/0.058 ms
+user@docker1:~$
+user@docker1:~$ docker exec **web2** curl -s **http://172.17.0.2
+<body>
+  <html>
+    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #1 - Running on port 80**</span>
+    </h1>
+</body>
+  </html>
+user@docker1:~$
+```
 
 根据这些测试，我们可以假设容器被允许在任何监听的协议上相互通信。这是启用 ICC 模式时的预期行为。现在，让我们更改服务级别设置并重新检查我们的配置。为此，在 Docker 服务的 systemd drop in 文件中设置以下配置：
 
-[PRE4]
+```
+ExecStart=/usr/bin/dockerd --icc=false
+```
 
 现在重新加载 systemd 配置，重新启动 Docker 服务，并检查 ICC 设置：
 
-[PRE5]
+```
+user@docker1:~$ sudo systemctl daemon-reload
+user@docker1:~$ sudo systemctl restart docker
+user@docker1:~$ docker network inspect bridge
+…<Additional output removed for brevity>…
+        "Options": {
+            "com.docker.network.bridge.default_bridge": "true",
+            "com.docker.network.bridge.enable_icc": "false",
+            "com.docker.network.bridge.enable_ip_masquerade": "true",
+            "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+            "com.docker.network.bridge.name": "docker0",
+            "com.docker.network.driver.mtu": "1500" 
+…<Additional output removed for brevity>… 
+user@docker1:~$
+```
 
 现在我们已经确认了 ICC 被禁用，让我们再次启动我们的两个容器并运行相同的连接性测试：
 
-[PRE6]
+```
+user@docker1:~$ docker start web1
+web1
+user@docker1:~$ docker start web2
+web2
+user@docker1:~$
+user@docker1:~$ docker exec -it **web1** ping **172.17.0.3** -c 2
+PING 172.17.0.3 (172.17.0.3): 48 data bytes
+user@docker1:~$ docker exec -it **web2** curl -m 1 http://172.17.0.2
+curl: (28) connect() timed out!
+user@docker1:~$
+```
 
 如您所见，我们的两个容器之间没有连接。但是，Docker 主机本身仍然能够访问服务：
 
-[PRE7]
+```
+user@docker1:~$ curl **http://172.17.0.2
+<body>
+  <html>
+    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #1 - Running on port 80**</span>
+    </h1>
+</body>
+  </html>
+user@docker1:~$ **curl http://172.17.0.3
+<body>
+  <html>
+    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #2 - Running on port 80**</span>
+    </h1>
+</body>
+  </html>
+user@docker1:~$
+```
 
 我们可以检查用于实现 ICC 的 netfilter 规则，方法是查看过滤表的`iptables`规则`FORWARD`链：
 
-[PRE8]
+```
+user@docker1:~$ sudo iptables -S FORWARD
+-P FORWARD ACCEPT
+-A FORWARD -j DOCKER-ISOLATION
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j DROP
+user@docker1:~$ 
+```
 
 前面加粗的规则是防止在`docker0`桥上进行容器之间通信的。如果在禁用 ICC 之前检查了这个`iptables`链，我们会看到这个规则设置为`ACCEPT`，如下所示：
 
-[PRE9]
+```
+user@docker1:~$ sudo iptables -S FORWARD
+-P FORWARD ACCEPT
+-A FORWARD -j DOCKER-ISOLATION
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+user@docker1:~$
+```
 
 正如我们之前所看到的，链接容器允许您绕过这一规则，允许源容器访问目标容器。如果我们移除这两个容器，我们可以通过以下方式重新启动它们：
 
-[PRE10]
+```
+user@docker1:~$ **docker run -d --name=web1 jonlangemak/web_server_1
+9846614b3bac6a2255e135d19f20162022a40d95bd62a0264ef4aaa89e24592f
+user@docker1:~$ **docker run -d --name=web2 --link=web1 jonlangemak/web_server_2
+b343b570189a0445215ad5406e9a2746975da39a1f1d47beba4d20f14d687d83
+user@docker1:~$
+```
 
 现在，如果我们用`iptables`检查规则，我们可以看到两个新规则添加到了过滤表中：
 
-[PRE11]
+```
+user@docker1:~$ sudo iptables -S
+-P INPUT ACCEPT
+-P FORWARD ACCEPT
+-P OUTPUT ACCEPT
+-N DOCKER
+-N DOCKER-ISOLATION
+-A FORWARD -j DOCKER-ISOLATION
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j DROP
+-A DOCKER -s 172.17.0.3/32 -d 172.17.0.2/32 -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER -s 172.17.0.2/32 -d 172.17.0.3/32 -i docker0 -o docker0 -p tcp -m tcp --sport 80 -j ACCEPT
+-A DOCKER-ISOLATION -j RETURN
+user@docker1:~$ 
+```
 
 这两个新规则允许`web2`访问`web1`的任何暴露端口。请注意，第一个规则定义了从`web2`(`172.17.0.3`)到`web1`(`172.17.0.2`)的访问，目的端口为`80`。第二个规则翻转了 IP，并指定端口`80`作为源端口，允许流量返回到`web2`。
 
@@ -96,7 +243,19 @@ ICC 模式可以在原生的`docker0`桥以及使用桥驱动的任何用户定�
 
 您会记得，Docker 中的 IP 伪装是通过 netfilter `masquerade`规则处理的。在其默认配置中的 Docker 主机上，我们可以通过使用`iptables`检查规则集来看到这个规则：
 
-[PRE12]
+```
+user@docker1:~$ sudo iptables -t nat -S
+-P PREROUTING ACCEPT
+-P INPUT ACCEPT
+-P OUTPUT ACCEPT
+-P POSTROUTING ACCEPT
+-N DOCKER
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A DOCKER -i docker0 -j RETURN
+user@docker1:~$
+```
 
 此规则指定流量的来源为`docker0`网桥子网，只有 NAT 流量可以离开主机。`MASQUERADE`目标告诉主机对 Docker 主机的下一跳接口的流量进行源 NAT。也就是说，如果主机有多个 IP 接口，容器的流量将源 NAT 到下一跳使用的任何接口。这意味着根据 Docker 主机接口和路由表配置，容器流量可能潜在地隐藏在不同的 IP 地址后面。例如，考虑一个具有两个接口的 Docker 主机，如下图所示：
 
@@ -106,15 +265,35 @@ ICC 模式可以在原生的`docker0`桥以及使用桥驱动的任何用户定�
 
 Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默认情况下，该选项被认为是`true`，可以通过指定该选项并将其设置为`false`来覆盖。我们可以通过在 Docker systemd drop in 文件中指定该选项来实现这一点：
 
-[PRE13]
+```
+ExecStart=/usr/bin/dockerd --ip-masq=false
+```
 
 现在重新加载 systemd 配置，重新启动 Docker 服务，并检查 ICC 设置：
 
-[PRE14]
+```
+user@docker1:~$ sudo systemctl daemon-reload
+user@docker1:~$ sudo systemctl restart docker
+user@docker1:~$
+user@docker1:~$ sudo iptables -t nat -S
+-P PREROUTING ACCEPT
+-P INPUT ACCEPT
+-P OUTPUT ACCEPT
+-P POSTROUTING ACCEPT
+-N DOCKER
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKERuser@docker1:~$
+```
 
 注意，`masquerade`规则现在已经消失。在此主机上生成的容器流量将尝试通过其实际源 IP 地址路由到 Docker 主机外部。在 Docker 主机上进行`tcpdump`将捕获此流量通过原始容器 IP 地址退出主机的`eth0`接口：
 
-[PRE15]
+```
+user@docker1:~$ sudo tcpdump –n -i **eth0** dst 4.2.2.2
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 65535 bytes
+09:06:10.243523 IP **172.17.0.2 > 4.2.2.2**: ICMP echo request, id 3072, seq 0, length 56
+09:06:11.244572 IP **172.17.0.2 > 4.2.2.2**: ICMP echo request, id 3072, seq 256, length 56
+```
 
 由于外部网络不知道`172.17.0.0/16`在哪里，这个请求将永远不会收到响应，有效地阻止了容器与外部世界的通信。
 
@@ -122,7 +301,10 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 例如，假设`docker0`桥接被分配了一个子网`172.10.10.0/24`，并且我们禁用了 IP 伪装。我们可以通过更改 Docker 选项来指定新的桥接 IP 地址来实现这一点：
 
-[PRE16]
+```
+ExecStart=/usr/bin/dockerd --ip-masq=false **--bip=172.10.10.1/24
+
+```
 
 与以前一样，离开容器并前往外部网络的流量在穿过 Docker 主机时不会改变。假设一个小的网络拓扑，如下图所示：
 
@@ -150,11 +332,24 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 一旦这些路由设置好，在 Docker 主机上启动的容器应该能够连接到外部网络：
 
-[PRE17]
+```
+user@docker1:~$ docker run -it --name=web1 jonlangemak/web_server_1 /bin/bash
+root@132530812e1f:/# **ping 4.2.2.2
+PING 4.2.2.2 (4.2.2.2): 48 data bytes
+56 bytes from 4.2.2.2: icmp_seq=0 ttl=50 time=33.805 ms
+56 bytes from 4.2.2.2: icmp_seq=1 ttl=50 time=40.431 ms
+
+```
 
 在 Docker 主机上进行`tcpdump`将显示流量以原始容器 IP 地址离开：
 
-[PRE18]
+```
+user@docker1:~$ sudo tcpdump –n **-i eth0 dst 4.2.2.2
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on eth0, link-type EN10MB (Ethernet), capture size 65535 bytes
+10:54:42.197828 IP **172.10.10.2 > 4.2.2.2**: ICMP echo request, id 3328, seq 0, length 56
+10:54:43.198882 IP **172.10.10.2 > 4.2.2.2**: ICMP echo request, id 3328, seq 256, length 56
+```
 
 这种类型的配置提供了使用现有安全设备来决定容器是否可以访问外部网络资源的能力。但是，这也取决于安全设备与您的 Docker 主机的距离。例如，在这种配置中，Docker 主机上的容器可以访问连接到交换机的任何其他网络端点。执行点（在本例中是防火墙）只允许您限制容器与互联网的连接。此外，为每个 Docker 主机分配可路由的 IP 空间可能会引入 IP 分配约束，特别是在大规模情况下。
 
@@ -170,7 +365,13 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 正如我们已经看到的，当涉及到网络配置时，Docker 会为您处理很多繁重的工作。它还允许您在需要时自行配置这些内容。在我们自己尝试配置之前，让我们确认一下 Docker 实际上在我们的`iptables`规则方面为我们配置了什么。让我们运行以下容器：
 
-[PRE19]
+```
+user@docker1:~$ docker run -dP --name=web1 jonlangemak/web_server_1
+f5b7b389890398588c55754a09aa401087604a8aa98dbf55d84915c6125d5e62
+user@docker1:~$ docker run -dP --name=web2 jonlangemak/web_server_2
+e1c866892e7f3f25dee8e6ba89ec526fa3caf6200cdfc705ce47917f12095470
+user@docker1:~$
+```
 
 运行这些容器将产生以下拓扑结构：
 
@@ -194,11 +395,29 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 在大多数情况下，我更喜欢打印规则并解释它们，而不是将它们列在格式化的列中。每种方法都有权衡，但如果您喜欢列表模式，您可以用`-vL`替换`-S`。
 
-[PRE20]
+```
+user@docker1:~$ sudo iptables -t nat -S
+-P PREROUTING ACCEPT
+-P INPUT ACCEPT
+-P OUTPUT ACCEPT
+-P POSTROUTING ACCEPT
+-N DOCKER
+-A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+-A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.2/32 -d 172.17.0.2/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A POSTROUTING -s 172.17.0.3/32 -d 172.17.0.3/32 -p tcp -m tcp --dport 80 -j MASQUERADE
+-A DOCKER -i docker0 -j RETURN
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 32768 -j DNAT --to-destination 172.17.0.2:80
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 32769 -j DNAT --to-destination 172.17.0.3:80
+user@docker1:~$
+```
 
 让我们回顾一下前面输出中每个加粗行的重要性。第一个加粗行处理了出站隐藏 NAT 或`MASQUERADE`：
 
-[PRE21]
+```
+-A POSTROUTING -s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+```
 
 该规则正在寻找符合两个特征的流量：
 
@@ -210,7 +429,9 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 接下来的两行加粗的内容提供了类似的功能，并为每个容器提供了所需的 NAT。让我们来看其中一个：
 
-[PRE22]
+```
+-A DOCKER ! -i docker0 -p tcp -m tcp --dport 32768 -j DNAT --to-destination 172.17.0.2:80
+```
 
 该规则正在寻找符合三个特征的流量：
 
@@ -224,13 +445,31 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 我们要审查的下一个表是过滤表：
 
-[PRE23]
+```
+user@docker1:~$ sudo iptables -t filter -S
+-P INPUT ACCEPT
+-P FORWARD ACCEPT
+-P OUTPUT ACCEPT
+-N DOCKER
+-N DOCKER-ISOLATION
+-A FORWARD -j DOCKER-ISOLATION
+-A FORWARD -o docker0 -j DOCKER
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER -d 172.17.0.3/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A DOCKER-ISOLATION -j RETURN
+user@docker1:~$
+```
 
 同样，您会注意到默认链的链策略设置为`ACCEPT`。在过滤表的情况下，这对功能有更严重的影响。这意味着除非在规则中明确拒绝，否则一切都被允许。换句话说，如果没有定义规则，一切仍然可以工作。Docker 在默认策略未设置为`ACCEPT`的情况下插入这些规则。稍后，当我们手动创建规则时，我们将把默认策略设置为`DROP`，以便您可以看到规则的影响。前面的规则需要更多的解释，特别是如果您不熟悉`iptables`规则的工作原理。让我们逐一审查加粗的线。
 
 第一行加粗的线负责允许来自外部网络的流量返回到容器中。在这种情况下，规则是特定于容器本身生成流量并期望来自外部网络的响应的实例：
 
-[PRE24]
+```
+-A FORWARD -o docker0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+```
 
 该规则正在寻找符合两个特征的流量：
 
@@ -242,7 +481,9 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 第二行加粗的线允许容器与外部网络的连接：
 
-[PRE25]
+```
+-A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+```
 
 该规则正在寻找符合两个特征的流量：
 
@@ -254,7 +495,9 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 加粗的第三行允许容器间的连接：
 
-[PRE26]
+```
+-A FORWARD -i docker0 -o docker0 -j ACCEPT
+```
 
 该规则正在寻找符合两个特征的流量：
 
@@ -266,7 +509,9 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 最后两行加粗的允许发布的端口到达容器。让我们检查其中一行：
 
-[PRE27]
+```
+-A DOCKER -d 172.17.0.2/32 ! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+```
 
 该规则正在寻找符合五个特征的流量：
 
@@ -286,23 +531,55 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 现在我们已经看到 Docker 如何自动处理规则生成，让我们通过一个示例来了解如何自己建立这种连接。为此，我们首先需要指示 Docker 不创建任何`iptables`规则。为此，在 Docker systemd drop in 文件中将`--iptables` Docker 选项设置为`false`：
 
-[PRE28]
+```
+ExecStart=/usr/bin/dockerd --iptables=false
+```
 
 我们需要重新加载 systemd drop in 文件并重新启动 Docker 服务，以便 Docker 重新读取服务参数。为了确保从空白状态开始，如果可能的话，重新启动服务器或手动清除所有`iptables`规则（如果您不熟悉管理`iptables`规则，最好的方法就是重新启动服务器以清除它们）。在接下来的示例中，我们假设我们正在使用空规则集。一旦 Docker 重新启动，您可以重新启动两个容器，并确保系统上没有`iptables`规则存在：
 
-[PRE29]
+```
+user@docker1:~$ docker start web1
+web1
+user@docker1:~$ docker start web2
+web2
+user@docker1:~$ sudo iptables -S
+-P INPUT **ACCEPT
+-P FORWARD **ACCEPT
+-P OUTPUT **ACCEPT
+user@docker1:~$
+```
 
 如您所见，当前没有定义`iptables`规则。我们还可以看到过滤表中默认链策略设置为`ACCEPT`。现在让我们将过滤表中的默认策略更改为每个链的`DROP`。除此之外，让我们还包括一条规则，允许 SSH 进出主机，以免破坏我们的连接：
 
-[PRE30]
+```
+user@docker1:~$ sudo iptables -A INPUT -i eth0 -p tcp --dport 22 \
+-m state --state NEW,ESTABLISHED -j ACCEPT
+user@docker1:~$ sudo iptables -A OUTPUT -o eth0 -p tcp --sport 22 \
+-m state --state ESTABLISHED -j ACCEPT
+user@docker1:~$ sudo iptables -P INPUT DROP
+user@docker1:~$ sudo iptables -P FORWARD DROP
+user@docker1:~$ sudo iptables -P OUTPUT DROP
+```
 
 现在让我们再次检查过滤表，以确保规则已被接受：
 
-[PRE31]
+```
+user@docker1:~$ sudo iptables -S
+-P INPUT **DROP
+-P FORWARD **DROP
+-P OUTPUT **DROP
+-A INPUT -i eth0 -p tcp -m tcp --dport 22 -m state --state NEW,ESTABLISHED -j ACCEPT
+-A OUTPUT -o eth0 -p tcp -m tcp --sport 22 -m state --state ESTABLISHED -j ACCEPT
+user@docker1:~$
+```
 
 此时，容器`web1`和`web2`将不再能够相互到达：
 
-[PRE32]
+```
+user@docker1:~$ docker exec -it web1 ping 172.17.0.3 -c 2
+PING 172.17.0.3 (172.17.0.3): 48 data bytes
+user@docker1:~$
+```
 
 ### 注意
 
@@ -310,35 +587,90 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 现在，让我们开始构建规则集，以重新创建 Docker 自动为我们构建的连接。我们要做的第一件事是允许容器的入站和出站访问。我们将使用以下两条规则来实现：
 
-[PRE33]
+```
+user@docker1:~$ sudo iptables -A FORWARD -i docker0 ! \
+-o docker0 -j ACCEPT
+user@docker1:~$ sudo iptables -A FORWARD -o docker0 \
+-m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+```
 
 尽管这两条规则将允许容器从外部网络生成和接收流量，但此时连接仍然无法工作。为了使其工作，我们需要应用`masquerade`规则，以便容器流量将被隐藏在`docker0`主机的接口后面。如果我们不这样做，流量将永远不会返回，因为外部网络对容器所在的`172.17.0.0/16`网络一无所知：
 
-[PRE34]
+```
+user@docker1:~$ sudo iptables -t nat -A POSTROUTING \
+-s 172.17.0.0/16 ! -o docker0 -j MASQUERADE
+```
 
 有了这个设置，容器现在将能够到达外部网络的网络端点：
 
-[PRE35]
+```
+user@docker1:~$ docker exec -it **web1** ping **4.2.2.2** -c 2
+PING 4.2.2.2 (4.2.2.2): 48 data bytes
+56 bytes from 4.2.2.2: icmp_seq=0 ttl=50 time=36.261 ms
+56 bytes from 4.2.2.2: icmp_seq=1 ttl=50 time=55.271 ms
+--- 4.2.2.2 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 36.261/45.766/55.271/9.505 ms
+user@docker1:~$
+```
 
 然而，容器仍然无法直接相互通信：
 
-[PRE36]
+```
+user@docker1:~$ docker exec -it web1 ping 172.17.0.3 -c 2
+PING 172.17.0.3 (172.17.0.3): 48 data bytes
+user@docker1:~$ docker exec -it web1 curl -S http://172.17.0.3
+user@docker1:~$
+```
 
 我们需要添加最后一条规则：
 
-[PRE37]
+```
+sudo iptables -A FORWARD -i docker0 -o docker0 -j ACCEPT
+```
 
 由于容器之间的流量既进入又离开`docker0`桥，这将允许容器之间的互联：
 
-[PRE38]
+```
+user@docker1:~$ docker exec -it **web1** ping **172.17.0.3** -c 2
+PING 172.17.0.3 (172.17.0.3): 48 data bytes
+56 bytes from 172.17.0.3: icmp_seq=0 ttl=64 time=0.092 ms
+56 bytes from 172.17.0.3: icmp_seq=1 ttl=64 time=0.086 ms
+--- 172.17.0.3 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 0.086/0.089/0.092/0.000 ms
+user@docker1:~$
+user@docker1:~$ docker exec -it **web1** curl **http://172.17.0.3
+<body>
+  <html>
+    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #2 - Running on port 80**</span>
+    </h1>
+</body>
+  </html>
+user@docker1:~$
+```
 
 唯一剩下的配置是提供一个发布端口的机制。我们可以首先在 Docker 主机上配置目标 NAT 来实现这一点。即使 Docker 没有配置 NAT 规则，它仍然会代表你跟踪端口分配。在容器运行时，如果你选择发布一个端口，Docker 会为你分配一个端口映射，即使它不处理发布。明智的做法是使用 Docker 分配的端口以防止重叠：
 
-[PRE39]
+```
+user@docker1:~$ docker port web1
+80/tcp -> 0.0.0.0:**32768
+user@docker1:~$ docker port web2
+80/tcp -> 0.0.0.0:**32769
+user@docker1:~$
+user@docker1:~$ sudo iptables -t nat -A PREROUTING ! -i docker0 \
+-p tcp -m tcp --dport **32768** -j DNAT --to-destination **172.17.0.2:80
+user@docker1:~$ sudo iptables -t nat -A PREROUTING ! -i docker0 \
+-p tcp -m tcp --dport **32769** -j DNAT --to-destination **172.17.0.3:80
+user@docker1:~$
+```
 
 使用 Docker 分配的端口，我们可以为每个容器定义一个入站 NAT 规则，将入站连接转换为 Docker 主机上的外部端口到真实的容器 IP 和服务端口。最后，我们只需要允许入站流量：
 
-[PRE40]
+```
+user@docker1:~$ sudo iptables -A FORWARD -d **172.17.0.2/32** ! -i docker0 -o docker0 -p tcp -m tcp --dport **80** -j ACCEPT
+user@docker1:~$ sudo iptables -A FORWARD -d **172.17.0.3/32** ! -i docker0 -o docker0 -p tcp -m tcp --dport **80** -j ACCEPT
+```
 
 一旦这些规则配置好了，我们现在可以测试来自 Docker 主机外部的已发布端口的连接：
 
@@ -362,29 +694,60 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 如果您不想重新启动，可以将默认的过滤策略更改回`allow`。然后，按照以下步骤刷新过滤和 NAT 表：
 
-[PRE41]
+```
+sudo iptables -P INPUT ACCEPT
+sudo iptables -P FORWARD ACCEPT
+sudo iptables -P OUTPUT ACCEPT
+sudo iptables -t filter -F
+sudo iptables -t nat -F
+```
 
 ## 怎么做...
 
 此时，您应该再次拥有两个运行的容器和一个空的默认`iptables`策略的 Docker 主机。首先，让我们再次将默认的过滤策略更改为`deny`，同时确保我们仍然允许通过 SSH 进行管理连接：
 
-[PRE42]
+```
+user@docker1:~$ sudo iptables -A INPUT -i eth0 -p tcp --dport 22 \
+-m state --state NEW,ESTABLISHED -j ACCEPT
+user@docker1:~$ sudo iptables -A OUTPUT -o eth0 -p tcp --sport 22 \
+-m state --state ESTABLISHED -j ACCEPT
+user@docker1:~$ sudo iptables -P INPUT DROP
+user@docker1:~$ sudo iptables -P FORWARD DROP
+user@docker1:~$ sudo iptables -P OUTPUT DROP
+```
 
 因为我们将专注于过滤表周围的策略，让我们将 NAT 策略放在上一篇配方中未更改的状态下。这些 NAT 覆盖了每个容器中服务的出站伪装和入站伪装：
 
-[PRE43]
+```
+user@docker1:~$ sudo iptables -t nat -A POSTROUTING -s \
+172.17.0.0/16 ! -o docker0 -j MASQUERADE
+user@docker1:~$ sudo iptables -t nat -A PREROUTING ! -i docker0 \
+-p tcp -m tcp --dport 32768 -j DNAT --to-destination 172.17.0.2:80
+user@docker1:~$ sudo iptables -t nat -A PREROUTING ! -i docker0 \
+-p tcp -m tcp --dport 32769 -j DNAT --to-destination 172.17.0.3:80
+```
 
 您可能有兴趣配置的项目之一是限制容器在外部网络上可以访问的范围。您会注意到，在以前的示例中，容器被允许与外部任何东西通信。这是因为过滤规则相当通用：
 
-[PRE44]
+```
+sudo iptables -A FORWARD -i docker0 ! -o docker0 -j ACCEPT
+```
 
 此规则允许容器与除`docker0`之外的任何接口上的任何东西通信。与其允许这样做，我们可以指定我们想要允许出站的端口。因此，例如，如果我们发布端口`80`，然后我们可以定义一个反向或出站规则，只允许特定的返回流量。让我们首先重新创建我们在上一个示例中使用的入站规则：
 
-[PRE45]
+```
+user@docker1:~$ sudo iptables -A FORWARD -d 172.17.0.2/32 \
+! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+user@docker1:~$ sudo iptables -A FORWARD -d 172.17.0.3/32 \
+! -i docker0 -o docker0 -p tcp -m tcp --dport 80 -j ACCEPT
+```
 
 现在我们可以轻松地用特定规则替换更通用的出站规则，只允许端口`80`上的返回流量。例如，让我们放入一个规则，允许容器`web1`只在端口`80`上返回流量：
 
-[PRE46]
+```
+user@docker1:~$ sudo iptables -A FORWARD -s 172.17.0.2/32 -i \
+docker0 ! -o docker0 -p tcp -m tcp --sport 80 -j ACCEPT
+```
 
 如果我们检查一下，我们应该能够从外部网络访问`web1`上的服务：
 
@@ -392,51 +755,124 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 然而，此时容器`web1`除了在端口`80`上无法与外部网络上的任何东西通信，因为我们没有使用通用的出站规则：
 
-[PRE47]
+```
+user@docker1:~$ docker exec -it web1 ping 4.2.2.2 -c 2
+PING 4.2.2.2 (4.2.2.2): 48 data bytes
+user@docker1:~$
+```
 
 为了解决这个问题，我们可以添加特定的规则，允许来自`web1`容器的 ICMP 之类的东西：
 
-[PRE48]
+```
+user@docker1:~$ sudo iptables -A FORWARD -s 172.17.0.2/32 -i \
+docker0 ! -o docker0 -p icmp -j ACCEPT
+```
 
 上述规则与前一篇配方中的状态感知返回规则相结合，将允许 web1 容器发起和接收返回的 ICMP 流量。
 
-[PRE49]
+```
+user@docker1:~$ sudo iptables -A FORWARD -o docker0 -m conntrack \
+--ctstate RELATED,ESTABLISHED -j ACCEPT
+```
 
-[PRE50]
+```
+user@docker1:~$ docker exec -it **web1 ping 4.2.2.2** -c 2
+PING 4.2.2.2 (4.2.2.2): 48 data bytes
+56 bytes from 4.2.2.2: icmp_seq=0 ttl=50 time=33.892 ms
+56 bytes from 4.2.2.2: icmp_seq=1 ttl=50 time=34.326 ms
+--- 4.2.2.2 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 33.892/34.109/34.326/0.217 ms
+user@docker1:~$
+```
 
 在`web2`容器的情况下，其 Web 服务器仍然无法从外部网络访问。如果我们希望限制可以与 Web 服务器通信的流量源，我们可以通过更改入站端口`80`规则或指定出站端口`80`规则中的目的地来实现。例如，我们可以通过在出口规则中指定目标来将流量源限制为外部网络上的单个设备：
 
-[PRE51]
+```
+user@docker1:~$ sudo iptables -A FORWARD -s 172.17.0.3/32 **-d \
+10.20.30.13** -i docker0 ! -o docker0 -p tcp -m tcp --sport 80 \
+-j ACCEPT
+```
 
 现在，如果我们尝试使用外部网络上 IP 地址为`10.20.30.13`的实验室设备，我们应该能够访问 Web 服务器：
 
-[PRE52]
+```
+[user@lab1 ~]# ip addr show dev eth0 | grep inet
+    inet **10.20.30.13/24** brd 10.20.30.255 scope global eth0
+ [user@lab2 ~]# **curl http://docker1.lab.lab:32769
+<body>
+  <html>
+    <h1><span style="color:#FF0000;font-size:72px;">**Web Server #2 - Running on port 80**</span>
+    </h1>
+</body>
+  </html>
+[user@lab1 ~]#
+```
 
 但是，如果我们尝试使用具有不同 IP 地址的不同实验室服务器，连接将失败：
 
-[PRE53]
+```
+[user@lab2 ~]# ip addr show dev eth0 | grep inet
+    inet **10.20.30.14/24** brd 10.20.30.255 scope global eth0
+[user@lab2 ~]# **curl http://docker1.lab.lab:32769
+[user@lab2 ~]#
+```
 
 同样，这条规则可以作为入站规则或出站规则实现。
 
 以这种方式管理`iptables`规则时，您可能已经注意到 Docker 主机本身不再能够与容器及其托管的服务进行通信：
 
-[PRE54]
+```
+user@docker1:~$ ping 172.17.0.2 -c 2
+PING 172.17.0.2 (172.17.0.2) 56(84) bytes of data.
+ping: sendmsg: Operation not permitted
+ping: sendmsg: Operation not permitted
+--- 172.17.0.2 ping statistics ---
+2 packets transmitted, 0 received, 100% packet loss, time 999ms
+user@docker1:~$
+```
 
 这是因为我们一直在过滤表中编写的所有规则都在转发链中。转发链仅适用于主机正在转发的流量，而不适用于源自主机或目的地为主机本身的流量。为了解决这个问题，我们可以在过滤表的`INPUT`和`OUTPUT`链中放置规则。为了允许容器之间的 ICMP 流量，我们可以指定以下规则：
 
-[PRE55]
+```
+user@docker1:~$ sudo iptables -A OUTPUT -o docker0 -p icmp -m \
+state --state NEW,ESTABLISHED -j ACCEPT
+user@docker1:~$ sudo iptables -A INPUT -i docker0 -p icmp -m \
+state --state ESTABLISHED -j ACCEPT
+```
 
 添加到输出链的规则查找流向`docker0`桥（流向容器）的流量，协议为 ICMP，并且是新的或已建立的流量。添加到输入链的规则查找流向`docker0`桥（流向主机）的流量，协议为 ICMP，并且是已建立的流量。由于流量是从 Docker 主机发起的，这些规则将匹配并允许容器的 ICMP 流量工作：
 
-[PRE56]
+```
+user@docker1:~$ ping **172.17.0.2** -c 2
+PING 172.17.0.2 (172.17.0.2) 56(84) bytes of data.
+64 bytes from 172.17.0.2: icmp_seq=1 ttl=64 time=0.081 ms
+64 bytes from 172.17.0.2: icmp_seq=2 ttl=64 time=0.021 ms
+--- 172.17.0.2 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 999ms
+rtt min/avg/max/mdev = 0.021/0.051/0.081/0.030 ms
+user@docker1:~$
+```
 
 然而，这仍然不允许容器本身对默认网关进行 ping。这是因为我们添加到输入链的规则仅匹配进入`docker0`桥的流量，只寻找已建立的会话。为了使其双向工作，您需要向第二条规则添加`NEW`标志，以便它也可以匹配容器向主机生成的新流量：
 
-[PRE57]
+```
+user@docker1:~$ sudo iptables -A INPUT -i docker0 -p icmp -m \
+state --state NEW,ESTABLISHED -j ACCEPT
+```
 
 由于我们添加到输出链的规则已经指定了新的或已建立的流量，容器到主机的 ICMP 连接现在也将工作：
 
-[PRE58]
+```
+user@docker1:~$ docker exec -it **web1** ping  
+PING 172.17.0.1 (172.17.0.1): 48 data bytes
+56 bytes from 172.17.0.1: icmp_seq=0 ttl=64 time=0.073 ms
+56 bytes from 172.17.0.1: icmp_seq=1 ttl=64 time=0.079 ms
+^C--- 172.17.0.1 ping statistics ---
+2 packets transmitted, 2 packets received, 0% packet loss
+round-trip min/avg/max/stddev = 0.073/0.076/0.079/0.000 ms
+user@docker1:~$
+```
 
 # 通过负载均衡器公开服务
 
@@ -512,7 +948,12 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 让我们看看构建这种配置需要做些什么。我们需要做的第一件事是在其中一个节点上定义一个用户定义的覆盖类型网络。我们将在`docker1`上定义它，并称之为`presentation_backend`：
 
-[PRE59]
+```
+user@docker1:~$ docker network create -d overlay \
+--internal presentation_backend
+bd9e9b5b5e064aee2ddaa58507fa6c15f49e4b0a28ea58ffb3da4cc63e6f8908
+user@docker1:~$
+```
 
 ### 注意
 
@@ -520,11 +961,42 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 接下来我们要做的是创建两个 Web 容器，它们将作为负载均衡器的后端池成员。我们将在`docker2`和`docker3`主机上进行操作：
 
-[PRE60]
+```
+user@docker2:~$ docker run -dP **--name=web1 --net \
+presentation_backend** jonlangemak/web_server_1
+6cc8862f5288b14e84a0dd9ff5424a3988de52da5ef6a07ae593c9621baf2202
+user@docker2:~$
+user@docker3:~$ docker run -dP **--name=web2 --net \
+presentation_backend** jonlangemak/web_server_2
+e2504f08f234220dd6b14424d51bfc0cd4d065f75fcbaf46c7b6dece96676d46
+user@docker3:~$
+```
 
 剩下要部署的组件是负载均衡器。如前所述，`haproxy`有一个负载均衡器的容器镜像，所以我们将在这个例子中使用它。在运行容器之前，我们需要准备一个配置，以便将其传递给`haproxy`使用。这是通过将一个卷挂载到容器中来完成的，我们很快就会看到。配置文件名为`haproxy.cfg`，我的示例配置看起来像这样：
 
-[PRE61]
+```
+global
+    log 127.0.0.1   local0
+defaults
+    log     global
+    mode    http
+    option  httplog
+    timeout connect 5000
+    timeout client 50000
+    timeout server 50000
+    stats enable
+    stats auth user:docker
+    stats uri /lbstats
+frontend all
+            bind *:80
+            use_backend pres_containers
+
+backend **pres_containers
+    balance **roundrobin
+            server web1 web1:80 check
+            server web2 web2:80 check
+    option httpchk HEAD /index.html HTTP/1.0
+```
 
 在前面的配置中有几个值得指出的地方：
 
@@ -542,17 +1014,32 @@ Docker 的默认行为可以通过操纵`--ip-masq` Docker 选项来更改。默
 
 我将这个配置文件放在了我的主目录中名为`haproxy`的文件夹中：
 
-[PRE62]
+```
+user@docker1:~/haproxy$ pwd
+/home/user/haproxy
+user@docker1:~/haproxy$ ls
+haproxy.cfg
+user@docker1:~/haproxy$
+```
 
 一旦配置文件就位，我们可以按照以下方式运行容器：
 
-[PRE63]
+```
+user@docker1:~$ docker run -d --name haproxy --net \
+presentation_backend -p 80:80 -v \
+~/haproxy:/usr/local/etc/haproxy/ haproxy
+d34667aa1118c70cd333810d9c8adf0986d58dab9d71630d68e6e15816741d2b
+user@docker1:~$
+```
 
 您可能想知道为什么我在连接容器到“内部”类型网络时指定了端口映射。回想一下前几章中提到的端口映射在所有网络类型中都是全局的。换句话说，即使我目前没有使用它，它仍然是容器的一个特性。因此，如果我将来连接一个可以使用端口映射的网络类型到容器中，它就会使用端口映射。在这种情况下，我首先需要将容器连接到覆盖网络，以确保它可以访问后端 web 服务器。如果`haproxy`容器在启动时无法解析池成员名称，它将无法加载。
 
 此时，`haproxy`容器已经可以访问其池成员，但我们无法从外部访问`haproxy`容器。为了做到这一点，我们将连接另一个可以使用端口映射的接口到容器中。在这种情况下，这将是`docker0`桥：
 
-[PRE64]
+```
+user@docker1:~$ docker network connect bridge haproxy
+user@docker1:~
+```
 
 在这一点上，`haproxy`容器应该可以在以下 URL 外部访问：
 

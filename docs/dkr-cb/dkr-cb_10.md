@@ -46,7 +46,10 @@ Docker 还有一个论坛和一个 YouTube 频道，它们是很好的学习资�
 
 1.  使用调试选项`-D`启动 Docker 守护进程。要从命令行启动，可以运行以下命令：
 
-[PRE0]
+```
+$ docker -d -D
+
+```
 
 1.  您还可以在 Docker 配置文件中添加`--debug/-D`选项以以调试模式启动。
 
@@ -54,7 +57,13 @@ Docker 还有一个论坛和一个 YouTube 频道，它们是很好的学习资�
 
 上述命令将以守护程序模式启动 Docker。当您启动守护程序时，您将看到许多有用的消息，例如加载现有图像，防火墙设置（iptables）等。如果启动容器，您将看到以下消息：
 
-[PRE1]
+```
+[info] POST /v1.15/containers/create
+[99430521] +job create()
+......
+......
+
+```
 
 # 从源代码构建 Docker 二进制文件
 
@@ -64,11 +73,17 @@ Docker 还有一个论坛和一个 YouTube 频道，它们是很好的学习资�
 
 1.  使用`git`下载 Docker 源代码：
 
-[PRE2]
+```
+$ git clone https://github.com/docker/docker.git
+
+```
 
 1.  在 Fedora 上安装`make`：
 
-[PRE3]
+```
+$ yum install -y make
+
+```
 
 1.  确保 Docker 在构建代码的主机上运行，并且您可以通过 Docker 客户端访问它，因为我们讨论的构建发生在容器内。
 
@@ -76,11 +91,17 @@ Docker 还有一个论坛和一个 YouTube 频道，它们是很好的学习资�
 
 1.  进入克隆的目录：
 
-[PRE4]
+```
+$ cd docker
+
+```
 
 1.  运行`make`命令：
 
-[PRE5]
+```
+$ sudo make
+
+```
 
 ## 工作原理…
 
@@ -90,11 +111,17 @@ Docker 还有一个论坛和一个 YouTube 频道，它们是很好的学习资�
 
 +   与源代码类似，您也可以构建文档：
 
-[PRE6]
+```
+$ sudo make docs
+
+```
 
 +   您还可以使用以下命令运行测试：
 
-[PRE7]
+```
+ $ sudo make test
+
+```
 
 ## 另请参阅
 
@@ -112,7 +139,10 @@ Docker 还有一个论坛和一个 YouTube 频道，它们是很好的学习资�
 
 1.  构建镜像时，通过以下方式传递`--no-cache`选项：
 
-[PRE8]
+```
+$ docker build -t test --no-cache - < Dockerfile
+
+```
 
 ## 工作原理…
 
@@ -130,25 +160,43 @@ Docker 还有一个论坛和一个 YouTube 频道，它们是很好的学习资�
 
 我假设您已经设置好了 Docker。在 Docker 主机上，停止 Docker 守护程序。在 Fedora 上，使用以下命令：
 
-[PRE9]
+```
+$ systemctl stop docker
+
+```
 
 ## 如何做…
 
 1.  要删除默认的`docker0`桥接，请使用以下命令：
 
-[PRE10]
+```
+$ sudo ip link set dev docker0 down
+$ sudo brctl delbr docker0
+
+```
 
 1.  要创建自定义桥接，请使用以下命令：
 
-[PRE11]
+```
+$ sudo brctl addbr br0
+$ sudo ip addr add 192.168.2.1/24 dev br0
+$ sudo ip link set dev bridge0 up
+
+```
 
 1.  更新 Docker 配置文件以使用我们之前创建的桥接。在 Fedora 上，您可以按以下方式更新配置文件：
 
-[PRE12]
+```
+$ sed -i '/^OPTIONS/ s/$/ --bridge br0/' /etc/sysconfig/docker
+
+```
 
 1.  要启动 Docker 守护程序，请使用以下命令：
 
-[PRE13]
+```
+$ systemctl start docker
+
+```
 
 ## 工作原理…
 
@@ -174,7 +222,10 @@ Docker 还有一个论坛和一个 YouTube 频道，它们是很好的学习资�
 
 1.  以以下方式启动 Docker 守护程序，使用`-e lxc`选项：
 
-[PRE14]
+```
+$ docker -d -e lxc
+
+```
 
 您还可以根据发行版在 Docker 的配置文件中添加此选项。
 
@@ -204,7 +255,11 @@ Docker 使用 LXC 工具访问内核功能，如命名空间和 Cgroups 来运�
 
 1.  以以下方式启动 Docker 守护程序，使用所需的日志驱动程序：
 
-[PRE15]
+```
+$ docker -d --log-driver=none
+$ docker -d --log-driver=syslog
+
+```
 
 您还可以根据发行版在 Docker 的配置文件中添加此选项。
 
@@ -234,7 +289,10 @@ Docker 使用 LXC 工具访问内核功能，如命名空间和 Cgroups 来运�
 
 1.  使用以下命令启动 Docker 事件日志记录：
 
-[PRE16]
+```
+$ docker events
+
+```
 
 1.  从另一个终端执行一些与容器/镜像相关的操作，您将在第一个终端上看到类似以下截图的结果:![如何做…](img/image00414.jpeg)
 
@@ -248,25 +306,41 @@ Docker 使用 LXC 工具访问内核功能，如命名空间和 Cgroups 来运�
 
 +   您可以使用`--since`或`--until`选项与 Docker 事件，以缩小所选时间戳的结果：
 
-[PRE17]
+```
+ --since=""         Show all events created since timestamp
+ --until=""         Stream events until this timestamp
+
+```
 
 考虑以下示例：
 
-[PRE18]
+```
+$ docker events --since '2015-01-01'
+
+```
 
 +   使用过滤器，我们可以根据事件、容器和镜像进一步缩小事件日志，如下所示：
 
 +   要仅列出启动事件，请使用以下命令：
 
-[PRE19]
+```
+ $ docker events --filter 'event=start'
+
+```
 
 +   要仅列出来自 CentOS 镜像的事件，请使用以下命令：
 
-[PRE20]
+```
+ $ docker events --filter 'image=docker.io/centos:centos7'
+
+```
 
 +   要列出特定容器的事件，请使用以下命令：
 
-[PRE21]
+```
+ docker events --filter 'container=b3619441cb444b87b4d79a8c30616ca70da4b5aa8fdc5d8a48d23a2082052174'
+
+```
 
 ## 另请参阅
 

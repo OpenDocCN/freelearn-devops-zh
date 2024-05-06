@@ -62,7 +62,15 @@
 
 使用以下代码描述了 SQLAlchemy 模型定义中的此模式：
 
-[PRE0]
+```py
+class UserModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50))
+    # DO NOT EVER STORE PLAIN PASSWORDS IN DATABASES
+    # THIS IS AN EXAMPLE!!!!!
+    password = db.Column(db.String(50))
+    creation = db.Column(db.DateTime, server_default=func.now())
+```
 
 请注意，创建日期会自动存储。还要注意，我们以明文形式存储密码。这是*在生产服务中一个可怕的主意*。您可以查看一篇名为*如何在数据库中存储密码？*的文章（[`www.geeksforgeeks.org/store-password-database/`](https://www.geeksforgeeks.org/store-password-database/)）以获取有关使用盐种加密密码的一般想法。您可以使用`pyscrypt`（[`github.com/ricmoo/pyscrypt`](https://github.com/ricmoo/pyscrypt)）等软件包在 Python 中实现此类结构。
 
@@ -76,7 +84,26 @@
 
 例如，`search.py`文件被转换为以下代码，该代码将搜索委托给 Thoughts Backend 微服务。请注意，客户的请求被转换为对`GET /api/thoughts`端点的内部 API 调用。结果以 JSON 格式解码并呈现在模板中：
 
-[PRE1]
+```py
+import requests
+
+def search(request):
+    username = get_username_from_session(request)
+    search_param = request.GET.get('search')
+
+    url = settings.THOUGHTS_BACKEND + '/api/thoughts/'
+    params = {
+        'search': search_param,
+    }
+    result = requests.get(url, params=params)
+    results = result.json()
+
+    context = {
+        'thoughts': results,
+        'username': username,
+    }
+    return render(request, 'search.html', context)
+```
 
 单体等效代码可以在存储库的`Chapter01`子目录中进行比较（[`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter01/Monolith/mythoughts/thoughts/search.py`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter01/Monolith/mythoughts/thoughts/search.py)）。
 
@@ -88,7 +115,26 @@
 
 一个更有趣的案例是`list_thought`（[`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter06/frontend/mythoughts/thoughts/thoughts.py#L18`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter06/frontend/mythoughts/thoughts/thoughts.py#L18)）视图。以下代码列出了已登录用户的想法：
 
-[PRE2]
+```py
+def list_thoughts(request):
+    username = get_username_from_session(request)
+    if not username:
+        return redirect('login')
+
+    url = settings.THOUGHTS_BACKEND + '/api/me/thoughts/'
+    headers = {
+        'Authorization': request.COOKIES.get('session'),
+    }
+    result = requests.get(url, headers=headers)
+    if result.status_code != http.client.OK:
+        return redirect('login')
+
+    context = {
+        'thoughts': result.json(),
+        'username': username,
+    }
+    return render(request, 'list_thoughts.html', context)
+```
 
 在这里，在做任何事情之前，我们需要检查用户是否已登录。这是在 `get_username_from_session` 调用中完成的，它返回 `username` 或 `None`（如果他们未登录）。如果他们未登录，则返回将被重定向到登录屏幕。
 
@@ -102,7 +148,16 @@
 
 `get_username_from_session` 函数封装了对 `validate_token_header` 的调用，与上一章介绍的相同：
 
-[PRE3]
+```py
+def get_username_from_session(request):
+    cookie_session = request.COOKIES.get('session')
+    username = validate_token_header(cookie_session,
+                                     settings.TOKENS_PUBLIC_KEY)
+    if not username:
+        return None
+
+    return username
+```
 
 `settings` 文件包含解码令牌所需的公钥。
 
@@ -126,7 +181,10 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 例如，如果您的本地 IP 是 `10.0.10.3`，则 `environment.env` 文件应包含以下内容：
 
-[PRE4]
+```py
+THOUGHTS_BACKEND_URL=http://10.0.10.3:8000
+USER_BACKEND_URL=http://10.0.10.3:8001
+```
 
 如果您在浏览器中访问前端服务，它应该连接到其他服务。
 
@@ -148,7 +206,9 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 我们将使用 `example` 命名空间，因此请确保它已创建：
 
-[PRE5]
+```py
+$ kubectl create namespace example
+```
 
 让我们从第一个 Kubernetes 对象开始。
 
@@ -158,39 +218,106 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 配置文件完全在这里可用 ([`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter06/thoughts_backend/kubernetes/deployment.yaml`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter06/thoughts_backend/kubernetes/deployment.yaml))，让我们来看看它的不同部分。第一个元素描述了它是什么以及它的名称，以及它所在的命名空间：
 
-[PRE6]
+```py
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: thoughts-backend
+    labels:
+        app: thoughts-backend
+    namespace: example
+```
 
 然后，我们生成 `spec`。它包含我们应该保留多少个 pod 以及每个 pod 的模板。`selector` 定义了要监视的标签，它应该与模板中的 `labels` 匹配：
 
-[PRE7]
+```py
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: thoughts-backend
+```
 
 `template` 部分在其自己的 `spec` 部分中定义了容器：
 
-[PRE8]
+```py
+
+    template:
+        metadata:
+            labels:
+                app: thoughts-backend
+        spec:
+            containers:
+                - name: thoughts-backend-service
+                  ...
+                - name: thoughts-backend-db
+                  ...
+```
 
 `thoughts-backend-db` 更简单。唯一需要的元素是定义容器的名称和镜像。我们需要将拉取策略定义为 `Never`，以指示镜像在本地 Docker 仓库中可用，并且不需要从远程注册表中拉取它：
 
-[PRE9]
+```py
+- name: thoughts-backend-db
+  image: thoughts_backend_db:latest
+  imagePullPolicy: Never
+```
 
 `thoughts-backend-service` 需要定义服务的暴露端口以及环境变量。变量的值是我们在创建数据库时使用的值，除了 `POSTGRES_HOST`，在这里我们有一个优势，即同一 pod 中的所有容器共享相同的 IP：
 
-[PRE10]
+```py
+ - name: thoughts-backend-service
+   image: thoughts_server:latest
+   imagePullPolicy: Never
+   ports:
+   - containerPort: 8000
+   env:
+   - name: DATABASE_ENGINE
+     value: POSTGRESQL
+   - name: POSTGRES_DB
+     value: thoughts
+   - name: POSTGRES_USER
+     value: postgres
+   - name: POSTGRES_PASSWORD
+     value: somepassword
+   - name: POSTGRES_PORT
+     value: "5432"
+   - name: POSTGRES_HOST
+     value: "127.0.0.1"
+```
 
 要在 Kubernetes 中获取部署，需要应用该文件，如下所示：
 
-[PRE11]
+```py
+$ kubectl apply -f thoughts_backend/kubernetes/deployment.yaml
+deployment "thoughts-backend" created
+```
 
 部署现在已在集群中创建：
 
-[PRE12]
+```py
+$ kubectl get deployments -n example
+NAME             DESIRED CURRENT UP-TO-DATE AVAILABLE AGE
+thoughts-backend 1       1       1          1         20s
+```
 
 这将自动创建 pods。如果 pod 被删除或崩溃，部署将使用不同的名称重新启动它：
 
-[PRE13]
+```py
+$ kubectl get pods -n example
+NAME                              READY STATUS  RESTARTS AGE
+thoughts-backend-6dd57f5486-l9tgg 2/2   Running 0        1m
+```
 
 部署正在跟踪最新的镜像，但除非删除，否则不会创建新的 pod。要进行更改，请确保手动删除 pod，之后它将被重新创建：
 
-[PRE14]
+```py
+$ kubectl delete pod thoughts-backend-6dd57f5486-l9tgg -n example
+pod "thoughts-backend-6dd57f5486-l9tgg" deleted
+$ kubectl get pods -n example
+NAME                              READY STATUS  RESTARTS AGE
+thoughts-backend-6dd57f5486-nf2ds 2/2   Running 0        28s
+```
 
 该应用程序在集群内部仍然无法被发现，除非通过其特定的 pod 名称引用它，而这个名称可能会改变，因此我们需要为此创建一个服务。
 
@@ -198,13 +325,36 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 我们创建了一个 Kubernetes 服务来为创建的部署公开的应用程序创建一个名称。服务可以在 `service.yaml` 文件中进行检查。让我们来看一下：
 
-[PRE15]
+```py
+---
+apiVersion: v1
+kind: Service
+metadata:
+    namespace: example
+    labels:
+        app: thoughts-service
+    name: thoughts-service
+spec:
+    ports:
+        - name: thoughts-backend
+          port: 80
+          targetPort: 8000
+    selector:
+        app: thoughts-backend
+    type: NodePort
+```
 
 初始数据类似于部署。`spec` 部分定义了开放端口，将对 `thoughts-backend` 中的容器中的服务的端口 `80` 的访问路由到端口 `8000`，部署的名称。`selector` 部分将所有请求路由到与之匹配的任何 pod。
 
 类型为 `NodePort`，以允许从集群外部访问。这使我们能够检查它是否正常工作，一旦找到外部暴露的 IP：
 
-[PRE16]
+```py
+$ kubectl apply -f kubernetes/service.yaml
+service "thoughts-service" configured
+$ kubectl get service -n example
+NAME CLUSTER-IP EXTERNAL-IP PORT(S) AGE
+thoughts-service 10.100.252.250 <nodes> 80:31600/TCP 1m
+```
 
 我们可以通过访问所描述的 pod 的本地主机来访问 Thoughts Backend。在这种情况下，`http://127.0.0.1:31600`：
 
@@ -216,7 +366,23 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 最后，我们在`ingress.yaml`中描述 Ingress（[`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter06/thoughts_backend/kubernetes/ingress.yaml`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter06/thoughts_backend/kubernetes/ingress.yaml)）。文件在此处复制。注意我们如何设置元数据以存储在正确的命名空间中：
 
-[PRE17]
+```py
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+    name: thoughts-backend-ingress
+    namespace: example
+spec:
+    rules:
+        - host: thoughts.example.local
+          http:
+            paths:
+              - backend:
+                  serviceName: thoughts-service
+                  servicePort: 80
+                path: /
+```
 
 此 Ingress 将使服务在端口`80`上暴露给节点。由于多个服务可以在同一节点上暴露，它们通过主机名进行区分，在本例中为`thoughts.example.local`。
 
@@ -224,11 +390,27 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 应用服务后，我们可以尝试访问页面，但是，除非我们将调用指向正确的主机，否则我们将收到 404 错误：
 
-[PRE18]
+```py
+$ kubectl apply -f kubernetes/ingress.yaml
+ingress "thoughts-backend-ingress" created
+$ kubectl get ingress -n example
+NAME                     HOSTS                  ADDRESS  PORTS  AGE
+thoughts-backend-ingress thoughts.example.local localhost 80 1m
+$ curl http://localhost
+<html>
+<head><title>404 Not Found</title></head>
+<body>
+<center><h1>404 Not Found</h1></center>
+<hr><center>nginx/1.15.8</center>
+</body>
+</html>
+```
 
 我们需要能够将任何请求指向`thoughts.example.local`到我们的本地主机。在 Linux 和 macOS 中，最简单的方法是更改您的`/etc/hosts`文件，包括以下行：
 
-[PRE19]
+```py
+127.0.0.1 thoughts.example.local
+```
 
 然后，我们可以使用浏览器检查我们的应用程序，这次是在`http://thoughts.example.local`（端口`80`）：
 
@@ -250,11 +432,20 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 用户后端文件与 Thoughts 后端非常相似。您可以在 GitHub 存储库中检查它们（[`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/tree/master/Chapter06/users_backend/kubernetes`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/tree/master/Chapter06/users_backend/kubernetes)）。确保`deployment.yaml`中的环境设置值是正确的：
 
-[PRE20]
+```py
+$ kubectl apply -f users_backend/kubernetes/deployment.yaml
+deployment "users-backend" created
+$ kubectl apply -f users_backend/kubernetes/service.yaml
+service "users-service" created
+$ kubectl apply -f users_backend/kubernetes/ingress.yaml
+ingress "users-backend-ingress" created
+```
 
 记得确保在`/etc/hosts`中包含新的主机名：
 
-[PRE21]
+```py
+127.0.0.1 users.example.local
+```
 
 您可以在`http://users.example.local`访问用户后端。
 
@@ -264,15 +455,47 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 1.  首先，我们添加关于`namespace`、`name`和`kind`（deployment）的元数据，如下面的代码所示：
 
-[PRE22]
+```py
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: frontend
+    labels:
+        app: frontend
+    namespace: example
+```
 
 1.  然后，我们使用模板和`replicas`的数量定义`spec`。对于本地系统来说，一个副本就可以了：
 
-[PRE23]
+```py
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: frontend
+    template:
+        metadata:
+            labels:
+                app: frontend
+```
 
 1.  最后，我们使用容器定义`spec`模板：
 
-[PRE24]
+```py
+        spec:
+            containers:
+                - name: frontend-service
+                  image: thoughts_frontend:latest
+                  imagePullPolicy: Never
+                  ports:
+                     - containerPort: 8000
+                  env:
+                      - name: THOUGHTS_BACKEND_URL
+                        value: http://thoughts-service
+                      - name: USER_BACKEND_URL
+                        value: http://users-service
+```
 
 与先前定义的 Thoughts 后端部署的主要区别在于只有一个容器，而且它上面的环境更简单。
 
@@ -284,7 +507,9 @@ Thoughts 后端公开端口`8000`，用户后端公开端口`8001`。这允许�
 
 我们应该在`/etc/hosts`文件中添加一个新的域名：
 
-[PRE25]
+```py
+127.0.0.1 frontend.example.local
+```
 
 Django 要求您设置`ALLOWED_HOSTS`设置的值，以允许它接受主机名，因为默认情况下它只允许从 localhost 进行连接。有关更多信息，请参阅 Django 文档([`docs.djangoproject.com/en/2.2/ref/settings/#allowed-hosts`](https://docs.djangoproject.com/en/2.2/ref/settings/#allowed-hosts))。为了简化事情，我们可以使用`'*'`来允许任何主机。在 GitHub 上查看代码([`github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter06/frontend/mythoughts/mythoughts/settings.py#L28`](https://github.com/PacktPublishing/Hands-On-Docker-for-Microservices-with-Python/blob/master/Chapter06/frontend/mythoughts/mythoughts/settings.py#L28))。
 
@@ -292,7 +517,14 @@ Django 要求您设置`ALLOWED_HOSTS`设置的值，以允许它接受主机名�
 
 前端应用程序将像以前一样部署：
 
-[PRE26]
+```py
+$ kubectl apply -f frontend/kubernetes/deployment.yaml
+deployment "frontend" created
+$ kubectl apply -f frontend/kubernetes/service.yaml
+service "frontend-service" created
+$ kubectl apply -f frontend/kubernetes/ingress.yaml
+ingress "frontend-ingress" created
+```
 
 然后我们可以访问整个系统，登录，搜索等。
 

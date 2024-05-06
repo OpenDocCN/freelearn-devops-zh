@@ -38,7 +38,17 @@
 
 特权容器可以使用以下命令启动：
 
-[PRE0]
+```
+ $
+ docker run -it --privileged ubuntu /bin/bash
+ root@9ab706a6a95c:/# cd /dev/
+ root@9ab706a6a95c:/dev# ls
+ agpgart          hdb6                psaux   sg1       tty32  tty7
+ atibm            hdb7                ptmx    shm       tty33  tty8
+ audio            hdb8                pts     snapshot  tty34  tty9
+ beep             hdb9                ram0    sr0       tty35  ttyS0
+
+```
 
 正如我们所看到的，启动特权模式容器后，我们可以列出连接到主机机器的所有设备。
 
@@ -50,11 +60,32 @@ Docker 允许您通过支持添加和删除功能来使用非默认配置文件�
 
 如下例所示，当我们以非特权模式运行容器时，无法更改内核参数，但当我们使用`--privileged`标志以特权模式运行容器时，它可以轻松更改内核参数，这可能会在主机系统上造成安全漏洞：
 
-[PRE1]
+```
+ $ docker run -it centos /bin/bash
+ [root@7e1b1fa4fb89 /]#  sysctl -w net.ipv4.ip_forward=0
+ sysctl: setting key "net.ipv4.ip_forward": Read-only file system
+ $ docker run --privileged -it centos /bin/bash
+ [root@930aaa93b4e4 /]#  sysctl -a | wc -l
+ sysctl: reading key "net.ipv6.conf.all.stable_secret"
+ sysctl: reading key "net.ipv6.conf.default.stable_secret"
+ sysctl: reading key "net.ipv6.conf.eth0.stable_secret"
+ sysctl: reading key "net.ipv6.conf.lo.stable_secret"
+ 638
+ [root@930aaa93b4e4 /]# sysctl -w net.ipv4.ip_forward=0
+ net.ipv4.ip_forward = 0
+
+```
 
 因此，在审核时，您应确保主机系统上运行的所有容器的特权模式未设置为`true`，除非某些特定应用程序在 Docker 容器中运行时需要：
 
-[PRE2]
+```
+ $ docker ps -q | xargs docker inspect --format '{{ .Id }}: 
+    Privileged={{ 
+    .HostConfig.Privileged }}'
+ 930aaa93b4e44c0f647b53b3e934ce162fbd9ef1fd4ec82b826f55357f6fdf3a: 
+    Privileged=true
+
+```
 
 # 超级特权容器
 
@@ -64,7 +95,11 @@ Docker 允许您通过支持添加和删除功能来使用非默认配置文件�
 
 我们可以以特权模式运行，将整个主机系统挂载到某个路径（`/media/host`）上：
 
-[PRE3]
+```
+ $ docker run -it -v /:/media/host --privileged fedora 
+nsenter --mount=/media/host/proc/1/ns/mnt --mount /dev/xvdf /home/mic
+
+```
 
 然后我们可以在容器内部使用`nsenter`；`--mount`告诉`nsenter`查看`/media/host`，然后选择 proc 编号 1 的挂载命名空间。然后，运行常规挂载命令将设备链接到挂载点。如前所述，此功能允许我们挂载主机套接字和设备，例如文件，因此所有这些都可以绑定到容器中供使用：
 
@@ -76,7 +111,11 @@ Docker 允许您通过支持添加和删除功能来使用非默认配置文件�
 
 让我们考虑一个例子，目前，我们正在加载应用程序所需的内核模块，这些模块是主机操作系统中不包括的 RPM 软件包，并在应用程序启动时运行它们。这个模块可以通过超级特权容器的帮助进行运输，好处是这个自定义内核模块可以与当前内核非常好地配合，而不是将内核模块作为特权容器的一部分进行运输。在这种方法中，不需要将应用程序作为特权容器运行；它们可以分开运行，内核模块可以作为不同镜像的一部分加载，如下所示：
 
-[PRE4]
+```
+ $ sudo docker run --rm --privileged foobar /sbin/modprobe PATHTO/foobar-kmod 
+$ sudo docker run -d foobar
+
+```
 
 ## 故障排除 - 大规模的 Docker 容器
 
@@ -94,11 +133,26 @@ Puppet 的一个潜在用例是，它可以用于为 Jenkins 构建所需的 Doc
 
 可以根据`garethr-docker` GitHub 项目安装用于管理 Docker 的 Puppet 模块。该模块只需要包含一个类：
 
-[PRE5]
+```
+    include 'docker'
+
+```
 
 它设置了一个 Docker 托管的存储库，并安装了 Docker 软件包和任何所需的内核扩展。 Docker 守护程序将绑定到`unix socket /var/run/docker.sock`；根据需求，可以更改此配置：
 
-[PRE6]
+```
+    class { 'docker':
+      tcp_bind        => ['tcp://127.0.0.1:4245','tcp://10.0.0.1:4244'],
+      socket_bind     => 'unix:///var/run/docker.sock',
+      ip_forward      => true,
+      iptables        => true,
+      ip_masq         => true,
+      bridge          => br0,
+      fixed_cidr      => '10.21.1.0/24',
+      default_gateway => '10.21.0.1',
+    }
+
+```
 
 如前面的代码所示，Docker 的默认配置可以根据此模块提供的配置进行更改。
 
@@ -108,17 +162,60 @@ Puppet 的一个潜在用例是，它可以用于为 Jenkins 构建所需的 Doc
 
 `ubuntu:trusty docker`命令的替代方法如下：
 
-[PRE7]
+```
+ $ docker pull -t="trusty" ubuntu
+ docker::image { 'ubuntu':
+ image_tag => 'trusty'
+    }
+
+```
 
 甚至配置允许链接到 Dockerfile 以构建镜像。也可以通过订阅外部事件（如 Dockerfile 中的更改）来触发镜像的重建。我们订阅`vkohli/Dockerfile`文件夹中的更改，如下所示：
 
-[PRE8]
+```
+    docker::image { 'ubuntu':
+      docker_file => '/vkohli/Dockerfile'
+      subscribe => File['/vkohli/Dockerfile'],
+    }
+
+    file { '/vkohli/Dockerfile':
+      ensure => file,
+      source => 'puppet:///modules/someModule/Dockerfile',
+    }
+
+```
 
 ## 容器
 
 创建图像后，可以使用多个可选参数启动容器。我们可以使用基本的`docker run`命令获得类似的功能：
 
-[PRE9]
+```
+    docker::run { 'sampleapplication':
+      image           => 'base',
+      command         => '/bin/sh -c "while true; do echo hello world; sleep 1; 
+                         done"',
+      ports           => ['4445', '4555'],
+      expose          => ['4665', '4777'],
+      links           => ['mysql:db'],
+      net             => 'my-user-def',
+      volumes         => ['/var/lib/couchdb', '/var/log'],
+      volumes_from    => '6446ea52fbc9',
+      memory_limit    => '20m', # (format: '<number><unit>', where unit = b, k, m 
+                         or g)
+      cpuset          => ['0', '4'],
+      username        => 'sample',
+      hostname        => 'sample.com',
+      dns             => ['8.8.8.8', '8.8.4.4'],
+      restart_service => true,
+      privileged      => false,
+      pull_on_start   => false,
+      before_stop     => 'echo "The sample application completed"',
+      after           => [ 'container_b', 'mysql' ],
+      depends         => [ 'container_a', 'postgres' ],
+      extra_parameters => [ '--restart=always' ],
+    }
+
+```
 
 如下所示，我们还可以传递一些更多的参数，例如以下内容：
 
@@ -136,7 +233,16 @@ Puppet 的一个潜在用例是，它可以用于为 Jenkins 构建所需的 Doc
 
 最新的 Docker 版本已经官方支持网络：该模块现在公开了一种类型，Docker 网络，可以用来管理它们：
 
-[PRE10]
+```
+    docker_network { 'sample-net':
+      ensure   => present,
+      driver   => 'overlay',
+      subnet   => '192.168.1.0/24',
+      gateway  => '192.168.1.1',
+      ip_range => '192.168.1.4/32',
+    }
+
+```
 
 正如前面的代码所示，可以创建一个新的覆盖网络`sample-net`，并配置 Docker 守护程序以使用它。
 
@@ -146,27 +252,101 @@ Compose 是一个用于运行多个 Docker 容器应用程序的工具。使用 
 
 还可以添加一个 compose 文件，例如运行四个容器的缩放规则，如下面的代码片段所示。我们还可以提供网络和其他配置所需的附加参数：
 
-[PRE11]
+```
+    docker_compose { '/vkohli/docker-compose.yml':
+      ensure  => present,
+      scale   => {
+        'compose_test' => 4,
+      },
+      options => '--x-networking'
+    }
+
+```
 
 1.  如果 Puppet 程序未安装在您的计算机上，可以按以下方式进行安装：
 
-[PRE12]
+```
+ $ puppet module install garethr-docker
+ The program 'puppet' is currently not installed. On Ubuntu 14.04 the 
+        puppet program 
+        can be installed as shown below;
+ $ apt-get install puppet-common
+ Reading package lists... Done
+ Building dependency tree
+ Reading state information... Done
+ ...
+ The following extra packages will be installed:
+ Unpacking puppet-common (3.4.3-1ubuntu1.1) ...
+ Selecting previously unselected package ruby-rgen.
+ Preparing to unpack .../ruby-rgen_0.6.6-1_all.deb ...
+ ...
+
+```
 
 1.  在安装 Puppet 模块之后，可以按照所示安装`garethr-docker`模块：
 
-[PRE13]
+```
+ $ puppet module install garethr-docker
+ Notice: Preparing to install into /etc/puppet/modules ...
+ Notice: Downloading from https://forge.puppetlabs.com ...
+ Notice: Installing -- do not interrupt ...
+ /etc/puppet/modules
+        |__ **garethr-docker (v5.3.0)
+ |__ puppetlabs-apt (v2.2.2)
+ |__ puppetlabs-stdlib (v4.12.0)
+ |__ stahnma-epel (v1.2.2)
+
+```
 
 1.  我们将创建一个示例 hello world 应用程序，将使用 Puppet 进行部署：
 
-[PRE14]
+```
+ $ nano sample.pp 
+        include 'docker' 
+        docker::image { 'ubuntu': 
+          image_tag => 'precise' 
+        } 
+        docker::run { 'helloworld': 
+          image => 'ubuntu', 
+          command => '/bin/sh -c "while true; do echo hello world; sleep 1; 
+                     done"',  
+        }
+
+```
 
 1.  创建文件后，我们应用（运行）它：
 
-[PRE15]
+```
+ $ puppet apply sample.pp
+ Warning: Config file /etc/puppet/hiera.yaml not found, using Hiera 
+        defaults 
+        Warning: Scope(Apt::Source[docker]): $include_src is deprecated and 
+        will be removed in the next major release, please use $include => { 
+        'src' => false } instead 
+        ... 
+        Notice: /Stage[main]/Main/Docker::Run[helloworld]/Service[docker-
+        helloworld]/ensure: 
+        ensure changed 'stopped' to 'running' 
+        Notice: Finished catalog run in 0.80 seconds 
+        Post installation it can be listed as running container: 
+        $ docker ps 
+        CONTAINER ID        IMAGE               COMMAND 
+        CREATED             STATUS              PORTS               NAMES   
+        bd73536c7f64        ubuntu:trusty       "/bin/sh -c 'while tr"   5 
+        seconds ago       Up 5 seconds        helloworld
+
+```
 
 1.  我们可以将其附加到容器并查看输出：
 
-[PRE16]
+```
+ $ docker attach bd7
+ hello world
+ hello world
+ hello world
+ hello world
+
+```
 
 如前所示，容器可以部署在多个主机上，并且整个集群可以通过单个 Puppet 配置文件创建。
 
@@ -198,11 +378,39 @@ Ansible 还提供了一种自动化 Docker 容器的方式；它使我们能够�
 
 这是一个简单的 Docker compose 文件：
 
-[PRE17]
+```
+        wordpress:
+        image: wordpress
+        links:
+           - db:mysql
+        ports:
+           - 8080:80
+        db:
+        image: mariadb
+        environment:
+              MYSQL_ROOT_PASSWORD: sample
+
+```
 
 前面的 Docker compose 文件的 Ansible playbook 看起来很相似：
 
-[PRE18]
+```
+        # tasks file for ansible-dockerized-wordpress
+        - name: "Launching DB container"
+         docker:
+           name: db
+           image: mariadb
+           env:
+             MYSQL_ROOT_PASSWORD: esample
+        - name: "Launching wordpress container"
+         docker:
+           name: wordpress
+           image: wordpress
+           links:
+           - db:mysql
+           ports: 
+           - 8081:80
+```
 
 +   **docker_container**：通过提供启动、停止、创建和销毁 Docker 容器的能力，来管理 Docker 容器的生命周期。
 
@@ -214,19 +422,64 @@ Ansible 还提供了一种自动化 Docker 容器的方式；它使我们能够�
 
 Ansible Container 是一个工具，仅使用 Ansible playbooks 来编排和构建 Docker 镜像。可以通过创建 `virtualenv` 并使用 pip 安装的方式来安装 Ansible Container：
 
-[PRE19]
+```
+ $ virtualenv ansible-container
+ New python executable in /Users/vkohli/ansible-container/bin/python
+ Installing setuptools, pip, wheel...done.
+ vkohli-m01:~ vkohli$ source ansible-container/bin/activate
+ (ansible-container) vkohli-m01:~ vkohli$ pip install ansible-container
+ Collecting ansible-container
+ Using cached ansible-container-0.1.0.tar.gz
+ Collecting docker-compose==1.7.0 (from ansible-container)
+ Downloading docker-compose-1.7.0.tar.gz (141kB)
+ 100% |=============================| 143kB 1.1MB/s
+ Collecting docker-py==1.8.0 (from ansible-container)
+ ...
+ Downloading docker_py-1.8.0-py2.py3-none-any.whl (41kB)
+ Collecting cached-property<2,>=1.2.0 (from docker-compose==1.7.0->ansible-
+     container)
+
+```
 
 ## 故障排除提示
 
 如果您在安装 Ansible Container 方面遇到问题，可以通过从 GitHub 下载源代码来进行安装：
 
-[PRE20]
+```
+ $ git clone https://github.com/ansible/ansible-container.git
+ Cloning into 'ansible-container'...
+ remote: Counting objects: 2032, done.
+ remote: Total 2032 (delta 0), reused 0 (delta 0), pack-reused 2032
+ Receiving objects: 100% (2032/2032), 725.29 KiB | 124.00 KiB/s, done.
+ Resolving deltas: 100% (1277/1277), done.
+ Checking connectivity... done.
+ $ cd ansible-container/
+ $ ls
+ AUTHORS      container        docs     EXAMPLES.md  LICENSE
+ README.md         setup.py  update-authors.py
+ codecov.yml  CONTRIBUTORS.md  example  INSTALL.md   MANIFEST.in
+ requirements.txt  test
+ $ sudo python setup.py install
+ running install
+ running bdist_egg
+ running egg_info
+ creating ansible_container.egg-info
+ writing requirements to ansible_container.egg-info/requires.txt
+
+```
 
 Ansible Container 有以下命令可供开始使用：
 
 +   **ansible_container init**：此命令创建一个用于开始的 Ansible 文件目录。
 
-[PRE21]
+```
+ $ ansible-container init
+ Ansible Container initialized.
+ $ cd ansible
+ $ ls
+ container.yml    main.yml    requirements.tx
+
+```
 
 +   **ansible-container build**：这将从 Ansible 目录中的 playbooks 创建镜像
 
@@ -238,7 +491,16 @@ Ansible Container 有以下命令可供开始使用：
 
 如在 GitHub 上的示例中所示，可以在 `container.yml` 文件中以以下方式定义 Django 服务：
 
-[PRE22]
+```
+    version: "1"
+    services:
+      django:
+        image: centos:7
+        expose:
+          - "8080"
+        working_dir: '/django'
+
+```
 
 # Chef
 
@@ -258,7 +520,26 @@ Docker cookbook 可在 GitHub 上找到（[`github.com/chef-cookbooks/docker`](h
 
 以下是一个样本 Chef Docker 配方，可用作参考以使用 Chef 配方部署容器：
 
-[PRE23]
+```
+    # Pull latest nginx image
+    docker_image 'nginx' do
+      tag 'latest'
+      action :pull
+      notifies :redeploy, 'docker_container[sample_nginx]'
+    end
+
+    # Run container by exposing the ports
+    docker_container 'sample_nginx' do
+      repo 'nginx'
+      tag 'latest'
+      port '80:80'
+      host_name 'www'
+      domain_name 'computers.biz'
+      env 'FOO=bar'
+      volumes [ '/some/local/files/:/etc/nginx/conf.d' ]
+    end
+
+```
 
 # 总结
 

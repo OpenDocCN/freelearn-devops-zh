@@ -36,7 +36,12 @@ Visual Studio 2017 是所有.NET IDE 中对 Docker 支持最完整的。您可�
 
 只有一个编排器选项可供选择，即 Docker Compose。然后，Visual Studio 会生成一组 Docker 工件。在`Web`项目中，它创建一个看起来像这样的 Dockerfile：
 
-[PRE0]
+```
+FROM microsoft/aspnet:4.7.2-windowsservercore-1803
+ARG source
+WORKDIR /inetpub/wwwroot
+COPY ${source:-obj/Docker/publish} .
+```
 
 Dockerfile 语法有完整的智能感知支持，因此您可以将鼠标悬停在指令上并查看有关它们的信息，并使用*Ctrl* +空格键打开所有 Dockerfile 指令的提示。
 
@@ -54,11 +59,31 @@ Dockerfile 看起来很奇怪，因为它使用构建参数来指定源文件夹
 
 有一个基本的`docker-compose.yml`文件，其中将 Web 应用程序定义为一个服务，并包含 Dockerfile 的构建细节：
 
-[PRE1]
+```
+version: '3.4'
+
+services:
+  webapi.netfx:
+    image: ${DOCKER_REGISTRY-}webapinetfx
+    build:
+      context: .\WebApi.NetFx
+      dockerfile: Dockerfile
+```
 
 还有一个`docker-compose.override.yml`文件，它添加了端口和网络配置，以便可以在本地运行：
 
-[PRE2]
+```
+version: '3.4'
+
+services:
+  webapi.netfx:
+    ports:
+      - "80"
+networks:
+  default:
+    external:
+      name: nat
+```
 
 这里没有关于构建应用程序的内容，因为编译是在 Visual Studio 中完成而不是在 Docker 中。构建的应用程序二进制文件存储在您的开发计算机上，并复制到容器中。当您按下*F5*时，容器会启动，Visual Studio 会在容器的 IP 地址上启动浏览器。您可以在 Visual Studio 中的代码中添加断点，当您从浏览器导航到该代码时，将会进入 Visual Studio 中的调试器：
 
@@ -68,11 +93,29 @@ Dockerfile 看起来很奇怪，因为它使用构建参数来指定源文件夹
 
 在构建输出窗口中，您会看到类似以下的内容：
 
-[PRE3]
+```
+1>------ Build started: Project: WebApi.NetFx, Configuration: Debug Any CPU ------
+1>  WebApi.NetFx -> C:\Users\Administrator\source\repos\WebApi.NetFx\WebApi.NetFx\bin\WebApi.NetFx.dll
+2>------ Build started: Project: docker-compose, Configuration: Debug Any CPU ------
+2>docker-compose  -f "C:\Users\Administrator\source\repos\WebApi.NetFx\docker-compose.yml" -f "C:\Users\Administrator\source\repos\WebApi.NetFx\docker-compose.override.yml" -f "C:\Users\Administrator\source\repos\WebApi.NetFx\obj\Docker\docker-compose.vs.debug.g.yml" -p dockercompose1902887664513455984 --no-ansi up -d
+2>dockercompose1902887664513455984_webapi.netfx_1 is up-to-date
+========== Build: 2 succeeded, 0 failed, 0 up-to-date, 0 skipped ==========
+```
 
 您可以看到首先进行构建，然后使用`docker-compose up`启动容器。我们已经看到的`docker-compose.yml`和`docker-compose.override.yml`文件与一个名为`docker-compose.vs.debug.g.yml`的文件一起使用。Visual Studio 在构建时生成该文件，您需要显示解决方案中的所有文件才能看到它。它包含额外的 Docker Compose 设置：
 
-[PRE4]
+```
+services:
+  webapi.netfx:
+    image: webapinetfx:dev
+    build:
+      args:
+        source: obj/Docker/empty/
+    volumes:
+      - C:\Users\Administrator\source\repos\WebApi.NetFx\WebApi.NetFx:C:\inetpub\wwwroot
+      - C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE\Remote Debugger:C:\remote_debugger:ro
+    entrypoint: cmd /c "start /B C:\\ServiceMonitor.exe w3svc & C:\\remote_debugger\\x64\\msvsmon.exe /noauth /anyuser /silent /nostatus /noclrwarn /nosecuritywarn /nofirewallwarn /nowowwarn /timeout:2147483646"
+```
 
 这里发生了很多事情：
 
@@ -90,7 +133,17 @@ Dockerfile 看起来很奇怪，因为它使用构建参数来指定源文件夹
 
 当容器运行时，Visual Studio 会在容器内运行一些命令来设置权限，从而使远程调试工具能够工作。在 Docker 的输出窗口中，您会看到类似以下的内容：
 
-[PRE5]
+```
+========== Debugging ==========
+docker ps --filter "status=running" --filter "name=dockercompose1902887664513455984_webapi.netfx_" --format {{.ID}} -n 1
+3e2b6a7cb890
+docker inspect --format="{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}" 3e2b6a7cb890
+172.27.58.105 
+docker exec 3e2b6a7cb890 cmd /c "C:\Windows\System32\inetsrv\appcmd.exe set config -section:system.applicationHost/applicationPools /[name='DefaultAppPool'].processModel.identityType:LocalSystem /commit:apphost & C:\Windows\System32\inetsrv\appcmd.exe set config -section:system.webServer/security/authentication/anonymousAuthentication /userName: /commit:apphost"
+Applied configuration changes to section "system.applicationHost/applicationPools" for "MACHINE/WEBROOT/APPHOST" at configuration commit path "MACHINE/WEBROOT/APPHOST"
+Applied configuration changes to section "system.webServer/security/authentication/anonymousAuthentication" for "MACHINE/WEBROOT/APPHOST" at configuration commit path "MACHINE/WEBROOT/APPHOST"
+Launching http://172.27.58.105/ ...
+```
 
 这是 Visual Studio 获取使用 Docker Compose 启动的容器的 ID，然后运行`appcmd`来设置 IIS 应用程序池以使用管理员帐户，并设置 Web 服务器以允许匿名身份验证。
 
@@ -100,7 +153,19 @@ Dockerfile 看起来很奇怪，因为它使用构建参数来指定源文件夹
 
 为了支持外部循环，还有一个用于发布模式的 Docker Compose 覆盖文件，以及第二个隐藏的覆盖文件，`docker-compose.vs.release.g.yml`。
 
-[PRE6]
+```
+services:
+  webapi.netfx:
+    build:
+      args:
+        source: obj/Docker/publish/
+    volumes:
+      - C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE\Remote Debugger:C:\remote_debugger:ro
+    entrypoint: cmd /c "start /B C:\\ServiceMonitor.exe w3svc & C:\\remote_debugger\\x64\\msvsmon.exe /noauth /anyuser /silent /nostatus /noclrwarn /nosecuritywarn /nofirewallwarn /nowowwarn /timeout:2147483646"
+    labels:
+      com.microsoft.visualstudio.debuggee.program: "C:\\app\\WebApi.NetFx.dll"
+      com.microsoft.visualstudio.debuggee.workingdirectory: "C:\\app"
+```
 
 这里的区别在于没有将本地源位置映射到容器中的 Web 根目录。在发布模式下编译时，源参数的值是包含 Web 应用程序的发布位置。Visual Studio 通过将发布的应用程序打包到容器中来构建发布映像。
 
@@ -120,21 +185,54 @@ Visual Studio 2015 中的远程调试器并不是很便携。你可以从主机�
 
 我在一个名为`ch11-webapi-vs2015`的文件夹中设置了这个。在这个镜像的 Dockerfile 中，我使用了一个构建时参数来有条件地安装调试器，如果`configuration`的值设置为`debug`。这意味着我可以在本地构建时安装调试器，但当我为部署构建时，镜像就不会有调试器了：
 
-[PRE7]
+```
+ARG configuration
+
+ RUN if ($env:configuration -eq 'debug') `
+ { Invoke-WebRequest -OutFile c:\rtools_setup_x64.exe -UseBasicParsing -Uri http://download.microsoft.com/download/1/2/2/1225c23d-3599-48c9-a314-f7d631f43241/rtools_setup_x64.exe; `
+ Start-Process c:\rtools_setup_x64.exe -ArgumentList '/install', '/quiet' -NoNewWindow -Wait }
+```
 
 当以调试模式运行时，我使用与 Visual Studio 2017 相同的方法将主机上的源目录挂载到容器中，但我创建了一个自定义网站，而不是使用默认的网站：
 
-[PRE8]
+```
+ARG source
+WORKDIR C:\web-app
+RUN Remove-Website -Name 'Default Web Site';`
+New-Website -Name 'web-app' -Port 80 -PhysicalPath 'C:\web-app'
+COPY ${source:-.\Docker\publish} .
+```
 
 `COPY`指令中的`:-`语法指定了一个默认值，如果未提供`source`参数。默认值是从发布的 web 应用程序复制，除非在`build`命令中指定了它。我有一个核心的`docker-compose.yml`文件，其中包含基本的服务定义，还有一个`docker-compose.debug.yml`文件，它挂载主机源位置，映射调试器端口，并指定`configuration`变量。
 
-[PRE9]
+```
+services:
+  ch11-webapi-vs2015:
+    build:
+      context: ..\
+      dockerfile: .\Docker\Dockerfile
+    args:
+      - source=.\Docker\empty
+      - configuration=debug
+  ports:
+    - "3702/udp"
+    - "4020"
+    - "4021"
+  environment:
+    - configuration=debug
+  labels:
+    - "com.microsoft.visualstudio.targetoperatingsystem=windows"
+  volumes:
+    - ..\WebApi.NetFx:C:\web-app
+```
 
 在 compose 文件中指定的标签将一个键值对附加到容器。该值在容器内部不可见，不像环境变量，但对主机上的外部进程可见。在这种情况下，它被 Visual Studio 用来识别容器的操作系统。
 
 要以调试模式启动应用程序，我使用两个 Compose 文件来启动应用程序：
 
-[PRE10]
+```
+docker-compose -f docker-compose.yml -f docker-compose.debug.yml up -d
+```
 
 现在，容器正在使用**Internet Information Services** (**IIS**)在容器内部运行我的 web 应用程序，并且 Visual Studio 远程调试器代理也在运行。我可以连接到 Visual Studio 2015 中的远程进程，并使用容器的 IP 地址：
 
@@ -158,7 +256,10 @@ Docker 扩展添加了一些非常有用的功能，包括将 Dockerfiles 和 Do
 
 以下是.NET Core Web API 项目的生成的 Dockerfile：
 
-[PRE11]
+```
+FROM microsoft/dotnet:2.2-aspnetcore-runtime-nanoserver-1803 AS base WORKDIR /app EXPOSE 80 FROM microsoft/dotnet:2.2-sdk-nanoserver-1803 AS build WORKDIR /src COPY ["WebApi.NetCore.csproj", "./"] RUN dotnet restore "./WebApi.NetCore.csproj" COPY . . WORKDIR  "/src/." RUN dotnet build "WebApi.NetCore.csproj" -c Release -o /app FROM build AS publish RUN dotnet publish "WebApi.NetCore.csproj" -c Release -o /app  FROM base AS final WORKDIR /app COPY --from=publish /app .
+ENTRYPOINT ["dotnet", "WebApi.NetCore.dll"]
+```
 
 这是使用旧版本的.NET Core 基础映像，因此第一步是将`FROM`行中的`nanoserver-1803`标签替换为`nanoserver-1809`。该扩展程序生成了一个多阶段的 Dockerfile，使用 SDK 映像进行构建和发布阶段，以及 ASP.NET Core 运行时用于最终映像。VS Code 在 Dockerfile 中生成了比实际需要更多的阶段，但这是一个设计选择。
 
@@ -170,21 +271,42 @@ Visual Studio Code 具有非常灵活的系统，可以运行和调试您的项�
 
 在`ch11-webapi-vscode`文件夹中，我有一个示例.NET Core 项目，可以在 Docker 中运行该应用程序并附加调试器。它使用与 Visual Studio 2017 相同的方法。.NET Core 的调试器称为`vsdbg`，并且与 Visual Studio Code 中的 C#扩展一起安装，因此我使用`docker-compose.debug.yml`文件将`vsdbg`文件夹从主机挂载到容器中，以及使用源位置：
 
-[PRE12]
+```
+volumes:
+ - .\bin\Debug\netcoreapp2.2:C:\app
+ - ~\.vscode\extensions\ms-vscode.csharp-1.17.1\.debugger:C:\vsdbg:ro
+```
 
 此设置使用特定版本的 C#扩展。在我的情况下是 1.17.1，但您可能有不同的版本。检查您的用户目录中`.vscode`文件夹中`vsdbg.exe`的位置。
 
 当您通过使用调试覆盖文件在 Docker Compose 中运行应用程序时，它会启动.NET Core 应用程序，并使来自主机的调试器可用于在容器中运行。这是在 Visual Studio Code 的`launch.json`文件中配置的调试体验。`Debug Docker container`配置指定要调试的应用程序类型和要附加的进程的名称：
 
-[PRE13]
+```
+  "name": "Debug Docker container",
+  "type": "coreclr",
+  "request": "attach",
+  "sourceFileMap": {
+    "C:\\app": "${workspaceRoot}"
+ }, "processName": "dotnet"
+```
 
 此配置还将容器中的应用程序根映射到主机上的源代码位置，因此调试器可以将正确的源文件与调试文件关联起来。此外，调试器配置指定了如何通过在命名容器上运行`docker container exec`命令来启动调试器：
 
-[PRE14]
+```
+"pipeTransport": {
+  "pipeCwd": "${workspaceRoot}",
+  "pipeProgram": "docker",
+  "pipeArgs": [
+   "exec", "-i", "webapinetcore_webapi_1"
+ ],  "debuggerPath": "C:\\vsdbg\\vsdbg.exe",
+  "quoteArgs": false }
+```
 
 要调试我的应用程序，我需要使用 Docker Compose 和覆盖文件在调试配置中构建和运行它：
 
-[PRE15]
+```
+docker-compose -f .\docker-compose.yml -f .\docker-compose.debug.yml build docker-compose -f .\docker-compose.yml -f .\docker-compose.debug.yml up -d 
+```
 
 然后，我可以使用调试操作并选择调试 Docker 容器来激活调试器：
 
@@ -226,37 +348,83 @@ Prometheus 是一个开源的监控解决方案。它是一个灵活的组件，
 
 在`dockeronwindows/ch11-api-with-metrics`镜像中，我已经将 Prometheus 支持添加到了一个 Web API 项目中。配置和启动指标端点的代码在`PrometheusServer`类中。
 
-[PRE16]
+```
+public  static  void  Start() { _Server  =  new  MetricServer(50505);
+  _Server.Start(); }
+```
 
 这将启动一个新的`MetricServer`实例，监听端口`50505`，并运行`NuGet`包提供的默认一组.NET 统计和性能计数器收集器。这些是按需收集器，这意味着它们在 Prometheus 服务器调用端点时提供指标。
 
 `MetricServer`类还将返回您在应用程序中设置的任何自定义指标。Prometheus 支持不同类型的指标。最简单的是计数器，它只是一个递增的计数器—Prometheus 查询您的应用程序的指标值，应用程序返回每个计数器的单个数字。在`ValuesController`类中，我设置了一些计数器来记录对 API 的请求和响应：
 
-[PRE17]
+```
+private  Counter  _requestCounter  =  Metrics.CreateCounter("ValuesController_Requests", "Request count", "method", "url"); private  Counter  _responseCounter  =  Metrics.CreateCounter("ValuesController_Responses", "Response count", "code", "url");
+```
 
 当请求进入控制器时，控制器动作方法通过在计数器对象上调用`Inc()`方法来增加 URL 的请求计数，并增加响应代码的状态计数：
 
-[PRE18]
+```
+public IHttpActionResult Get()
+{
+  _requestCounter.Labels("GET", "/").Inc();
+  _responseCounter.Labels("200", "/").Inc();
+  return Ok(new string[] { "value1", "value2" });
+}
+```
 
 Prometheus 还有各种其他类型的指标，您可以使用它们来记录有关应用程序的关键信息—计数器只增加，但是仪表可以增加和减少，因此它们对于记录快照非常有用。Prometheus 记录每个指标值及其时间戳和您提供的一组任意标签。在这种情况下，我将添加`URL`和`HTTP`方法到请求计数，以及 URL 和状态代码到响应计数。我可以使用这些在 Prometheus 中聚合或过滤指标。
 
 我在 Web API 控制器中设置的计数器为我提供了一组自定义指标，显示了哪些端点正在使用以及响应的状态。这些由服务器组件在`NuGet`包中公开，以及用于记录系统性能的默认指标。在此应用的 Dockerfile 中，还有两行额外的代码用于 Prometheus 端点：
 
-[PRE19]
+```
+EXPOSE 50505
+RUN netsh http add urlacl url=http://+:50505/metrics user=BUILTIN\IIS_IUSRS; `
+    net localgroup 'Performance Monitor Users' 'IIS APPPOOL\DefaultAppPool' /add
+```
 
 第一行只是暴露了我用于度量端点的自定义端口。第二行设置了该端点所需的权限。在这种情况下，度量端点托管在 ASP.NET 应用程序内部，因此 IIS 用户帐户需要权限来监听自定义端口并访问系统性能计数器。
 
 您可以按照通常的方式构建 Dockerfile 并从镜像运行容器，即通过使用 `-P` 发布所有端口：
 
-[PRE20]
+```
+docker container run -d -P --name api dockeronwindows/ch11-api-with-metrics:2e
+```
 
 为了检查度量是否被记录和暴露，我可以运行一些 PowerShell 命令来抓取容器的端口，然后对 API 端点进行一些调用并检查度量：
 
-[PRE21]
+```
+$apiPort = $(docker container port api 80).Split(':')[1]
+for ($i=0; $i -lt 10; $i++) {
+ iwr -useb "http://localhost:$apiPort/api/values"
+}
+
+$metricsPort = $(docker container port api 50505).Split(':')[1]
+(iwr -useb "http://localhost:$metricsPort/metrics").Content
+```
 
 您将看到按名称和标签分组的度量的纯文本列表。每个度量还包含 Prometheus 的元数据，包括度量名称、类型和友好描述：
 
-[PRE22]
+```
+# HELP process_num_threads Total number of threads
+# TYPE process_num_threads gauge
+process_num_threads 27
+# HELP dotnet_total_memory_bytes Total known allocated memory
+# TYPE dotnet_total_memory_bytes gauge
+dotnet_total_memory_bytes 8519592
+# HELP process_virtual_memory_bytes Virtual memory size in bytes.
+# TYPE process_virtual_memory_bytes gauge
+process_virtual_memory_bytes 2212962820096
+# HELP process_cpu_seconds_total Total user and system CPU time spent in seconds.
+# TYPE process_cpu_seconds_total counter
+process_cpu_seconds_total 1.734375
+...
+# HELP ValuesController_Requests Request count
+# TYPE ValuesController_Requests counter
+ValuesController_Requests{method="GET",url="/"} 10
+# HELP ValuesController_Responses Response count
+# TYPE ValuesController_Responses counter
+ValuesController_Responses{code="200",url="/"} 10
+```
 
 完整的输出要大得多。在这个片段中，我展示了线程总数、分配的内存和 CPU 使用率，这些都来自容器内部的标准 Windows 和 .NET 性能计数器。我还展示了自定义的 HTTP 请求和响应计数器。
 
@@ -272,7 +440,10 @@ Prometheus 还有各种其他类型的指标，您可以使用它们来记录有
 
 我在第十章中为 NerdDinner Web 应用程序添加了一个 Prometheus 端点，*使用 Docker 支持持续部署流水线*，而没有更改任何代码。在`dockeronwindows/ch11-nerd-dinner-web-with-metrics`镜像中，我添加了一个导出 ASP.NET 性能计数器并提供指标端点的控制台应用程序。ASP.NET 导出程序应用程序来自 Docker Hub 上的公共镜像。NerdDinner 的完整 Dockerfile 复制了导出程序的二进制文件，并为容器设置了启动命令：
 
-[PRE23]
+```
+#escape=` FROM dockeronwindows/ch10-nerd-dinner-web:2e EXPOSE 50505 ENV COLLECTOR_CONFIG_PATH="w3svc-collectors.json"  WORKDIR C:\aspnet-exporter COPY --from=dockersamples/aspnet-monitoring-exporter:4.7.2-windowsservercore-ltsc2019 C:\aspnet-exporter . ENTRYPOINT ["powershell"] CMD Start-Service W3SVC; ` Invoke-WebRequest http://localhost -UseBasicParsing | Out-Null; `
+ Start-Process -NoNewWindow C:\aspnet-exporter\aspnet-exporter.exe; ` netsh http flush logbuffer | Out-Null; `  Get-Content -path 'C:\iislog\W3SVC\u_extend1.log' -Tail 1 -Wait 
+```
 
 `aspnet-exporter.exe`控制台应用程序实现了一个自定义的指标收集器，它读取系统上运行的命名进程的性能计数器值。它使用与 NuGet 包中默认收集器相同的一组计数器，但它针对不同的进程。导出程序读取 IIS `w3wp.exe`进程的性能计数器，并配置为导出关键的 IIS 指标。
 
@@ -280,7 +451,9 @@ Prometheus 还有各种其他类型的指标，您可以使用它们来记录有
 
 控制台导出程序是一个轻量级组件。它在容器启动时启动，并在容器运行时保持运行。只有在调用指标端点时才使用计算资源，因此在 Prometheus 计划运行时影响最小。我按照通常的方式运行 NerdDinner（这里，我只运行 ASP.NET 组件，而不是完整的解决方案）：
 
-[PRE24]
+```
+docker container run -d -P --name nerd-dinner dockeronwindows/ch11-nerd-dinner-web-with-metrics:2e
+```
 
 我可以按照通常的方式获取容器端口并浏览 NerdDinner。然后，我还可以浏览导出程序端口上的指标端点，该端点发布 IIS 性能计数器：
 
@@ -302,11 +475,23 @@ Prometheus 的 Dockerfile 并没有做任何在本书中已经看到过很多次
 
 我需要为调度器添加自己的配置，我可以通过运行一个容器并挂载一个卷来完成，或者在集群模式下使用 Docker 配置对象。我的度量端点的配置相当静态，因此最好将一组默认配置捆绑到我的自己的 Prometheus 镜像中。我已经在`dockeronwindows/ch11-prometheus:2e`中做到了这一点，它有一个非常简单的 Dockerfile：
 
-[PRE25]
+```
+FROM dockersamples/aspnet-monitoring-prometheus:2.3.1-windowsservercore-ltsc2019 COPY prometheus.yml /etc/prometheus/prometheus.yml
+```
 
 我已经有从我的仪器化 API 和 NerdDinner web 镜像运行的容器，这些容器公开了供 Prometheus 消费的度量端点。为了在 Prometheus 中监视它们，我需要在`prometheus.yml`配置文件中指定度量位置。Prometheus 将按可配置的时间表轮询这些端点。它称之为**抓取**，我已经在`scrape_configs`部分中添加了我的容器名称和端口：
 
-[PRE26]
+```
+global:
+  scrape_interval: 5s   scrape_configs:
+ - job_name: 'Api'
+    static_configs:
+     - targets: ['api:50505']
+
+ - job_name: 'NerdDinnerWeb'
+    static_configs:
+     - targets: ['nerd-dinner:50505']
+```
 
 要监视的每个应用程序都被指定为一个作业，每个端点都被列为一个目标。Prometheus 将在同一 Docker 网络上的容器中运行，因此我可以通过容器名称引用目标。
 
@@ -314,7 +499,9 @@ Prometheus 的 Dockerfile 并没有做任何在本书中已经看到过很多次
 
 现在，我可以在容器中启动 Prometheus 服务器：
 
-[PRE27]
+```
+docker container run -d -P --name prometheus dockeronwindows/ch11-prometheus:2e
+```
 
 Prometheus 轮询所有配置的指标端点并存储数据。您可以将 Prometheus 用作丰富 UI 组件（如 Grafana）的后端，将所有运行时 KPI 构建到单个仪表板中。对于基本监控，Prometheus 服务器在端口`9090`上有一个简单的 Web UI。
 
@@ -342,7 +529,11 @@ Grafana 是用于可视化数据的 Web UI。它可以从许多数据源中读�
 
 通常，您会将 Grafana 添加到容器化应用程序中，以呈现来自 Prometheus 的数据。您也可以在容器中运行 Grafana，并且可以打包您的 Docker 镜像，以便内置仪表板、用户帐户和数据库连接。我已经为本章的最后部分做了这样的处理，在`dockeronwindows/ch11-grafana:2e`镜像中。Grafana 团队没有在 Docker Hub 上发布 Windows 镜像，因此我的 Dockerfile 从示例镜像开始，并添加了我设置的所有配置。
 
-[PRE28]
+```
+# escape=` FROM dockersamples/aspnet-monitoring-grafana:5.2.1-windowsservercore-ltsc2019 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"] COPY datasource-prometheus.yaml \grafana\conf\provisioning\datasources\ COPY dashboard-provider.yaml \grafana\conf\provisioning\dashboards\ COPY dashboard.json \var\lib\grafana\dashboards\
+
+COPY init.ps1 . RUN .\init.ps1 
+```
 
 Grafana 有两种自动部署方法。第一种只是使用已知位置的文件，我用它来设置 Prometheus 数据源、仪表板和仪表板提供程序，它只是将 Grafana 指向仪表板目录。第二种使用 REST API 进行身份验证和授权，我的`init.ps1`脚本使用它来创建一个只读用户，该用户可以访问仪表板。
 

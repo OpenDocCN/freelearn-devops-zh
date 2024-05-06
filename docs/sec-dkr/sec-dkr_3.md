@@ -78,19 +78,40 @@ Linux 内核允许加载模块，而无需重新编译或重新启动，这在�
 
 默认情况下，在某些系统上，如果启用了 SSH，root 用户有能力 SSH 到机器上，我们可以从一些 Linux 系统的`/etc/ssh/sshd_config`文件的部分中看到如下内容：
 
-[PRE0]
+```
+# Authentication:
+
+#LoginGraceTime 2m
+#PermitRootLogin no
+#StrictModes yes
+#MaxAuthTries 6
+#MaxSessions 10
+```
 
 从这里你可以看到，`PermitRootLogin no`部分被用`#`符号注释掉，这意味着这行不会被解释。要更改这个，只需删除`#`符号，保存文件并重新启动服务。该文件的部分现在应该类似于以下代码：
 
-[PRE1]
+```
+# Authentication:
+
+#LoginGraceTime 2m
+PermitRootLogin no
+#StrictModes yes
+#MaxAuthTries 6
+#MaxSessions 10
+```
 
 现在，您可能希望重新启动 SSH 服务以使这些更改生效，如下所示：
 
-[PRE2]
+```
+$ sudo service sshd restart
+
+```
 
 +   限制其在控制台之外的登录能力。在大多数 Linux 系统上，有一个文件在`/etc/default/login`中，在该文件中，有一行类似以下的内容：
 
-[PRE3]
+```
+#CONSOLE=/dev/console
+```
 
 类似于前面的例子，我们需要通过删除`#`来取消注释此行，以使其生效。这将只允许 root 用户在`console`上登录，而不是通过 SSH 或其他方法。
 
@@ -98,11 +119,15 @@ Linux 内核允许加载模块，而无需重新编译或重新启动，这在�
 
 `su`命令允许您以 root 用户身份登录并能够发出 root 级别的命令，从而完全访问整个系统。为了限制谁可以使用此命令，有一个文件位于`/etc/pam.d/su`，在这个文件中，您会看到类似以下的一行：
 
-[PRE4]
+```
+auth required /lib/security/pam_wheel.so use_uid
+```
 
 您还可以选择这里的以下代码行，具体取决于您的 Linux 版本：
 
-[PRE5]
+```
+auth required pam_wheel.so use_uid
+```
 
 检查 wheel 成员资格将根据当前用户 ID 来执行对`su`命令的使用能力。
 
@@ -186,7 +211,10 @@ Lynis 是一个用于审核系统安全性的开源工具。它直接在主机�
 
 Lynis 是一个 shell 脚本编写的工具，因此，它与在系统上复制和粘贴以及运行简单命令一样容易：
 
-[PRE6]
+```
+./lynis audit system
+
+```
 
 在运行时，将执行以下操作：
 

@@ -16,7 +16,11 @@
 
 本章中的所有命令都可以在`07-logging.sh` ([`gist.github.com/vfarcic/74774240545e638b6cf0e01460894f34`](https://gist.github.com/vfarcic/74774240545e638b6cf0e01460894f34)) Gist 中找到。
 
-[PRE0]
+```
+ 1  cd k8s-specs
+ 2
+ 3  git pull
+```
 
 这一次，集群的要求发生了变化。我们需要比以前更多的内存。主要问题是 ElasticSearch 非常耗资源。
 
@@ -52,7 +56,22 @@
 
 我们出发了。
 
-[PRE1]
+```
+ 1  GD5_ADDR=go-demo-5.$LB_IP.nip.io
+ 2
+ 3  echo $GD5_ADDR
+ 4
+ 5  helm upgrade -i go-demo-5 \
+ 6      https://github.com/vfarcic/go-demo-5/releases/download/
+    0.0.1/go-demo-5-0.0.1.tgz \
+ 7      --namespace go-demo-5 \
+ 8      --set ingress.host=$GD5_ADDR
+ 9
+10  kubectl -n go-demo-5 \
+11    rollout status deployment go-demo-5
+12
+13  curl "http://$GD5_ADDR/demo/hello"
+```
 
 我们部署了`go-demo-5`并发送了一个`curl`请求来确认它确实在运行。
 
@@ -60,11 +79,25 @@
 
 要查看由 Kubernetes 生成并限于特定资源的“日志”，我们需要检索事件。
 
-[PRE2]
+```
+ 1  kubectl -n go-demo-5 \
+ 2    describe sts go-demo-5-db
+```
 
 输出仅限于“事件”部分的消息如下。
 
-[PRE3]
+```
+...
+Events:
+... Message
+... -------
+... create Claim go-demo-5-db-go-demo-5-db-0 Pod go-demo-5-db-0 in StatefulSet go-demo-5-db success
+... create Pod go-demo-5-db-0 in StatefulSet go-demo-5-db successful
+... create Claim go-demo-5-db-go-demo-5-db-1 Pod go-demo-5-db-1 in StatefulSet go-demo-5-db success
+... create Pod go-demo-5-db-1 in StatefulSet go-demo-5-db successful
+... create Claim go-demo-5-db-go-demo-5-db-2 Pod go-demo-5-db-2 in StatefulSet go-demo-5-db success
+... create Pod go-demo-5-db-2 in StatefulSet go-demo-5-db successful
+```
 
 你在面前看到的事件，在某种程度上，是由 Kubernetes 生成的日志，这里是`go-demo-5-db` StatefulSet。
 
@@ -78,13 +111,19 @@
 
 我们部署了几个`go-demo-5` API 的副本和几个 MongoDB 的副本。如果我们怀疑其中一个存在问题，我们如何探索它们的日志？我们可以执行像下面这样的`kubectl logs`命令。
 
-[PRE4]
+```
+ 1  kubectl -n go-demo-5 \
+ 2      logs go-demo-5-db-0 -c db
+```
 
 输出显示了`go-demo-5-db-0` Pod 内`db`容器的日志。
 
 虽然先前的输出仅限于单个容器和单个 Pod，但我们可以使用标签从多个 Pod 中检索日志。
 
-[PRE5]
+```
+ 1  kubectl -n go-demo-5 \
+ 2      logs -l app=go-demo-5
+```
 
 这一次，输出来自所有标签为`app`设置为`go-demo-5`的 Pod。我们扩大了我们的结果，这通常是我们所需要的。如果我们知道`go-demo-5`的 Pod 存在问题，我们需要弄清楚问题是存在于多个 Pod 中还是仅限于一个 Pod。虽然先前的命令允许我们扩大搜索范围，但如果日志中有可疑的内容，我们将不知道其来源。从多个 Pod 中检索日志并不能让我们更接近知道哪些 Pod 的行为不端。
 
@@ -134,7 +173,9 @@ Papertrail 具有实时跟踪、按时间戳过滤、强大的搜索查询、漂
 
 我们需要做的第一件事是注册，或者，如果这不是您第一次尝试 Papertrail，那就登录。
 
-[PRE6]
+```
+ 1  open "https://papertrailapp.com/"
+```
 
 请按照说明注册或登录，如果您已经在他们的系统中有用户。
 
@@ -148,7 +189,9 @@ Papertrail 具有实时跟踪、按时间戳过滤、强大的搜索查询、漂
 
 让我们去到起始屏幕，除非您已经在那里。
 
-[PRE7]
+```
+ 1  open "https://papertrailapp.com/start"
+```
 
 如果您被重定向到欢迎屏幕，则表示您未经过身份验证（您的会话可能已过期）。登录并重复上一个命令以返回到起始屏幕。
 
@@ -158,7 +201,11 @@ Papertrail 具有实时跟踪、按时间戳过滤、强大的搜索查询、漂
 
 请注意屏幕顶部的`Your logs will go to logsN.papertrailapp.com:NNNNN and appear in Events`消息。我们很快就会需要那个地址，所以最好将这些值存储在环境变量中。
 
-[PRE8]
+```
+ 1  PT_HOST=[...]
+ 2
+ 3  PT_PORT=[...]
+```
 
 请用主机替换第一个`[...]`。它应该类似于`logsN.papertrailapp.com`，其中`N`是 Papertrail 分配给您的数字。第二个`[...]`应该用前面提到的消息中的端口替换。
 
@@ -166,13 +213,25 @@ Papertrail 具有实时跟踪、按时间戳过滤、强大的搜索查询、漂
 
 由于我已经声称大多数供应商都采用了 Fluentd 来收集和发送日志到他们的解决方案，因此 Papertrail 也推荐使用它。SolarWinds（Papertrail 的母公司）的人员创建了一个带有定制 Fluentd 的镜像，我们可以使用。反过来，我创建了一个 YAML 文件，其中包含我们运行其镜像所需的所有资源。
 
-[PRE9]
+```
+ 1  cat logging/fluentd-papertrail.yml
+```
 
 正如您所看到的，YAML 定义了一个带有 ServiceAccount、SolarWind 的 Fluentd 和使用一些环境变量来指定日志应该发送到的主机和端口的 ConfigMap 的 DaemonSet。
 
 在我们应用之前，我们需要更改 YAML 中的`logsN.papertrailapp.com`和`NNNNN`条目。此外，我更喜欢在`logging`命名空间中运行所有与日志相关的资源，所以我们也需要更改那个。
 
-[PRE10]
+```
+ 1  cat logging/fluentd-papertrail.yml \
+ 2      | sed -e \
+ 3      "s@logsN.papertrailapp.com@$PT_HOST@g" \
+ 4      | sed -e \
+ 5      "s@NNNNN@$PT_PORT@g" \
+ 6      | kubectl apply -f - --record
+ 7
+ 8  kubectl -n logging \
+ 9    rollout status ds fluentd-papertrail
+```
 
 现在我们在集群中运行 Fluentd，并且它配置为将日志转发到我们的 Papertrail 帐户，我们应该转回到它的 UI。
 
@@ -182,21 +241,49 @@ Papertrail 具有实时跟踪、按时间戳过滤、强大的搜索查询、漂
 
 接下来，我们将生成一些日志，并探索它们在 Papertrail 中的显示方式。
 
-[PRE11]
+```
+ 1  cat logging/logger.yml
+ 2  apiVersion: v1
+ 3  kind: Pod
+ 4  metadata:
+ 5    name: random-logger
+ 6  spec:
+ 7    containers:
+ 8    - name: random-logger
+ 9      image: chentex/random-logger
+```
 
 该 Pod 使用`chentex/random-logger`图像，其目的是单一的。它定期输出随机日志条目。
 
 让我们创建`random-logger`。
 
-[PRE12]
+```
+ 1  kubectl create -f logging/logger.yml
+```
 
 请等待一两分钟积累一些日志条目。
 
-[PRE13]
+```
+ 1  kubectl logs random-logger
+```
 
 输出应该类似于接下来的内容。
 
-[PRE14]
+```
+...
+2018-12-06T17:21:15+0000 ERROR something happened in this execution.
+2018-12-06T17:21:20+0000 DEBUG first loop completed.
+2018-12-06T17:21:24+0000 ERROR something happened in this execution.
+2018-12-06T17:21:27+0000 ERROR something happened in this execution.
+2018-12-06T17:21:29+0000 WARN variable not in use.
+2018-12-06T17:21:31+0000 ERROR something happened in this execution.
+2018-12-06T17:21:33+0000 DEBUG first loop completed.
+2018-12-06T17:21:35+0000 WARN variable not in use.
+2018-12-06T17:21:40+0000 WARN variable not in use.
+2018-12-06T17:21:43+0000 INFO takes the value and converts it to string.
+2018-12-06T17:21:44+0000 INFO takes the value and converts it to string.
+2018-12-06T17:21:47+0000 DEBUG first loop completed.
+```
 
 正如你所看到的，容器正在输出随机条目，其中一些是`ERROR`，其他的是`DEBUG`，`WARN`和`INFO`。消息也是随机的。毕竟，这不是一个真正的应用程序，而是一个产生日志条目的简单图像，我们可以用来探索我们的日志解决方案。
 
@@ -218,7 +305,10 @@ Papertrail 具有实时跟踪、按时间戳过滤、强大的搜索查询、漂
 
 可能没有必要更详细地探索 Papertrail。它是直观的，易于使用，并且有很好的文档服务。我相信您如果选择使用它，会弄清楚细节。现在，我们将在进入探索替代方案之前删除 DaemonSet 和 ConfigMap。
 
-[PRE15]
+```
+ 1  kubectl delete \
+ 2    -f logging/fluentd-papertrail.yml
+```
 
 接下来，我们将探讨云提供商中可用的日志记录解决方案。随时可以直接跳转到*GCP Stackdriver*、*AWS CloudWatch*或*Azure Log Analytics*。如果您不使用这三个提供商中的任何一个，可以完全跳过它们，直接转到*通过 Elasticsearch、Fluentd 和 Kibana 探索集中式日志记录*子章节。
 
@@ -228,11 +318,25 @@ Papertrail 具有实时跟踪、按时间戳过滤、强大的搜索查询、漂
 
 让我们描述一下 GKE 的 Fluentd DaemonSet，并看看我们可能会找到的一些有用信息。
 
-[PRE16]
+```
+ 1  kubectl -n kube-system \
+ 2    describe ds -l k8s-app=fluentd-gcp
+```
 
 输出，仅限相关部分，如下所示。
 
-[PRE17]
+```
+...
+Pod Template:
+  Labels:     k8s-app=fluentd-gcp
+              kubernetes.io/cluster-service=true
+              version=v3.1.0
+...
+  Containers:
+   fluentd-gcp:
+    Image: gcr.io/stackdriver-agents/stackdriver-logging-agent:0.3-1.5.34-1-k8s-1
+    ...
+```
 
 我们可以看到，除其他外，DaemonSet 的 Pod 模板具有标签`k8s-app=fluentd-gcp`。我们很快就会需要它。此外，我们可以看到其中一个容器是基于`stackdriver-logging-agent`镜像的。就像 Papertrail 扩展了 Fluentd 一样，Google 也做了同样的事情。
 
@@ -240,11 +344,18 @@ Papertrail 具有实时跟踪、按时间戳过滤、强大的搜索查询、漂
 
 UI 确实可用，但在我们看到它实际运行之前，我们将输出 Fluentd 容器的日志，并验证一切是否按预期工作。
 
-[PRE18]
+```
+ 1  kubectl -n kube-system \
+ 2    logs -l k8s-app=fluentd-gcp \
+ 3    -c fluentd-gcp
+```
 
 除非您已经启用了 Stackdriver Logging API，否则输出应该至少包含一个类似于以下内容的消息。
 
-[PRE19]
+```
+...
+18-12-12 21:36:41 +0000 [warn]: Dropping 1 log message(s) error="7:Stackdriver Logging API has not been used in project 152824630010 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/logging.googleapis.com/overview?project=152824630010 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry." error_code="7"
+```
 
 幸运的是，警告已经告诉我们不仅问题是什么，还告诉了我们该怎么做。在您喜欢的浏览器中打开日志条目中的链接，然后单击“启用”按钮。
 
@@ -252,7 +363,9 @@ UI 确实可用，但在我们看到它实际运行之前，我们将输出 Flue
 
 让我们看看 Stackdriver 用户界面。
 
-[PRE20]
+```
+ 1  open "https://console.cloud.google.com/logs/viewer"
+```
 
 请在标签或文本搜索字段中键入`random-logger`，然后从下拉列表中选择 GKE 容器。
 
@@ -280,33 +393,79 @@ UI 确实可用，但在我们看到它实际运行之前，我们将输出 Flue
 
 如果我们逆向工程 IAM 政策的创建路径，我们首先需要的是配置文件。
 
-[PRE21]
+```
+ 1  PROFILE=$(aws iam \
+ 2    list-instance-profiles \
+ 3    | jq -r \
+ 4    ".InstanceProfiles[]\
+ 5    .InstanceProfileName" \
+ 6    | grep eksctl-$NAME-nodegroup-0)
+ 7
+ 8  echo $PROFILE
+```
 
 输出应该与接下来的内容类似。
 
-[PRE22]
+```
+eksctl-devops25-nodegroup-0-NodeInstanceProfile-SBTFOBLRAKJF
+```
 
 现在我们知道了配置文件，我们可以使用它来检索角色。
 
-[PRE23]
+```
+ 1  ROLE=$(aws iam get-instance-profile \
+ 2    --instance-profile-name $PROFILE \
+ 3    | jq -r ".InstanceProfile.Roles[] \
+ 4    | .RoleName")
+ 5
+ 6  echo $ROLE
+```
 
 有了角色，我们终于可以创建政策了。我已经创建了一个我们可以使用的，让我们快速看一下。
 
-[PRE24]
+```
+ 1  cat logging/eks-logs-policy.json
+```
 
 输出如下。
 
-[PRE25]
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "*",
+      "Effect": "Allow"
+    }
+  ]
+}
+```
 
 正如你所看到的，这个政策并没有什么特别之处。它定义了在我们集群内部与`logs`（CloudWatch）交互所需的权限。
 
 所以，让我们继续并创建它。
 
-[PRE26]
+```
+ 1  aws iam put-role-policy \
+ 2    --role-name $ROLE \
+ 3    --policy-name eks-logs \
+ 4    --policy-document file://logging/eks-logs-policy.json
+```
 
 最后，为了安全起见，我们将检索`eks-logs`政策并确认它确实被正确创建了。
 
-[PRE27]
+```
+ 1  aws iam get-role-policy \
+ 2    --role-name $ROLE \
+ 3    --policy-name eks-logs
+```
 
 输出的`PolicyDocument`部分应该与我们用来创建政策的 JSON 文件相同。
 
@@ -314,23 +473,38 @@ UI 确实可用，但在我们看到它实际运行之前，我们将输出 Flue
 
 不幸的是，目前（2018 年 12 月），还没有适用于 CloudWatch 的 Fluentd Helm Chart。因此，我们将退而求其次，使用老式的 YAML。我已经准备好了一个，让我们快速看一下。
 
-[PRE28]
+```
+ 1  cat logging/fluentd-eks.yml
+```
 
 我不会详细介绍 YAML。你应该能够通过自己探索来理解它的作用。关键资源是包含配置的`fluentd-cloudwatch` ConfigMap 和具有相同名称的 DaemonSet，它将在集群的每个节点上运行 Fluentd Pod。你可能会在理解 Fluentd 配置方面遇到困难，特别是如果这是你第一次使用它。尽管如此，我们不会深入细节，我会让你自己去探索 Fluentd 的文档。相反，我们将`apply`这个 YAML，希望一切都能如预期般工作。
 
-[PRE29]
+```
+ 1  kubectl apply \
+ 2    -f logging/fluentd-eks.yml
+```
 
 在我们进入 Cloudwatch UI 之前，我们将检索 Fluentd Pods 并确认集群中每个节点都有一个。
 
-[PRE30]
+```
+ 1  kubectl -n logging get pods
+```
 
 在我的情况下，输出显示了三个与我的 EKS 集群中节点数量相匹配的`fluentd-cloudwatch` Pods。
 
-[PRE31]
+```
+NAME                       READY   STATUS    RESTARTS   AGE
+fluentd-cloudwatch-7dp5b   1/1     Running   0          19s
+fluentd-cloudwatch-zq98z   1/1     Running   0          19s
+fluentd-cloudwatch-zrrk7   1/1     Running   0          19s
+```
 
 现在，一切似乎都在我们的集群内正常运行，是时候进入 CloudWatch UI 了。
 
-[PRE32]
+```
+ 1  open "https://$AWS_DEFAULT_REGION.console.aws.amazon.com/
+    cloudwatch/home?#logStream:group=/eks/$NAME/containers"
+```
 
 请在 Log Stream Name Prefix 字段中输入`random-logger`并按下回车键。结果，只会有一个流可用。点击它。
 
@@ -340,13 +514,29 @@ UI 确实可用，但在我们看到它实际运行之前，我们将输出 Flue
 
 一旦你探索完 CloudWatch，我们将继续删除 Fluentd 资源以及策略和日志组。我们还有更多日志解决方案要探索。如果你选择在 Fluentd 中使用 CloudWatch，你应该能够在你的“真实”集群中复制相同的安装步骤。
 
-[PRE33]
+```
+ 1  kubectl delete \
+ 2    -f logging/fluentd-eks.yml
+ 3
+ 4  aws iam delete-role-policy \
+ 5      --role-name $ROLE \
+ 6      --policy-name eks-logs
+ 7
+ 8  aws logs delete-log-group \
+ 9    --log-group-name \
+10    "/eks/devops25/containers"
+```
 
 # 将 Azure Log Analytics 与 AKS 集群结合使用
 
 就像 GKE（而不像 EKS）一样，AKS 带有集成的日志解决方案。我们所要做的就是启用其中一个 AKS 插件。更准确地说，我们将启用`monitoring`插件。正如其名称所示，该插件不仅满足了收集日志的需求，还处理指标。然而，我们只对日志感兴趣。我相信在指标方面没有什么能比得上 Prometheus，特别是因为它与 HorizontalPodAutoscaler 集成。不过，你也应该探索一下 AKS 的指标，并得出自己的结论。目前，我们只会探索插件的日志部分。
 
-[PRE34]
+```
+ 1  az aks enable-addons \
+ 2    -a monitoring \
+ 3    -n devops25-cluster \
+ 4    -g devops25-group
+```
 
 输出是一个相当庞大的 JSON，包含了关于新启用的`monitoring`插件的所有信息。里面没有什么令人兴奋的东西。
 
@@ -354,11 +544,22 @@ UI 确实可用，但在我们看到它实际运行之前，我们将输出 Flue
 
 如果你好奇我们得到了什么，我们可以列出`kube-system`命名空间中的部署。
 
-[PRE35]
+```
+ 1  kubectl -n kube-system get deployments
+```
 
 输出如下。
 
-[PRE36]
+```
+NAME                 DESIRED CURRENT UP-TO-DATE AVAILABLE AGE
+heapster             1       1       1          1         1m
+kube-dns-v20         2       2       2          2         1h
+kubernetes-dashboard 1       1       1          1         1h
+metrics-server       1       1       1          1         1h
+omsagent-rs          1       1       1          1         1m
+tiller-deploy        1       1       1          1         59m
+tunnelfront          1       1       1          1         1h
+```
 
 新增的是`omsagent-rs`部署，它将日志（和指标）发送到 Azure Log Analytics。如果你`describe`它，你会发现它是基于`microsoft/oms`镜像的。这使得它成为我们从 Fluentd 切换到不同日志发送解决方案的第一次，也是唯一一次。我们将使用它，只是因为 Azure 推荐它。
 
@@ -366,7 +567,9 @@ UI 确实可用，但在我们看到它实际运行之前，我们将输出 Flue
 
 让我们打开 Azure 门户并看看 Log Analytics 的运行情况。
 
-[PRE37]
+```
+ 1  open "https://portal.azure.com"
+```
 
 请从左侧菜单中单击“所有服务”项目，在过滤字段中键入“日志分析”，然后单击“日志分析”项目。
 
@@ -378,7 +581,9 @@ UI 确实可用，但在我们看到它实际运行之前，我们将输出 Flue
 
 接下来，我们将尝试将输出条目限制为仅包含`random-logger`的条目。请在“在此处键入查询”字段中输入以下查询。
 
-[PRE38]
+```
+ 1  ContainerLog | where Name contains "random-logger"
+```
 
 单击运行按钮，您将看到所有`random-logger`条目。
 
@@ -394,7 +599,12 @@ UI 确实可用，但在我们看到它实际运行之前，我们将输出 Flue
 
 考虑到在选择最适合您需求的解决方案之前，我们应该探索至少还有一个解决方案，我们将禁用插件。稍后，如果您确实更喜欢 Log Analytics 而不是其他替代方案，您只需再次启用它即可。
 
-[PRE39]
+```
+ 1  az aks disable-addons \
+ 2    -a monitoring \
+ 3    -n devops25-cluster \
+ 4    -g devops25-group
+```
 
 # 通过 Elasticsearch、Fluentd 和 Kibana 探索集中式日志记录
 
@@ -406,11 +616,38 @@ Elasticsearch 可能是最常用的内存数据库。至少，如果我们将范
 
 正如您可能已经猜到的，我们将继续使用 Helm，幸运的是，*Elasticsearch Chart*（[`github.com/helm/charts/tree/master/stable/elasticsearch`](https://github.com/helm/charts/tree/master/stable/elasticsearch)）已经在稳定通道中可用。我相信您知道如何找到图表并探索您可以使用的所有值。因此，我们将直接跳转到我准备的值。它们是最低限度的，只包含`资源`。
 
-[PRE40]
+```
+ 1  cat logging/es-values.yml
+```
 
 输出如下。
 
-[PRE41]
+```
+client:
+  resources:
+    limits:
+      cpu: 1
+      memory: 1500Mi
+    requests:
+      cpu: 25m
+      memory: 750Mi
+master:
+  resources:
+    limits:
+      cpu: 1
+      memory: 1500Mi
+    requests:
+      cpu: 25m
+      memory: 750Mi
+data:
+  resources:
+    limits:
+      cpu: 1
+      memory: 3Gi
+    requests:
+      cpu: 100m
+      memory: 1500Mi
+```
 
 正如您所看到的，有三个部分（`client`，`master`和`data`），对应于将要安装的 ElasticSearch 组件。我们所做的就是设置资源请求和限制，然后将其余部分留给图表的默认值。
 
@@ -418,23 +655,49 @@ Elasticsearch 可能是最常用的内存数据库。至少，如果我们将范
 
 让我们安装 Elasticsearch。
 
-[PRE42]
+```
+ 1  helm upgrade -i elasticsearch \
+ 2      stable/elasticsearch \
+ 3      --version 1.14.1 \
+ 4      --namespace logging \
+ 5      --values logging/es-values.yml
+ 6 
+ 7  kubectl -n logging \
+ 8    rollout status \
+ 9    deployment elasticsearch-client
+```
 
 可能需要一段时间才能创建所有资源。此外，如果您正在使用 GKE，可能需要创建新节点来容纳所请求的资源。请耐心等待。
 
 现在 Elasticsearch 已经推出，我们可以把注意力转向 EFK 堆栈中的第二个组件。我们将安装 Fluentd。就像 Elasticsearch 一样，Fluentd 也可以在 Helm 的稳定通道中找到。
 
-[PRE43]
+```
+ 1  helm upgrade -i fluentd \
+ 2      stable/fluentd-elasticsearch \
+ 3      --version 1.4.0 \
+ 4      --namespace logging \
+ 5      --values logging/fluentd-values.yml
+ 6
+ 7  kubectl -n logging \
+ 8      rollout status \
+ 9     ds fluentd-fluentd-elasticsearch
+```
 
 关于 Fluentd 没有太多可说的。它作为 DaemonSet 运行，并且正如图表的名称所暗示的那样，它已经预先配置好以与 Elasticsearch 一起工作。我甚至都没有打扰向你展示`logging/fluentd-values.yml`值文件的内容，因为它只包含资源。
 
 为了安全起见，我们将检查 Fluentd 的日志，以确认它是否成功连接到 Elasticsearch。
 
-[PRE44]
+```
+ 1  kubectl -n logging logs \
+ 2      -l app=fluentd-fluentd-elasticsearch
+```
 
 输出，仅限于消息，如下所示。
 
-[PRE45]
+```
+... Connection opened to Elasticsearch cluster => {:host=>"elasticsearch-client", :port=>9200, :scheme=>"http"}
+... Detected ES 6.x: ES 7.x will only accept `_doc` in type_name.
+```
 
 给 Docker for Desktop 用户的一条注释：您可能会看到比上面呈现的少得多的日志条目。由于 Docker for Desktop API 与其他 Kubernetes 版本的差异，会有很多警告。请随意忽略这些警告，因为它们不会影响我们即将探索的示例，并且您不会在生产中使用 Docker for Desktop，而只会用于练习和本地开发。
 
@@ -442,23 +705,54 @@ Elasticsearch 可能是最常用的内存数据库。至少，如果我们将范
 
 让我们来看看我们将用于 Kibana 图表的值文件。
 
-[PRE46]
+```
+ 1  cat logging/kibana-values.yml
+```
 
 输出如下。
 
-[PRE47]
+```
+ingress:
+  enabled: true
+  hosts:
+  - acme.com
+env:
+  ELASTICSEARCH_URL: http://elasticsearch-client:9200
+resources:
+  limits:
+    cpu: 50m
+    memory: 300Mi
+  requests:
+    cpu: 5m
+    memory: 150Mi
+```
 
 再次强调，这是一组相对简单的值。这一次，我们不仅指定了资源，还指定了 Ingress 主机，以及环境变量`ELASTICSEARCH_URL`，告诉 Kibana 在哪里找到 Elasticsearch。正如你可能已经猜到的，我事先不知道你的主机是什么，所以我们需要在运行时覆盖`hosts`。但在我们这样做之前，我们需要定义它。
 
-[PRE48]
+```
+ 1  KIBANA_ADDR=kibana.$LB_IP.nip.io
+```
 
 我们继续安装 EFK 堆栈中的最后一个组件。
 
-[PRE49]
+```
+ 1  helm upgrade -i kibana \
+ 2      stable/kibana \
+ 3      --version 0.20.0 \
+ 4      --namespace logging \
+ 5      --set ingress.hosts="{$KIBANA_ADDR}" \
+ 6     --values logging/kibana-values.yml
+ 7
+ 8  kubectl -n logging \
+ 9      rollout status \
+10      deployment kibana
+```
 
 现在我们终于可以打开 Kibana 并确认所有三个 EFK 组件确实一起工作，并且它们正在实现我们的集中日志记录目标。
 
-[PRE50]
+```
+ 1  open "http://$KIBANA_ADDR"
+```
 
 如果您还没有看到 Kibana，请等待片刻并刷新屏幕。
 
@@ -506,7 +800,21 @@ Fluentd 发送到 Elasticsearch 的所有日志都是以*logstash*前缀和日�
 
 我们已经完成了 EFK 堆栈，并且鉴于我们尚未做出使用哪种解决方案的决定，我们将从系统中清除它。以后，如果你选择了 EFK，你在你的“真实”集群中创建它应该不会有任何麻烦。
 
-[PRE51]
+```
+ 1  helm delete kibana --purge
+ 2
+ 3  helm delete fluentd --purge
+ 4
+ 5  helm delete elasticsearch --purge
+ 6
+ 7  kubectl -n logging \
+ 8      delete pvc \
+ 9      -l release=elasticsearch,component=data
+10
+11  kubectl -n logging \
+12      delete pvc \
+13      -l release=elasticsearch,component=master
+```
 
 # 切换到 Elasticsearch 存储指标。
 

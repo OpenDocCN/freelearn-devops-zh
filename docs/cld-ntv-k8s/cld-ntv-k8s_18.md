@@ -60,13 +60,41 @@
 
 Nginx-sidecar.yaml：
 
-[PRE0]
+```
+   spec:
+     containers:
+     - name: myapp
+       image: ravirdv/http-responder:latest
+       imagePullPolicy: IfNotPresent
+     - name: nginx-sidecar
+       image: nginx
+       imagePullPolicy: IfNotPresent
+       volumeMounts:
+         - name: secrets
+           mountPath: /app/cert
+         - name: config
+           mountPath: /etc/nginx/nginx.conf
+           subPath: nginx.conf
+```
 
 正如您所看到的，我们指定了两个容器，即我们的主应用程序容器`myapp`和`nginx` sidecar，我们通过卷挂载注入了一些配置，以及一些 TLS 证书。
 
 接下来，让我们看看同一文件中的`volumes`规范，我们在其中注入了一些证书（来自一个密钥）和`config`（来自`ConfigMap`）：
 
-[PRE1]
+```
+    volumes:
+     - name: secrets
+       secret:
+         secretName: nginx-certificates
+         items:
+           - key: server-cert
+             path: server.pem
+           - key: server-key
+             path: server-key.pem
+     - name: config
+       configMap:
+         name: nginx-configuration
+```
 
 正如您所看到的，我们需要一个证书和一个密钥。
 
@@ -74,17 +102,46 @@ Nginx-sidecar.yaml：
 
 nginx.conf：
 
-[PRE2]
+```
+http {
+    sendfile        on;
+    include       mime.types;
+    default_type  application/octet-stream;
+    keepalive_timeout  80;
+    server {
+       ssl_certificate      /app/cert/server.pem;
+      ssl_certificate_key  /app/cert/server-key.pem;
+      ssl_protocols TLSv1.2;
+      ssl_ciphers EECDH+AES128:RSA+AES128:EECDH+AES256:RSA+AES256:!EECDH+3DES:!RSA+3DES:!MD5;
+      ssl_prefer_server_ciphers on;
+      listen       443 ssl;
+      server_name  localhost;
+      location / {
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Host $http_host;
+        proxy_pass http://127.0.0.1:5000/;
+      }
+    }
+}
+worker_processes  1;
+events {
+    worker_connections  1024;
+}
+```
 
 正如您所看到的，我们有一些基本的 NGINX 配置。重要的是，我们有`proxy_pass`字段，它将请求代理到`127.0.0.1`上的端口，或者本地主机。由于 Pod 中的容器可以共享本地主机端口，这充当了我们的 sidecar 代理。出于本书的目的，我们不会审查所有其他行，但是请查看 NGINX 文档，了解每行的更多信息（[`nginx.org/en/docs/`](https://nginx.org/en/docs/)）。
 
 现在，让我们从这个文件创建`ConfigMap`。使用以下命令来命令式地创建`ConfigMap`：
 
-[PRE3]
+```
+kubectl create cm nginx-configuration --from-file=nginx.conf=./nginx.conf
+```
 
 这将导致以下输出：
 
-[PRE4]
+```
+Configmap "nginx-configuration" created
+```
 
 接下来，让我们为 NGINX 创建 TLS 证书，并将它们嵌入到 Kubernetes 密钥中。您需要安装 CFSSL（CloudFlare 的 PKI/TLS 开源工具包）库才能按照这些说明进行操作，但您也可以使用任何其他方法来创建您的证书。
 
@@ -92,45 +149,128 @@ nginx.conf：
 
 nginxca.json：
 
-[PRE5]
+```
+{
+   "CN": "mydomain.com",
+   "hosts": [
+       "mydomain.com",
+       "www.mydomain.com"
+   ],
+   "key": {
+       "algo": "rsa",
+       "size": 2048
+   },
+   "names": [
+       {
+           "C": "US",
+           "ST": "MD",
+           "L": "United States"
+       }
+   ]
+}
+```
 
 现在，使用 CFSSL 创建 CA 证书：
 
-[PRE6]
+```
+cfssl gencert -initca nginxca.json | cfssljson -bare nginxca
+```
 
 接下来，我们需要 CA 配置：
 
 Nginxca-config.json：
 
-[PRE7]
+```
+{
+  "signing": {
+      "default": {
+          "expiry": "20000h"
+      },
+      "profiles": {
+          "client": {
+              "expiry": "43800h",
+              "usages": [
+                  "signing",
+                  "key encipherment",
+                  "client auth"
+              ]
+          },
+          "server": {
+              "expiry": "20000h",
+              "usages": [
+                  "signing",
+                  "key encipherment",
+                  "server auth",
+                  "client auth"
+              ]
+          }
+      }
+  }
+}
+```
 
 我们还需要一个证书请求配置：
 
 Nginxcarequest.json：
 
-[PRE8]
+```
+{
+  "CN": "server",
+  "hosts": [
+    ""
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  }
+}
+```
 
 现在，我们实际上可以创建我们的证书了！使用以下命令：
 
-[PRE9]
+```
+cfssl gencert -ca=nginxca.pem -ca-key=nginxca-key.pem -config=nginxca-config.json -profile=server -hostname="127.0.0.1" nginxcarequest.json | cfssljson -bare server
+```
 
 作为证书密钥的最后一步，通过最后一个`cfssl`命令从证书文件的输出创建 Kubernetes 密钥：
 
-[PRE10]
+```
+kubectl create secret generic nginx-certs --from-file=server-cert=./server.pem --from-file=server-key=./server-key.pem
+```
 
 现在，我们终于可以创建我们的部署了：
 
-[PRE11]
+```
+kubectl apply -f nginx-sidecar.yaml 
+```
 
 这将产生以下输出：
 
-[PRE12]
+```
+deployment "myapp" created
+```
 
 为了检查 NGINX 代理功能，让我们创建一个服务来指向我们的部署：
 
 Nginx-sidecar-service.yaml：
 
-[PRE13]
+```
+apiVersion: v1
+kind: Service
+metadata:
+ name:myapp
+ labels:
+   app: myapp
+spec:
+ selector:
+   app: myapp
+ type: NodePort
+ ports:
+ - port: 443
+   targetPort: 443
+   protocol: TCP
+   name: https
+```
 
 现在，使用`https`访问集群中的任何节点应该会导致一个正常工作的 HTTPS 连接！但是，由于我们的证书是自签名的，浏览器将显示一个*不安全*的消息。
 
@@ -184,69 +324,242 @@ Envoy 中的集群表示可以根据监听器中的路由将请求路由到的�
 
 Envoy-configuration.yaml:
 
-[PRE14]
+```
+admin:
+  access_log_path: "/dev/null"
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 8001
+```
 
 如您所见，我们为 Envoy 的`admin`指定了一个端口和地址。与以下配置一样，我们将 Envoy 作为一个 sidecar 运行，因此地址将始终是本地的- `0.0.0.0`。接下来，我们用一个 HTTPS 监听器开始我们的监听器列表：
 
-[PRE15]
+```
+static_resources:
+  listeners:
+   - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 8443
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+          stat_prefix: ingress_https
+          codec_type: auto
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: "/service/1"
+                route:
+                  cluster: service1
+              - match:
+                  prefix: "/service/2"
+                route:
+                  cluster: service2
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config: {}
+```
 
 如您所见，对于每个 Envoy 监听器，我们有一个本地地址和端口（此监听器是一个 HTTPS 监听器）。然后，我们有一个过滤器列表-尽管在这种情况下，我们只有一个。每个 envoy 过滤器类型的配置略有不同，我们不会逐行审查它（请查看 Envoy 文档以获取更多信息[`www.envoyproxy.io/docs`](https://www.envoyproxy.io/docs)），但这个特定的过滤器匹配两个路由，`/service/1`和`/service/2`，并将它们路由到两个 envoy 集群。在我们的 YAML 的第一个 HTTPS 监听器部分下，我们有 TLS 配置，包括证书：
 
-[PRE16]
+```
+      transport_socket:
+        name: envoy.transport_sockets.tls
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+          common_tls_context:
+            tls_certificates:
+              certificate_chain:
+                inline_string: |
+                   <INLINE CERT FILE>
+              private_key:
+                inline_string: |
+                  <INLINE PRIVATE KEY FILE>
+```
 
 如您所见，此配置传递了`private_key`和`certificate_chain`。接下来，我们有第二个也是最后一个监听器，一个 HTTP 监听器：
 
-[PRE17]
+```
+  - address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 8080
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.config.filter.network.http_connection_manager.v2.HttpConnectionManager
+          codec_type: auto
+          stat_prefix: ingress_http
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: "/service1"
+                route:
+                  cluster: service1
+              - match:
+                  prefix: "/service2"
+                route:
+                  cluster: service2
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config: {}
+```
 
 如您所见，这个配置与我们的 HTTPS 监听器的配置非常相似，只是它监听不同的端口，并且不包括证书信息。接下来，我们进入我们的集群配置。在我们的情况下，我们有两个集群，一个用于`service1`，一个用于`service2`。首先是`service1`：
 
-[PRE18]
+```
+  clusters:
+  - name: service1
+    connect_timeout: 0.25s
+    type: strict_dns
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: service1
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: service1
+                port_value: 5000
+```
 
 接下来，`Service 2`：
 
-[PRE19]
+```
+  - name: service2
+    connect_timeout: 0.25s
+    type: strict_dns
+    lb_policy: round_robin
+    http2_protocol_options: {}
+    load_assignment:
+      cluster_name: service2
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: service2
+                port_value: 5000
+```
 
 对于这些集群中的每一个，我们指定请求应该路由到哪里，以及到哪个端口。例如，对于我们的第一个集群，请求被路由到`http://service1:5000`。我们还指定了负载均衡策略（在这种情况下是轮询）和连接的超时时间。现在我们有了我们的 Envoy 配置，我们可以继续创建我们的 Kubernetes Pod，并注入我们的 sidecar 以及 envoy 配置。我们还将把这个文件分成两部分，因为它有点太大了，以至于难以理解：
 
 Envoy-sidecar-deployment.yaml：
 
-[PRE20]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-service
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: my-service
+    spec:
+      containers:
+      - name: envoy
+        image: envoyproxy/envoy:latest
+        ports:
+          - containerPort: 9901
+            protocol: TCP
+            name: envoy-admin
+          - containerPort: 8786
+            protocol: TCP
+            name: envoy-web
+```
 
 如您所见，这是一个典型的部署 YAML。在这种情况下，我们实际上有两个容器。首先是 Envoy 代理容器（或边车）。它监听两个端口。接下来，继续向下移动 YAML，我们为第一个容器进行了卷挂载（用于保存 Envoy 配置），以及一个启动命令和参数：
 
-[PRE21]
+```
+        volumeMounts:
+          - name: envoy-config-volume
+            mountPath: /etc/envoy-config/
+        command: ["/usr/local/bin/envoy"]
+        args: ["-c", "/etc/envoy-config/config.yaml", "--v2-config-only", "-l", "info","--service-cluster","myservice","--service-node","myservice", "--log-format", "[METADATA][%Y-%m-%d %T.%e][%t][%l][%n] %v"]
+```
 
 最后，我们有我们 Pod 中的第二个容器，这是一个应用容器：
 
-[PRE22]
+```
+- name: my-service
+        image: ravirdv/http-responder:latest
+        ports:
+        - containerPort: 5000
+          name: svc-port
+          protocol: TCP
+      volumes:
+        - name: envoy-config-volume
+          configMap:
+            name: envoy-config
+            items:
+              - key: envoy-config
+                path: config.yaml
+```
 
 如您所见，这个应用在端口`5000`上响应。最后，我们还有我们的 Pod 级别卷定义，以匹配 Envoy 容器中挂载的 Envoy 配置卷。在创建部署之前，我们需要创建一个带有我们的 Envoy 配置的`ConfigMap`。我们可以使用以下命令来做到这一点：
 
-[PRE23]
+```
+kubectl create cm envoy-config 
+--from-file=config.yaml=./envoy-config.yaml
+```
 
 这将导致以下输出：
 
-[PRE24]
+```
+Configmap "envoy-config" created
+```
 
 现在我们可以使用以下命令创建我们的部署：
 
-[PRE25]
+```
+kubectl apply -f deployment.yaml
+```
 
 这将导致以下输出：
 
-[PRE26]
+```
+Deployment "my-service" created
+```
 
 最后，我们需要我们的下游服务，`service1`和`service2`。为此，我们将继续使用`http-responder`开源容器映像，在端口`5000`上进行响应。部署和服务规范可以在代码存储库中找到，并且我们可以使用以下命令创建它们：
 
-[PRE27]
+```
+kubectl create -f service1-deployment.yaml
+kubectl create -f service1-service.yaml
+kubectl create -f service2-deployment.yaml
+kubectl create -f service2-service.yaml
+```
 
 现在，我们可以测试我们的 Envoy 配置！从我们的`my-service`容器中，我们可以向端口`8080`的本地主机发出请求，路径为`/service1`。这应该会指向我们的`service1` Pod IP 之一。为了发出这个请求，我们使用以下命令：
 
-[PRE28]
+```
+Kubectl exec <my-service-pod-name> -it -- curl localhost:8080/service1
+```
 
 我们已经设置了我们的服务来在`curl`请求上回显它们的名称。看一下我们`curl`命令的以下输出：
 
-[PRE29]
+```
+Service 1 Reached!
+```
 
 现在我们已经看过了 Envoy 如何与静态配置一起工作，让我们转向基于 Envoy 的动态服务网格 - Istio。
 
@@ -276,17 +589,24 @@ Envoy-sidecar-deployment.yaml：
 
 1.  在集群上安装 Istio 的第一步是安装 Istio CLI 工具。我们可以使用以下命令来完成这个操作，这将安装最新版本的 CLI 工具：
 
-[PRE30]
+```
+curl -L https://istio.io/downloadIstio | sh -
+```
 
 1.  接下来，我们将希望将 CLI 工具添加到我们的路径中，以便使用：
 
-[PRE31]
+```
+cd istio-<VERSION>
+export PATH=$PWD/bin:$PATH
+```
 
 1.  现在，让我们安装 Istio！Istio 的配置被称为*配置文件*，如前所述，它们可以使用 YAML 文件进行完全定制。
 
 对于这个演示，我们将使用内置的`demo`配置文件与 Istio 一起使用，这提供了一些基本设置。使用以下命令安装配置文件：
 
-[PRE32]
+```
+istioctl install --set profile=demo
+```
 
 这将导致以下输出：
 
@@ -298,13 +618,17 @@ Envoy-sidecar-deployment.yaml：
 
 要为任何命名空间打上标签，请运行以下命令：
 
-[PRE33]
+```
+kubectl label namespace my-namespace istio-injection=enabled
+```
 
 1.  为了方便测试，使用前面的`label`命令为`default`命名空间打上标签。一旦 Istio 组件启动，该命名空间中的任何 Pod 将自动注入 Envoy sidecar，就像我们在上一节中手动创建的那样。
 
 要从集群中删除 Istio，请运行以下命令：
 
-[PRE34]
+```
+istioctl x uninstall --purge
+```
 
 这应该会出现一个确认消息，告诉您 Istio 已被移除。
 
@@ -320,13 +644,45 @@ c. 服务后端 B
 
 Istio-service-deployment.yaml：
 
-[PRE35]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-frontend
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: service-frontend
+        version: v2
+    spec:
+      containers:
+      - name: service-frontend
+        image: ravirdv/http-responder:latest
+        ports:
+        - containerPort: 5000
+          name: svc-port
+          protocol: TCP
+```
 
 这是*服务前端*的服务：
 
 Istio-service-service.yaml：
 
-[PRE36]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-frontend
+spec:
+  selector:
+    name: service-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+```
 
 服务后端 A 和 B 的 YAML 与*服务前端*相同，除了交换名称、镜像名称和选择器标签。
 
@@ -336,7 +692,22 @@ Istio-service-service.yaml：
 
 Istio-gateway.yaml：
 
-[PRE37]
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: myapplication-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+```
 
 这些`Gateway`定义看起来与入口记录非常相似。我们有`name`和`selector`，Istio 用它们来决定使用哪个 Istio Ingress Controller。接下来，我们有一个或多个服务器，它们实质上是我们网关上的入口点。在这种情况下，我们不限制主机，并且接受端口`80`上的请求。
 
@@ -344,7 +715,27 @@ Istio-gateway.yaml：
 
 Istio-virtual-service-1.yaml：
 
-[PRE38]
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: myapplication
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - myapplication-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /app
+    - uri:
+        prefix: /frontend
+    route:
+    - destination:
+        host: service-frontend
+        subset: v1
+```
 
 在这个`VirtualService`中，如果匹配我们的`uri`前缀，我们将请求路由到任何主机到我们的入口点*Service Frontend*。在这种情况下，我们匹配前缀，但你也可以在 URI 匹配器中使用精确匹配，将`prefix`替换为`exact`。
 
@@ -354,7 +745,21 @@ Istio-virtual-service-1.yaml：
 
 Istio-destination-rule-1.yaml:
 
-[PRE39]
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: service-frontend
+spec:
+  host: service-frontend
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+  - name: v2
+    labels:
+      version: v2
+```
 
 正如你所看到的，我们在 Istio 中指定了我们前端服务的两个不同版本，每个版本都查看一个标签选择器。从我们之前的部署和服务中，你可以看到我们当前的前端服务版本是`v2`，但我们也可以并行运行两者！通过在入口虚拟服务中指定我们的`v2`版本，我们告诉 Istio 将所有请求路由到服务的`v2`。此外，我们还配置了我们的`v1`版本，它在之前的`VirtualService`中被引用。这个硬规则只是在 Istio 中将请求路由到不同子集的一种可能的方式。
 
@@ -364,7 +769,20 @@ Istio-destination-rule-1.yaml:
 
 Istio-virtual-service-2.yaml:
 
-[PRE40]
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: myapplication-a
+spec:
+  hosts:
+  - service-a
+  http:
+    route:
+    - destination:
+        host: service-backend-a
+        subset: v1
+```
 
 正如你所看到的，这个`VirtualService`路由到我们服务的`v1`子集，`service-backend-a`。我们还需要另一个`VirtualService`用于`service-backend-b`，我们不会完全包含（但看起来几乎相同）。要查看完整的 YAML，请检查`istio-virtual-service-3.yaml`的代码存储库。
 
@@ -372,7 +790,21 @@ Istio-virtual-service-2.yaml:
 
 Istio-destination-rule-2.yaml:
 
-[PRE41]
+```
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: service-backend-a
+spec:
+  host: service-backend-a
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+```
 
 *Backend Service B*的`DestinationRule`类似，只是有不同的子集。我们不会包含代码，但是在代码存储库中检查`istio-destination-rule-3.yaml`以获取确切的规格。
 
@@ -412,33 +844,47 @@ Istio-destination-rule-2.yaml:
 
 1.  首先，让我们安装 Knative Serving 组件。我们将从安装 CRDs 开始：
 
-[PRE42]
+```
+kubectl apply --filename https://github.com/knative/serving/releases/download/v0.18.0/serving-crds.yaml
+```
 
 1.  接下来，我们可以安装服务组件本身：
 
-[PRE43]
+```
+kubectl apply --filename https://github.com/knative/serving/releases/download/v0.18.0/serving-core.yaml
+```
 
 1.  此时，我们需要安装一个网络/路由层供 Knative 使用。让我们使用 Istio：
 
-[PRE44]
+```
+kubectl apply --filename https://github.com/knative/net-istio/releases/download/v0.18.0/release.yaml
+```
 
 1.  我们需要从 Istio 获取网关 IP 地址。根据您运行的位置（换句话说，是在 AWS 还是本地），此值可能会有所不同。使用以下命令获取它：
 
-[PRE45]
+```
+Kubectl get service -n istio-system istio-ingressgateway
+```
 
 1.  Knative 需要特定的 DNS 设置来启用服务组件。在云设置中最简单的方法是使用`xip.io`的“Magic DNS”，尽管这对基于 Minikube 的集群不起作用。如果您正在运行其中之一（或者只是想查看所有可用选项），请查看[Knative 文档](https://knative.dev/docs/install/any-kubernetes-cluster/)。
 
 要设置 Magic DNS，请使用以下命令：
 
-[PRE46]
+```
+kubectl apply --filename https://github.com/knative/serving/releases/download/v0.18.0/serving-default-domain.yaml
+```
 
 1.  现在我们已经安装了 Knative Serving，让我们安装 Knative Eventing 来处理我们的 FaaS 请求。首先，我们需要更多的 CRDs。使用以下命令安装它们：
 
-[PRE47]
+```
+kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.18.0/eventing-crds.yaml
+```
 
 1.  现在，安装事件组件，就像我们安装服务一样：
 
-[PRE48]
+```
+kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.18.0/eventing-core.yaml
+```
 
 在这一点上，我们需要为我们的事件系统添加一个队列/消息层来使用。我们是否提到 Knative 支持许多模块化组件？
 
@@ -448,11 +894,15 @@ Istio-destination-rule-2.yaml:
 
 1.  安装`in-memory`消息层，请使用以下命令：
 
-[PRE49]
+```
+kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.18.0/in-memory-channel.yaml
+```
 
 1.  以为我们已经完成了？不！还有最后一件事。我们需要安装一个 broker，它将从消息层获取事件并将它们处理到正确的位置。让我们使用默认的 broker 层，MT-Channel broker 层。您可以使用以下命令安装它：
 
-[PRE50]
+```
+kubectl apply --filename https://github.com/knative/eventing/releases/download/v0.18.0/mt-channel-broker.yaml
+```
 
 到此为止，我们终于完成了。我们通过 Knative 安装了一个端到端的 FaaS 实现。正如你所看到的，这并不是一项容易的任务。Knative 令人惊奇的地方与令人头疼的地方是一样的——它提供了许多不同的模块选项和配置，即使在每个步骤选择了最基本的选项，我们仍然花了很多时间来解释安装过程。还有其他可用的选项，比如 OpenFaaS，它们更容易上手，我们将在下一节中进行探讨！然而，在 Knative 方面，现在我们的设置终于准备好了，我们可以添加我们的 FaaS。
 
@@ -470,7 +920,13 @@ Istio-destination-rule-2.yaml:
 
 Knative-broker.yaml：
 
-[PRE51]
+```
+apiVersion: eventing.knative.dev/v1
+kind: broker
+metadata:
+ name: my-broker
+ namespace: default
+```
 
 接下来，我们可以创建一个消费者服务。这个组件实际上就是我们的应用程序，它将处理事件——我们的函数本身！我们不打算向你展示比你已经看到的更多的 YAML，让我们假设我们的消费者服务只是一个名为`service-consumer`的普通的 Kubernetes 服务，它路由到一个运行我们应用程序的四个副本的 Pod 部署。
 
@@ -478,33 +934,70 @@ Knative-broker.yaml：
 
 Knative-trigger.yaml：
 
-[PRE52]
+```
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: my-trigger
+spec:
+  broker: my-broker
+  filter:
+    attributes:
+      type: myeventtype
+  subscriber:
+    ref:
+     apiVersion: v1
+     kind: Service
+     name: service-consumer
+```
 
 在这个 YAML 中，我们创建了一个 `Trigger` 规则，任何通过我们的经纪人 `my-broker` 并且类型为 `myeventtype` 的事件将自动路由到我们的消费者 `service-consumer`。有关 Knative 中触发器过滤器的完整文档，请查看 [`knative.dev/development/eventing/triggers/`](https://knative.dev/development/eventing/triggers/) 上的文档。
 
 那么，我们如何创建一些事件呢？首先，使用以下命令检查经纪人 URL：
 
-[PRE53]
+```
+kubectl get broker
+```
 
 这应该会产生以下输出：
 
-[PRE54]
+```
+NAME      READY   REASON   URL                                                                                 AGE
+my-broker   True             http://broker-ingress.knative-eventing.svc.cluster.local/default/my-broker     1m
+```
 
 现在我们终于可以测试我们的 FaaS 解决方案了。让我们快速启动一个 Pod，从中我们可以向我们的触发器发出请求：
 
-[PRE55]
+```
+kubectl run -i --tty --rm debug --image=radial/busyboxplus:curl --restart=Never -- sh
+```
 
 现在，从这个 Pod 内部，我们可以继续测试我们的触发器，使用 `curl`。我们需要发出的请求需要有一个等于 `myeventtype` 的 `Ce-Type` 标头，因为这是我们触发器所需的。Knative 使用形式为 `Ce-Id`、`Ce-Type` 的标头，如下面的代码块所示，来进行路由。
 
 `curl` 请求将如下所示：
 
-[PRE56]
+```
+curl -v "http://broker-ingress.knative-eventing.svc.cluster.local/default/my-broker" \
+  -X POST \
+  -H "Ce-Id: anyid" \
+  -H "Ce-Specversion: 1.0" \
+  -H "Ce-Type: myeventtype" \
+  -H "Ce-Source: any" \
+  -H "Content-Type: application/json" \
+  -d '{"payload":"Does this work?"}'
+```
 
 正如您所看到的，我们正在向经纪人 URL 发送 `curl` `http` 请求。此外，我们还在 HTTP 请求中传递了一些特殊的标头。重要的是，我们传递了 `type=myeventtype`，这是我们触发器上的过滤器所需的，以便发送请求进行处理。
 
 在这个例子中，我们的消费者服务会回显请求的 JSON 主体的 payload 键，以及一个 `200` 的 HTTP 响应，因此运行这个 `curl` 请求会给我们以下结果：
 
-[PRE57]
+```
+> HTTP/1.1 200 OK
+> Content-Type: application/json
+{
+  "Output": "Does this work?"
+}
+```
 
 成功！我们已经测试了我们的 FaaS，并且它返回了我们期望的结果。从这里开始，我们的解决方案将根据事件的数量进行零扩展和缩减，与 Knative 的所有内容一样，还有许多自定义和配置选项，可以精确地调整我们的解决方案以满足我们的需求。
 
@@ -524,21 +1017,34 @@ Knative-trigger.yaml：
 
 我们可以使用以下命令使用`faas-netes`存储库中的一个巧妙的 YAML 文件来添加这两个命名空间：
 
-[PRE58]
+```
+kubectl apply -f https://raw.githubusercontent.com/openfaas/faas-netes/master/namespaces.yml
+```
 
 接下来，我们需要使用以下 Helm 命令添加`faas-netes` `Helm` `存储库`：
 
-[PRE59]
+```
+helm repo add openfaas https://openfaas.github.io/faas-netes/
+helm repo update
+```
 
 最后，我们实际部署 OpenFaaS！
 
 在前面的`faas-netes`存储库中的 OpenFaaS 的 Helm 图表有几个可能的变量，但我们将使用以下配置来确保创建一组初始的身份验证凭据，并部署入口记录：
 
-[PRE60]
+```
+helm install openfaas openfaas/openfaas \
+    --namespace openfaas  \
+    --set functionNamespace=openfaas-fn \
+    --set ingress.enabled=true \
+    --set generateBasicAuth=true 
+```
 
 现在，我们的 OpenFaaS 基础设施已经部署到我们的集群中，我们将希望获取作为 Helm 安装的一部分生成的凭据。Helm 图表将作为钩子的一部分创建这些凭据，并将它们存储在一个秘密中，因此我们可以通过运行以下命令来获取它们：
 
-[PRE61]
+```
+OPENFAASPWD=$(kubectl get secret basic-auth -n openfaas -o jsonpath="{.data.basic-auth-password}" | base64 --decode)
+```
 
 这就是我们需要的所有 Kubernetes 设置！
 
@@ -548,7 +1054,9 @@ Knative-trigger.yaml：
 
 要安装 OpenFaaS CLI，我们可以使用以下命令（对于 Windows，请查看前面的 OpenFaaS 文档）：
 
-[PRE62]
+```
+curl -sL https://cli.openfaas.com | sudo sh
+```
 
 现在，我们可以开始构建和部署一些函数。这最容易通过 CLI 来完成。
 
@@ -556,11 +1064,17 @@ Knative-trigger.yaml：
 
 使用 OpenFaaS CLI 创建的模板类似于您从 AWS Lambda 等托管无服务器平台期望的内容。让我们使用以下命令创建一个全新的 Node.js 函数：
 
-[PRE63]
+```
+faas-cli new my-function –lang node
+```
 
 这将产生以下输出：
 
-[PRE64]
+```
+Folder: my-function created.
+Function created in folder: my-function
+Stack file written: my-function.yml
+```
 
 正如你所看到的，`new`命令生成一个文件夹，在其中有一些函数代码本身的样板，以及一个 OpenFaaS YAML 文件。
 
@@ -568,53 +1082,86 @@ OpenFaaS YAML 文件将如下所示：
 
 My-function.yml:
 
-[PRE65]
+```
+provider:
+  name: openfaas
+  gateway: http://localhost:8080
+functions:
+  my-function:
+    lang: node
+    handler: ./my-function
+    image: my-function
+```
 
 实际的函数代码（在`my-function`文件夹中）包括一个函数文件`handler.js`和一个依赖清单`package.json`。对于其他语言，这些文件将是不同的，我们不会深入讨论 Node 中的具体依赖。但是，我们将编辑`handler.js`文件以返回一些文本。编辑后的文件如下所示：
 
 Handler.js:
 
-[PRE66]
+```
+"use strict"
+module.exports = (context, callback) => {
+    callback(undefined, {output: "my function succeeded!"});
+}
+```
 
 这段 JavaScript 代码将返回一个包含我们文本的 JSON 响应。
 
 现在我们有了我们的函数和处理程序，我们可以继续构建和部署我们的函数。OpenFaaS CLI 使构建函数变得简单，我们可以使用以下命令来完成：
 
-[PRE67]
+```
+faas-cli build -f /path/to/my-function.yml 
+```
 
 该命令的输出很长，但当完成时，我们将在本地构建一个新的容器映像，其中包含我们的函数处理程序和依赖项！
 
 接下来，我们将像对待任何其他容器一样，将我们的容器映像推送到容器存储库。OpenFaaS CLI 具有一个很好的包装命令，可以将映像推送到 Docker Hub 或其他容器映像存储库：
 
-[PRE68]
+```
+faas-cli push -f my-function.yml 
+```
 
 现在，我们可以将我们的函数部署到 OpenFaaS。再次，这由 CLI 轻松完成。使用以下命令进行部署：
 
-[PRE69]
+```
+faas-cli deploy -f my-function.yml
+```
 
 现在，一切都已准备好让我们测试在 OpenFaaS 上部署的函数了！我们在部署 OpenFaaS 时使用了一个入口设置，以便请求可以通过该入口。但是，我们新函数生成的 YAML 文件设置为在开发目的地对`localhost:8080`进行请求。我们可以编辑该文件以将请求发送到我们入口网关的正确`URL`（请参阅[`docs.openfaas.com/deployment/kubernetes/`](https://docs.openfaas.com/deployment/kubernetes/)中的文档），但相反，让我们通过快捷方式在本地主机上打开 OpenFaaS。
 
 让我们使用`kubectl port-forward`命令在本地主机端口`8080`上打开我们的 OpenFaaS 服务。我们可以按照以下方式进行：
 
-[PRE70]
+```
+export OPENFAAS_URL=http://127.0.0.1:8080
+kubectl port-forward -n openfaas svc/gateway 8080:8080
+```
 
 现在，让我们按照以下方式将先前生成的 auth 凭据添加到 OpenFaaS CLI 中：
 
-[PRE71]
+```
+echo -n $OPENFAASPWD | faas-cli login -g $OPENFAAS_URL -u admin --password-stdin
+```
 
 最后，为了测试我们的函数，我们只需运行以下命令：
 
-[PRE72]
+```
+faas-cli invoke -f my-function.yml my-function
+```
 
 这将产生以下输出：
 
-[PRE73]
+```
+Reading from STDIN - hit (Control + D) to stop.
+This is my message
+{ output: "my function succeeded!"});}
+```
 
 如您所见，我们成功收到了我们预期的响应！
 
 最后，如果我们想要删除这个特定的函数，我们可以使用以下命令，类似于我们使用`kubectl delete -f`的方式：
 
-[PRE74]
+```
+faas-cli rm -f my-function.yml 
+```
 
 就是这样！我们的函数已被删除。
 

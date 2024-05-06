@@ -32,7 +32,10 @@ Docker **容器**是 Docker 镜像的运行实例。可以使用`docker run`（�
 
 `Dockerfile`的格式如下：
 
-[PRE0]
+```
+# This is a comment
+DIRECTIVE argument
+```
 
 `Dockerfile`可以包含多行注释和指令。这些行将由**Docker 引擎**按顺序执行，同时构建 Docker 镜像。与编程语言一样，`Dockerfile`也可以包含注释。
 
@@ -66,17 +69,23 @@ Docker **容器**是 Docker 镜像的运行实例。可以使用`docker run`（�
 
 `FROM`指令的格式如下：
 
-[PRE1]
+```
+FROM <image>:<tag> 
+```
 
 在以下`FROM`指令中，我们使用带有`20.04`标签的`ubuntu`父镜像：
 
-[PRE2]
+```
+FROM ubuntu:20.04
+```
 
 此外，如果需要从头开始构建 Docker 镜像，我们可以使用基础镜像。基础镜像，即 scratch 镜像，是一个空镜像，主要用于构建其他父镜像。
 
 在以下`FROM`指令中，我们使用`scratch`镜像从头开始构建我们的自定义 Docker 镜像：
 
-[PRE3]
+```
+FROM scratch
+```
 
 现在，让我们在下一节中了解`LABEL`指令是什么。
 
@@ -86,21 +95,39 @@ Docker **容器**是 Docker 镜像的运行实例。可以使用`docker run`（�
 
 `LABEL`指令的格式如下：
 
-[PRE4]
+```
+LABEL <key>=<value>
+```
 
 `Dockerfile`可以有多个标签，遵循前面的键值对格式：
 
-[PRE5]
+```
+LABEL maintainer=sathsara@mydomain.com
+LABEL version=1.0
+LABEL environment=dev
+```
 
 或者这些标签可以在单行上用空格分隔包含：
 
-[PRE6]
+```
+LABEL maintainer=sathsara@mydomain.com version=1.0 environment=dev
+```
 
 现有的 Docker 镜像标签可以使用`docker image inspect`命令查看。
 
 运行`docker image inspect <image>:<tag>`命令时，输出应该如下所示：
 
-[PRE7]
+```
+...
+...
+"Labels": {
+    "environment": "dev",
+    "maintainer": "sathsara@mydomain.com",
+    "version": "1.0"
+}
+...
+...
+```
 
 如此所示，docker image inspect 命令将输出使用`LABEL`指令在`Dockerfile`中配置的键值对。
 
@@ -112,17 +139,24 @@ Docker **容器**是 Docker 镜像的运行实例。可以使用`docker run`（�
 
 `RUN`指令的格式如下：
 
-[PRE8]
+```
+RUN <command>
+```
 
 `<command>`指定您希望作为图像构建过程的一部分执行的 shell 命令。一个`Dockerfile`可以有多个`RUN`指令，遵循上述格式。
 
 在以下示例中，我们在父镜像的基础上运行了两个命令。`apt-get update`用于更新软件包存储库，`apt-get install nginx -y`用于安装 Nginx 软件包：
 
-[PRE9]
+```
+RUN apt-get update
+RUN apt-get install nginx -y
+```
 
 或者，您可以通过使用`&&`符号将多个 shell 命令添加到单个`RUN`指令中。在以下示例中，我们使用了相同的两个命令，但这次是在单个`RUN`指令中，用`&&`符号分隔：
 
-[PRE10]
+```
+RUN apt-get update && apt-get install nginx -y
+```
 
 现在，让我们继续下一节，我们将学习`CMD`指令。
 
@@ -132,19 +166,28 @@ Docker 容器通常预期运行一个进程。`CMD`指令用于提供默认的�
 
 `CMD`指令的格式如下：
 
-[PRE11]
+```
+CMD ["executable","param1","param2","param3", ...]
+```
 
 例如，使用以下命令将"`Hello World`"作为 Docker 容器的输出：
 
-[PRE12]
+```
+CMD ["echo","Hello World"]
+```
 
 当我们使用`docker container run <image>`命令（用 Docker 镜像的名称替换`<image>`）运行 Docker 容器时，上述`CMD`指令将产生以下输出：
 
-[PRE13]
+```
+$ docker container run <image>
+Hello World
+```
 
 然而，如果我们使用`docker container run <image>`命令行参数，这些参数将覆盖我们定义的`CMD`指令。例如，如果我们执行以下命令（用 Docker 镜像的名称替换`<image>`），则会忽略使用`CMD`指令定义的默认的"`Hello World`"输出。相反，容器将输出"`Hello Docker !!!`"：
 
-[PRE14]
+```
+$ docker container run <image> echo "Hello Docker !!!"
+```
 
 正如我们讨论过的，`RUN`和`CMD`指令都可以用来执行 shell 命令。这两个指令之间的主要区别在于，`RUN`指令提供的命令将在镜像构建过程中执行，而`CMD`指令提供的命令将在从构建的镜像启动容器时执行。
 
@@ -164,23 +207,34 @@ Docker 容器通常预期运行一个进程。`CMD`指令用于提供默认的�
 
 `ENTRYPOINT`指令的格式如下：
 
-[PRE15]
+```
+ENTRYPOINT ["executable","param1","param2","param3", ...]
+```
 
 与`CMD`指令类似，`ENTRYPOINT`指令也允许我们提供默认的可执行文件和参数。我们可以在`ENTRYPOINT`指令中使用`CMD`指令来为可执行文件提供额外的参数。
 
 在以下示例中，我们使用`ENTRYPOINT`指令将`"echo"`作为默认命令，将`"Hello"`作为默认参数。我们还使用`CMD`指令提供了`"World"`作为额外的参数：
 
-[PRE16]
+```
+ENTRYPOINT ["echo","Hello"]
+CMD ["World"]
+```
 
 `echo`命令的输出将根据我们如何执行`docker container run`命令而有所不同。
 
 如果我们启动 Docker 镜像而没有任何命令行参数，它将输出消息`Hello World`：
 
-[PRE17]
+```
+$ docker container run <image>
+Hello World
+```
 
 但是，如果我们使用额外的命令行参数（例如`Docker`）启动 Docker 镜像，输出消息将是`Hello Docker`：
 
-[PRE18]
+```
+$ docker container run <image> "Docker"
+Hello Docker
+```
 
 在进一步讨论`Dockerfile`指令之前，让我们从下一个练习开始创建我们的第一个`Dockerfile`。
 
@@ -190,23 +244,38 @@ Docker 容器通常预期运行一个进程。`CMD`指令用于提供默认的�
 
 1.  使用`mkdir`命令创建一个名为`custom-docker-image`的新目录。该目录将是您的 Docker 镜像的**上下文**。`上下文`是包含成功构建镜像所需的所有文件的目录：
 
-[PRE19]
+```
+$ mkdir custom-docker-image
+```
 
 1.  使用`cd`命令导航到新创建的`custom-docker-image`目录，因为我们将在此目录中创建构建过程中所需的所有文件（包括`Dockerfile`）：
 
-[PRE20]
+```
+$ cd custom-docker-image
+```
 
 1.  在`custom-docker-image`目录中，使用`touch`命令创建一个名为`Dockerfile`的文件：
 
-[PRE21]
+```
+$ touch Dockerfile
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE22]
+```
+$ vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中，保存并退出`Dockerfile`：
 
-[PRE23]
+```
+# This is my first Docker image
+FROM ubuntu 
+LABEL maintainer=sathsara@mydomain.com 
+RUN apt-get update
+CMD ["The Docker Workshop"]
+ENTRYPOINT ["echo", "You are reading"]
+```
 
 Docker 镜像将基于 Ubuntu 父镜像。然后，您可以使用`LABEL`指令提供`Dockerfile`作者的电子邮件地址。接下来的一行执行`apt-get update`命令，将 Debian 的软件包列表更新到最新可用版本。最后，您将使用`ENTRYPOINT`和`CMD`指令来定义容器的默认可执行文件和参数。
 
@@ -232,21 +301,50 @@ Docker 镜像是一个二进制文件，由`Dockerfile`中提供的多个层组�
 
 `docker image build`命令采用以下格式：
 
-[PRE24]
+```
+$ docker image build <context>
+```
 
 我们可以从包含`Dockerfile`和其他文件的文件夹中执行 docker image build 命令，如下例所示。请注意，命令末尾的点（`.`）用于表示当前目录：
 
-[PRE25]
+```
+$ docker image build.
+```
 
 让我们看看以下示例`Dockerfile`的 Docker 镜像构建过程：
 
-[PRE26]
+```
+FROM ubuntu:latest
+LABEL maintainer=sathsara@mydomain.com
+CMD ["echo","Hello World"]
+```
 
 这个`Dockerfile`使用最新的`ubuntu`镜像作为父镜像。然后，使用`LABEL`指令将`sathsara@mydomain.com`指定为维护者。最后，使用`CMD`指令将 echo`"Hello World"`用作图像的输出。
 
 执行上述`Dockerfile`的 docker 镜像构建命令后，我们可以在构建过程中的控制台上看到类似以下的输出：
 
-[PRE27]
+```
+Sending build context to Docker daemon 2.048kB
+Step 1/3 : FROM ubuntu:latest
+latest: Pulling from library/ubuntu
+2746a4a261c9: Pull complete 
+4c1d20cdee96: Pull complete 
+0d3160e1d0de: Pull complete 
+c8e37668deea: Pull complete
+Digest: sha256:250cc6f3f3ffc5cdaa9d8f4946ac79821aafb4d3afc93928
+        f0de9336eba21aa4
+Status: Downloaded newer image for ubuntu:latest
+ ---> 549b9b86cb8d
+Step 2/3 : LABEL maintainer=sathsara@mydomain.com
+ ---> Running in a4a11e5e7c27
+Removing intermediate container a4a11e5e7c27
+ ---> e3add5272e35
+Step 3/3 : CMD ["echo","Hello World"]
+ ---> Running in aad8a56fcdc5
+Removing intermediate container aad8a56fcdc5
+ ---> dc3d4fd77861
+Successfully built dc3d4fd77861
+```
 
 输出的第一行是`Sending build context to Docker daemon`，这表明构建开始时将构建上下文发送到 Docker 守护程序。上下文中的所有文件将被递归地发送到 Docker 守护程序（除非明确要求忽略某些文件）。
 
@@ -254,49 +352,98 @@ Docker 镜像是一个二进制文件，由`Dockerfile`中提供的多个层组�
 
 现在，我们可以使用`docker image list`命令列出可用的 Docker 镜像：
 
-[PRE28]
+```
+$ docker image list
+```
 
 此列表包含了本地构建的 Docker 镜像和从远程 Docker 仓库拉取的 Docker 镜像：
 
-[PRE29]
+```
+REPOSITORY   TAG       IMAGE ID        CREATED          SIZE
+<none>       <none>    dc3d4fd77861    3 minutes ago    64.2MB
+ubuntu       latest    549b9b86cb8d    5 days ago       64.2MB
+```
 
 如上述输出所示，我们可以看到两个 Docker 镜像。第一个 Docker 镜像的 IMAGE ID 是`dc3d4fd77861`，是在构建过程中本地构建的 Docker 镜像。我们可以看到，这个`IMAGE ID`与`docker image build`命令的最后一行中的 ID 是相同的。下一个镜像是我们用作自定义镜像的父镜像的 ubuntu 镜像。
 
 现在，让我们再次使用`docker image build`命令构建 Docker 镜像：
 
-[PRE30]
+```
+$ docker image build
+Sending build context to Docker daemon  2.048kB
+Step 1/3 : FROM ubuntu:latest
+ ---> 549b9b86cb8d
+Step 2/3 : LABEL maintainer=sathsara@mydomain.com
+ ---> Using cache
+ ---> e3add5272e35
+Step 3/3 : CMD ["echo","Hello World"]
+ ---> Using cache
+ ---> dc3d4fd77861
+Successfully built dc3d4fd77861
+```
 
 这次，镜像构建过程是瞬时的。这是因为缓存。由于我们没有改变`Dockerfile`的任何内容，Docker 守护程序利用了缓存，并重用了本地镜像缓存中的现有层来加速构建过程。我们可以在上述输出中看到，这次使用了缓存，有`Using cache`行可用。
 
 Docker 守护程序将在启动构建过程之前执行验证步骤，以确保提供的`Dockerfile`在语法上是正确的。在语法无效的情况下，构建过程将失败，并显示来自 Docker 守护程序的错误消息：
 
-[PRE31]
+```
+$ docker image build
+Sending build context to Docker daemon  2.048kB
+Error response from daemon: Dockerfile parse error line 5: 
+unknown instruction: INVALID
+```
 
 现在，让我们使用`docker image list`命令重新查看本地可用的 Docker 镜像：
 
-[PRE32]
+```
+$ docker image list
+```
 
 该命令应返回以下输出：
 
-[PRE33]
+```
+REPOSITORY    TAG       IMAGE ID         CREATED          SIZE
+<none>        <none>    dc3d4fd77861     3 minutes ago    64.2MB
+ubuntu        latest    549b9b86cb8d     5 days ago       64.2MB
+```
 
 请注意，我们的自定义 Docker 镜像没有名称。这是因为我们在构建过程中没有指定任何存储库或标签。我们可以使用 docker image tag 命令为现有镜像打标签。
 
 让我们用`IMAGE ID dc3d4fd77861`作为`my-tagged-image:v1.0`来为我们的镜像打标签：
 
-[PRE34]
+```
+$ docker image tag dc3d4fd77861 my-tagged-image:v1.0
+```
 
 现在，如果我们再次列出我们的镜像，我们可以看到`REPOSITORY`和`TAG`列下的 Docker 镜像名称和标签：
 
-[PRE35]
+```
+REPOSITORY        TAG       IMAGE ID        CREATED         SIZE
+my-tagged-image   v1.0      dc3d4fd77861    20 minutes ago  64.2MB
+ubuntu            latest    549b9b86cb8d    5 days ago      64.2MB
+```
 
 我们还可以通过指定`-t`标志在构建过程中为镜像打标签：
 
-[PRE36]
+```
+$ docker image build -t my-tagged-image:v2.0 .
+```
 
 上述命令将打印以下输出：
 
-[PRE37]
+```
+Sending build context to Docker daemon  2.048kB
+Step 1/3 : FROM ubuntu:latest
+ ---> 549b9b86cb8d
+Step 2/3 : LABEL maintainer=sathsara@mydomain.com
+ ---> Using cache
+ ---> e3add5272e35
+Step 3/3 : CMD ["echo","Hello World"]
+ ---> Using cache
+ ---> dc3d4fd77861
+Successfully built dc3d4fd77861
+Successfully tagged my-tagged-image:v2.0
+```
 
 这一次，除了`成功构建 dc3d4fd77861`行之外，我们还可以看到`成功标记 my-tagged-image:v2.0`行，这表明我们的 Docker 镜像已经打了标签。
 
@@ -310,11 +457,20 @@ Docker 守护程序将在启动构建过程之前执行验证步骤，以确保�
 
 1.  首先，请确保您在*练习 2.01：创建我们的第一个 Dockerfile*中创建的`custom-docker-image`目录中。确认该目录包含在*练习 2.01：创建我们的第一个 Dockerfile*中创建的以下`Dockerfile`：
 
-[PRE38]
+```
+# This is my first Docker image
+FROM ubuntu 
+LABEL maintainer=sathsara@mydomain.com 
+RUN apt-get update
+CMD ["The Docker Workshop"]
+ENTRYPOINT ["echo", "You are reading"]
+```
 
 1.  使用`docker image build`命令构建 Docker 镜像。此命令具有可选的`-t`标志，用于指定镜像的标签。将您的镜像标记为`welcome:1.0`：
 
-[PRE39]
+```
+$ docker image build -t welcome:1.0 .
+```
 
 注意
 
@@ -328,7 +484,9 @@ Docker 守护程序将在启动构建过程之前执行验证步骤，以确保�
 
 1.  再次构建此镜像，而不更改`Dockerfile`内容：
 
-[PRE40]
+```
+$ docker image build -t welcome:2.0 .
+```
 
 请注意，由于使用了缓存，此构建过程比以前的过程快得多：
 
@@ -338,31 +496,46 @@ Docker 守护程序将在启动构建过程之前执行验证步骤，以确保�
 
 1.  使用`docker image list`命令列出计算机上所有可用的 Docker 镜像：
 
-[PRE41]
+```
+$ docker image list
+```
 
 这些镜像可以在您的计算机上使用，无论是从 Docker 注册表中拉取还是在您的计算机上构建：
 
-[PRE42]
+```
+REPOSITORY   TAG      IMAGE ID        CREATED          SIZE
+welcome      1.0      98f571a42e5c    23 minutes ago   91.9MB
+welcome      2.0      98f571a42e5c    23 minutes ago   91.9MB
+ubuntu       latest   549b9b86cb8d    2 weeks ago      64.2MB
+```
 
 从前述输出中可以看出，有三个 Docker 镜像可用。`ubuntu`镜像是从 Docker Hub 拉取的，`welcome`镜像的`1.0`和`2.0`版本是在您的计算机上构建的。
 
 1.  执行`docker container run`命令，从您在`步骤 1`中构建的 Docker 镜像（`welcome:1.0`）启动一个新容器：
 
-[PRE43]
+```
+$ docker container run welcome:1.0
+```
 
 输出应如下所示：
 
-[PRE44]
+```
+You are reading The Docker Workshop
+```
 
 您将收到预期的输出`You are reading The Docker Workshop`。`You are reading`是由`ENTRYPOINT`指令提供的参数引起的，`The Docker Workshop`来自`CMD`指令提供的参数。
 
 1.  最后，再次执行`docker container run`命令，这次使用命令行参数：
 
-[PRE45]
+```
+$ docker container run welcome:1.0 "Docker Beginner's Guide"
+```
 
 由于命令行参数`Docker 初学者指南`和`ENTRYPOINT`指令中提供的`You are reading`参数，您将获得输出`You are reading Docker 初学者指南`：
 
-[PRE46]
+```
+You are reading Docker Beginner's Guide
+```
 
 在这个练习中，我们学习了如何使用`Dockerfile`构建自定义 Docker 镜像，并从镜像运行 Docker 容器。在下一节中，我们将学习可以在`Dockerfile`中使用的其他 Docker 指令。
 
@@ -398,23 +571,33 @@ Docker 守护程序将在启动构建过程之前执行验证步骤，以确保�
 
 环境变量按以下格式定义为键值对：
 
-[PRE47]
+```
+ENV <key> <value>
+```
 
 PATH 环境变量设置为以下值：
 
-[PRE48]
+```
+$PATH:/usr/local/myapp/bin/
+```
 
 因此，可以使用`ENV`指令设置如下：
 
-[PRE49]
+```
+ENV PATH $PATH:/usr/local/myapp/bin/
+```
 
 我们可以在同一行中用空格分隔设置多个环境变量。但是，在这种形式中，`key`和`value`应该由等号（`=`）分隔：
 
-[PRE50]
+```
+ENV <key>=<value> <key>=<value> ...
+```
 
 在下面的示例中，配置了两个环境变量。`PATH`环境变量配置为`$PATH:/usr/local/myapp/bin/`的值，`VERSION`环境变量配置为`1.0.0`的值：
 
-[PRE51]
+```
+ENV PATH=$PATH:/usr/local/myapp/bin/ VERSION=1.0.0
+```
 
 一旦使用`Dockerfile`中的`ENV`指令设置了环境变量，该变量就会在所有后续的 Docker 镜像层中可用。甚至在从此 Docker 镜像启动的 Docker 容器中也可用。
 
@@ -426,19 +609,29 @@ PATH 环境变量设置为以下值：
 
 用户可以在构建 Docker 镜像时使用`--build-arg <varname>=<value>`传递值，如下所示：
 
-[PRE52]
+```
+$ docker image build -t <image>:<tag> --build-arg <varname>=<value> .
+```
 
 `ARG`指令的格式如下：
 
-[PRE53]
+```
+ARG <varname>
+```
 
 `Dockerfile`中可以有多个`ARG`指令，如下所示：
 
-[PRE54]
+```
+ARG USER
+ARG VERSION
+```
 
 `ARG`指令也可以定义一个可选的默认值。如果在构建时没有传递值，将使用此默认值：
 
-[PRE55]
+```
+ARG USER=TestUser
+ARG VERSION=1.0.0
+```
 
 与`ENV`变量不同，`ARG`变量无法从正在运行的容器中访问。它们仅在构建过程中可用。
 
@@ -450,29 +643,46 @@ PATH 环境变量设置为以下值：
 
 1.  使用`mkdir`命令创建一个名为`env-arg-exercise`的新目录：
 
-[PRE56]
+```
+mkdir env-arg-exercise
+```
 
 1.  使用`cd`命令导航到新创建的`env-arg-exercise`目录：
 
-[PRE57]
+```
+cd env-arg-exercise
+```
 
 1.  在`env-arg-exercise`目录中，创建一个名为`Dockerfile`的文件：
 
-[PRE58]
+```
+touch Dockerfile
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE59]
+```
+vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中。然后，保存并退出`Dockerfile`：
 
-[PRE60]
+```
+# ENV and ARG example
+ARG TAG=latest
+FROM ubuntu:$TAG
+LABEL maintainer=sathsara@mydomain.com 
+ENV PUBLISHER=packt APP_DIR=/usr/local/app/bin
+CMD ["env"]
+```
 
 此`Dockerfile`首先定义了一个名为`TAG`的参数，其默认值为最新版本。接下来是`FROM`指令，它将使用带有`TAG`变量值的 ubuntu 父镜像与`build`命令一起发送（或者如果没有使用`build`命令发送值，则使用默认值）。然后，`LABEL`指令设置了维护者的值。接下来是`ENV`指令，它使用值`packt`定义了`PUBLISHER`的环境变量，并使用值`/usr/local/app/bin`定义了`APP_DIR`的环境变量。最后，使用`CMD`指令执行`env`命令，该命令将打印所有环境变量。
 
 1.  现在，构建 Docker 镜像：
 
-[PRE61]
+```
+$ docker image build -t env-arg --build-arg TAG=19.04 .
+```
 
 注意使用`env-arg --build-arg TAG=19.04`标志将`TAG`参数发送到构建过程中。输出应如下所示：
 
@@ -484,7 +694,9 @@ PATH 环境变量设置为以下值：
 
 1.  现在，执行`docker container run`命令，从您在上一步中构建的 Docker 镜像启动一个新的容器：
 
-[PRE62]
+```
+$ docker container run env-arg
+```
 
 从输出中我们可以看到，`PUBLISHER`环境变量的值为`packt`，`APP_DIR`环境变量的值为`/usr/local/app/bin`：
 
@@ -498,13 +710,20 @@ PATH 环境变量设置为以下值：
 
 `WORKDIR`指令用于指定 Docker 容器的当前工作目录。任何后续的`ADD`、`CMD`、`COPY`、`ENTRYPOINT`和`RUN`指令都将在此目录中执行。`WORKDIR`指令的格式如下：
 
-[PRE63]
+```
+WORKDIR /path/to/workdir
+```
 
 如果指定的目录不存在，Docker 将创建此目录并将其设置为当前工作目录，这意味着该指令隐式执行`mkdir`和`cd`命令。
 
 `Dockerfile`中可以有多个`WORKDIR`指令。如果在后续的`WORKDIR`指令中提供了相对路径，那么它将相对于前一个`WORKDIR`指令设置的工作目录。
 
-[PRE64]
+```
+WORKDIR /one
+WORKDIR two
+WORKDIR three
+RUN pwd
+```
 
 在前面的例子中，我们在`Dockerfile`的末尾使用`pwd`命令来打印当前工作目录。`pwd`命令的输出将是`/one/two/three`。
 
@@ -514,19 +733,27 @@ PATH 环境变量设置为以下值：
 
 在 Docker 镜像构建过程中，我们可能需要将文件从本地文件系统复制到 Docker 镜像文件系统。这些文件可以是源代码文件（例如 JavaScript 文件）、配置文件（例如属性文件）或者构件（例如 JAR 文件）。在构建过程中，可以使用`COPY`指令将文件和文件夹从本地文件系统复制到 Docker 镜像。该指令有两个参数。第一个是本地文件系统的源路径，第二个是镜像文件系统上的目标路径：
 
-[PRE65]
+```
+COPY <source> <destination>
+```
 
 在下面的例子中，我们使用`COPY`指令将`index.html`文件从本地文件系统复制到 Docker 镜像的`/var/www/html/`目录中：
 
-[PRE66]
+```
+COPY index.html /var/www/html/index.html
+```
 
 通配符也可以用来指定匹配给定模式的所有文件。以下示例将把当前目录中所有扩展名为`.html`的文件复制到 Docker 镜像的`/var/www/html/`目录中：
 
-[PRE67]
+```
+COPY *.html /var/www/html/
+```
 
 除了复制文件外，`--chown`标志还可以与`COPY`指令一起使用，以指定文件的用户和组所有权：
 
-[PRE68]
+```
+COPY --chown=myuser:mygroup *.html /var/www/html/
+```
 
 在上面的例子中，除了将所有 HTML 文件从当前目录复制到`/var/www/html/`目录外，`--chown`标志还用于设置文件所有权，用户为`myuser`，组为`mygroup`：
 
@@ -540,11 +767,15 @@ PATH 环境变量设置为以下值：
 
 `ADD`指令也类似于`COPY`指令，格式如下：
 
-[PRE69]
+```
+ADD <source> <destination>
+```
 
 但是，除了`COPY`指令提供的功能外，`ADD`指令还允许我们将 URL 用作`<source>`参数：
 
-[PRE70]
+```
+ADD http://sample.com/test.txt /tmp/test.txt
+```
 
 在上面的例子中，`ADD`指令将从`http://sample.com`下载`test.txt`文件，并将文件复制到 Docker 镜像文件系统的`/tmp`目录中。
 
@@ -552,7 +783,9 @@ PATH 环境变量设置为以下值：
 
 假设我们有一个名为`html.tar.gz`的压缩文件，其中包含`index.html`和`contact.html`文件。以下命令将提取`html.tar.gz`文件，并将`index.html`和`contact.html`文件复制到`/var/www/html`目录：
 
-[PRE71]
+```
+ADD html.tar.gz /var/www/html
+```
 
 由于`COPY`和`ADD`指令提供几乎相同的功能，建议始终使用`COPY`指令，除非您需要`ADD`指令提供的附加功能（从 URL 添加或提取压缩文件）。这是因为`ADD`指令提供了额外的功能，如果使用不正确，可能会表现出不可预测的行为（例如，在想要提取文件时复制文件，或者在想要复制文件时提取文件）。
 
@@ -564,43 +797,72 @@ PATH 环境变量设置为以下值：
 
 1.  使用`mkdir`命令创建一个名为`workdir-copy-add-exercise`的新目录：
 
-[PRE72]
+```
+mkdir workdir-copy-add-exercise
+```
 
 1.  导航到新创建的`workdir-copy-add-exercise`目录：
 
-[PRE73]
+```
+cd workdir-copy-add-exercise
+```
 
 1.  在`workdir-copy-add-exercise`目录中，创建一个名为`index.html`的文件。此文件将在构建时复制到 Docker 镜像中：
 
-[PRE74]
+```
+touch index.html 
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`index.html`：
 
-[PRE75]
+```
+vim index.html 
+```
 
 1.  将以下内容添加到`index.html`文件中，保存并退出`index.html`：
 
-[PRE76]
+```
+<html>
+  <body>
+    <h1>Welcome to The Docker Workshop</h1>
+    <img src="logo.png" height="350" width="500"/>
+  </body>
+</html>
+```
 
 此 HTML 文件将在页面的标题中输出“欢迎来到 Docker 工作坊”，并作为图像输出`logo.png`（我们将在 Docker 镜像构建过程中下载）。您已经定义了`logo.png`图像的高度为`350`，宽度为`500`。
 
 1.  在`workdir-copy-add-exercise`目录中，创建一个名为`Dockerfile`的文件：
 
-[PRE77]
+```
+touch Dockerfile
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE78]
+```
+vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中，保存并退出`Dockerfile`：
 
-[PRE79]
+```
+# WORKDIR, COPY and ADD example
+FROM ubuntu:latest 
+RUN apt-get update && apt-get install apache2 -y 
+WORKDIR /var/www/html/
+COPY index.html .
+ADD https://www.docker.com/sites/default/files/d8/2019-07/  Moby-logo.png ./logo.png
+CMD ["ls"]
+```
 
 这个`Dockerfile`首先将 ubuntu 镜像定义为父镜像。下一行是`RUN`指令，它将执行`apt-get update`来更新软件包列表，以及`apt-get install apache2 -y`来安装 Apache HTTP 服务器。然后，您将设置`/var/www/html/`为工作目录。接下来，将我们在*步骤 3*中创建的`index.html`文件复制到 Docker 镜像中。然后，使用`ADD`指令从[`www.docker.com/sites/default/files/d8/2019-07/Moby-logo.png`](https://www.docker.com/sites/default/files/d8/2019-07/Moby-logo.png)下载 Docker 标志到 Docker 镜像中。最后一步是使用`ls`命令打印`/var/www/html/`目录的内容。
 
 1.  现在，使用标签`workdir-copy-add`构建 Docker 镜像：
 
-[PRE80]
+```
+$ docker image build -t workdir-copy-add .
+```
 
 您会注意到，由于我们没有明确为镜像打标签，因此该镜像已成功构建并标记为`latest`：
 
@@ -610,11 +872,16 @@ PATH 环境变量设置为以下值：
 
 1.  执行`docker container run`命令，从您在上一步中构建的 Docker 镜像启动一个新的容器：
 
-[PRE81]
+```
+$ docker container run workdir-copy-add
+```
 
 从输出中可以看到，`index.html`和`logo.png`文件都在`/var/www/html/`目录中可用：
 
-[PRE82]
+```
+index.html
+logo.png
+```
 
 在这个练习中，我们观察了`WORKDIR`、`ADD`和`COPY`指令在 Docker 中的工作方式。在下一节中，我们将讨论`USER`指令。
 
@@ -624,15 +891,22 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 `USER`指令采用以下格式：
 
-[PRE83]
+```
+USER <user>
+```
 
 除了用户名之外，我们还可以指定可选的组名来运行 Docker 容器：
 
-[PRE84]
+```
+USER <user>:<group>
+```
 
 我们需要确保`<user>`和`<group>`的值是有效的用户和组名。否则，Docker 守护程序在尝试运行容器时会抛出错误：
 
-[PRE85]
+```
+docker: Error response from daemon: unable to find user my_user: 
+        no matching entries in passwd file.
+```
 
 现在，让我们在下一个练习中尝试使用`USER`指令。
 
@@ -646,29 +920,45 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  为这个练习创建一个名为`user-exercise`的新目录：
 
-[PRE86]
+```
+mkdir user-exercise
+```
 
 1.  导航到新创建的`user-exercise`目录：
 
-[PRE87]
+```
+cd user-exercise
+```
 
 1.  在`user-exercise`目录中，创建一个名为`Dockerfile`的文件：
 
-[PRE88]
+```
+touch Dockerfile
+```
 
 1.  现在，用你喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE89]
+```
+vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中，保存并退出`Dockerfile`：
 
-[PRE90]
+```
+# USER example
+FROM ubuntu
+RUN apt-get update && apt-get install apache2 -y 
+USER www-data
+CMD ["whoami"]
+```
 
 这个`Dockerfile`首先将 Ubuntu 镜像定义为父镜像。下一行是`RUN`指令，它将执行`apt-get update`来更新软件包列表，以及`apt-get install apache2 -y`来安装 Apache HTTP 服务器。接下来，您使用`USER`指令将当前用户更改为`www-data`用户。最后，您有`CMD`指令，它执行`whoami`命令，将打印当前用户的用户名。
 
 1.  构建 Docker 镜像：
 
-[PRE91]
+```
+$ docker image build -t user .
+```
 
 输出应该如下：
 
@@ -678,11 +968,15 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  现在，执行`docker container` run 命令来从我们在上一步中构建的 Docker 镜像启动一个新的容器：
 
-[PRE92]
+```
+$ docker container run user
+```
 
 如您从以下输出中所见，`www-data`是与 Docker 容器关联的当前用户：
 
-[PRE93]
+```
+www-data
+```
 
 在这个练习中，我们在`Dockerfile`中实现了`USER`指令，将`www-data`用户设置为 Docker 镜像的默认用户。
 
@@ -694,21 +988,54 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 `VOLUME`指令通常以 JSON 数组作为参数：
 
-[PRE94]
+```
+VOLUME ["/path/to/volume"]
+```
 
 或者，我们可以指定一个包含多个路径的普通字符串：
 
-[PRE95]
+```
+VOLUME /path/to/volume1 /path/to/volume2
+```
 
 我们可以使用`docker container inspect <container>`命令查看容器中可用的卷。docker 容器 inspect 命令的输出 JSON 将打印类似以下内容的卷信息：
 
-[PRE96]
+```
+"Mounts": [
+    {
+        "Type": "volume",
+        "Name": "77db32d66407a554bd0dbdf3950671b658b6233c509ea
+ed9f5c2a589fea268fe",
+        "Source": "/var/lib/docker/volumes/77db32d66407a554bd0
+dbdf3950671b658b6233c509eaed9f5c2a589fea268fe/_data",
+        "Destination": "/path/to/volume",
+        "Driver": "local",
+        "Mode": "",
+        "RW": true,
+        "Propagation": ""
+    }
+],
+```
 
 根据前面的输出，Docker 为卷指定了一个唯一的名称。此外，输出中还提到了卷的源路径和目标路径。
 
 此外，我们可以执行`docker volume inspect <volume>`命令来显示有关卷的详细信息：
 
-[PRE97]
+```
+[
+    {
+        "CreatedAt": "2019-12-28T12:52:52+05:30",
+        "Driver": "local",
+        "Labels": null,
+        "Mountpoint": "/var/lib/docker/volumes/77db32d66407a554
+bd0dbdf3950671b658b6233c509eaed9f5c2a589fea268fe/_data",
+        "Name": "77db32d66407a554bd0dbdf3950671b658b6233c509eae
+d9f5c2a589fea268fe",
+        "Options": null,
+        "Scope": "local"
+    }
+]
+```
 
 这也类似于先前的输出，具有相同的唯一名称和卷的挂载路径。
 
@@ -720,29 +1047,44 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  创建一个名为`volume-exercise`的新目录：
 
-[PRE98]
+```
+mkdir volume-exercise
+```
 
 1.  转到新创建的`volume-exercise`目录：
 
-[PRE99]
+```
+cd volume-exercise
+```
 
 1.  在`volume-exercise`目录中，创建一个名为`Dockerfile`的文件：
 
-[PRE100]
+```
+touch Dockerfile
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE101]
+```
+vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中，保存并退出`Dockerfile`：
 
-[PRE102]
+```
+# VOLUME example
+FROM ubuntu
+RUN apt-get update && apt-get install apache2 -y
+VOLUME ["/var/log/apache2"]
+```
 
 这个`Dockerfile`首先定义了 Ubuntu 镜像作为父镜像。接下来，您将执行`apt-get update`命令来更新软件包列表，以及`apt-get install apache2 -y`命令来安装 Apache Web 服务器。最后，使用`VOLUME`指令来设置一个挂载点到`/var/log/apache2`目录。
 
 1.  现在，构建 Docker 镜像：
 
-[PRE103]
+```
+$ docker image build -t volume .
+```
 
 输出应该如下：
 
@@ -752,23 +1094,33 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  执行 docker 容器运行命令，从您在上一步构建的 Docker 镜像中启动一个新的容器。请注意，您正在使用`--interactive`和`--tty`标志来打开一个交互式的 bash 会话，以便您可以从 Docker 容器的 bash shell 中执行命令。您还使用了`--name`标志来将容器名称定义为`volume-container`：
 
-[PRE104]
+```
+$ docker container run --interactive --tty --name volume-container volume /bin/bash
+```
 
 您的 bash shell 将会被打开如下：
 
-[PRE105]
+```
+root@bc61d46de960: /#
+```
 
 1.  从 Docker 容器命令行，切换到`/var/log/apache2/`目录：
 
-[PRE106]
+```
+# cd /var/log/apache2/
+```
 
 这将产生以下输出：
 
-[PRE107]
+```
+root@bc61d46de960: /var/log/apache2#
+```
 
 1.  现在，列出目录中可用的文件：
 
-[PRE108]
+```
+# ls -l
+```
 
 输出应该如下：
 
@@ -780,11 +1132,15 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  现在，退出容器以检查主机文件系统：
 
-[PRE109]
+```
+# exit
+```
 
 1.  检查`volume-container`以查看挂载信息：
 
-[PRE110]
+```
+$ docker container inspect volume-container
+```
 
 在"`Mounts`"键下，您可以看到与挂载相关的信息：
 
@@ -794,7 +1150,9 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  使用`docker volume inspect <volume_name>`命令来检查卷。`<volume_name>`可以通过前面输出的`Name`字段来识别：
 
-[PRE111]
+```
+$ docker volume inspect 354d188e0761d82e1e7d9f3d5c6ee644782b7150f51cead8f140556e5d334bd5
+```
 
 您应该会得到类似以下的输出：
 
@@ -806,7 +1164,9 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  列出主机文件路径中可用的文件。主机文件路径可以通过前面输出的`"Mountpoint"`字段来识别：
 
-[PRE112]
+```
+$ sudo ls -l /var/lib/docker/volumes/354d188e0761d82e1e7d9f3d5c6ee644782b7150f51cead8f14 0556e5d334bd5/_data
+```
 
 在下面的输出中，您可以看到容器中`/var/log/apache2`目录中的日志文件被挂载到主机上：
 
@@ -820,11 +1180,15 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 `EXPOSE`指令用于通知 Docker 容器在运行时监听指定端口。我们可以使用`EXPOSE`指令通过 TCP 或 UDP 协议公开端口。`EXPOSE`指令的格式如下：
 
-[PRE113]
+```
+EXPOSE <port>
+```
 
 然而，使用`EXPOSE`指令公开的端口只能从其他 Docker 容器内部访问。要将这些端口公开到 Docker 容器外部，我们可以使用`docker container run`命令的`-p`标志来发布端口：
 
-[PRE114]
+```
+docker container run -p <host_port>:<container_port> <image>
+```
 
 举个例子，假设我们有两个容器。一个是 NodeJS Web 应用容器，应该通过端口`80`从外部访问。第二个是 MySQL 容器，应该通过端口`3306`从 Node 应用容器访问。在这种情况下，我们必须使用`EXPOSE`指令公开 NodeJS 应用的端口`80`，并在运行容器时使用`docker container run`命令和`-p`标志来将其公开到外部。然而，对于 MySQL 容器，我们在运行容器时只能使用`EXPOSE`指令，而不使用`-p`标志，因为`3306`端口只能从 Node 应用容器访问。
 
@@ -840,13 +1204,17 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 在 Docker 中使用健康检查来检查容器是否正常运行。例如，我们可以使用健康检查来确保应用程序在 Docker 容器内部运行。除非指定了健康检查，否则 Docker 无法判断容器是否健康。如果在生产环境中运行 Docker 容器，这一点非常重要。`HEALTHCHECK`指令的格式如下：
 
-[PRE115]
+```
+HEALTHCHECK [OPTIONS] CMD command
+```
 
 `Dockerfile`中只能有一个`HEALTHCHECK`指令。如果有多个`HEALTHCHECK`指令，只有最后一个会生效。
 
 例如，我们可以使用以下指令来确保容器可以在`http://localhost/`端点接收流量：
 
-[PRE116]
+```
+HEALTHCHECK CMD curl -f http://localhost/ || exit 1
+```
 
 在上一个命令的最后，退出代码用于指定容器的健康状态。`0`和`1`是此字段的有效值。0 用于表示健康的容器，`1`用于表示不健康的容器。
 
@@ -862,11 +1230,18 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 在下面的示例中，我们通过使用`HEALTHCHECK`指令提供我们的自定义值来覆盖了默认值：
 
-[PRE117]
+```
+HEALTHCHECK --interval=1m --timeout=2s --start-period=2m --retries=3 \    CMD curl -f http://localhost/ || exit 1
+```
 
 我们可以使用`docker container list`命令来检查容器的健康状态。这将在`STATUS`列下列出健康状态：
 
-[PRE118]
+```
+CONTAINER ID  IMAGE     COMMAND                  CREATED
+  STATUS                        PORTS                NAMES
+d4e627acf6ec  sample    "apache2ctl -D FOREG…"   About a minute ago
+  Up About a minute (healthy)   0.0.0.0:80->80/tcp   upbeat_banach
+```
 
 一旦我们启动容器，健康状态将是健康：启动中。成功执行`HEALTHCHECK`命令后，状态将变为`健康`。
 
@@ -878,29 +1253,46 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  创建一个名为`expose-healthcheck`的新目录：
 
-[PRE119]
+```
+mkdir expose-healthcheck
+```
 
 1.  导航到新创建的`expose-healthcheck`目录：
 
-[PRE120]
+```
+cd expose-healthcheck
+```
 
 1.  在`expose-healthcheck`目录中，创建一个名为`Dockerfile`的文件：
 
-[PRE121]
+```
+touch Dockerfile
+```
 
 1.  现在，用你喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE122]
+```
+vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中，保存并退出`Dockerfile`：
 
-[PRE123]
+```
+# EXPOSE & HEALTHCHECK example
+FROM ubuntu
+RUN apt-get update && apt-get install apache2 curl -y 
+HEALTHCHECK CMD curl -f http://localhost/ || exit 1
+EXPOSE 80
+ENTRYPOINT ["apache2ctl", "-D", "FOREGROUND"]
+```
 
 这个`Dockerfile`首先将 ubuntu 镜像定义为父镜像。接下来，我们执行`apt-get update`命令来更新软件包列表，以及`apt-get install apache2 curl -y`命令来安装 Apache web 服务器和 curl 工具。`Curl`是执行`HEALTHCHECK`命令所需的。接下来，我们使用 curl 将`HEALTHCHECK`指令定义为`http://localhost/`端点。然后，我们暴露了 Apache web 服务器的端口`80`，以便我们可以从网络浏览器访问首页。最后，我们使用`ENTRYPOINT`指令启动了 Apache web 服务器。
 
 1.  现在，构建 Docker 镜像：
 
-[PRE124]
+```
+$ docker image build -t expose-healthcheck.
+```
 
 您应该会得到以下输出：
 
@@ -910,11 +1302,15 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  执行`docker container run`命令，从前一步构建的 Docker 镜像启动一个新的容器。请注意，您使用了`-p`标志将主机的端口`80`重定向到容器的端口`80`。此外，您使用了`--name`标志将容器名称指定为`expose-healthcheck-container`，并使用了`-d`标志以分离模式运行容器（这将在后台运行容器）：
 
-[PRE125]
+```
+$ docker container run -p 80:80 --name expose-healthcheck-container -d expose-healthcheck
+```
 
 1.  使用`docker container list`命令列出正在运行的容器：
 
-[PRE126]
+```
+$ docker container list
+```
 
 在下面的输出中，您可以看到`expose-healthcheck-container`的`STATUS`为健康：
 
@@ -928,11 +1324,15 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  现在清理容器。首先，使用`docker container stop`命令停止 Docker 容器：
 
-[PRE127]
+```
+$ docker container stop expose-healthcheck-container
+```
 
 1.  最后，使用`docker container rm`命令删除 Docker 容器：
 
-[PRE128]
+```
+$ docker container rm expose-healthcheck-container
+```
 
 在这个练习中，您利用了`EXPOSE`指令将 Apache web 服务器暴露为 Docker 容器，并使用了`HEALTHCHECK`指令来定义一个健康检查，以验证 Docker 容器的健康状态。
 
@@ -946,21 +1346,33 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 `ONBUILD`指令采用以下格式：
 
-[PRE129]
+```
+ONBUILD <instruction>
+```
 
 举个例子，假设我们的自定义基础镜像的`Dockerfile`中有以下`ONBUILD`指令：
 
-[PRE130]
+```
+ONBUILD ENTRYPOINT ["echo","Running ONBUILD directive"]
+```
 
 如果我们从自定义基础镜像创建一个 Docker 容器，那么`"Running ONBUILD directive"`值将不会被打印出来。然而，如果我们将我们的自定义基础镜像用作新的子 Docker 镜像的基础，那么`"Running ONBUILD directive"`值将被打印出来。
 
 我们可以使用`docker image inspect`命令来列出父镜像的 OnBuild 触发器：
 
-[PRE131]
+```
+$ docker image inspect <parent-image>
+```
 
 该命令将返回类似以下的输出：
 
-[PRE132]
+```
+...
+"OnBuild": [
+    "CMD [\"echo\",\"Running ONBUILD directive\"]"
+]
+...
+```
 
 在下一个练习中，我们将使用`ONBUILD`指令来定义一个 Docker 镜像来部署 HTML 文件。
 
@@ -970,29 +1382,46 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  创建一个名为`onbuild-parent`的新目录：
 
-[PRE133]
+```
+mkdir onbuild-parent
+```
 
 1.  导航到新创建的`onbuild-parent`目录：
 
-[PRE134]
+```
+cd onbuild-parent
+```
 
 1.  在`onbuild-parent`目录中，创建一个名为`Dockerfile`的文件：
 
-[PRE135]
+```
+touch Dockerfile
+```
 
 1.  现在，用你喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE136]
+```
+vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中，保存并退出`Dockerfile`：
 
-[PRE137]
+```
+# ONBUILD example
+FROM ubuntu
+RUN apt-get update && apt-get install apache2 -y 
+ONBUILD COPY *.html /var/www/html
+EXPOSE 80
+ENTRYPOINT ["apache2ctl", "-D", "FOREGROUND"]
+```
 
 这个`Dockerfile`首先将 ubuntu 镜像定义为父镜像。然后执行`apt-get update`命令来更新软件包列表，以及`apt-get install apache2 -y`命令来安装 Apache Web 服务器。`ONBUILD`指令用于提供一个触发器，将所有 HTML 文件复制到`/var/www/html`目录。`EXPOSE`指令用于暴露容器的端口`80`，`ENTRYPOINT`用于使用`apache2ctl`命令启动 Apache Web 服务器。
 
 1.  现在，构建 Docker 镜像：
 
-[PRE138]
+```
+$ docker image build -t onbuild-parent .
+```
 
 输出应该如下所示：
 
@@ -1002,7 +1431,9 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  执行`docker container run`命令以从上一步构建的 Docker 镜像启动新容器：
 
-[PRE139]
+```
+$ docker container run -p 80:80 --name onbuild-parent-container -d onbuild-parent
+```
 
 在上述命令中，您已经以分离模式启动了 Docker 容器，同时暴露了容器的端口`80`。
 
@@ -1012,55 +1443,84 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  现在，清理容器。使用`docker container stop`命令停止 Docker 容器：
 
-[PRE140]
+```
+$ docker container stop onbuild-parent-container
+```
 
 1.  使用`docker container rm`命令删除 Docker 容器：
 
-[PRE141]
+```
+$ docker container rm onbuild-parent-container
+```
 
 1.  现在，使用`onbuild-parent-container`作为父镜像创建另一个 Docker 镜像，以部署自定义 HTML 首页。首先，将目录更改回到上一个目录：
 
-[PRE142]
+```
+cd ..
+```
 
 1.  为这个练习创建一个名为`onbuild-child`的新目录：
 
-[PRE143]
+```
+mkdir onbuild-child
+```
 
 1.  导航到新创建的`onbuild-child`目录：
 
-[PRE144]
+```
+cd onbuild-child
+```
 
 1.  在`onbuild-child`目录中，创建一个名为`index.html`的文件。这个文件将在构建时由`ONBUILD`命令复制到 Docker 镜像中：
 
-[PRE145]
+```
+touch index.html 
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`index.html`文件：
 
-[PRE146]
+```
+vim index.html 
+```
 
 1.  将以下内容添加到`index.html`文件中，保存并退出`index.html`文件：
 
-[PRE147]
+```
+<html>
+  <body>
+    <h1>Learning Docker ONBUILD directive</h1>
+  </body>
+</html>
+```
 
 这是一个简单的 HTML 文件，将在页面的标题中输出`Learning Docker ONBUILD`指令。
 
 1.  在`onbuild-child`目录中，创建一个名为`Dockerfile`的文件：
 
-[PRE148]
+```
+touch Dockerfile
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE149]
+```
+vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中，保存并退出`Dockerfile`：
 
-[PRE150]
+```
+# ONBUILD example
+FROM onbuild-parent
+```
 
 这个`Dockerfile`只有一个指令。它将使用`FROM`指令来利用您之前创建的`onbuild-parent` Docker 镜像作为父镜像。
 
 1.  现在，构建 Docker 镜像：
 
-[PRE151]
+```
+$ docker image build -t onbuild-child .
+```
 
 ![图 2.19：构建 onbuild-child Docker 镜像](img/B15021_02_19.jpg)
 
@@ -1068,7 +1528,9 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  执行`docker container run`命令，从上一步构建的 Docker 镜像启动一个新的容器：
 
-[PRE152]
+```
+$ docker container run -p 80:80 --name onbuild-child-container -d onbuild-child
+```
 
 在这个命令中，您已经从`onbuild-child` Docker 镜像启动了 Docker 容器，同时暴露了容器的端口`80`。
 
@@ -1078,11 +1540,15 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 1.  现在，清理容器。首先使用`docker container stop`命令停止 Docker 容器：
 
-[PRE153]
+```
+$ docker container stop onbuild-child-container
+```
 
 1.  最后，使用`docker container rm`命令删除 Docker 容器：
 
-[PRE154]
+```
+$ docker container rm onbuild-child-container
+```
 
 在这个练习中，我们观察到如何使用`ONBUILD`指令创建一个可重用的 Docker 镜像，能够运行提供给它的任何 HTML 文件。我们创建了名为`onbuild-parent`的可重用 Docker 镜像，其中包含 Apache web 服务器，并暴露了端口`80`。这个`Dockerfile`包含`ONBUILD`指令，用于将 HTML 文件复制到 Docker 镜像的上下文中。然后，我们使用`onbuild-parent`作为基础镜像创建了第二个 Docker 镜像，名为`onbuild-child`，它提供了一个简单的 HTML 文件，用于部署到 Apache web 服务器。
 
@@ -1092,7 +1558,19 @@ Docker 将使用 root 用户作为 Docker 容器的默认用户。我们可以�
 
 假设您想要部署一个 PHP 欢迎页面，根据日期和时间来问候访客，使用以下逻辑。您的任务是使用安装在 Ubuntu 基础镜像上的 Apache web 服务器，对这里给出的 PHP 应用程序进行 docker 化。
 
-[PRE155]
+```
+<?php
+$hourOfDay = date('H');
+if($hourOfDay < 12) {
+    $message = "Good Morning";
+} elseif($hourOfDay > 11 && $hourOfDay < 18) {
+    $message = "Good Afternoon";
+} elseif($hourOfDay > 17){
+    $message = "Good Evening";
+}
+echo $message;
+?>
+```
 
 这是一个简单的 PHP 文件，根据以下逻辑来问候用户：
 

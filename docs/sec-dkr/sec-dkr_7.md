@@ -40,7 +40,11 @@ Summon 通常使用三个文件：一个`secrets.yml`文件，用于执行操作
 
 一个很好的例子是使用 Summon 来部署 AWS 凭证到一个容器中。为了使用 AWS CLI，你需要一些关键的信息，这些信息应该保密。这两个信息是你的 AWS 访问密钥 ID 和 AWS 秘密访问密钥。有了这两个信息，你就可以操纵某人的 AWS 账户并在该账户内执行操作。让我们来看看其中一个文件`secrets.yml`文件的内容：
 
-[PRE0]
+```
+secrets.yml
+AWS_ACCESS_KEY_ID: !var $env/aws_access_key_id
+AWS_SECRET_ACCESS_KEY: !var $env/aws_secret_access_key
+```
 
 `-D`选项用于替换值，而`$env`是一个替换变量的例子，因此，选项可以互换使用。
 
@@ -48,23 +52,41 @@ Summon 通常使用三个文件：一个`secrets.yml`文件，用于执行操作
 
 我们只需在包含这三个文件的文件夹中使用`docker build`命令：
 
-[PRE1]
+```
+$ docker build -t scottpgallagher/aws-deploy .
+
+```
 
 接下来，我们需要安装 Summon，可以通过一个简单的`curl`命令来完成：
 
-[PRE2]
+```
+$ curl -sSL https://raw.githubusercontent.com/conjurinc/summon/master/install.sh | bash
+
+```
 
 现在我们安装了 Summon，我们需要使用 Summon 运行容器，并传递我们的秘密值（请注意，这只适用于 OS X）：
 
-[PRE3]
+```
+$ security add-generic-password -s "summon" -a "aws_access_key_id" -w "ACESS_KEY_ID"
+$ security add-generic-password -s "summon" -a "aws_secret_access_key" -w "SECRET_ACCESS_KEY"
+
+```
 
 现在我们准备使用 Summon 运行 Docker，以便将这些凭证传递给容器：
 
-[PRE4]
+```
+$ summon -p ring.py docker run —env-file @ENVFILE aws-deploy
+
+```
 
 您还可以使用以下`cat`命令查看您传递的值：
 
-[PRE5]
+```
+$ summon -p ring.py cat @SUMMONENVFILE
+aws_access_key_id=ACESS_KEY_ID
+aws_secret_access_key=SECRET_ACCESS_KEY
+
+```
 
 `@SUMMONENVFILE`是一个内存映射文件，其中包含了`secrets.yml`文件中的值。
 
@@ -107,7 +129,10 @@ dockersh 旨在用作支持多个交互式用户的机器上的登录 shell 替�
 
 DockerUI 是查看 Docker 主机内部情况的简单方法。安装 DockerUI 非常简单，只需运行一个简单的`docker run`命令即可开始：
 
-[PRE6]
+```
+$ docker run -d -p 9000:9000 --privileged -v /var/run/docker.sock:/var/run/docker.sock dockerui/dockerui
+
+```
 
 要访问 DockerUI，只需打开浏览器并导航到以下链接：
 
@@ -127,7 +152,10 @@ Shipyard，就像 DockerUI 一样，允许您使用 GUI Web 界面来管理各�
 
 使用 Shipyard 非常简单，以下`curl`命令再次出现：
 
-[PRE7]
+```
+$ curl -sSL https://shipyard-project.com/deploy | bash -s
+
+```
 
 一旦设置完成，要访问 Shipyard，您只需打开浏览器并导航到以下链接：
 
@@ -159,11 +187,20 @@ Shipyard，就像 DockerUI 一样，允许您操作 Docker 主机和容器，重
 
 Logspout 的设置与我们在其他第三方解决方案中看到的一样简单。只需在每个 Docker 主机上运行以下命令即可开始收集日志：
 
-[PRE8]
+```
+$ docker run --name="logspout" \
+--volume=/var/run/docker.sock:/tmp/docker.sock \
+--publish=127.0.0.1:8000:8080 \
+gliderlabs/logspout
+
+```
 
 现在我们已经将所有容器日志收集到一个区域，我们需要解析这些日志，但是该如何做呢？
 
-[PRE9]
+```
+$ curl http://127.0.0.1:8000/logs
+
+```
 
 这里又是`curl`命令拯救的时候了！日志以容器名称为前缀，并以一种方式进行着色，以区分日志。您可以将`docker run`调用中的回环（`127.0.0.1`）地址替换为 Docker 主机的 IP 地址，以便更容易连接，以便能够获取日志，并将端口从`8000`更改为您选择的端口。还有不同的模块可以用来获取和收集日志。
 

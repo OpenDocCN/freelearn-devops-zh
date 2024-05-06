@@ -112,7 +112,9 @@ SQLAlchemy 在 Flask 中得到很好的支持，并允许我们定义已经存�
 
 您将运行以下命令：
 
-[PRE0]
+```py
+docker run image
+```
 
 1.  **为什么在 Dockerfile 中创建一个删除文件的步骤不会创建一个更小的镜像？**
 
@@ -272,7 +274,9 @@ Travis CI 在构建中断时发送通知邮件，以及先前中断的分支成�
 
 您需要登录到 Docker 守护程序。您可以使用以下代码获取登录命令：
 
-[PRE1]
+```py
+$ aws ecr get-login --no-include-email
+```
 
 1.  我们用什么工具来设置 EKS 集群？
 
@@ -484,7 +488,20 @@ Kubernetes Secrets 更好地防止意外访问。直接访问工具不会以明�
 
 例如，要用以下代码替换`postgres-password`秘密为`someotherpassword`值：
 
-[PRE2]
+```py
+$ echo someotherpassword | base64
+c29tZW90aGVycGFzc3dvcmQK
+$ kubectl edit secrets -n example thoughts-secrets
+# Please edit the object below. Lines beginning with a '#' will be ignored,
+# and an empty file will abort the edit. If an error occurs while saving this file will be
+# reopened with the relevant failures.
+#
+apiVersion: v1
+data:
+ postgres-password: c29tZW90aGVycGFzc3dvcmQK
+...
+secret/thoughts-secrets edited
+```
 
 一旦重新启动，我们的 pod 将能够使用新的 Secret。
 
@@ -492,13 +509,28 @@ Kubernetes Secrets 更好地防止意外访问。直接访问工具不会以明�
 
 我们需要更改 ConfigMap，以便它包含`configuration.yaml`中的文件：
 
-[PRE3]
+```py
+THOUGHTS_BACKEND_URL: http://thoughts-service
+public_key.pub: |
+  -----BEGIN PUBLIC KEY-----
+  <public key>
+  -----END PUBLIC KEY-----
+USER_BACKEND_URL: http://users-service
+```
 
 注意缩进以界定文件。 `|`字符标记多行字符串。
 
 然后，在`deployment.yaml`文件中，我们需要将挂载的来源从 Secret 更改为 ConfigMap：
 
-[PRE4]
+```py
+volumes:
+    - name: public-key
+      configMap:
+          name: shared-config
+          items:
+              - key: public_key.pub
+                path: public_key.pub
+```
 
 记得先将这些更改应用到 ConfigMap 中，以便在应用部署文件时它们是可用的。
 

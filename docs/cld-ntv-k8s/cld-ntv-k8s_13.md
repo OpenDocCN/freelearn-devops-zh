@@ -110,19 +110,31 @@ Kubernetes 在设计和开发时考虑了这些谬论，因此更具有容忍性
 
 让我们来设定场景。您的集群正在运行，但是您遇到了 Pod 调度的问题。Pods 一直停留在 `Pending` 状态，无限期地。让我们用以下命令确认一下：
 
-[PRE0]
+```
+kubectl get pods
+```
 
 命令的输出如下：
 
-[PRE1]
+```
+NAME                              READY     STATUS    RESTARTS   AGE
+app-1-pod-2821252345-tj8ks        0/1       Pending   0          2d
+app-1-pod-2821252345-9fj2k        0/1       Pending   0          2d
+app-1-pod-2821252345-06hdj        0/1       Pending   0          2d
+```
 
 正如我们所看到的，我们的 Pod 都没有在运行。此外，我们正在运行应用程序的三个副本，但没有一个被调度。下一个很好的步骤是检查节点状态，看看是否有任何问题。运行以下命令以获取输出：
 
-[PRE2]
+```
+kubectl get nodes
+```
 
 我们得到以下输出：
 
-[PRE3]
+```
+  NAME           STATUS     ROLES    AGE    VERSION
+  node-01        NotReady   <none>   5m     v1.15.6
+```
 
 这个输出给了我们一些很好的信息 - 我们只有一个工作节点，并且它无法用于调度。当 `get` 命令没有给我们足够的信息时，`describe` 通常是一个很好的下一步。
 
@@ -142,7 +154,9 @@ Kubernetes 在设计和开发时考虑了这些谬论，因此更具有容忍性
 
 首先，让我们检查节点是否可以通过网络访问控制平面。如果不能，这显然是 kubelet 无法发布状态的明显原因。假设我们的集群控制平面（例如，本地负载均衡器）位于`10.231.0.1`，为了检查我们的节点是否可以访问 Kubernetes API 服务器，我们可以像下面这样 ping 控制平面：
 
-[PRE4]
+```
+ping 10.231.0.1   
+```
 
 重要提示
 
@@ -150,7 +164,11 @@ Kubernetes 在设计和开发时考虑了这些谬论，因此更具有容忍性
 
 让我们来检查结果：
 
-[PRE5]
+```
+Reply from 10.231.0.1: bytes=1500 time=28ms TTL=54
+Reply from 10.231.0.1: bytes=1500 time=26ms TTL=54
+Reply from 10.231.0.1: bytes=1500 time=27ms TTL=54
+```
 
 这证实了 - 我们的节点确实可以与 Kubernetes 控制平面通信。因此，网络不是问题。接下来，让我们检查实际的 kubelet 服务。节点本身似乎是正常运行的，网络也正常，所以逻辑上，kubelet 是下一个要检查的东西。
 
@@ -162,59 +180,101 @@ Kubernetes 组件在 Linux 节点上作为系统服务运行。
 
 为了找出我们的`kubelet`服务的状态，我们可以运行以下命令：
 
-[PRE6]
+```
+systemctl status kubelet -l 
+```
 
 这给我们以下输出：
 
-[PRE7]
+```
+ • kubelet.service - kubelet: The Kubernetes Node Agent
+   Loaded: loaded (/lib/systemd/system/kubelet.service; enabled)
+  Drop-In: /etc/systemd/system/kubelet.service.d
+           └─10-kubeadm.conf
+   Active: activating (auto-restart) (Result: exit-code) since Fri 2020-05-22 05:44:25 UTC; 3s ago
+     Docs: http://kubernetes.io/docs/
+  Process: 32315 ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_SYSTEM_PODS_ARGS $KUBELET_NETWORK_ARGS $KUBELET_DNS_ARGS $KUBELET_AUTHZ_ARGS $KUBELET_CADVISOR_ARGS $KUBELET_CERTIFICATE_ARGS $KUBELET_EXTRA_ARGS (code=exited, status=1/FAILURE)
+ Main PID: 32315 (code=exited, status=1/FAILURE)
+```
 
 看起来我们的 kubelet 目前没有运行 - 它以失败退出。这解释了我们所看到的集群状态和 Pod 问题。
 
 实际上修复问题，我们可以首先尝试使用以下命令重新启动`kubelet`：
 
-[PRE8]
+```
+systemctl start kubelet
+```
 
 现在，让我们使用我们的状态命令重新检查`kubelet`的状态：
 
-[PRE9]
+```
+ • kubelet.service - kubelet: The Kubernetes Node Agent
+   Loaded: loaded (/lib/systemd/system/kubelet.service; enabled)
+  Drop-In: /etc/systemd/system/kubelet.service.d
+           └─10-kubeadm.conf
+   Active: activating (auto-restart) (Result: exit-code) since Fri 2020-05-22 06:13:48 UTC; 10s ago
+     Docs: http://kubernetes.io/docs/
+  Process: 32007 ExecStart=/usr/bin/kubelet $KUBELET_KUBECONFIG_ARGS $KUBELET_SYSTEM_PODS_ARGS $KUBELET_NETWORK_ARGS $KUBELET_DNS_ARGS $KUBELET_AUTHZ_ARGS $KUBELET_CADVISOR_ARGS $KUBELET_CERTIFICATE_ARGS $KUBELET_EXTRA_ARGS (code=exited, status=1/FAILURE)
+ Main PID: 32007 (code=exited, status=1/FAILURE)
+```
 
 看起来`kubelet`又失败了。我们需要获取一些关于失败模式的额外信息，以便找出发生了什么。
 
 让我们使用`journalctl`命令查看是否有相关的日志：
 
-[PRE10]
+```
+sudo journalctl -u kubelet.service | grep "failed"
+```
 
 输出应该显示`kubelet`服务的日志，其中发生了故障：
 
-[PRE11]
+```
+May 22 04:19:16 nixos kubelet[1391]: F0522 04:19:16.83719    1287 server.go:262] failed to run Kubelet: Running with swap on is not supported, please disable swap! or set --fail-swap-on flag to false. /proc/swaps contained: [Filename                                Type                Size        Used        Priority /dev/sda1                               partition        6198732        0        -1]
+```
 
 看起来我们已经找到了原因-Kubernetes 默认不支持在 Linux 机器上运行时将`swap`设置为`on`。我们在这里的唯一选择要么是禁用`swap`，要么是使用设置为`false`的`--fail-swap-on`标志重新启动`kubelet`。
 
 在我们的情况下，我们将使用以下命令更改`swap`设置：
 
-[PRE12]
+```
+sudo swapoff -a
+```
 
 现在，重新启动`kubelet`服务：
 
-[PRE13]
+```
+sudo systemctl restart kubelet
+```
 
 最后，让我们检查一下我们的修复是否奏效。使用以下命令检查节点：
 
-[PRE14]
+```
+kubectl get nodes 
+```
 
 这应该显示类似于以下内容的输出：
 
-[PRE15]
+```
+  NAME           STATUS     ROLES    AGE    VERSION
+  node-01        Ready      <none>   54m    v1.15.6
+```
 
 我们的节点最终发布了`Ready`状态！
 
 让我们使用以下命令检查我们的 Pod：
 
-[PRE16]
+```
+kubectl get pods
+```
 
 这应该显示如下输出：
 
-[PRE17]
+```
+NAME                              READY     STATUS    RESTARTS   AGE
+app-1-pod-2821252345-tj8ks        1/1       Running   0          1m
+app-1-pod-2821252345-9fj2k        1/1       Running   0          1m
+app-1-pod-2821252345-06hdj        1/1       Running   0          1m
+```
 
 成功！我们的集群健康，我们的 Pod 正在运行。
 
@@ -232,33 +292,49 @@ Kubernetes 组件在 Linux 节点上作为系统服务运行。
 
 我们可以尝试通过在我们的节点之一上使用`curl`请求来访问我们的应用程序。命令将如下所示：
 
-[PRE18]
+```
+curl http://10.213.2.1:32688
+```
 
 如果 curl 命令失败，输出将如下所示：
 
-[PRE19]
+```
+curl: (7) Failed to connect to 10.231.2.1 port 32688: Connection refused
+```
 
 此时，我们的`NodePort`服务没有将请求路由到任何 Pod。按照我们典型的调试路径，让我们首先查看使用以下命令在集群中运行的哪些资源：
 
-[PRE20]
+```
+kubectl get services
+```
 
 添加`-o`宽标志以查看更多信息。接下来，运行以下命令：
 
-[PRE21]
+```
+kubectl get services -o wide 
+```
 
 这给了我们以下输出：
 
-[PRE22]
+```
+NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE SELECTOR 
+app-1-svc NodePort 10.101.212.57 <none> 80:32688/TCP 3m01s app=app-1
+```
 
 很明显，我们的服务存在一个正确的节点端口-但是我们的请求没有被路由到 Pod，这是从失败的 curl 命令中显而易见的。
 
 要查看我们的服务设置了哪些路由，让我们使用`get endpoints`命令。这将列出服务配置的 Pod IP（如果有的话）。
 
-[PRE23]
+```
+kubectl get endpoints app-1-svc
+```
 
 让我们检查命令的结果输出：
 
-[PRE24]
+```
+NAME        ENDPOINTS
+app-1-svc   <none>
+```
 
 嗯，这里肯定有问题。
 
@@ -266,33 +342,74 @@ Kubernetes 组件在 Linux 节点上作为系统服务运行。
 
 要检查我们的服务选择器，让我们沿着调试路径迈出下一步，并使用以下命令：
 
-[PRE25]
+```
+kubectl describe service app-1-svc  
+```
 
 这给我们一个类似以下的输出：
 
-[PRE26]
+```
+Name:                   app-1-svc
+Namespace:              default
+Labels:                 app=app-11
+Annotations:            <none>
+Selector:               app=app-11
+Type:                   NodePort
+IP:                     10.57.0.15
+Port:                   <unset> 80/TCP
+TargetPort:             80/TCP
+NodePort:               <unset> 32688/TCP
+Endpoints:              <none>
+Session Affinity:       None
+Events:                 <none>
+```
 
 正如您所看到的，我们的服务配置为与我们的应用程序上的正确端口进行通信。但是，选择器正在寻找与标签`app = app-11`匹配的 Pod。由于我们知道我们的应用程序名称为`app-1`，这可能是我们问题的原因。
 
 让我们编辑我们的服务，以寻找正确的 Pod 标签`app-1`，再次运行另一个`describe`命令以确保：
 
-[PRE27]
+```
+kubectl describe service app-1-svc
+```
 
 这会产生以下输出：
 
-[PRE28]
+```
+Name:                   app-1-svc
+Namespace:              default
+Labels:                 app=app-1
+Annotations:            <none>
+Selector:               app=app-1
+Type:                   NodePort
+IP:                     10.57.0.15
+Port:                   <unset> 80/TCP
+TargetPort:             80/TCP
+NodePort:               <unset> 32688/TCP
+Endpoints:              <none>
+Session Affinity:       None
+Events:                 <none>
+```
 
 现在，您可以在输出中看到我们的服务正在寻找正确的 Pod 选择器，但我们仍然没有任何端点。让我们使用以下命令来查看我们的 Pod 的情况：
 
-[PRE29]
+```
+kubectl get pods
+```
 
 这显示了以下输出：
 
-[PRE30]
+```
+NAME                              READY     STATUS    RESTARTS   AGE
+app-1-pod-2821252345-tj8ks        0/1       Pending   0          -
+app-1-pod-2821252345-9fj2k        0/1       Pending   0          -
+app-1-pod-2821252345-06hdj        0/1       Pending   0          -
+```
 
 我们的 Pod 仍在等待调度。这解释了为什么即使有正确的选择器，我们的服务也无法正常运行。为了更细致地了解为什么我们的 Pod 没有被调度，让我们使用`describe`命令：
 
-[PRE31]
+```
+kubectl describe pod app-1-pod-2821252345-tj8ks
+```
 
 以下是输出。让我们专注于“事件”部分：
 
@@ -308,19 +425,42 @@ Kubernetes 组件在 Linux 节点上作为系统服务运行。
 
 使用以下命令来确认：
 
-[PRE32]
+```
+kubectl get pods
+```
 
 输出看起来像这样：
 
-[PRE33]
+```
+NAME                              READY     STATUS    RESTARTS   AGE
+app-1-pod-2821252345-152sf        1/1       Running   0          1m
+app-1-pod-2821252345-9gg9s        1/1       Running   0          1m
+app-1-pod-2821252345-pfo92        1/1       Running   0          1m
+```
 
 我们的 Pod 现在正在运行 - 让我们检查一下我们的服务是否已注册了正确的端点。使用以下命令来执行此操作：
 
-[PRE34]
+```
+kubectl describe services app-1-svc
+```
 
 输出应该是这样的：
 
-[PRE35]
+```
+Name:                   app-1-svc
+Namespace:              default
+Labels:                 app=app-1
+Annotations:            <none>
+Selector:               app=app-1
+Type:                   NodePort
+IP:                     10.57.0.15
+Port:                   <unset> 80/TCP
+TargetPort:             80/TCP
+NodePort:               <unset> 32688/TCP
+Endpoints:              10.214.1.3:80,10.214.2.3:80,10.214.4.2:80
+Session Affinity:       None
+Events:                 <none>
+```
 
 成功！我们的服务正确地指向了我们的应用程序 Pod。
 
@@ -336,35 +476,73 @@ Kubernetes 组件在 Linux 节点上作为系统服务运行。
 
 首先，让我们使用以下命令`curl`应用程序，看看我们得到什么响应：
 
-[PRE36]
+```
+curl http://10.231.2.1:32688  
+red 2
+```
 
 我们期望得到`green 3`，但得到了`red 2`，所以看起来输入和版本号变量出了问题。让我们先从前者开始。
 
 像往常一样，我们首先用以下命令检查我们的 Pods：
 
-[PRE37]
+```
+kubectl get pods
+```
 
 输出应该如下所示：
 
-[PRE38]
+```
+NAME                              READY     STATUS    RESTARTS   AGE
+app-1-pod-2821252345-152sf        1/1       Running   0          5m
+app-1-pod-2821252345-9gg9s        1/1       Running   0          5m
+app-1-pod-2821252345-pfo92        1/1       Running   0          5m
+```
 
 这个输出看起来很好。我们的应用程序似乎作为部署的一部分运行（因此也是 ReplicaSet） - 我们可以通过运行以下命令来确保：
 
-[PRE39]
+```
+kubectl get deployments
+```
 
 输出应该如下所示：
 
-[PRE40]
+```
+NAME          DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+app-1-pod     3         3         3            3           5m
+```
 
 让我们更仔细地查看我们的部署，看看我们的 Pods 是如何配置的，使用以下命令：
 
-[PRE41]
+```
+kubectl describe deployment app-1-pod -o yaml
+```
 
 输出应该如下所示：
 
 Broken-deployment-output.yaml
 
-[PRE42]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-1-pod
+spec:
+  selector:
+    matchLabels:
+      app: app-1
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: app-1
+    spec:
+      containers:
+      - name: app-1
+        image: mycustomrepository/app-1:2
+        command: [ "start", "-color", "red" ]
+        ports:
+        - containerPort: 80
+```
 
 让我们看看是否可以解决我们的问题，这实际上非常简单。我们使用了错误版本的应用程序，而且我们的启动命令也是错误的。在这种情况下，让我们假设我们没有一个包含我们部署规范的文件 - 所以让我们直接在原地编辑它。
 
@@ -372,23 +550,55 @@ Broken-deployment-output.yaml
 
 fixed-deployment-output.yaml
 
-[PRE43]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-1-pod
+spec:
+  selector:
+    matchLabels:
+      app: app-1
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: app-1
+    spec:
+      containers:
+      - name: app-1
+        image: mycustomrepository/app-1:3
+        command: [ "start", "-color", "green" ]
+        ports:
+        - containerPort: 80
+```
 
 一旦部署保存，你应该开始看到你的新 Pods 启动。让我们通过以下命令再次检查：
 
-[PRE44]
+```
+ kubectl get pods
+```
 
 输出应该如下所示：
 
-[PRE45]
+```
+NAME                              READY     STATUS    RESTARTS   AGE
+app-1-pod-2821252345-f928a        1/1       Running   0          1m
+app-1-pod-2821252345-jjsa8        1/1       Running   0          1m
+app-1-pod-2821252345-92jhd        1/1       Running   0          1m
+```
 
 最后 - 让我们发出一个`curl`请求来检查一切是否正常运行：
 
-[PRE46]
+```
+curl http://10.231.2.1:32688  
+```
 
 命令的输出如下：
 
-[PRE47]
+```
+green 3
+```
 
 成功！
 
@@ -398,21 +608,33 @@ fixed-deployment-output.yaml
 
 在这个案例研究中，我们再次部署了 Pod - 为了检查它，让我们运行以下命令：
 
-[PRE48]
+```
+kubectl get pods
+```
 
 命令的输出如下：
 
-[PRE49]
+```
+NAME              READY     STATUS    RESTARTS   AGE
+app-2-ss-0        1/1       Running   0          10m
+app-2-ss-1       1/1       Running   0          10m
+app-2-ss-2       1/1       Running   0          10m
+```
 
 看起来，在这种情况下，我们使用的是 StatefulSet 而不是 Deployment - 这里的一个关键特征是从 0 开始递增的 Pod ID。
 
 我们可以通过使用以下命令来确认这一点：
 
-[PRE50]
+```
+kubectl get statefulset
+```
 
 命令的输出如下：
 
-[PRE51]
+```
+NAME          DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+app-2-ss      3         3         3            3           10m
+```
 
 让我们使用`kubectl get statefulset -o yaml app-2-ss`来更仔细地查看我们的 StatefulSet。通过使用`get`命令以及`-o yaml`，我们可以以与典型的 Kubernetes 资源 YAML 相同的格式获得我们的`describe`输出。
 
@@ -420,41 +642,87 @@ fixed-deployment-output.yaml
 
 statefulset-output.yaml
 
-[PRE52]
+```
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: app-2-ss
+spec:
+  selector:
+    matchLabels:
+      app: app-2
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: app-2
+```
 
 我们知道我们的应用程序正在使用一个服务。让我们看看是哪一个！
 
 运行 `kubectl get services -o wide`。输出应该类似于以下内容：
 
-[PRE53]
+```
+NAME TYPE CLUSTER-IP EXTERNAL-IP PORT(S) AGE SELECTOR 
+app-2-svc NodePort 10.100.213.13 <none> 80:32714/TCP 3m01s app=app-2
+```
 
 很明显我们的服务叫做`app-2-svc`。让我们使用以下命令查看我们的确切服务定义：
 
-[PRE54]
+```
+kubectl describe services app-2-svc 
+```
 
 命令的输出如下：
 
-[PRE55]
+```
+Name:                   app-2-svc
+Namespace:              default
+Labels:                 app=app-2
+Annotations:            <none>
+Selector:               app=app-2
+Type:                   NodePort
+IP:                     10.57.0.12
+Port:                   <unset> 80/TCP
+TargetPort:             80/TCP
+NodePort:               <unset> 32714/TCP
+Endpoints:              10.214.1.1:80,10.214.2.3:80,10.214.4.4:80
+Session Affinity:       None
+Events:                 <none>
+```
 
 要确切地查看我们的应用程序对于给定输入返回的内容，我们可以在我们的`NodePort`服务上使用`curl`：
 
-[PRE56]
+```
+> curl http://10.231.2.1:32714?equation=1plus1
+3
+```
 
 根据我们对应用程序的现有知识，我们会假设这个调用应该返回`2`而不是`3`。我们团队的应用程序开发人员已经要求我们调查任何日志输出，以帮助他们找出问题所在。
 
 我们知道从之前的章节中，你可以使用`kubectl logs <pod name>`来调查日志输出。在我们的情况下，我们有三个应用程序的副本，所以我们可能无法在一次迭代中找到我们的日志。让我们随机选择一个 Pod，看看它是否是为我们提供服务的那个：
 
-[PRE57]
+```
+> kubectl logs app-2-ss-1
+>
+```
 
 看起来这不是为我们提供服务的 Pod，因为我们的应用程序开发人员告诉我们，当向服务器发出`GET`请求时，应用程序肯定会记录到`stdout`。
 
 我们可以使用联合命令从所有三个 Pod 中获取日志，而不是逐个检查另外两个 Pod。命令将如下：
 
-[PRE58]
+```
+> kubectl logs statefulset/app-2-ss
+```
 
 输出如下：
 
-[PRE59]
+```
+> Input = 1plus1
+> Operator = plus
+> First Number = 1
+> Second Number = 2
+```
 
 这样就解决了问题 - 而且更重要的是，我们可以看到一些关于我们问题的很好的见解。
 
@@ -466,23 +734,44 @@ statefulset-output.yaml
 
 Statefulset-output.yaml
 
-[PRE60]
+```
+spec:
+  containers:
+  - name: app-2
+    image: mycustomrepository/app-2:latest
+    volumeMounts:
+    - name: scratch
+      mountPath: /scratch
+  - name: sidecar
+    image: mycustomrepository/tracing-sidecar
+  volumes:
+  - name: scratch-volume
+    emptyDir: {}
+```
 
 看起来我们的 Pod 正在挂载一个空卷作为临时磁盘。每个 Pod 中还有两个容器 - 一个用于应用程序跟踪的 sidecar，以及我们的应用程序本身。我们需要这些信息来使用`kubectl exec`命令`ssh`到其中一个 Pod（对于这个练习来说，无论选择哪一个都可以）。
 
 我们可以使用以下命令来完成：
 
-[PRE61]
+```
+kubectl exec -it app-2-ss-1 app2 -- sh.  
+```
 
 这个命令应该给你一个 bash 终端作为输出：
 
-[PRE62]
+```
+> kubectl exec -it app-2-ss-1 app2 -- sh
+# 
+```
 
 现在，使用我们刚创建的终端，我们应该能够调查我们的应用程序代码。在本教程中，我们使用了一个非常简化的 Node.js 应用程序。
 
 让我们检查一下我们的 Pod 文件系统，看看我们使用以下命令在处理什么：
 
-[PRE63]
+```
+# ls
+# app.js calculate.js scratch
+```
 
 看起来我们有两个 JavaScript 文件，以及我们之前提到的`scratch`文件夹。可以假设`app.js`包含引导和提供应用程序的逻辑，而`calculate.js`包含我们的控制器代码来进行计算。
 
@@ -490,25 +779,48 @@ Statefulset-output.yaml
 
 Broken-calculate.js
 
-[PRE64]
+```
+# cat calculate.js
+export const calculate(first, second, operator)
+{
+  second++;
+  if(operator === "plus")
+  {
+   return first + second;
+  }
+}
+```
 
 即使对 JavaScript 几乎一无所知，这里的问题也是非常明显的。代码在执行计算之前递增了`second`变量。
 
 由于我们在 Pod 内部，并且正在使用非编译语言，我们实际上可以内联编辑这个文件！让我们使用`vi`（或任何文本编辑器）来纠正这个文件：
 
-[PRE65]
+```
+# vi calculate.js
+```
 
 并编辑文件如下所示：
 
 fixed-calculate.js
 
-[PRE66]
+```
+export const calculate(first, second, operator)
+{
+  if(operator === "plus")
+  {
+   return first + second;
+  }
+}
+```
 
 现在，我们的代码应该正常运行。重要的是要说明，这个修复只是临时的。一旦我们的 Pod 关闭或被另一个 Pod 替换，它将恢复到最初包含在容器镜像中的代码。然而，这种模式确实允许我们尝试快速修复。
 
 在使用`exit` bash 命令退出`exec`会话后，让我们再次尝试我们的 URL：
 
-[PRE67]
+```
+> curl http://10.231.2.1:32714?equation=1plus1
+2
+```
 
 正如你所看到的，我们的热修复容器显示了正确的结果！现在，我们可以使用我们的修复以更加永久的方式更新我们的代码和 Docker 镜像。使用`exec`是一个很好的方法来排除故障和调试运行中的容器。
 

@@ -118,7 +118,14 @@ Docker 使用镜像来启动一个新的容器。镜像包含了在容器内运�
 
 在下面的示例中，我们将从公共 Docker Hub 存储库中拉取一个镜像并运行实际的容器。你可以按照以下说明在 Docker 实验室中运行这个示例：
 
-[PRE0]
+```
+#First we will pull an image
+docker pull docker/whalesay
+#We can then look at which images we have locally
+docker images
+#Then we will run our container
+docker run docker/whalesay cowsay boo
+```
 
 这些命令的输出将类似于*图 1.1*：
 
@@ -130,7 +137,11 @@ Docker 使用镜像来启动一个新的容器。镜像包含了在容器内运�
 
 在前面的示例中，我们了解到可以在不先构建镜像的情况下运行容器是可能的。然而，通常情况下，您会想要构建自己的镜像。为此，您可以使用**Dockerfile**。Dockerfile 包含 Docker 将遵循的步骤，从基础镜像开始构建您的镜像。这些指令可以包括添加文件、安装软件或设置网络等。下面提供了一个 Dockerfile 的示例，我们将在我们的 Docker playground 中创建：
 
-[PRE1]
+```
+FROM docker/whalesay:latest
+RUN apt-get -y -qq update && apt-get install -qq -y fortunes
+CMD /usr/games/fortune -a | cowsay
+```
 
 这个 Dockerfile 有三行。第一行将指示 Docker 使用哪个镜像作为新镜像的源镜像。下一步是运行一个命令，向我们的镜像添加新功能。在这种情况下，更新我们的`apt`仓库并安装一个叫做`fortunes`的应用程序。最后，`CMD`命令告诉 Docker 在基于这个镜像运行的容器中执行哪个命令。
 

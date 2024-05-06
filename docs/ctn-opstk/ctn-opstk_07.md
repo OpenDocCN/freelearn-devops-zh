@@ -76,15 +76,36 @@ Kuryr 在容器网络方面解决了 Magnum 项目的用例，并作为 Magnum �
 
 1.  拉取上游 Kuryr libnetwork Docker 镜像：
 
-[PRE0]
+```
+        $ docker pull kuryr/libnetwork:latest  
+```
 
 1.  准备 Docker 以找到 Kuryr 驱动程序：
 
-[PRE1]
+```
+        $ sudo mkdir -p /usr/lib/docker/plugins/kuryr
+       $ sudo curl -o /usr/lib/docker/plugins/kuryr/kuryr.spec \ 
+                     https://raw.githubusercontent.com/openstack/kuryr-
+        libnetwork/master/etc/kuryr.spec
+        $ sudo service docker restart  
+```
 
 1.  启动 Kuryr 容器：
 
-[PRE2]
+```
+        $ docker run --name kuryr-libnetwork \
+        --net=host \
+        --cap-add=NET_ADMIN \
+        -e SERVICE_USER=admin \;
+        -e SERVICE_PROJECT_NAME=admin \
+        -e SERVICE_PASSWORD=admin \
+        -e SERVICE_DOMAIN_NAME=Default \
+        -e USER_DOMAIN_NAME=Default \
+        -e IDENTITY_URL=http://127.0.0.1:35357/v3 \
+        -v /var/log/kuryr:/var/log/kuryr \
+        -v /var/run/openvswitch:/var/run/openvswitch \
+                  kuryr/libnetwork  
+```
 
 这里：
 
@@ -104,7 +125,10 @@ Kuryr 存在于运行容器并为 libnetwork 远程网络驱动程序提供所�
 
 1.  用户向 libnetwork 发送请求，以使用 Kuryr 作为网络驱动程序指定符创建 Docker 网络。以下示例创建名为 bar 的 Docker 网络：
 
-[PRE3]
+```
+        $ sudo docker network create --driver=kuryr --ipam-driver=kuryr --
+        subnet 10.0.0.0/16 --gateway 10.0.0.1 --ip-range 10.0.0.0/24 bar  
+```
 
 1.  libnetwork 调用 Kuryr 插件创建网络
 
@@ -116,7 +140,9 @@ Kuryr 存在于运行容器并为 libnetwork 远程网络驱动程序提供所�
 
 1.  用户可以使用先前创建的网络启动容器：
 
-[PRE4]
+```
+        $ sudo docker run --net=bar -itd --name=nginx-container nginx
+```
 
 # 总结
 

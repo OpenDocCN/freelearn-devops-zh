@@ -36,7 +36,16 @@ Docker Swarm 模式使用具有管理者和工作者高可用性的管理者-工
 
 群集可以是任何规模。您可以在笔记本电脑上运行单节点群集来测试功能，也可以扩展到数千个节点。您可以通过使用`docker swarm init`命令来初始化群集：
 
-[PRE0]
+```
+> docker swarm init --listen-addr 192.168.2.214 --advertise-addr 192.168.2.214
+Swarm initialized: current node (jea4p57ajjalioqokvmu82q6y) is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+    docker swarm join --token SWMTKN-1-37p6ufk5jku6tndotqlcy1w54grx5tvxb3rxphj8xkdn9lbeml-3w7e8hxfzzpt2fbf340d8phia 192.168.2.214:2377
+
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+```
 
 这将创建一个具有单个节点的群集——即您运行命令的 Docker 引擎，并且该节点将成为群集管理器。我的机器有多个 IP 地址，因此我已经指定了`listen-addr`和`advertise-addr`选项，告诉 Docker 要使用哪个网络接口进行群集通信。始终指定 IP 地址并为管理节点使用静态地址是一个良好的做法。
 
@@ -48,11 +57,21 @@ Docker Swarm 模式使用具有管理者和工作者高可用性的管理者-工
 
 在运行相同版本的 Docker 的第二台机器上，我可以运行`swarm join`命令加入集群：
 
-[PRE1]
+```
+> docker swarm join `
+   --token SWMTKN-1-37p6ufk5jku6tndotqlcy1w54grx5tvxb3rxphj8xkdn9lbeml-3w7e8hxfzzpt2fbf340d8phia `
+   192.168.2.214:2377 
+This node joined a swarm as a worker.
+```
 
 现在我的 Docker 主机正在运行在集群模式下，当我连接到管理节点时，我可以使用更多的命令。`docker node`命令管理集群中的节点，因此我可以列出集群中的所有节点，并使用`docker node ls`查看它们的当前状态：
 
-[PRE2]
+```
+> docker node ls
+ID    HOSTNAME    STATUS   AVAILABILITY  MANAGER STATUS  ENGINE VERSION
+h2ripnp8hvtydewpf5h62ja7u  win2019-02      Ready Active         18.09.2
+jea4p57ajjalioqokvmu82q6y * win2019-dev-02 Ready Active Leader  18.09.2
+```
 
 `状态`值告诉您节点是否在线在集群中，`可用性`值告诉您节点是否能够运行容器。`管理节点状态`字段有三个选项：
 
@@ -72,7 +91,10 @@ Docker Swarm 模式使用具有管理者和工作者高可用性的管理者-工
 
 要离开 Swarm，您需要在节点本身上运行`docker swarm leave`命令：
 
-[PRE3]
+```
+> docker swarm leave
+Node left the swarm.
+```
 
 如果您有单节点 Swarm，您可以使用相同的命令退出 Swarm 模式，但是您需要使用`--force`标志，因为这实际上将您从 Swarm 模式切换回单个 Docker Engine 模式。
 
@@ -106,17 +128,29 @@ DCI 在 Docker 的一系列参考架构指南中有详细介绍，可在 Docker 
 
 要创建覆盖网络，您需要指定要使用的驱动程序并给网络命名。Docker CLI 将返回新网络的 ID，就像其他资源一样：
 
-[PRE4]
+```
+> docker network create --driver overlay nd-swarm
+206teuqo1v14m3o88p99jklrn
+```
 
 您可以列出网络，您会看到新网络使用覆盖驱动程序，并且范围限定为群集，这意味着使用此网络的任何容器都可以相互通信，无论它们在哪个节点上运行：
 
-[PRE5]
+```
+> docker network ls
+NETWORK ID          NAME                DRIVER              SCOPE
+osuduab0ge73        ingress             overlay             swarm
+5176f181eee8        nat                 nat                 local
+206teuqo1v14        nd-swarm            overlay             swarm
+```
 
 这里的输出还显示了默认的`nat`网络，它具有本地范围，因此容器只能在同一主机上相互访问。在群集模式下创建的另一个网络称为`ingress`，这是具有发布端口的服务的默认网络。
 
 我将使用新网络来部署 NerdDinner 服务，因为这将使我的应用与群集中将使用自己网络的其他应用隔离开来。我将在本章后面使用 Docker Compose 文件来部署整个解决方案，但我将首先通过手动使用`docker service create`命令来创建服务，以便您可以看到服务与容器的不同之处。这是如何在 Docker Swarm 中将 NATS 消息队列部署为服务的方法：
 
-[PRE6]
+```
+docker service create `   --network nd-swarm `
+  --name message-queue ` dockeronwindows/ch05-nats:2e 
+```
 
 `docker service create`的必需选项除了镜像名称外，但对于分布式应用程序，您需要指定以下内容：
 
@@ -130,7 +164,11 @@ Docker 支持容器的不同类型的 DNS 解析。默认值是虚拟 IP `vip` �
 
 `docker service ps`显示正在运行服务的副本，包括托管每个容器的节点的名称：
 
-[PRE7]
+```
+> docker service ps message-queue
+ID    NAME      IMAGE     NODE  DESIRED  STATE  CURRENT    STATE
+xr2vyzhtlpn5 message-queue.1  dockeronwindows/ch05-nats:2e  win2019-02  Running        Running
+```
 
 在这种情况下，经理已经安排了一个容器在节点`win2019-02`上运行，这是我集群中唯一的工作节点。看起来如果我直接在该节点上运行 Docker 容器，我会得到相同的结果，但是将其作为 Docker Swarm 服务运行给了我编排的所有额外好处：
 
@@ -146,11 +184,30 @@ Docker 支持容器的不同类型的 DNS 解析。默认值是虚拟 IP `vip` �
 
 Traefik 在 Docker Swarm 中运行得很好——它连接到 Docker API 来构建其前端路由映射，并且以与在单个运行 Docker Engine 的服务器上完全相同的方式代理来自后端容器的内容。要在 swarm 模式下向 Traefik 注册服务，您还需要告诉 Traefik 容器中的应用程序使用的端口，因为它无法自行确定。REST API 服务定义添加了`traefik.port`标签：
 
-[PRE8]
+```
+docker service create `   --network nd-swarm `
+  --env-file db-credentials.env `
+  --name nerd-dinner-api `
+  --label "traefik.frontend.rule=Host:api.nerddinner.swarm"  `
+  --label "traefik.port=80"  `
+ dockeronwindows/ch05-nerd-dinner-api:2e
+```
 
 Traefik 本身是在 swarm 模式下创建的最复杂的服务，具有一些额外的选项：
 
-[PRE9]
+```
+docker service create `
+  --detach=true `
+  --network nd-swarm ` --constraint=node.role==manager `  --publish 80:80  --publish 8080:8080  `
+  --mount type=bind,source=C:\certs\client,target=C:\certs `
+  --name reverse-proxy `
+ sixeyed/traefik:v1.7.8-windowsservercore-ltsc2019 `
+  --docker --docker.swarmMode --docker.watch `
+  --docker.endpoint=tcp://win2019-dev-02:2376  ` --docker.tls.ca=/certs/ca.pem `
+  --docker.tls.cert=/certs/cert.pem `
+  --docker.tls.key=/certs/key.pem `
+  --api
+```
 
 你只能从运行在管理节点上的 Docker API 获取有关集群服务的信息，这就是为什么你需要将 Docker CLI 连接到管理节点以处理集群资源。服务的`constraint`选项确保 Docker 只会将容器调度到满足约束条件的节点上运行。在这种情况下，服务副本只会在管理节点上运行。这不是唯一的选择 - 如果你已经配置了对 Docker API 的安全远程访问，你可以在工作节点上运行 Traefik。
 
@@ -160,11 +217,36 @@ Traefik 本身是在 swarm 模式下创建的最复杂的服务，具有一些�
 
 当我在我的集群上运行脚本时，我会得到一个服务 ID 列表作为输出：
 
-[PRE10]
+```
+> .\ch07-run-nerd-dinner.ps1
+206teuqo1v14m3o88p99jklrn
+vqnncr7c9ni75ntiwajcg05ym
+2pzc8c5rahn25l7we3bzqkqfo
+44xsmox6d8m480sok0l4b6d80
+u0uhwiakbdf6j6yemuy6ey66p
+v9ujwac67u49yenxk1albw4bt
+s30phoip8ucfja45th5olea48
+24ivvj205dti51jsigneq3z8q
+beakbbv67shh0jhtolr35vg9r
+sc2yzqvf42z4l88d3w31ojp1c
+vx3zyxx2rubehee9p0bov4jio
+rl5irw1w933tz9b5cmxyyrthn
+```
 
 现在我可以用`docker service ls`看到所有正在运行的服务：
 
-[PRE11]
+```
+> docker service ls
+ID           NAME          MODE       REPLICAS            IMAGE 
+8bme2svun122 message-queue             replicated 1/1      nats:nanoserver
+deevh117z4jg nerd-dinner-homepage      replicated 1/1      dockeronwindows/ch03-nerd-dinner-homepage...
+lxwfb5s9erq6 nerd-dinner-db            replicated 1/1      dockeronwindows/ch06-nerd-dinner-db:latest
+ol7u97cpwdcn nerd-dinner-index-handler replicated 1/1      dockeronwindows/ch05-nerd-dinner-index...
+rrgn4n3pecgf elasticsearch             replicated 1/1      sixeyed/elasticsearch:nanoserver
+w7d7svtq2k5k nerd-dinner-save-handler  replicated 1/1      dockeronwindows/ch05-nerd-dinner-save...
+ydzb1z1af88g nerd-dinner-web           replicated 1/1      dockeronwindows/ch05-nerd-dinner-web:latest
+ywrz3ecxvkii kibana                    replicated 1/1      sixeyed/kibana:nanoserver
+```
 
 每个服务都列出了一个`1/1`的副本状态，这意味着一个副本正在运行，而请求的服务级别是一个副本。这是用于运行服务的容器数量。Swarm 模式支持两种类型的分布式服务：复制和全局。默认情况下，分布式服务只有一个副本，这意味着在集群上只有一个容器。我的脚本中的`service create`命令没有指定副本计数，所以它们都使用默认值*one*。
 
@@ -172,17 +254,41 @@ Traefik 本身是在 swarm 模式下创建的最复杂的服务，具有一些�
 
 复制的服务是你如何在集群模式下扩展的方式，你可以更新正在运行的服务来添加或删除容器。与 Docker Compose 不同，你不需要一个定义每个服务期望状态的 Compose 文件；这些细节已经存储在集群中，来自`docker service create`命令。要添加更多的消息处理程序，我使用`docker service scale`，传递一个或多个服务的名称和期望的服务级别：
 
-[PRE12]
+```
+> docker service scale nerd-dinner-save-handler=3
+nerd-dinner-save-handler scaled to 3
+overall progress: 1 out of 3 tasks
+1/3: starting  [============================================>      ]
+2/3: starting  [============================================>      ]
+3/3: running   [==================================================>]
+```
 
 消息处理程序服务是使用默认的单个副本创建的，因此这将添加两个容器来共享 SQL Server 处理程序服务的工作。在多节点集群中，管理器可以安排容器在任何具有容量的节点上运行。我不需要知道或关心哪个服务器实际上在运行容器，但我可以通过`docker service ps`深入了解服务列表，看看容器在哪里运行：
 
-[PRE13]
+```
+> docker service ps nerd-dinner-save-handler
+ID      NAME    IMAGE  NODE            DESIRED STATE  CURRENT STATE 
+sbt4c2jof0h2  nerd-dinner-save-handler.1 dockeronwindows/ch05-nerd-dinner-save-handler:2e    win2019-dev-02      Running             Running 23 minutes ago
+bibmh984gdr9  nerd-dinner-save-handler.2 dockeronwindows/ch05-nerd-dinner-save-handler:2e    win2019-dev-02      Running             Running 3 minutes ago
+3lkz3if1vf8d  nerd-dinner-save-handler.3 dockeronwindows/ch05-nerd-dinner-save-handler:2e   win2019-02           Running             Running 3 minutes ago
+```
 
 在这种情况下，我正在运行一个双节点集群，副本分布在节点`win2019-dev-02`和`win2019-02`之间。集群模式将服务进程称为副本，但它们实际上只是容器。你可以登录到集群的节点，并像往常一样使用`docker ps`、`docker logs`和`docker top`命令管理服务容器。
 
 通常情况下，你不会这样做。运行副本的节点只是由集群为你管理的黑匣子；你通过管理节点与你的服务一起工作。就像 Docker Compose 为服务提供了日志的整合视图一样，你可以通过连接到集群管理器的 Docker CLI 获得相同的视图：
 
-[PRE14]
+```
+PS> docker service logs nerd-dinner-save-handler
+nerd-dinner-save-handler.1.sbt4c2jof0h2@win2019-dev-02
+    | Connecting to message queue url: nats://message-queue:4222
+nerd-dinner-save-handler.1.sbt4c2jof0h2@win2019-dev-02
+    | Listening on subject: events.dinner.created, queue: save-dinner-handler
+nerd-dinner-save-handler.2.bibmh984gdr9@win2019-dev-02
+    | Connecting to message queue url: nats://message-queue:4222
+nerd-dinner-save-handler.2.bibmh984gdr9@win2019-dev-02
+    | Listening on subject: events.dinner.created, queue: save-dinner-handler
+...
+```
 
 副本是集群为服务提供容错的方式。当你使用`docker service create`、`docker service update`或`docker service scale`命令为服务指定副本级别时，该值将记录在集群中。管理节点监视服务的所有任务。如果容器停止并且运行服务的数量低于期望的副本级别，新任务将被安排以替换停止的容器。在本章后面，我将演示当我在多节点集群上运行相同的解决方案时，我可以从集群中取出一个节点，而不会造成任何服务的丢失。
 
@@ -194,11 +300,25 @@ Traefik 本身是在 swarm 模式下创建的最复杂的服务，具有一些�
 
 相反，我可以将我的 Elasticsearch 消息处理程序作为全局服务运行，因此每个节点都将运行一个消息处理程序的实例。您无法更改正在运行的服务的模式，因此首先需要删除原始服务。
 
-[PRE15]
+```
+> docker service rm nerd-dinner-index-handler
+nerd-dinner-index-handler 
+```
 
 然后，我可以创建一个新的全局服务。
 
-[PRE16]
+```
+> docker service create `
+>>  --mode=global `
+>>  --network nd-swarm `
+>>  --name nerd-dinner-index-handler `
+>>  dockeronwindows/ch05-nerd-dinner-index-handler:2e;
+q0c20sx5y25xxf0xqu5khylh7
+overall progress: 2 out of 2 tasks
+h2ripnp8hvty: running   [==================================================>]
+jea4p57ajjal: running   [==================================================>]
+verify: Service converged 
+```
 
 现在我在集群中的每个节点上都有一个任务在运行，如果节点被添加到集群中，任务的总数将增加，如果节点被移除，任务的总数将减少。这对于您想要分发以实现容错的服务可能很有用，并且您希望服务的总容量与集群的大小成比例。
 
@@ -252,7 +372,13 @@ Docker 将配置对象表面化为容器内的文本文件，位于您指定的�
 
 在我现代化 NerdDinner 时，我已经为我的应用程序设置转移到了.NET Core 配置框架。我在组成 NerdDinner 的所有.NET Framework 和.NET Core 应用程序中都使用相同的`Config`类。`Config`类为配置提供程序添加了自定义文件位置：
 
-[PRE17]
+```
+public  static  IConfigurationBuilder  AddProviders(IConfigurationBuilder  config) {
+  return  config.AddJsonFile("config/appsettings.json")
+               .AddEnvironmentVariables()
+               .AddJsonFile("config/config.json", optional: true)
+               .AddJsonFile("config/secrets.json", optional: true); } 
+```
 
 配置提供程序按优先顺序倒序列出。首先，它们从应用程序镜像的`config/appsettings.json`文件中加载。然后，合并任何环境变量-添加新键，或替换现有键的值。接下来，如果路径`config/config.json`处存在文件，则其内容将被合并-覆盖任何现有设置。最后，如果路径`config/secrets.json`处存在文件，则其值将被合并。
 
@@ -262,15 +388,38 @@ Docker 将配置对象表面化为容器内的文本文件，位于您指定的�
 
 我想要在名为`nerd-dinner-api-config.json`的文件中使用我想要的设置：
 
-[PRE18]
+```
+{
+  "Logging": {
+  "LogLevel": {
+   "Default": "Information"
+  } 
+} }
+```
 
 首先，我需要将其存储为 swarm 中的配置对象，因此容器不需要访问原始文件。我使用`docker config create`来实现这一点，给对象一个名称和配置源的路径。
 
-[PRE19]
+```
+docker config create nerd-dinner-api-config .\configs\nerd-dinner-api-config.json
+```
 
 您只需要在创建配置对象时访问该文件。现在数据存储在 swarm 中。swarm 中的任何节点都可以获取配置数据并将其提供给容器，任何具有对 Docker Engine 访问权限的人都可以查看配置数据，而无需该源文件。`docker config inspect`会显示配置对象的内容。
 
-[PRE20]
+```
+> docker config inspect --pretty nerd-dinner-api-config
+ID:                     yongm92k597gxfsn3q0yhnvtb
+Name:                   nerd-dinner-api-config
+Created at:             2019-02-13 22:09:04.3214402 +0000 utc
+Updated at:             2019-02-13 22:09:04.3214402 +0000 utc
+Data:
+{
+ "Logging": {
+ "LogLevel": {
+ "Default": "Information"
+    }
+ }
+}
+```
 
 您可以通过检查来查看配置对象的纯文本值。这对于故障排除应用程序问题非常有用，但对于安全性来说不好——您应该始终使用 Docker secrets 来存储敏感配置值，而不是配置对象。
 
@@ -284,15 +433,32 @@ Docker 将配置对象表面化为容器内的文本文件，位于您指定的�
 
 我已经更新了来自《第五章》*采用基于容器的解决方案设计*的 REST API 的 Dockerfile，以使用容器中的内置管理员帐户：
 
-[PRE21]
+```
+# escape=` FROM microsoft/dotnet:2.1-aspnetcore-runtime-nanoserver-1809 EXPOSE 80 WORKDIR /dinner-api ENTRYPOINT ["dotnet", "NerdDinner.DinnerApi.dll"] USER ContainerAdministrator COPY --from=dockeronwindows/ch05-nerd-dinner-builder:2e C:\dinner-api .
+```
 
 改变的只是`USER`指令，它设置了 Dockerfile 的其余部分和容器启动的用户。代码完全相同：我仍然使用来自第五章的构建器镜像，*采用面向容器的解决方案设计*。我已将此新镜像构建为`dockeronwindows/ch07-nerd-dinner-api:2e`，并且可以升级正在运行的 API 服务并应用新配置与`docker service update`：
 
-[PRE22]
+```
+docker service update `
+  --config-add src=nerd-dinner-api-config,target=C:\dinner-api\config\config.json `
+  --image dockeronwindows/ch07-nerd-dinner-api:2e  `
+ nerd-dinner-api;
+```
 
 更新服务将正在运行的副本替换为新配置，在本例中，使用新镜像并应用配置对象。现在，当我对 REST API 进行`GET`请求时，它会以信息级别记录日志，并且我可以在服务日志中看到更多细节：
 
-[PRE23]
+```
+> docker service logs nerd-dinner-api
+nerd-dinner-api.1.cjurm8tg1lmj@win2019-02    | Hosting environment: Production
+nerd-dinner-api.1.cjurm8tg1lmj@win2019-02    | Content root path: C:\dinner-api
+nerd-dinner-api.1.cjurm8tg1lmj@win2019-02    | Now listening on: http://[::]:80
+nerd-dinner-api.1.cjurm8tg1lmj@win2019-02    | Application started. Press Ctrl+C to shut down.
+nerd-dinner-api.1.cjurm8tg1lmj@win2019-02    | info: Microsoft.AspNetCore.Hosting.Internal.WebHost[1]
+nerd-dinner-api.1.cjurm8tg1lmj@win2019-02    |       Request starting HTTP/1.1 GET http://api.nerddinner.swarm/api/dinners
+nerd-dinner-api.1.cjurm8tg1lmj@win2019-02    | info: Microsoft.AspNetCore.Mvc.Internal.ControllerActionInvoker[1]
+nerd-dinner-api.1.cjurm8tg1lmj@win2019-02    |       Route matched with {action = "Get", controller = "Dinners"}. Executing action NerdDinner.DinnerApi.Controllers.DinnersController.Get (NerdDinner.DinnerApi)
+```
 
 您可以使用此方法来处理在不同环境之间更改的功能标志和行为设置。这是一种非常灵活的应用程序配置方法。使用单个 Docker 引擎的开发人员可以使用镜像中的默认设置运行容器，或者使用环境变量覆盖它们，或者通过挂载本地卷替换整个配置文件。在使用 Docker Swarm 的测试和生产环境中，管理员可以使用配置对象集中管理配置，而在每个环境中仍然使用完全相同的 Docker 镜像。
 
@@ -306,23 +472,43 @@ Swarm 模式本质上是安全的。所有节点之间的通信都是加密的�
 
 在`ch07-nerd-dinner-db`的`InitializeDatabase.ps1`脚本中，我添加了一个名为`sa_password_path`的新参数，并添加了一些简单的逻辑，以从文件中读取密码，如果该路径中存在文件：
 
-[PRE24]
+```
+if ($sa_password_path  -and (Test-Path  $sa_password_path)) {
+  $password  =  Get-Content  -Raw $sa_password_path
+  if ($password) {
+    $sa_password  =  $password
+    Write-Verbose  "Using SA password from secret file: $sa_password_path" }
+```
 
 这是一种完全不同的方法，与 REST API 中采用的方法相反。应用程序对配置有自己的期望，您需要将其与 Docker 的方法整合起来，以在文件中显示配置数据。在大多数情况下，您可以在 Dockerfile 中完成所有操作，因此不需要更改代码直接从文件中读取配置。
 
 Dockerfile 使用具有密码文件路径的默认值的环境变量：
 
-[PRE25]
+```
+ENV sa_password_path="C:\secrets\sa-password"
+```
 
 这仍然支持以不同方式运行数据库。开发人员可以在不指定任何配置设置的情况下运行它，并且它将使用内置于映像中的默认密码，这与应用程序映像的连接字符串中的相同默认密码相同。在集群环境中，管理员可以单独创建秘密，而无需部署应用程序，并安全地访问数据库容器。
 
 我需要创建秘密，然后更新数据库服务以使用秘密和应用密码的新映像：
 
-[PRE26]
+```
+docker secret create nerd-dinner-db-sa-password .\secrets\nerd-dinner-db-sa-password.txt; docker service update `
+  --secret-add src=nerd-dinner-db-sa-password,target=C:\secrets\sa-password `
+  --image dockeronwindows/ch07-nerd-dinner-db:2e  `
+ nerd-dinner-db;
+```
 
 现在数据库正在使用由 Docker Swarm 保护的强密码。可以访问 Docker 引擎的用户无法看到秘密的内容，因为它只在明确使用秘密的服务的容器内解密。我可以检查秘密，但我只能看到元数据：
 
-[PRE27]
+```
+> docker secret inspect --pretty nerd-dinner-db-sa-password
+ID:              u2zsrjouhicjnn1fwo5x8jqpk
+Name:              nerd-dinner-db-sa-password
+Driver:
+Created at:        2019-02-14 10:33:04.0575536 +0000 utc
+Updated at:        2019-02-14 10:33:04.0575536 +0000 utc
+```
 
 现在我的应用程序出现了问题，因为我已更新了数据库密码，但没有更新使用数据库的应用程序中的连接字符串。这是通过向 Docker Swarm 发出命令来管理分布式应用程序的危险。相反，您应该使用 Docker Compose 文件以声明方式管理应用程序，定义所有服务和其他资源，并将它们部署为 Docker 堆栈。
 
@@ -340,15 +526,46 @@ Docker Compose 文件模式已经从支持单个 Docker 主机上的客户端部
 
 我可以利用多个 Compose 文件来实现这一点，在一个文件中定义应用程序的基本设置，在一个覆盖文件中添加本地设置，并在另一个覆盖文件中添加 Swarm 设置。我已经在`ch07-docker-compose`文件夹中的 Compose 文件中这样做了。`docker-compose.yml`中的核心服务定义现在非常简单，它们只包括适用于每种部署模式的属性。甚至 Traefik 的反向代理定义也很简单：
 
-[PRE28]
+```
+reverse-proxy:
+  image: sixeyed/traefik:v1.7.8-windowsservercore-ltsc2019
+  networks:
+ - nd-net 
+```
 
 在`docker-compose.local.yml`覆盖文件中，我添加了在我的笔记本电脑上开发应用程序和使用 Docker Compose 部署时相关的属性。对于 Traefik，我需要配置要运行的命令以及要发布的端口，并挂载一个用于 Docker Engine 命名管道的卷：
 
-[PRE29]
+```
+reverse-proxy:
+  command: --docker --docker.endpoint=npipe:////./pipe/docker_engine --api
+  ports:
+  - "80"
+  - "8080"
+  volumes:
+  - type: npipe
+     source: \\.\pipe\docker_engine
+     target: \\.\pipe\docker_engine 
+```
 
 在 `docker-compose.swarm.yml` 覆盖文件中，我有一个属性，当我在集群化的 Docker Swarm 环境中运行时应用——这可能是测试中的两节点 swarm 和生产中的 200 节点 swarm；Compose 文件将是相同的。 我设置了 Traefik 命令以使用 TCP 连接到 swarm 管理器，并且我正在使用 secrets 在 swarm 中存储 TLS 证书：
 
-[PRE30]
+```
+reverse-proxy:
+  command: --docker --docker.swarmMode --docker.watch --docker.endpoint=tcp://win2019-dev-02:2376  
+           --docker.tls.ca=/certs/ca.pem --docker.tls.cert=/certs/cert.pem ...
+  ports:
+   - "80:80"
+   - "8080:8080"
+  secrets:
+   - source: docker-client-ca
+      target: C:\certs\ca.pem
+   - source: docker-client-cert
+      target: C:\certs\cert.pem - source: docker-client-key target: C:\certs\key.pem
+  deploy:
+   placement:
+     constraints:
+      - node.role == manager
+```
 
 这个应用程序清单的唯一不可移植部分是我的 swarm 管理器的 DNS 名称 `win2019-dev-02`。 我在第六章中解释过，*使用 Docker Compose 组织分布式解决方案*，在 swarm 模式下还不能挂载命名管道，但很快就会推出。 当该功能到来时，我可以在 swarm 模式下像在单个 Docker 引擎上一样使用命名管道来使用 Traefik，并且我的 Compose 文件将在任何 Docker 集群上运行。
 
@@ -356,7 +573,13 @@ Docker Compose 文件模式已经从支持单个 Docker 主机上的客户端部
 
 有几个值得更详细查看的服务选项。 REST API 在核心 Compose 文件中定义，只需图像和网络设置。 本地覆盖添加了用于向代理注册 API 的标签，并且还捕获了对数据库服务的依赖关系：
 
-[PRE31]
+```
+nerd-dinner-api:
+  depends_on:
+   - nerd-dinner-db
+  labels:
+   - "traefik.frontend.rule=Host:api.nerddinner.local"
+```
 
 Swarm 模式不支持 `depends_on` 属性。 当您部署堆栈时，无法保证服务将以何种顺序启动。 如果您的应用程序组件具有 `retry` 逻辑以解决任何依赖关系，那么服务启动顺序就无关紧要。 如果您的组件不具有弹性，并且在无法访问依赖项时崩溃，那么 Docker 将重新启动失败的容器，并且经过几次重试后应用程序应该准备就绪。
 
@@ -364,7 +587,19 @@ Swarm 模式不支持 `depends_on` 属性。 当您部署堆栈时，无法保�
 
 Swarm 定义添加了秘密和配置设置，容器标签的应用方式也有所不同。
 
-[PRE32]
+```
+nerd-dinner-api:
+  configs:
+   - source: nerd-dinner-api-config
+      target: C:\dinner-api\config\config.json
+  secrets:
+   - source: nerd-dinner-api-secrets
+      target: C:\dinner-api\config\secrets.json
+  deploy:
+  replicas: 2  labels:
+     - "traefik.frontend.rule=Host:api.nerddinner.swarm"
+     - "traefik.port=80" 
+```
 
 配置和秘密只适用于 Swarm 模式，但可以在任何 Compose 文件中包含它们——当您在单个 Docker 引擎上运行时，Docker Compose 会忽略它们。`deploy`部分也只适用于 Swarm 模式，它捕获了副本的基础架构设置。在这里，我有一个副本计数为 2，这意味着 Swarm 将为此服务运行两个容器。我还在`deploy`部分下有 Traefik 的标签，这确保了标签被应用到容器上，而不是服务本身。
 
@@ -376,11 +611,22 @@ Docker 使用标签来注释任何类型的对象——卷、节点、服务、�
 
 本地覆盖文件使用现有的`nat`网络，并对 SQL Server 和 Elasticsearch 使用默认规范的卷。
 
-[PRE33]
+```
+networks:
+  nd-net:
+    external:
+      name: nat volumes:
+  ch07-es-data: ch07-db-data:
+```
 
 Swarm 覆盖将所有服务附加到的相同`nd-net`网络映射为一个名为`nd-swarm`的外部网络，这个网络需要在我部署此堆栈之前存在。
 
-[PRE34]
+```
+networks:
+  nd-net:
+    external:
+      name: nd-swarm
+```
 
 在集群覆盖中没有定义卷。在集群模式下，您可以像在单个 Docker 引擎上使用卷一样使用它们，但您可以选择使用不同的驱动程序，并将存储设备连接到数据中心或云存储服务以连接到您的容器卷。
 
@@ -388,13 +634,32 @@ Docker 中的存储本身就是一个完整的主题。我在我的 Pluralsight 
 
 在集群覆盖文件中有另外两个部分，涵盖了我的应用程序配置：
 
-[PRE35]
+```
+configs: nerd-dinner-api-config: external: true
+  nerd-dinner-config: 
+    external: true
+
+secrets:
+  nerd-dinner-db-sa-password:
+    external: true nerd-dinner-save-handler-secrets: external: true nerd-dinner-api-secrets: external: true nerd-dinner-secrets: external: true
+```
 
 如果您看到这些并认为这是很多需要管理的`configs`和`secrets`，请记住，这些是您的应用程序无论在哪个平台上都需要的配置数据。Docker 的优势在于所有这些设置都被集中存储和管理，并且如果它们包含敏感数据，您可以选择安全地存储和传输它们。
 
 我的所有配置和秘密对象都被定义为外部资源，因此它们需要在集群中存在才能部署我的应用程序。在`ch07-docker-stack`目录中有一个名为`apply-configuration.ps1`的脚本，其中包含所有的`docker config create`和`docker secret create`命令：
 
-[PRE36]
+```
+> .\apply-configuration.ps1
+ntkafttcxvf5zjea9axuwa6u9
+razlhn81s50wrqojwflbak6qx
+npg65f4g8aahezqt14et3m31l
+ptofylkbxcouag0hqa942dosz
+dwtn1q0idjz6apbox1kh512ns
+reecdwj5lvkeugm1v5xy8dtvb
+nyjx9jd4yzddgrb2nhwvqjgri
+b3kk0hkzykiyjnmknea64e3dk
+q1l5yp025tqnr6fd97miwii8f
+```
 
 输出是新对象 ID 的列表。现在所有资源都存在，我可以将我的应用程序部署为一个堆栈。
 
@@ -402,23 +667,54 @@ Docker 中的存储本身就是一个完整的主题。我在我的 Pluralsight 
 
 我可以通过在开发笔记本上指定多个 Compose 文件（核心文件和本地覆盖）来使用 Docker Compose 部署应用程序。在集群模式下，您使用标准的`docker`命令，而不是`docker-compose`来部署堆栈。Docker CLI 不支持堆栈部署的多个文件，但我可以使用 Docker Compose 将源文件合并成一个单独的堆栈文件。这个命令从两个 Compose 文件中生成一个名为`docker-stack.yml`的单个 Compose 文件，用于堆栈部署：
 
-[PRE37]
+```
+docker-compose -f docker-compose.yml -f docker-compose.swarm.yml config > docker-stack.yml
+```
 
 Docker Compose 合并输入文件并检查输出配置是否有效。我将输出保存在一个名为`docker-stack.yml`的文件中。这是一个额外的步骤，可以轻松地融入到您的部署流程中。现在我可以使用包含核心服务描述、秘密和部署配置的堆栈文件在集群上部署我的堆栈。
 
 您可以使用单个命令`docker stack deploy`从 Compose 文件中部署堆栈。您需要传递 Compose 文件的位置和堆栈的名称，然后 Docker 将创建 Compose 文件中的所有资源：
 
-[PRE38]
+```
+> docker stack deploy --compose-file docker-stack.yml nerd-dinner
+Creating service nerd-dinner_message-queue
+Creating service nerd-dinner_elasticsearch
+Creating service nerd-dinner_nerd-dinner-api
+Creating service nerd-dinner_kibana
+Creating service nerd-dinner_nerd-dinner-index-handler
+Creating service nerd-dinner_nerd-dinner-save-handler
+Creating service nerd-dinner_reverse-proxy
+Creating service nerd-dinner_nerd-dinner-web
+Creating service nerd-dinner_nerd-dinner-homepage
+Creating service nerd-dinner_nerd-dinner-db
+```
 
 结果是一组资源被逻辑地组合在一起形成堆栈。与 Docker Compose 不同，后者依赖命名约定和标签来识别分组，堆栈在 Docker 中是一等公民。我可以列出所有堆栈，这给我基本的细节——堆栈名称和堆栈中的服务数量：
 
-[PRE39]
+```
+> docker stack ls
+NAME                SERVICES            ORCHESTRATOR
+nerd-dinner         10                  Swarm
+```
 
 我的堆栈中有 10 个服务，从一个包含 137 行 YAML 的单个 Docker Compose 文件部署。对于这样一个复杂的系统来说，这是一个很小的配置量：两个数据库，一个反向代理，多个前端，一个 RESTful API，一个消息队列和多个消息处理程序。这样大小的系统通常需要一个运行数百页的 Word 部署文档，并且需要一个周末的手动工作来运行所有步骤。我只用了一个命令来部署这个系统。
 
 我还可以深入了解运行堆栈的容器的状态和它们所在的节点，使用`docker stack ps`，或者使用`docker stack services`来获得堆栈中服务的更高级视图。
 
-[PRE40]
+```
+> docker stack services nerd-dinner
+ID              NAME       MODE        REPLICAS        IMAGE
+3qc43h4djaau  nerd-dinner_nerd-dinner-homepage       replicated  2/2       dockeronwindows/ch03...
+51xrosstjd79  nerd-dinner_message-queue              replicated  1/1       dockeronwindows/ch05...
+820a4quahjlk  nerd-dinner_elasticsearch              replicated  1/1       sixeyed/elasticsearch...
+eeuxydk6y8vp  nerd-dinner_nerd-dinner-web            replicated  2/2       dockeronwindows/ch07...
+jlr7n6minp1v  nerd-dinner_nerd-dinner-index-handler  replicated  2/2       dockeronwindows/ch05...
+lr8u7uoqx3f8  nerd-dinner_nerd-dinner-save-handler   replicated  3/3       dockeronwindows/ch05...
+pv0f37xbmz7h  nerd-dinner_reverse-proxy              replicated  1/1       sixeyed/traefik...
+qjg0262j8hwl  nerd-dinner_nerd-dinner-db             replicated  1/1       dokeronwindows/ch07...
+va4bom13tp71  nerd-dinner_kibana                     replicated  1/1       sixeyed/kibana...
+vqdaxm6rag96  nerd-dinner_nerd-dinner-api            replicated  2/2       dockeronwindows/ch07...
+```
 
 这里的输出显示我有多个副本运行前端容器和消息处理程序。总共，在我的两节点集群上有 15 个容器在运行，这是两个虚拟机，总共有四个 CPU 核心和 8GB 的 RAM。在空闲时，容器使用的计算资源很少，我有足够的容量来运行额外的堆栈。我甚至可以部署相同堆栈的副本，为代理使用不同的端口，然后我可以在相同的硬件上运行两个完全独立的测试环境。
 
@@ -450,17 +746,39 @@ Docker Swarm 具有两个功能，可以在不影响应用程序的情况下更�
 
 我在 Docker Swarm 上运行我的堆栈，现在我要部署一个应用程序更新-一个具有重新设计的 UI 的新主页组件，这是一个很好的、容易验证的变化。我已经构建了`dockeronwindows/ch07-nerd-dinner-homepage:2e`。为了进行更新，我有一个新的 Docker Compose 覆盖文件，其中只包含现有服务的新图像名称：
 
-[PRE41]
+```
+version: '3.7' services:
+  nerd-dinner-homepage:
+    image: dockeronwindows/ch07-nerd-dinner-homepage:2e
+```
 
 在正常发布中，您不会使用覆盖文件来更新一个服务。您将更新核心 Docker Compose 文件中的图像标签，并将文件保存在源代码控制中。我使用覆盖文件是为了更容易地跟随本章的示例。
 
 此更新有两个步骤。首先，我需要通过组合 Compose 文件和所有覆盖文件来生成新的应用程序清单：
 
-[PRE42]
+```
+docker-compose `
+  -f docker-compose.yml `
+  -f docker-compose.swarm.yml `
+ -f new-homepage.yml `
+ config > docker-stack-2.yml
+```
 
 现在我可以部署这个堆栈：
 
-[PRE43]
+```
+> docker stack deploy -c .\docker-stack-2.yml nerd-dinner
+Updating service nerd-dinner_nerd-dinner-save-handler (id: 0697sstia35s7mm3wo6q5t8nu)
+Updating service nerd-dinner_nerd-dinner-homepage (id: v555zpu00rwu734l2zpi6rwz3)
+Updating service nerd-dinner_reverse-proxy (id: kchmkm86wk7d13eoj9t26w1hw)
+Updating service nerd-dinner_message-queue (id: jlzt6svohv1bo4og0cbx4y5ac)
+Updating service nerd-dinner_nerd-dinner-api (id: xhlzf3kftw49lx9f8uemhv0mo)
+Updating service nerd-dinner_elasticsearch (id: 126s2u0j78k1c9tt9htdkup8x)
+Updating service nerd-dinner_nerd-dinner-index-handler (id: zd651rohewgr3waud6kfvv7o0)
+Updating service nerd-dinner_nerd-dinner-web (id: yq6c51bzrnrfkbwqv02k8shvr)
+Updating service nerd-dinner_nerd-dinner-db (id: wilnzl0jp1n7ey7kgjyjak32q)
+Updating service nerd-dinner_kibana (id: uugw7yfaza84k958oyg45cznp)
+```
 
 命令输出显示所有服务都在 `Updating`，但 Docker Swarm 只会实际更改 Compose 文件中期望状态与运行状态不同的服务。在这个部署中，它将使用 Compose 文件中的新镜像名称更新主页服务。
 
@@ -468,7 +786,14 @@ Docker Swarm 具有两个功能，可以在不影响应用程序的情况下更�
 
 Docker 一次更新一个容器，您可以配置更新之间的延迟间隔以及更新失败时要采取的行为。在更新过程中，我可以运行 `docker service ps` 命令，并看到原始容器处于 `Shutdown` 状态，替换容器处于 `Running` 或 `Starting` 状态：
 
-[PRE44]
+```
+> docker service ps nerd-dinner_nerd-dinner-homepage
+ID    NAME   IMAGE   NODE  DESIRED STATE CURRENT STATE ERROR  PORTS
+is12l1gz2w72 nerd-dinner_nerd-dinner-homepage.1 win2019-02          Running Running about a minute ago
+uu0s3ihzp4lk \_ nerd-dinner_nerd-dinner-homepage.1 win2019-02       Shutdown Shutdown 2 minutes ago
+0ruzheqp29z1 nerd-dinner_nerd-dinner-homepage.2 win2019-dev-02      Running Running 2 minutes ago
+5ivddeffrkjj \_ nerd-dinner_nerd-dinner-homepage.2 win2019-dev-02   Shutdown  Shutdown 2 minutes ago
+```
 
 新的 NerdDinner 主页应用程序的 Dockerfile 具有健康检查，Docker 会等到新容器的健康检查通过后才会继续替换下一个容器。在滚动更新期间，一些用户将看到旧的主页，而一些用户将看到时尚的新主页：
 
@@ -482,7 +807,10 @@ Traefik 与主页容器之间的通信使用 VIP 网络，因此它只会将流�
 
 在群集模式下更新服务时，群集会存储先前部署的配置。如果您发现发布存在问题，可以使用单个命令回滚到先前的状态：
 
-[PRE45]
+```
+> docker service update --rollback nerd-dinner_nerd-dinner-homepage
+nerd-dinner_nerd-dinner-homepage
+```
 
 回滚是服务更新的一种特殊形式。`rollback`标志不是传递任务要更新的镜像名称，而是对服务使用的先前镜像进行滚动更新。同样，回滚是一次只更新一个任务，因此这是一个零停机过程。无论您如何应用更新，都可以使用此命令回滚到之前的状态，无论您是使用`docker stack deploy`还是`docker service update`。
 
@@ -502,7 +830,15 @@ Traefik 与主页容器之间的通信使用 VIP 网络，因此它只会将流�
 
 您可以在 Dockerfile 中指定默认参数，以便将其嵌入到镜像中，或者在 Compose 文件中指定默认参数，以便在部署时或使用服务命令时设置。对于 NerdDinner 的生产部署，我可能有九个 SQL 消息处理程序实例，Compose 文件中的`update_config`设置为以三个为一批进行更新，并设置为 10 秒的延迟：
 
-[PRE46]
+```
+nerd-dinner-save-handler:
+  deploy:
+  replicas: 9
+  update_config:
+    parallelism: 3
+    delay: 10s
+...
+```
 
 服务的更新配置也可以通过`docker service update`命令进行更改，因此您可以修改更新参数并通过单个命令启动滚动升级。
 
@@ -516,15 +852,41 @@ Traefik 与主页容器之间的通信使用 VIP 网络，因此它只会将流�
 
 我将用我的集群来展示这一点。如果我需要在`win2019-02`上工作，我可以通过`docker node update`优雅地重新安排它正在运行的任务，将其置于排水模式：
 
-[PRE47]
+```
+> docker node update --availability drain win2019-02
+win-node02
+```
 
 将节点置于排水模式意味着所有容器都将被停止，由于这些是服务任务容器，它们将在其他节点上被新容器替换。当排水完成时，`win-node02`上将没有正在运行的任务：它们都已经被关闭。您可以看到任务已被故意关闭，因为“关闭”被列为期望状态：
 
-[PRE48]
+```
+> docker node ps win2019-02
+ID   NAME  NODE         DESIRED STATE         CURRENT                STATE              
+kjqr0b0kxoah  nerd-dinner_nerd-dinner-homepage.1      win2019-02     Shutdown Shutdown 48 seconds ago
+is12l1gz2w72 \_ nerd-dinner_nerd-dinner-homepage.1    win2019-02     Shutdown Shutdown 8 minutes ago
+xdbsme89swha nerd-dinner_nerd-dinner-index-handler.1  win2019-02     Shutdown Shutdown 49 seconds ago
+j3ftk04x1e9j  nerd-dinner_nerd-dinner-db.1            win2019-02     Shutdown 
+Shutdown 47 seconds ago
+luh79mmmtwca   nerd-dinner_nerd-dinner-api.1          win2019-02     Shutdown Shutdown 47 seconds ago
+... 
+```
 
 我可以检查服务列表，并看到每个服务仍然处于所需的副本级别：
 
-[PRE49]
+```
+> docker service ls
+ID              NAME                                 MODE          REPLICAS   
+126s2u0j78k1  nerd-dinner_elasticsearch            replicated       1/1 
+uugw7yfaza84  nerd-dinner_kibana                   replicated       1/1 
+jlzt6svohv1b  nerd-dinner_message-queue            replicated       1/1 
+xhlzf3kftw49  nerd-dinner_nerd-dinner-api          replicated       2/2  
+wilnzl0jp1n7  nerd-dinner_nerd-dinner-db           replicated       1/1   
+v555zpu00rwu nerd-dinner_nerd-dinner-homepage      replicated       2/2
+zd651rohewgr nerd-dinner_nerd-dinner-index-handler replicated       2/2  
+0697sstia35s nerd-dinner_nerd-dinner-save-handler  replicated       3/3
+yq6c51bzrnrf nerd-dinner_nerd-dinner-web           replicated       2/2 
+kchmkm86wk7d nerd-dinner_reverse-proxy             replicated       1/1 
+```
 
 集群已经创建了新的容器来替换在`win2019-02`上运行的副本。实际上，现在所有的副本都在单个节点上运行，但通过入口网络和 VIP 负载平衡，应用程序仍然以相同的方式工作。Docker Engine 仍然以排水模式运行，因此如果任何外部流量到达排水节点，它们仍然会将其转发到活动节点上的容器。
 
@@ -532,7 +894,9 @@ Traefik 与主页容器之间的通信使用 VIP 网络，因此它只会将流�
 
 更新节点可能意味着重新启动 Docker Engine 或重新启动服务器。完成后，我可以使用另一个`docker node update`命令将服务器重新上线到群中：
 
-[PRE50]
+```
+docker node update --availability active win2019-02
+```
 
 这使得节点再次可用。当节点加入群时，Docker 不会自动重新平衡运行的服务，因此所有容器仍然留在`win2019-dev02`上，即使`win-node02`再次可用并且容量更大。
 

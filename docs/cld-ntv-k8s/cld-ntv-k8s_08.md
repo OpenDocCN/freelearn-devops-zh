@@ -56,23 +56,39 @@ ConfigMaps 为在 Kubernetes 上运行的容器存储和注入应用程序配置
 
 通过命令从文本值创建 ConfigMap 的方法如下：
 
-[PRE0]
+```
+kubectl create configmap myapp-config --from-literal=mycategory.mykey=myvalue 
+```
 
 上一个命令创建了一个名为`myapp-config`的`configmap`，其中包含一个名为`mycategory.mykey`的键，其值为`myvalue`。您也可以创建一个具有多个键和值的 ConfigMap，如下所示：
 
-[PRE1]
+```
+kubectl create configmap myapp-config2 --from-literal=mycategory.mykey=myvalue
+--from-literal=mycategory.mykey2=myvalue2 
+```
 
 上述命令会在`data`部分中生成一个具有两个值的 ConfigMap。
 
 要查看您的 ConfigMap 的样子，请运行以下命令：
 
-[PRE2]
+```
+kubectl get configmap myapp-config2
+```
 
 您将看到以下输出：
 
 configmap-output.yaml
 
-[PRE3]
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: myapp-config2
+  namespace: default
+data:
+  mycategory.mykey: myvalue
+  mycategory.mykey2: myvalue2
+```
 
 当您的 ConfigMap 数据很长时，直接从文本值创建它就没有太多意义。对于更长的配置，我们可以从文件创建我们的 ConfigMap。
 
@@ -82,19 +98,34 @@ configmap-output.yaml
 
 1.  让我们从创建我们的文件开始，我们将把它命名为`env.properties`：
 
-[PRE4]
+```
+myconfigid=1125
+publicapikey=i38ahsjh2
+```
 
 1.  然后，我们可以通过运行以下命令来创建我们的 ConfigMap：
 
-[PRE5]
+```
+kubectl create configmap my-config-map --from-file=env.properties
+```
 
 1.  要检查我们的`kubectl create`命令是否正确创建了 ConfigMap，让我们使用`kubectl describe`来描述它：
 
-[PRE6]
+```
+kubectl describe configmaps my-config-map
+```
 
 这应该会产生以下输出：
 
-[PRE7]
+```
+Name:           my-config-map
+Namespace:      default
+Labels:         <none>
+Annotations:    <none>
+Data
+====
+env.properties:        39 bytes
+```
 
 正如你所看到的，这个 ConfigMap 包含了我们的文本文件（以及字节数）。在这种情况下，我们的文件可以是任何文本文件 - 但是如果你知道你的文件被格式化为环境文件，你可以让 Kubernetes 知道这一点，以便让你的 ConfigMap 更容易阅读。让我们学习如何做到这一点。
 
@@ -104,15 +135,33 @@ configmap-output.yaml
 
 让我们使用与之前相同的文件进行环境特定的创建：
 
-[PRE8]
+```
+kubectl create configmap my-env-config-map --from-env-file=env.properties
+```
 
 现在，让我们使用以下命令描述我们的 ConfigMap：
 
-[PRE9]
+```
+> kubectl describe configmaps my-env-config-map
+```
 
 我们得到以下输出：
 
-[PRE10]
+```
+Name:         my-env-config-map
+Namespace:    default
+Labels:       <none>
+Annotations:  <none>
+Data
+====
+myconfigid:
+----
+1125
+publicapikey:
+----
+i38ahsjh2
+Events:  <none>
+```
 
 如您所见，通过使用`-from-env-file`方法，当您运行`kubectl describe`时，`env`文件中的数据很容易查看。这也意味着我们可以直接将我们的 ConfigMap 挂载为环境变量-稍后会详细介绍。
 
@@ -124,7 +173,27 @@ configmap-output.yaml
 
 pod-mounting-cm.yaml
 
-[PRE11]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod-mount-cm
+spec:
+  containers:
+    - name: busybox
+      image: busybox
+      command:
+      - sleep
+      - "3600"
+      volumeMounts:
+      - name: my-config-volume
+        mountPath: /app/config
+  volumes:
+    - name: my-config-volume
+      configMap:
+        name: my-config-map
+  restartPolicy: Never
+```
 
 如您所见，我们的`my-config-map` ConfigMap 被挂载为卷（`my-config-volume`）在`/app/config`路径上，以便我们的容器访问。我们将在下一章关于存储中更多了解这是如何工作的。
 
@@ -138,7 +207,26 @@ pod-mounting-cm.yaml
 
 pod-mounting-cm-as-env.yaml
 
-[PRE12]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod-mount-env
+spec:
+  containers:
+    - name: busybox
+      image: busybox
+      command:
+      - sleep
+      - "3600"
+      env:
+        - name: MY_ENV_VAR
+          valueFrom:
+            configMapKeyRef:
+              name: my-env-config-map
+              key: myconfigid
+  restartPolicy: Never
+```
 
 正如您所看到的，我们不是将 ConfigMap 作为卷挂载，而是在容器环境变量`MY_ENV_VAR`中引用它。为了做到这一点，我们需要在`valueFrom`键中使用`configMapRef`，并引用我们的 ConfigMap 的名称以及 ConfigMap 本身内部要查看的键。
 
@@ -154,19 +242,35 @@ Secrets 与 ConfigMaps 非常相似，不同之处在于它们以编码文本（
 
 首先，让我们尝试从文件创建一个秘密（这也适用于多个文件）。我们可以使用`kubectl create`命令来做到这一点：
 
-[PRE13]
+```
+> echo -n 'mysecretpassword' > ./pass.txt
+> kubectl create secret generic my-secret --from-file=./pass.txt
+```
 
 这应该会产生以下输出：
 
-[PRE14]
+```
+secret "my-secret" created
+```
 
 现在，让我们使用`kubectl describe`来查看我们的秘密是什么样子的：
 
-[PRE15]
+```
+> kubectl describe secrets/db-user-pass
+```
 
 这个命令应该会产生以下输出：
 
-[PRE16]
+```
+Name:            my-secret
+Namespace:       default
+Labels:          <none>
+Annotations:     <none>
+Type:            Opaque
+Data
+====
+pass.txt:    16 bytes
+```
 
 正如您所看到的，`describe`命令显示了秘密中包含的字节数，以及它的类型`Opaque`。
 
@@ -178,17 +282,30 @@ Secrets 与 ConfigMaps 非常相似，不同之处在于它们以编码文本（
 
 让我们在这里使用 Linux 的`base64`命令对我们的密码进行编码：
 
-[PRE17]
+```
+> echo -n 'myverybadpassword' | base64
+bXl2ZXJ5YmFkcGFzc3dvcmQ=
+```
 
 现在，我们可以使用 Kubernetes YAML 规范声明性地创建我们的秘密，我们可以将其命名为`secret.yaml`：
 
-[PRE18]
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+data:
+  dbpass: bXl2ZXJ5YmFkcGFzc3dvcmQ=
+```
 
 我们的`secret.yaml`规范包含我们创建的 Base64 编码字符串。
 
 要创建秘密，请运行以下命令：
 
-[PRE19]
+```
+kubectl create -f secret.yaml
+```
 
 现在您知道如何创建秘密了。接下来，让我们学习如何挂载一个秘密供 Pod 使用。
 
@@ -200,7 +317,28 @@ Secrets 与 ConfigMaps 非常相似，不同之处在于它们以编码文本（
 
 pod-mounting-secret.yaml
 
-[PRE20]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod-mount-cm
+spec:
+  containers:
+    - name: busybox
+      image: busybox
+      command:
+      - sleep
+      - "3600"
+      volumeMounts:
+      - name: my-config-volume
+        mountPath: /app/config
+        readOnly: true
+  volumes:
+    - name: foo
+      secret:
+      secretName: my-secret
+  restartPolicy: Never
+```
 
 与 ConfigMap 的一个区别是，我们在卷上指定了`readOnly`，以防止在 Pod 运行时对秘密进行任何更改。在其他方面，我们挂载秘密的方式与 ConfigMap 相同。
 
@@ -214,11 +352,34 @@ pod-mounting-secret.yaml
 
 pod-mounting-secret-env.yaml
 
-[PRE21]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod-mount-env
+spec:
+  containers:
+    - name: busybox
+      image: busybox
+      command:
+      - sleep
+      - "3600"
+      env:
+        - name: MY_PASSWORD_VARIABLE
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: dbpass
+  restartPolicy: Never
+```
 
 在使用`kubectl apply`创建前面的 Pod 后，让我们运行一个命令来查看我们的 Pod，看看变量是否被正确初始化。这与`docker exec`的方式完全相同：
 
-[PRE22]
+```
+> kubectl exec -it my-pod-mount-env -- /bin/bash
+> printenv MY_PASSWORD_VARIABLE
+myverybadpassword
+```
 
 它奏效了！现在您应该对如何创建，挂载和使用 ConfigMaps 和 Secrets 有了很好的理解。
 
@@ -236,7 +397,20 @@ pod-mounting-secret-env.yaml
 
 encryption-config.yaml
 
-[PRE23]
+```
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources:
+    - secrets
+    providers:
+    - aesgcm:
+        keys:
+        - name: key1
+          secret: c2VjcmV0IGlzIHNlY3VyZQ==
+        - name: key2
+          secret: dGhpcyBpcyBwYXNzd29yZA==
+```
 
 前面的`EncryptionConfiguration` YAML 列出了应在`etcd`中加密的资源列表，以及可用于加密数据的一个或多个提供程序。截至 Kubernetes `1.17`，允许以下提供程序：
 
@@ -260,29 +434,53 @@ encryption-config.yaml
 
 1.  首先，让我们使用`base64`创建一个秘密密钥：
 
-[PRE24]
+```
+> echo -n 'secrettotest' | base64
+c2VjcmV0dG90ZXN0
+```
 
 1.  创建一个名为`secret_to_test.yaml`的文件，其中包含以下内容：
 
-[PRE25]
+```
+apiVersion: v1
+kind: Secret
+metadata:
+ name: secret-to-test
+type: Opaque
+data:
+  myencsecret: c2VjcmV0dG90ZXN0
+```
 
 1.  创建秘密：
 
-[PRE26]
+```
+kubectl apply -f secret_to_test.yaml
+```
 
 1.  创建了我们的秘密后，让我们检查它是否在`etcd`中被加密，通过直接查询它。您通常不需要经常直接查询`etcd`，但如果您可以访问用于引导集群的证书，这是一个简单的过程：
 
-[PRE27]
+```
+> export ETCDCTL_API=3 
+> etcdctl --cacert=/etc/kubernetes/certs/ca.crt 
+--cert=/etc/kubernetes/certs/etcdclient.crt 
+--key=/etc/kubernetes/certs/etcdclient.key 
+get /registry/secrets/default/secret-to-test
+```
 
 根据您配置的加密提供程序，您的秘密数据将以提供程序标记开头。例如，使用 Azure KMS 提供程序加密的秘密将以`k8s:enc:kms:v1:azurekmsprovider`开头。
 
 1.  现在，通过`kubectl`检查秘密是否被正确解密（它仍然会被编码）：
 
-[PRE28]
+```
+> kubectl get secrets secret-to-test -o yaml
+```
 
 输出应该是`myencsecret: c2VjcmV0dG90ZXN0`，这是我们未加密的编码的秘密值：
 
-[PRE29]
+```
+> echo 'c2VjcmV0dG90ZXN0' | base64 --decode
+> secrettotest
+```
 
 成功！
 
@@ -298,7 +496,15 @@ encryption-config.yaml
 
 encryption-reset.yaml
 
-[PRE30]
+```
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources:
+    - secrets
+    providers:
+    - identity: {}
+```
 
 重要提示
 
@@ -306,7 +512,9 @@ encryption-reset.yaml
 
 现在，我们将手动重新创建所有我们的秘密，此时它们将自动使用身份提供者（未加密）：
 
-[PRE31]
+```
+kubectl get secrets --all-namespaces -o json | kubectl replace -f -
+```
 
 此时，我们所有的秘密都是未加密的！
 

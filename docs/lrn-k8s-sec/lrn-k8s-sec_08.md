@@ -90,7 +90,10 @@ API 服务器的请求在处理之前经过以下步骤：
 
 在 Minikube 上，`kube-apiserver`的配置如下：
 
-[PRE0]
+```
+$ps aux | grep kube-api
+root      4016  6.1 17.2 495148 342896 ?       Ssl  01:03   0:16 kube-apiserver --advertise-address=192.168.99.100 --allow-privileged=true --authorization-mode=Node,RBAC --client-ca-file=/var/lib/minikube/certs/ca.crt --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota --enable-bootstrap-token-auth=true --etcd-cafile=/var/lib/minikube/certs/etcd/ca.crt --etcd-certfile=/var/lib/minikube/certs/apiserver-etcd-client.crt --etcd-keyfile=/var/lib/minikube/certs/apiserver-etcd-client.key --etcd-servers=https://127.0.0.1:2379 --insecure-port=0 --kubelet-client-certificate=/var/lib/minikube/certs/apiserver-kubelet-client.crt --kubelet-client-key=/var/lib/minikube/certs/apiserver-kubelet-client.key --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname --proxy-client-cert-file=/var/lib/minikube/certs/front-proxy-client.crt --proxy-client-key-file=/var/lib/minikube/certs/front-proxy-client.key --requestheader-allowed-names=front-proxy-client --requestheader-client-ca-file=/var/lib/minikube/certs/front-proxy-ca.crt --requestheader-extra-headers-prefix=X-Remote-Extra- --requestheader-group-headers=X-Remote-Group --requestheader-username-headers=X-Remote-User --secure-port=8443 --service-account-key-file=/var/lib/minikube/certs/sa.pub --service-cluster-ip-range=10.96.0.0/12 --tls-cert-file=/var/lib/minikube/certs/apiserver.crt --tls-private-key-file=/var/lib/minikube/certs/apiserver.key
+```
 
 正如您所看到的，默认情况下，在 Minikube 上，`kube-apiserver`并未遵循所有安全最佳实践。例如，默认情况下未启用`PodSecurityPolicy`，也未设置强密码套件和`tls`最低版本。集群管理员有责任确保 API 服务器的安全配置。
 
@@ -116,7 +119,9 @@ API 服务器的请求在处理之前经过以下步骤：
 
 在 Minikube 上，`kubelet`配置如下：
 
-[PRE1]
+```
+root      4286  2.6  4.6 1345544 92420 ?       Ssl  01:03   0:18 /var/lib/minikube/binaries/v1.17.3/kubelet --authorization-mode=Webhook --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --cgroup-driver=cgroupfs --client-ca-file=/var/lib/minikube/certs/ca.crt --cluster-domain=cluster.local --config=/var/lib/kubelet/config.yaml --container-runtime=docker --fail-swap-on=false --hostname-override=minikube --kubeconfig=/etc/kubernetes/kubelet.conf --node-ip=192.168.99.100 --pod-manifest-path=/etc/kubernetes/manifests
+```
 
 与 API 服务器类似，默认情况下，`kubelet`上并非所有安全配置都被使用，例如禁用只读端口。接下来，我们将讨论集群管理员如何保护`etcd`。
 
@@ -136,7 +141,10 @@ API 服务器的请求在处理之前经过以下步骤：
 
 在 Minikube 上，`etcd`配置如下：
 
-[PRE2]
+```
+$ ps aux | grep etcd
+root      3992  1.9  2.4 10612080 48680 ?      Ssl  01:03   0:18 etcd --advertise-client-urls=https://192.168.99.100:2379 --cert-file=/var/lib/minikube/certs/etcd/server.crt --client-cert-auth=true --data-dir=/var/lib/minikube/etcd --initial-advertise-peer-urls=https://192.168.99.100:2380 --initial-cluster=minikube=https://192.168.99.100:2380 --key-file=/var/lib/minikube/certs/etcd/server.key --listen-client-urls=https://127.0.0.1:2379,https://192.168.99.100:2379 --listen-metrics-urls=http://127.0.0.1:2381 --listen-peer-urls=https://192.168.99.100:2380 --name=minikube --peer-cert-file=/var/lib/minikube/certs/etcd/peer.crt --peer-client-cert-auth=true --peer-key-file=/var/lib/minikube/certs/etcd/peer.key --peer-trusted-ca-file=/var/lib/minikube/certs/etcd/ca.crt --snapshot-count=10000 --trusted-ca-file=/var/lib/minikube/certs/etcd/ca.crt
+```
 
 `etcd`存储着 Kubernetes 集群的敏感数据，如私钥和秘密。`etcd`的泄露就意味着`api-server`组件的泄露。集群管理员在设置`etcd`时应特别注意。
 
@@ -154,7 +162,10 @@ API 服务器的请求在处理之前经过以下步骤：
 
 在 Minikube 上，`kube-scheduler`配置如下：
 
-[PRE3]
+```
+$ps aux | grep kube-scheduler
+root      3939  0.5  2.0 144308 41640 ?        Ssl  01:03   0:02 kube-scheduler --authentication-kubeconfig=/etc/kubernetes/scheduler.conf --authorization-kubeconfig=/etc/kubernetes/scheduler.conf --bind-address=0.0.0.0 --kubeconfig=/etc/kubernetes/scheduler.conf --leader-elect=true
+```
 
 与`kube-apiserver`类似，调度程序也没有遵循所有的安全最佳实践，比如禁用分析。
 
@@ -166,7 +177,10 @@ API 服务器的请求在处理之前经过以下步骤：
 
 在 Minikube 上，`kube-controller-manager`的配置如下：
 
-[PRE4]
+```
+$ps aux | grep kube-controller-manager
+root      3927  1.8  4.5 209520 90072 ?        Ssl  01:03   0:11 kube-controller-manager --authentication-kubeconfig=/etc/kubernetes/controller-manager.conf --authorization-kubeconfig=/etc/kubernetes/controller-manager.conf --bind-address=0.0.0.0 --client-ca-file=/var/lib/minikube/certs/ca.crt --cluster-signing-cert-file=/var/lib/minikube/certs/ca.crt --cluster-signing-key-file=/var/lib/minikube/certs/ca.key --controllers=*,bootstrapsigner,tokencleaner --kubeconfig=/etc/kubernetes/controller-manager.conf --leader-elect=true --requestheader-client-ca-file=/var/lib/minikube/certs/front-proxy-ca.crt --root-ca-file=/var/lib/minikube/certs/ca.crt --service-account-private-key-file=/var/lib/minikube/certs/sa.key --use-service-account-credentials=true
+```
 
 接下来，让我们谈谈如何保护 CoreDNS。
 
@@ -184,11 +198,39 @@ API 服务器的请求在处理之前经过以下步骤：
 
 要编辑 CoreDNS 的配置文件，您可以使用`kubectl`，就像这样：
 
-[PRE5]
+```
+$ kubectl -n kube-system edit configmap coredns
+```
 
 在 Minikube 上，默认的 CoreDNS 配置文件如下：
 
-[PRE6]
+```
+# Please edit the object below. Lines beginning with a '#' 
+# will be ignored, and an empty file will abort the edit. 
+# If an error occurs while saving this file will be
+# reopened with the relevant failures.
+apiVersion: v1
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+```
 
 要保护 CoreDNS，请执行以下操作：
 
@@ -196,7 +238,12 @@ API 服务器的请求在处理之前经过以下步骤：
 
 +   **为 CoreDNS 启用 istio**：`istio`是 Kubernetes 使用的服务网格，用于提供服务发现、负载平衡和认证。它在 Kubernetes 中默认不可用，需要作为外部依赖项添加。您可以通过启动`istio`服务并将`istio`服务的代理添加到配置文件中来向集群添加`istio`，就像这样：
 
-[PRE7]
+```
+global:53 {
+         errors
+         proxy . {cluster IP of this istio-core-dns service}
+    }
+```
 
 现在我们已经查看了集群组件的不同配置，重要的是要意识到随着组件变得更加复杂，将会添加更多的配置参数。集群管理员不可能记住这些配置。因此，接下来，我们将讨论一种帮助集群管理员监视集群组件安全状况的工具。
 
@@ -208,11 +255,34 @@ API 服务器的请求在处理之前经过以下步骤：
 
 `kube-bench`可以直接在节点上使用`kube-bench`二进制文件运行，如下所示：
 
-[PRE8]
+```
+$kube-bench node --benchmark cis-1.4
+```
 
 对于托管在`gke`、`eks`和`aks`上的集群，`kube-bench`作为一个 pod 运行。一旦 pod 运行完成，您可以查看日志以查看结果，如下面的代码块所示：
 
-[PRE9]
+```
+$ kubectl apply -f job-gke.yaml
+$ kubectl get pods
+NAME               READY   STATUS      RESTARTS   AGE
+kube-bench-2plpm   0/1     Completed   0          5m20s
+$ kubectl logs kube-bench-2plpm
+[INFO] 4 Worker Node Security Configuration
+[INFO] 4.1 Worker Node Configuration Files
+[WARN] 4.1.1 Ensure that the kubelet service file permissions are set to 644 or more restrictive (Not Scored)
+[WARN] 4.1.2 Ensure that the kubelet service file ownership is set to root:root (Not Scored)
+[PASS] 4.1.3 Ensure that the proxy kubeconfig file permissions are set to 644 or more restrictive (Scored)
+[PASS] 4.1.4 Ensure that the proxy kubeconfig file ownership is set to root:root (Scored)
+[WARN] 4.1.5 Ensure that the kubelet.conf file permissions are set to 644 or more restrictive (Not Scored)
+[WARN] 4.1.6 Ensure that the kubelet.conf file ownership is set to root:root (Not Scored)
+[WARN] 4.1.7 Ensure that the certificate authorities file permissions are set to 644 or more restrictive (Not Scored)
+......
+== Summary ==
+0 checks PASS
+0 checks FAIL
+37 checks WARN
+0 checks INFO
+```
 
 重要的是要调查具有`FAIL`状态的检查。您应该力求没有失败的检查。如果由于任何原因这是不可能的，您应该制定一个针对失败检查的风险缓解计划。
 

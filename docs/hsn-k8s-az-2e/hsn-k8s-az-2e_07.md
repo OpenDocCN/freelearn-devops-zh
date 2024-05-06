@@ -30,7 +30,9 @@ Kubernetes 集群中的第二个常见问题是资源不足的故障。这意味
 
 1.  确保您的集群至少有两个节点：
 
-[PRE0]
+```
+kubectl get nodes
+```
 
 这应该生成一个如*图 5.1*所示的输出：
 
@@ -46,17 +48,23 @@ Kubernetes 集群中的第二个常见问题是资源不足的故障。这意味
 
 1.  作为本章的示例应用程序，我们将使用 guestbook 应用程序。部署此应用程序的 YAML 文件已在本章的源代码中提供（`guestbook-all-in-one.yaml`）。要部署 guestbook 应用程序，请使用以下命令：
 
-[PRE1]
+```
+kubectl create -f guestbook-all-in-one.yaml
+```
 
 1.  我们将再次为服务提供公共 IP，就像在之前的章节中一样。要开始编辑，请执行以下命令：
 
-[PRE2]
+```
+kubectl edit service frontend
+```
 
 1.  这将打开一个`vi`环境。导航到现在显示为`type: ClusterIP`（第 27 行）的行，并将其更改为`type: LoadBalancer`。要进行更改，请按*I*按钮进入插入模式，输入更改，然后按*Esc*按钮，输入`:wq!`，然后按*Enter*保存更改。
 
 1.  更改保存后，您可以观察`service`对象，直到公共 IP 变为可用。要做到这一点，请输入以下内容：
 
-[PRE3]
+```
+kubectl get svc -w
+```
 
 1.  这将花费几分钟的时间来显示更新后的 IP。*图 5.3*代表了服务的公共 IP。一旦您看到正确的公共 IP，您可以通过按*Ctrl* + *C*（Mac 上为*command* + *C*）退出 watch 命令：![输出显示前端服务将其外部 IP 从<pending>更改为实际 IP。](img/Figure_5.3.jpg)
 
@@ -68,7 +76,9 @@ Kubernetes 集群中的第二个常见问题是资源不足的故障。这意味
 
 1.  让我们看看当前正在运行的 Pods 使用以下代码：
 
-[PRE4]
+```
+kubectl get pods -o wide
+```
 
 这将生成如*图 5.5*所示的输出：
 
@@ -94,11 +104,15 @@ Kubernetes 集群中的第二个常见问题是资源不足的故障。这意味
 
 这将关闭我们的节点。要查看 Kubernetes 如何与您的 Pods 交互，可以通过以下命令观察集群中的 Pods：
 
-[PRE5]
+```
+kubectl get pods -o wide -w
+```
 
 1.  要验证您的应用程序是否可以继续运行，可以选择运行以下命令，每 5 秒钟点击一次 guestbook 前端并获取 HTML。建议在新的 Cloud Shell 窗口中打开此命令：
 
-[PRE6]
+```
+while true; do curl -m 1 http://<EXTERNAl-IP>/ ; sleep 5; done
+```
 
 #### 注意
 
@@ -134,7 +148,18 @@ Kubernetes 集群可能出现的另一个常见问题是集群资源耗尽。当
 
 Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我们的留言板应用程序为所有部署定义了请求。如果你打开`guestbook-all-in-one.yaml`文件，你会看到`redis-slave`部署的以下内容：
 
-[PRE7]
+```
+...
+63  kind: Deployment
+64  metadata:
+65    name: redis-slave
+...
+83          resources:
+84            requests:
+85              cpu: 100m
+86              memory: 100Mi
+...
+```
 
 本节解释了`redis-slave`部署的每个 Pod 都需要`100m`的 CPU 核心（100 毫或 10%）和 100MiB（Mebibyte）的内存。在我们的 1 个 CPU 集群（关闭节点 1），将其扩展到 10 个 Pods 将导致可用资源出现问题。让我们来看看这个：
 
@@ -144,11 +169,15 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  让我们首先将`redis-slave`部署扩展到 10 个 Pods：
 
-[PRE8]
+```
+kubectl scale deployment/redis-slave --replicas=10
+```
 
 1.  这将导致创建一对新的 Pod。我们可以使用以下命令来检查我们的 Pods：
 
-[PRE9]
+```
+kubectl get pods
+```
 
 这将生成以下输出：
 
@@ -160,7 +189,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  我们可以使用以下命令获取有关这些待处理 Pods 的更多信息：
 
-[PRE10]
+```
+kubectl describe pod redis-slave-<pod-id>
+```
 
 这将显示更多细节。在`describe`命令的底部，您应该看到类似于*图 5.11*中显示的内容：
 
@@ -192,7 +223,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 让我们通过运行以下`delete`命令来清理一下：
 
-[PRE11]
+```
+kubectl delete -f guestbook-all-in-one.yaml
+```
 
 到目前为止，我们已经讨论了 Kubernetes 集群中节点的两种故障模式。首先，我们讨论了 Kubernetes 如何处理节点离线以及系统如何将 Pod 重新调度到工作节点上。之后，我们看到了 Kubernetes 如何使用请求来调度节点上的 Pod，以及当集群资源不足时会发生什么。在接下来的部分，我们将讨论 Kubernetes 中的另一种故障模式，即当 Kubernetes 移动带有 PVC 的 Pod 时会发生什么。
 
@@ -202,7 +235,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 为此，我们将重用上一章中的 WordPress 示例。在开始之前，让我们确保集群处于干净的状态：
 
-[PRE12]
+```
+kubectl get all
+```
 
 这向我们展示了一个 Kubernetes 服务，如*图 5.14*所示：
 
@@ -212,7 +247,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 让我们还确保两个节点都在运行并且处于“就绪”状态：
 
-[PRE13]
+```
+kubectl get nodes
+```
 
 这应该显示我们两个节点都处于“就绪”状态，如*图 5.15*所示：
 
@@ -230,11 +267,15 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 使用以下命令开始重新安装：
 
-[PRE14]
+```
+helm install wp stable/wordpress 
+```
 
 这将花费几分钟的时间来处理。您可以通过执行以下命令来跟踪此安装的状态：
 
-[PRE15]
+```
+kubectl get pods -w
+```
 
 几分钟后，这应该显示我们的 Pod 状态为`Running`，并且两个 Pod 的就绪状态为`1/1`，如*图 5.16*所示：
 
@@ -250,7 +291,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  在我们的情况下，运行以下`describe nodes`命令：
 
-[PRE16]
+```
+kubectl describe nodes
+```
 
 滚动查看输出，直到看到类似于*图 5.17*的部分。在我们的情况下，两个 WordPress Pod 都在节点 0 上运行：
 
@@ -262,7 +305,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  我们可以检查的下一件事是我们的 PVC 的状态：
 
-[PRE17]
+```
+kubectl get pvc
+```
 
 这将生成一个如*图 5.18*所示的输出：
 
@@ -272,7 +317,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 以下命令显示了绑定到 Pod 的实际 PV：
 
-[PRE18]
+```
+kubectl describe pv
+```
 
 这将向您显示两个卷的详细信息。我们将在*图 5.19*中向您展示其中一个：
 
@@ -284,7 +331,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  验证您的网站是否实际在运行：
 
-[PRE19]
+```
+kubectl get service
+```
 
 这将显示我们的 WordPress 网站的公共 IP，如*图 5.20*所示：
 
@@ -294,7 +343,11 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  如果您还记得*第三章*，*AKS 的应用部署*，Helm 向我们显示了获取 WordPress 网站管理员凭据所需的命令。让我们获取这些命令并执行它们以登录到网站，如下所示：
 
-[PRE20]
+```
+helm status wp
+echo Username: user
+echo Password: $(kubectl get secret --namespace default wp-wordpress -o jsonpath="{.data.wordpress-password}" | base64 -d)
+```
 
 这将向您显示`用户名`和`密码`，如*图 5.21*所示：
 
@@ -326,7 +379,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  **观察我们应用程序中的 Pod**。为此，我们将使用当前的 Cloud Shell 并执行以下命令：
 
-[PRE21]
+```
+kubectl get pods -w
+```
 
 1.  杀死已挂载 PVC 的两个 Pod。为此，我们将通过单击工具栏上显示的图标创建一个新的 Cloud Shell 窗口，如*图 5.24*所示：![单击工具栏左侧花括号图标旁边的图标，单击以打开新的 Cloud Shell。](img/Figure_5.24.jpg)
 
@@ -334,7 +389,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 一旦您打开一个新的 Cloud Shell，执行以下命令：
 
-[PRE22]
+```
+kubectl delete pod --all
+```
 
 如果您使用`watch`命令，您应该会看到类似于*图 5.25*所示的输出：
 
@@ -354,7 +411,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 在这里观察的最后一个有趣的数据点是 Kubernetes 事件流。如果运行以下命令，您可以看到与卷相关的事件：
 
-[PRE23]
+```
+kubectl get events | grep -i volume
+```
 
 这将生成如*图 5.27*所示的输出。
 
@@ -372,7 +431,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  让我们首先检查哪个节点托管了我们的应用程序，使用以下命令：
 
-[PRE24]
+```
+kubectl get pods -o wide
+```
 
 我们发现，在我们的集群中，节点 1 托管了 MariaDB，节点 0 托管了 WordPress 网站，如*图 5.28*所示：
 
@@ -390,7 +451,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  完成此操作后，我们将再次观察我们的 Pod，以了解集群中正在发生的情况：
 
-[PRE25]
+```
+kubectl get pods -o wide -w
+```
 
 与先前的示例一样，Kubernetes 将在 5 分钟后开始采取行动来应对我们失败的节点。我们可以在*图 5.31*中看到这一情况：
 
@@ -400,7 +463,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  我们在这里遇到了一个新问题。我们的新 Pod 处于“挂起”状态，尚未分配到新节点。让我们弄清楚这里发生了什么。首先，我们将“描述”我们的 Pod：
 
-[PRE26]
+```
+kubectl describe pods/wp-wordpress-<pod-id>
+```
 
 您将得到一个如*图 5.32*所示的输出：
 
@@ -410,17 +475,23 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  这表明我们的集群中没有足够的 CPU 资源来托管新的 Pod。我们可以使用`kubectl edit deploy/...`命令来修复任何不足的 CPU/内存错误。我们将将 CPU 请求从 300 更改为 3，以便我们的示例继续进行：
 
-[PRE27]
+```
+kubectl edit deploy wp-wordpress
+```
 
 这将带我们进入一个`vi`环境。我们可以通过输入以下内容快速找到与 CPU 相关的部分：
 
-[PRE28]
+```
+/cpu <enter>
+```
 
 一旦到达那里，将光标移动到两个零上，然后按两次`x`键删除零。最后，键入`:wq!`以保存我们的更改，以便我们可以继续我们的示例。
 
 1.  这将导致创建一个新的 ReplicaSet 和一个新的 Pod。我们可以通过输入以下命令来获取新 Pod 的名称：
 
-[PRE29]
+```
+kubectl get pods 
+```
 
 查找状态为`ContainerCreating`的 Pod，如下所示：
 
@@ -430,7 +501,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  让我们用`describe`命令查看该 Pod 的详细信息：
 
-[PRE30]
+```
+kubectl describe pod wp-wordpress-<pod-id>
+```
 
 在这个`describe`输出的“事件”部分，您可以看到以下错误消息：
 
@@ -450,15 +523,21 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  在规模集视图中，复制并粘贴规模集名称和资源组。编辑以下命令以从失败的节点分离磁盘，然后在 Cloud Shell 中运行此命令：
 
-[PRE31]
+```
+az vmss disk detach --lun 0 --vmss-name <vmss-name> -g <rgname> --instance-id 0
+```
 
 1.  这将从节点 0 中分离磁盘。这里需要的第二步是在 Pod 被卡在终止状态时，强制将其从集群中移除：
 
-[PRE32]
+```
+kubectl delete pod wordpress-wp-<pod-id> --grace-period=0 --force
+```
 
 1.  这将使我们的新 Pod 恢复到健康状态。系统需要几分钟来接受更改，然后挂载和调度新的 Pod。让我们再次使用以下命令获取 Pod 的详细信息：
 
-[PRE33]
+```
+kubectl describe pod wp-wordpress-<pod-id>
+```
 
 这将生成以下输出：
 
@@ -468,7 +547,9 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 1.  这表明新的 Pod 成功挂载了卷，并且容器镜像已被拉取。让我们验证一下 Pod 是否真的在运行：
 
-[PRE34]
+```
+kubectl get pods
+```
 
 这将显示 Pod 正在运行，如*图 5.37*所示：
 
@@ -480,7 +561,11 @@ Kubernetes 使用`requests`来计算某个 Pod 需要多少 CPU 或内存。我�
 
 在继续之前，让我们使用以下命令清理我们的部署：
 
-[PRE35]
+```
+helm delete wp
+kubectl delete pvc --all
+kubectl delete pv --all
+```
 
 让我们还重新启动关闭的节点，如*图 5.38*所示：
 

@@ -50,7 +50,38 @@ API 聚合允许高级用户在 Kubernetes API 服务器之外构建自己的资
 
 自定义资源定义-1.yaml
 
-[PRE0]
+```
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: delayedjobs.delayedresources.mydomain.com
+spec:
+  group: delayedresources.mydomain.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                delaySeconds:
+                  type: integer
+                image:
+                  type: string
+  scope: Namespaced
+  conversion:
+    strategy: None
+  names:
+    plural: delayedjobs
+    singular: delayedjob
+    kind: DelayedJob
+    shortNames:
+    - dj
+```
 
 让我们来审视一下这个文件的部分。乍一看，它看起来像是您典型的 Kubernetes YAML 规范 - 因为它就是！在`apiVersion`字段中，我们有`apiextensions.k8s.io/v1`，这是自 Kubernetes `1.16`以来的标准（在那之前是`apiextensions.k8s.io/v1beta1`）。我们的`kind`将始终是`CustomResourceDefinition`。
 
@@ -82,7 +113,38 @@ CRD 可以指定自己的命名组，这意味着特定的 CRD 将在 Kubernetes
 
 自定义资源定义-2.yaml
 
-[PRE1]
+```
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: delayedjob.delayedresources.mydomain.com
+spec:
+  group: delayedresources.mydomain.com
+  versions:
+    - name: v1
+      served: true
+      storage: false
+      deprecated: true
+      deprecationWarning: "DelayedJob v1 is deprecated!"
+      schema:
+        openAPIV3Schema:
+		…
+    - name: v2
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+		...
+  scope: Namespaced
+  conversion:
+    strategy: None
+  names:
+    plural: delayedjobs
+    singular: delayedjob
+    kind: DelayedJob
+    shortNames:
+    - dj
+```
 
 正如您所看到的，我们已将`v1`标记为已弃用，并且还包括一个弃用警告，以便 Kubernetes 作为响应发送。如果我们不包括弃用警告，将使用默认消息。
 
@@ -100,7 +162,33 @@ CRD 可以指定自己的命名组，这意味着特定的 CRD 将在 Kubernetes
 
 Custom-resource-definition-3.yaml
 
-[PRE2]
+```
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: delayedjob.delayedresources.mydomain.com
+spec:
+  group: delayedresources.mydomain.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+		...
+  scope: Namespaced
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        url: "https://webhook-conversion.com/delayedjob"
+  names:
+    plural: delayedjobs
+    singular: delayedjob
+    kind: DelayedJob
+    shortNames:
+    - dj
+```
 
 正如您所看到的，`Webhook`策略让我们定义一个 URL，请求将发送到该 URL，其中包含有关传入资源对象、其当前版本和需要转换为的版本的信息。
 
@@ -116,7 +204,19 @@ Custom-resource-definition-3.yaml
 
 自定义资源定义-3.yaml（续）
 
-[PRE3]
+```
+     schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                delaySeconds:
+                  type: integer
+                image:
+                  type: string
+```
 
 正如您所看到的，我们支持`delaySeconds`字段，它将是一个整数，以及`image`，它是一个与我们的容器映像相对应的字符串。如果我们真的想要使`DelayedJob`达到生产就绪状态，我们会希望包括各种其他选项，使其更接近原始的 Kubernetes Job 资源 - 但这不是我们的意图。
 
@@ -130,7 +230,15 @@ Custom-resource-definition-3.yaml
 
 Delayed-job.yaml
 
-[PRE4]
+```
+apiVersion: delayedresources.mydomain.com/v1
+kind: DelayedJob
+metadata:
+  name: my-instance-of-delayed-job
+spec:
+  delaySeconds: 6000
+  image: "busybox"
+```
 
 正如您所看到的，这就像我们的 CRD 定义了这个对象。现在，所有的部分都就位了，让我们测试一下我们的 CRD！
 
@@ -140,19 +248,27 @@ Delayed-job.yaml
 
 1.  首先，让我们在 Kubernetes 中创建 CRD 规范 - 就像我们创建任何其他对象一样：
 
-[PRE5]
+```
+kubectl apply -f delayedjob-crd-spec.yaml
+```
 
 这将导致以下输出：
 
-[PRE6]
+```
+customresourcedefinition "delayedjob.delayedresources.mydomain.com" has been created
+```
 
 1.  现在，Kubernetes 将接受对我们的`DelayedJob`资源的请求。我们可以通过最终使用前面的资源 YAML 创建一个来测试这一点：
 
-[PRE7]
+```
+kubectl apply -f my-delayed-job.yaml
+```
 
 如果我们正确定义了我们的 CRD，我们将看到以下输出：
 
-[PRE8]
+```
+delayedjob "my-instance-of-delayed-job" has been created
+```
 
 正如您所看到的，Kubernetes API 服务器已成功创建了我们的`DelayedJob`实例！
 
@@ -226,7 +342,21 @@ Delayed-job.yaml
 
 Main-function.pseudo
 
-[PRE9]
+```
+// The main function of our controller
+function main() {
+  // While loop which runs forever
+  while() {
+     // fetch the full list of delayed job objects from the cluster
+	var currentDelayedJobs = kubeAPIConnector.list("delayedjobs");
+     // Call the Analysis step function on the list
+     var jobsToSchedule = analyzeDelayedJobs(currentDelayedJobs);
+     // Schedule our Jobs with added delay
+     scheduleDelayedJobs(jobsToSchedule);
+     wait(5000);
+  }
+}
+```
 
 正如您所看到的，在我们的`main`函数中的循环调用 Kubernetes API 来查找存储在`etcd`中的`delayedjobs` CRD 列表。这是`measure`步骤。然后调用分析步骤，并根据其结果调用更新步骤来安排需要安排的任何`DelayedJobs`。
 
@@ -242,7 +372,24 @@ Main-function.pseudo
 
 分析函数伪代码
 
-[PRE10]
+```
+// The analysis function
+function analyzeDelayedJobs(listOfDelayedJobs) {
+  var listOfJobsToSchedule = [];
+  foreach(dj in listOfDelayedJobs) {
+    // Check if dj has been scheduled, if not, add a Job object with
+    // added delay command to the to schedule array
+    if(dj.annotations["is-scheduled"] != "true") {
+      listOfJobsToSchedule.push({
+        Image: dj.image,
+        Command: "sleep " + dj.delaySeconds + "s",
+        originalDjName: dj.name
+      });
+    }
+  }
+  return listOfJobsToSchedule;  
+}
+```
 
 正如您所看到的，前面的函数循环遍历了从**Measure**循环传递的集群中的`DelayedJob`对象列表。然后，它检查`DelayedJob`是否已经通过检查对象的注释之一的值来进行了调度。如果尚未安排，它将向名为`listOfJobsToSchedule`的数组添加一个对象，该数组包含`DelayedJob`对象中指定的图像，一个命令以睡眠指定的秒数，以及`DelayedJob`的原始名称，我们将在**Update**步骤中用来标记为已调度。
 
@@ -254,7 +401,24 @@ Main-function.pseudo
 
 更新函数伪代码
 
-[PRE11]
+```
+// The update function
+function scheduleDelayedJobs(listOfJobs) {
+  foreach(job in listOfDelayedJobs) {
+    // First, go ahead and schedule a regular Kubernetes Job
+    // which the Kube scheduler can pick up on.
+    // The delay seconds have already been added to the job spec
+    // in the analysis step
+    kubeAPIConnector.create("job", job.image, job.command);
+    // Finally, mark our original DelayedJob with a "scheduled"
+    // attribute so our controller doesn't try to schedule it again
+    kubeAPIConnector.update("delayedjob", job.originalDjName,
+    annotations: {
+      "is-scheduled": "true"
+    });
+  } 
+}
+```
 
 在这种情况下，我们正在使用从我们的`DelayedJob`对象派生的常规 Kubernetes 对象，并在 Kubernetes 中创建它，以便`Kube`调度程序可以找到它，创建相关的 Pod 并管理它。一旦我们使用延迟创建了常规作业对象，我们还会使用注释更新我们的`DelayedJob` CRD 实例，将`is-scheduled`注释设置为`true`，以防止它被重新调度。
 
@@ -288,7 +452,13 @@ Main-function.pseudo
 
 Service-account.yaml
 
-[PRE12]
+```
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloud-controller-manager
+  namespace: kube-system
+```
 
 这个`ServiceAccount`将被用来给予 CCM 必要的访问权限。
 
@@ -296,7 +466,20 @@ Service-account.yaml
 
 Clusterrolebinding.yaml
 
-[PRE13]
+```
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:cloud-controller-manager
+subjects:
+- kind: ServiceAccount
+  name: cloud-controller-manager
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+```
 
 如您所见，我们需要给`cluster-admin`角色访问我们的 CCM 服务账户。CCM 将需要能够编辑节点，以及其他一些操作。
 
@@ -306,7 +489,23 @@ Clusterrolebinding.yaml
 
 Daemonset.yaml
 
-[PRE14]
+```
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    k8s-app: cloud-controller-manager
+  name: cloud-controller-manager
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      k8s-app: cloud-controller-manager
+  template:
+    metadata:
+      labels:
+        k8s-app: cloud-controller-manager
+```
 
 正如您所看到的，为了匹配我们的`ServiceAccount`，我们在`kube-system`命名空间中运行 CCM。我们还使用`k8s-app`标签对`DaemonSet`进行标记，以将其区分为 Kubernetes 控制平面组件。
 
@@ -314,7 +513,29 @@ Daemonset.yaml
 
 Daemonset.yaml（续）
 
-[PRE15]
+```
+    spec:
+      serviceAccountName: cloud-controller-manager
+      containers:
+      - name: cloud-controller-manager
+        image: k8s.gcr.io/cloud-controller-manager:<current ccm version for your version of k8s>
+        command:
+        - /usr/local/bin/cloud-controller-manager
+        - --cloud-provider=<cloud provider name>
+        - --leader-elect=true
+        - --use-service-account-credentials
+        - --allocate-node-cidrs=true
+        - --configure-cloud-routes=true
+        - --cluster-cidr=<CIDR of the cluster based on Cloud Provider>
+      tolerations:
+      - key: node.cloudprovider.kubernetes.io/uninitialized
+        value: "true"
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+```
 
 正如您所看到的，此规范中有一些地方需要查看您选择的云提供商的文档或集群网络设置，以找到正确的值。特别是在网络标志中，例如`--cluster-cidr`和`--configure-cloud-routes`，这些值可能会根据您如何设置集群而改变，即使在单个云提供商上也是如此。
 
@@ -354,7 +575,22 @@ CCM 服务控制器提供了在公共云提供商上运行 Kubernetes 的“魔�
 
 service.yaml
 
-[PRE16]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service-with-dns
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: myapp.mydomain.com
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    name: http
+    targetPort: 80
+  selector:
+    app: my-app
+```
 
 正如您所看到的，我们只需要为`external-dns`控制器添加一个注释，以便检查要在 DNS 中创建的域记录。当然，域和托管区必须可以被您的`external-dns`控制器访问 - 例如，在 AWS Route 53 或 Azure DNS 上。请查看`external-dns` GitHub 存储库上的具体文档。
 
@@ -364,7 +600,22 @@ service.yaml
 
 ingress.yaml
 
-[PRE17]
+```
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: my-domain-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx".
+spec:
+  rules:
+  - host: myapp.mydomain.com
+    http:
+      paths:
+      - backend:
+          serviceName: my-app-service
+          servicePort: 80
+```
 
 此主机值将自动创建一个 DNS 记录，指向 Ingress 正在使用的任何方法 - 例如，在 AWS 上的负载均衡器。
 

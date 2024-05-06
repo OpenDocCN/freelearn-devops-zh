@@ -1,1 +1,0 @@
-["```\ndigitalocean:\n      image: “docker-1.12-rc4”\n      region: nyc3\n      ssh_key_fingerprint: “your SSH ID”\n      ssh_user: root\n```", "```\n      **# Set $GOPATH here\n      go get https://github.com/chanwit/belt\n\n```"]

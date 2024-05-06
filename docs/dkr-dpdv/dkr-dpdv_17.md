@@ -216,7 +216,18 @@ Swarm Mode 是 Docker 的未来。它允许您集群多个 Docker 主机，并�
 
 从要成为新 Swarm 中第一个管理者的节点运行以下命令。在示例中，我们将从“mgr1”运行它。
 
-[PRE0]
+```
+$ docker swarm init
+Swarm initialized: current node `(`7xam...662z`)` is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+    docker swarm join --token `\`
+     SWMTKN-1-1dmtwu...r17stb-ehp8g...hw738q `172`.31.5.251:2377
+
+To add a manager to this swarm, run `'docker swarm join-token manager'`
+and follow the instructions. 
+```
 
 `就是这样！这确实是您需要做的一切来配置一个安全的 Swarm！
 
@@ -234,13 +245,25 @@ Swarm Mode 是 Docker 的未来。它允许您集群多个 Docker 主机，并�
 
 从“mgr1”运行以下命令以提取管理节点加入令牌。
 
-[PRE1]
+```
+$ docker swarm join-token manager
+To add a manager to this swarm, run the following command:
+
+    docker swarm join --token `\`
+    SWMTKN-1-1dmtwu...r17stb-2axi5...8p7glz `\`
+    `172`.31.5.251:2377 
+```
 
 `命令的输出给出了你需要在要加入 Swarm 作为管理节点的节点上运行的确切命令。在你的实验室中，加入令牌和 IP 地址将是不同的。
 
 复制命令并在“mgr2”上运行：
 
-[PRE2]
+```
+$ docker swarm join --token SWMTKN-1-1dmtwu...r17stb-2axi5...8p7glz `\`
+> `172`.31.5.251:2377
+
+This node joined a swarm as a manager. 
+```
 
 `“mgr2”现在作为额外的管理节点加入了 Swarm。
 
@@ -248,7 +271,12 @@ Swarm Mode 是 Docker 的未来。它允许您集群多个 Docker 主机，并�
 
 你可以通过在两个管理节点中运行`docker node ls`来验证操作。
 
-[PRE3]
+```
+$ docker node ls
+ID                HOSTNAME   STATUS    AVAILABILITY    MANAGER STATUS
+7xamk...ge662z    mgr1       Ready     Active          Leader
+i0ue4...zcjm7f *  mgr2       Ready     Active          Reachable 
+```
 
 `上面的输出显示“mgr1”和“mgr2”都是 Swarm 的一部分，都是 Swarm 管理节点。更新后的配置如图 15.8 所示。
 
@@ -262,17 +290,36 @@ Swarm Mode 是 Docker 的未来。它允许您集群多个 Docker 主机，并�
 
 在任一管理节点上运行以下命令以公开工作节点加入令牌。
 
-[PRE4]
+```
+$ docker swarm join-token worker
+
+To add a worker to this swarm, run the following command:
+
+    docker swarm join --token `\`
+    SWMTKN-1-1dmtw...17stb-ehp8g...w738q `\`
+    `172`.31.5.251:2377 
+```
 
 `同样，你会得到你需要在要加入为工作节点的节点上运行的确切命令。在你的实验室中，加入令牌和 IP 地址将是不同的。
 
 复制命令并在“wrk1”上运行如下：
 
-[PRE5]
+```
+$ docker swarm join --token SWMTKN-1-1dmtw...17stb-ehp8g...w738q `\`
+> `172`.31.5.251:2377
+
+This node joined a swarm as a worker. 
+```
 
 `从 Swarm 管理节点中再次运行`docker node ls`命令。
 
-[PRE6]
+```
+$ docker node ls
+ID                 HOSTNAME     STATUS     AVAILABILITY   MANAGER STATUS
+7xamk...ge662z *   mgr1         Ready      Active         Leader
+ailrd...ofzv1u     wrk1         Ready      Active
+i0ue4...zcjm7f     mgr2         Ready      Active         Reachable 
+```
 
 `现在你有一个包含两个管理节点和一个工作节点的 Swarm。管理节点配置为高可用性（HA），并且集群存储被复制到它们两个。更新后的配置如图 15.9 所示。
 
@@ -308,7 +355,17 @@ Swarm Mode 是 Docker 的未来。它允许您集群多个 Docker 主机，并�
 
 如果您怀疑您的任一加入令牌已被泄露，您可以撤销它们并用单个命令发布新的。以下示例撤销了现有的*manager*加入令牌并发布了一个新的。
 
-[PRE7]
+```
+$ docker swarm join-token --rotate manager
+
+Successfully rotated manager join token.
+
+To add a manager to this swarm, run the following command:
+
+    docker swarm join --token `\`
+     SWMTKN-1-1dmtwu...r17stb-1i7txlh6k3hb921z3yjtcjrc7 `\`
+     `172`.31.5.251:2377 
+```
 
 请注意，旧加入令牌和新加入令牌之间唯一的区别是最后一个字段。Swarm ID 保持不变。
 
@@ -320,7 +377,26 @@ Swarm Mode 是 Docker 的未来。它允许您集群多个 Docker 主机，并�
 
 在 Linux 主机上，您可以使用以下命令检查节点的客户端证书。
 
-[PRE8]
+```
+$ sudo openssl x509 `\`
+  -in /var/lib/docker/swarm/certificates/swarm-node.crt `\`
+  -text
+
+  Certificate:
+      Data:
+          Version: `3` `(`0x2`)`
+          Serial Number:
+              `80`:2c:a7:b1:28...a8:af:89:a1:2a:51:89
+      Signature Algorithm: ecdsa-with-SHA256
+          Issuer: `CN``=`swarm-ca
+          Validity
+              Not Before: Jul `19` `07`:56:00 `2017` GMT
+              Not After : Oct `17` `08`:56:00 `2017` GMT
+          Subject: `O``=`mfbkgjm2tlametbnfqt2zid8x, `OU``=`swarm-manager,
+          `CN``=`7xamk8w3hz9q5kgr7xyge662z
+          Subject Public Key Info:
+<SNIP> 
+```
 
 输出中的`Subject`数据使用标准的`O`、`OU`和`CN`字段来指定 Swarm ID、节点的角色和节点 ID。
 
@@ -340,13 +416,30 @@ Swarm Mode 是 Docker 的未来。它允许您集群多个 Docker 主机，并�
 
 我们可以将这些值与`docker system info`命令的输出中显示的相应值进行匹配。
 
-[PRE9]
+```
+$ docker system info
+<SNIP>
+Swarm: active
+ NodeID: 7xamk8w3hz9q5kgr7xyge662z    `# Relates to the CN field`
+ Is Manager: `true`                     `# Relates to the OU field`
+ ClusterID: mfbkgjm2tlametbnfqt2zid8x `# Relates to the O field`
+ ...
+ <SNIP>
+ ...
+ CA Configuration:
+  Expiry Duration: `3` months           `# Relates to Validity field`
+  Force Rotate: `0`
+ Root Rotation In Progress: `false`
+ <SNIP> 
+```
 
 ###### 配置一些 CA 设置
 
 您可以使用`docker swarm update`命令为 Swarm 配置证书轮换周期。以下示例将证书轮换周期更改为 30 天。
 
-[PRE10]
+```
+$ docker swarm update --cert-expiry 720h 
+```
 
 `Swarm 允许节点提前更新证书（在证书到期之前稍微提前），以便 Swarm 中的所有节点不会同时尝试更新它们的证书。
 
@@ -354,7 +447,30 @@ Swarm Mode 是 Docker 的未来。它允许您集群多个 Docker 主机，并�
 
 新的`docker swarm ca`子命令可以用来管理与 CA 相关的配置。运行带有`--help`标志的命令，可以看到它可以做的事情列表。
 
-[PRE11]
+```
+$ docker swarm ca --help
+
+Usage:  docker swarm ca `[`OPTIONS`]`
+
+Manage root CA
+
+Options:
+      --ca-cert pem-file          Path to the PEM-formatted root CA
+                                  certificate to use `for` the new cluster
+      --ca-key pem-file           Path to the PEM-formatted root CA
+                                  key to use `for` the new cluster
+      --cert-expiry duration      Validity period `for` node certificates
+                                  `(`ns`|`us`|`ms`|`s`|`m`|`h`)` `(`default 2160h0m0s`)`
+  -d, --detach                    Exit immediately instead of waiting `for`
+                                  the root rotation to converge
+      --external-ca external-ca   Specifications of one or more certificate
+                                  signing endpoints
+      --help                      Print usage
+  -q, --quiet                     Suppress progress output
+      --rotate                    Rotate the swarm CA - `if` no certificate
+                                  or key are provided, new ones will be gene`\`
+rated 
+```
 
 ###### 集群存储
 
@@ -412,7 +528,9 @@ DCT 还可以提供重要的*上下文*。这包括诸如图像是否已经签�
 
 只需在 Docker 主机上启用 DCT，就可以导出一个名为`DOCKER_CONTENT_TRUST`的环境变量，其值为`1`。
 
-[PRE12]
+```
+$ `export` `DOCKER_CONTENT_TRUST``=``1` 
+```
 
 `在现实世界中，您可能希望将这变成系统的一个更为永久的特性。
 
@@ -480,4 +598,4 @@ Docker 可以配置为非常安全。它支持所有主要的 Linux 安全技术
 
 除了一般的 Linux 安全技术之外，Docker 平台还包括一套自己的安全技术。Swarm Mode 建立在 TLS 之上，配置和定制非常简单。安全扫描对 Docker 镜像进行二进制级别的扫描，并提供已知漏洞的详细报告。Docker 内容信任允许您签署和验证内容，而秘密现在是 Docker 中的一等公民。
 
-最终结果是，您的 Docker 环境可以根据您的需求配置为安全或不安全 —— 这完全取决于您如何配置它。[PRE13]
+最终结果是，您的 Docker 环境可以根据您的需求配置为安全或不安全 —— 这完全取决于您如何配置它。`````````````

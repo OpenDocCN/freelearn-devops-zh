@@ -56,7 +56,9 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 由于我们将在我们的集群上安装多个组件，我们的双节点集群不足以满足这个示例。让我们主动将我们的 AKS 集群扩展到三个节点，这样我们在这个示例中就不会遇到任何问题：
 
-[PRE0]
+```
+az aks scale -n <clustername> -g <cluster resource group> -c 3
+```
 
 这个扩展将需要几分钟时间。当集群扩展到三个节点时，我们可以开始部署服务目录到集群上。
 
@@ -66,11 +68,17 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  让我们通过运行以下命令来部署服务目录：
 
-[PRE1]
+```
+kubectl create namespace catalog
+helm repo add svc-cat https://svc-catalog-charts.storage.googleapis.com
+helm install catalog svc-cat/catalog --namespace catalog
+```
 
 1.  等待服务目录部署完成。您可以通过运行以下命令来检查：
 
-[PRE2]
+```
+kubectl get all -n catalog
+```
 
 1.  验证部署中的两个 Pod 都是`Running`并且完全准备就绪：![输出屏幕表示使用 kubectl get all -n catalog 命令成功部署服务目录。您将看到创建了四种类型的对象，即一个目录 Pod，服务目录，部署目录和复制集目录。](img/Figure_8.2.jpg)
 
@@ -78,7 +86,11 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  要与服务经纪人进行交互，我们需要安装另一个 CLI 工具，即`svcat`。我们可以使用以下命令来完成：
 
-[PRE3]
+```
+curl -sLO https://download.svcat.sh/cli/latest/linux/amd64/svcat
+chmod +x ./svcat
+./svcat version --client
+```
 
 我们现在在我们的集群上配置了一个服务目录。现在，我们可以继续在集群上安装 OSBA。
 
@@ -88,7 +100,9 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  运行以下命令以获取所需的列表：
 
-[PRE4]
+```
+az account list
+```
 
 输出将如*图 8.3*所示：
 
@@ -98,11 +112,16 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  复制您的`订阅 ID`以及`租户 ID`并将其保存在环境变量中：
 
-[PRE5]
+```
+export AZURE_SUBSCRIPTION_ID="<SubscriptionId>"
+export AZURE_TENANT_ID="<Tenant>"
+```
 
 1.  创建一个启用了 RBAC 的服务主体，以便它可以启动 Azure 服务。如果您与其他人共享订阅，请确保服务主体的名称在您的目录中是唯一的：
 
-[PRE6]
+```
+az ad sp create-for-rbac --name osba-quickstart -o table
+```
 
 这将生成一个如*图 8.4*所示的输出：
 
@@ -116,15 +135,29 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  将命令输出的值保存在环境变量中：
 
-[PRE7]
+```
+export AZURE_CLIENT_ID="<AppId>"
+export AZURE_CLIENT_SECRET="<Password>"
+```
 
 1.  现在，我们可以按以下方式部署 OSBA：
 
-[PRE8]
+```
+kubectl create namespace osba
+helm repo add azure https://kubernetescharts.blob.core.windows.net/azure
+helm install osba azure/open-service-broker-azure \
+--namespace osba \
+  --set azure.subscriptionId=$AZURE_SUBSCRIPTION_ID \
+  --set azure.tenantId=$AZURE_TENANT_ID \
+  --set azure.clientId=$AZURE_CLIENT_ID \
+  --set azure.clientSecret=$AZURE_CLIENT_SECRET
+```
 
 为了验证一切都正确部署了，您可以运行以下命令：
 
-[PRE9]
+```
+kubectl get all -n osba
+```
 
 等待直到两个 Pod 都处于`Running`状态。如果其中一个 Pod 处于`Error`状态，您不必担心。OSBA Pods 将自动重新启动并应达到健康状态。在我们的情况下，一个 Pod 重新启动了三次，如*图 8.5*所示：
 
@@ -134,7 +167,9 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  为了验证我们的部署完全成功，我们可以使用我们在上一节中下载的`svcat`实用程序：
 
-[PRE10]
+```
+./svcat get brokers
+```
 
 这应该显示您的 Azure 经纪人：
 
@@ -144,7 +179,9 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  您还可以验证通过 OSBA 驱动程序可以部署的所有服务：
 
-[PRE11]
+```
+./svcat get classes
+```
 
 这将显示可以使用 OSBA 创建的服务列表，如*图 8.7*所示：
 
@@ -160,11 +197,16 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  运行以下命令安装 WordPress：
 
-[PRE12]
+```
+kubectl create ns wordpress
+helm install wp azure/wordpress --namespace wordpress --set replicaCount=1 --set externalDatabase.azure.location=<your Azure region>
+```
 
 1.  要验证 WordPress Pod 的状态，请运行以下命令：
 
-[PRE13]
+```
+kubectl get pods -n wordpress
+```
 
 这应该显示单个 WordPress Pod 的状态，如*图 8.8*所示。在我们之前的 WordPress 示例中，我们总是有两个运行的 Pod，但是我们能够在这里将数据库功能卸载到 Azure：
 
@@ -174,7 +216,9 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  在创建 WordPress Pod 时，我们还可以检查数据库的状态。我们可以使用两种工具来获取此状态，要么是`svcat`，要么是`kubectl`：
 
-[PRE14]
+```
+./svcat get instances -n wordpress
+```
 
 这将生成如*图 8.9*所示的输出：
 
@@ -184,7 +228,9 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 我们可以使用`kubectl`获得类似的结果：
 
-[PRE15]
+```
+kubectl get serviceinstances -n wordpress
+```
 
 这将生成如*图 8.10*所示的输出：
 
@@ -196,7 +242,9 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 1.  请给部署几分钟的时间来完成。首先，需要完全配置数据库，然后 WordPress Pod 需要进入“运行”状态。要验证一切是否正常运行，请检查 WordPress Pod 的状态，并确保它处于“运行”状态：
 
-[PRE16]
+```
+kubectl get pods -n wordpress
+```
 
 这将生成一个如*图 8.11*所示的输出：
 
@@ -232,7 +280,9 @@ OSBA 是用于多个 Azure 服务的 OSB 实现。它允许用户使用 OSB API 
 
 您可以通过使用`EXTERNAL_IP`来验证您的博客网站是否可用和运行，该 IP 是通过运行以下命令获得的：
 
-[PRE17]
+```
+kubectl get service -n wordpress
+```
 
 这将生成一个如*图 8.15*所示的输出：
 
@@ -282,7 +332,11 @@ Azure Database for MySQL 会自动处理备份，无需额外配置。该服务�
 
 1.  要获取管理员凭据，请使用以下命令：
 
-[PRE18]
+```
+echo Password: $(kubectl get secret --namespace wordpress \
+  wp-wordpress -o jsonpath="{.data.wordpress-password}" | \
+  base64 --decode)
+```
 
 这将显示您连接到管理员网站的密码：
 
@@ -334,7 +388,9 @@ Azure Database for MySQL 会自动处理备份，无需额外配置。该服务�
 
 1.  接下来，我们需要将我们的 WordPress Pod 连接到新的数据库。让我们指出这是如何发生的。要获取这些信息，请运行以下命令：
 
-[PRE19]
+```
+kubectl describe deploy wp -n wordpress
+```
 
 您可以看到连接到数据库的值是从一个 secret 中获取的，如*图 8.25*所示：
 
@@ -346,13 +402,17 @@ Azure Database for MySQL 会自动处理备份，无需额外配置。该服务�
 
 1.  要设置 secrets，我们需要`base64`值。通过运行以下命令获取服务器名称的`base64`值：
 
-[PRE20]
+```
+echo <restored db server name> | base64
+```
 
 注意`base64`值。
 
 1.  现在，我们将继续编辑 Secret 中的主机名。为此，我们将使用`edit`命令：
 
-[PRE21]
+```
+kubectl edit secret wp-wordpress-mysql-secret -n wordpress
+```
 
 这将打开一个`vi`编辑器。导航到包含`host`的行并按`I`按钮。删除主机的当前值，并粘贴新的`base64`编码值。然后按*Esc*，输入：`wq!`，然后按*Enter*。您的密钥应如*图 8.26*所示：
 
@@ -362,7 +422,12 @@ Azure Database for MySQL 会自动处理备份，无需额外配置。该服务�
 
 1.  接下来，我们还需要在`wp-config.php`文件中进行更改。为此，让我们`exec`进入当前的 WordPress 容器并更改该值：
 
-[PRE22]
+```
+kubectl exec -it <wordpress pod name> -n wordpress sh
+apt update
+apt install vim -y
+vim /bitnami/wordpress/wp-config.php
+```
 
 这将再次打开`vi`编辑器。导航到包含`DB_HOST`配置行的第 32 行。按`I`进入插入模式，删除当前值，并用*图 8.27*中显示的恢复数据库的名称替换。然后按*Esc*，输入：`wq!`，然后按*Enter*。确保粘贴真实值，而不是`base64`编码的值：
 
@@ -372,17 +437,23 @@ Azure Database for MySQL 会自动处理备份，无需额外配置。该服务�
 
 然后，使用以下命令退出 Pod：
 
-[PRE23]
+```
+exit
+```
 
 尽管我们现在已重置了密钥值和配置文件，但这并不意味着我们的服务器会自动获取新值。我们现在必须重新启动 Pod，以确保配置再次被读取。
 
 1.  有许多方法可以做到这一点，我们将删除现有的 Pod。一旦删除了这个 Pod，我们的`ReplicaSet`控制器将注意到这一点并创建一个新的 Pod。要删除 Pod，请使用以下命令：
 
-[PRE24]
+```
+kubectl delete pod <wordpress pod name> -n wordpress
+```
 
 1.  几秒钟后，您应该看到正在创建一个新的 Pod。新的 Pod 上线需要 5 到 10 分钟。一旦上线，您可以观看该 Pod 的容器日志，并验证您确实连接到了新的数据库：
 
-[PRE25]
+```
+kubectl logs <new wordpress pod> -n wordpress
+```
 
 这应该包含如*图 8.28*所示的一行：
 
@@ -454,7 +525,13 @@ Azure Database for MySQL 服务通过 Azure 门户提供了强大的审计机制
 
 让我们确保在部署后再次清理并将我们的集群缩减到两个节点。缩减到两个节点将确保您在 Azure 订阅上节省成本：
 
-[PRE26]
+```
+helm delete wp -n wordpress
+helm delete osba -n osba
+helm delete catalog -n catalog
+kubectl delete ns wordpress osba catalog
+az aks scale -n <clustername> -g <cluster resource group> -c 2
+```
 
 在本节中，我们介绍了 Azure 为 MySQL 数据库生成的两种日志类型。我们查看了活动日志，以查看针对 Azure 数据库执行了哪些操作，并打开了服务器日志，以了解数据库内部发生了什么。
 

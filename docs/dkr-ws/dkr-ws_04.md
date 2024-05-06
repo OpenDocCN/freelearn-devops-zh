@@ -20,21 +20,43 @@
 
 考虑一个例子，我们构建一个简单的 Golang 应用程序。我们将使用以下`Dockerfile`部署一个用 Golang 编写的`hello world`应用程序：
 
-[PRE0]
+```
+# Start from latest golang parent image
+FROM golang:latest
+# Set the working directory
+WORKDIR /myapp
+# Copy source file from current directory to container
+COPY helloworld.go .
+# Build the application
+RUN go build -o helloworld .
+# Run the application
+ENTRYPOINT ["./helloworld"]
+```
 
 这个`Dockerfile`以最新的 Golang 镜像作为父镜像开始。这个父镜像包含构建 Golang 应用程序所需的所有构建工具。接下来，我们将把`/myapp`目录设置为当前工作目录，并将`helloworld.go`源文件从主机文件系统复制到容器文件系统。然后，我们将使用`RUN`指令执行`go build`命令来构建应用程序。最后，使用`ENTRYPOINT`指令来运行在上一步中创建的`helloworld`可执行文件。
 
 以下是`helloworld.go`文件的内容。这是一个简单的文件，当执行时将打印文本`"Hello World"`：
 
-[PRE1]
+```
+package main
+import "fmt"
+func main() {
+    fmt.Println("Hello World")
+}
+```
 
 一旦`Dockerfile`准备好，我们可以使用`docker image build`命令构建 Docker 镜像。这个镜像将被标记为`helloworld:v1`：
 
-[PRE2]
+```
+$ docker image build -t helloworld:v1 .
+```
 
 现在，使用`docker image ls`命令观察构建的镜像。您将获得类似以下的输出：
 
-[PRE3]
+```
+REPOSITORY   TAG   IMAGE ID       CREATED          SIZE
+helloworld   v1    23874f841e3e   10 seconds ago   805MB
+```
 
 注意镜像大小。这个构建导致了一个大小为 805 MB 的巨大 Docker 镜像。在生产环境中拥有这些大型 Docker 镜像是低效的，因为它们将花费大量时间和带宽在网络上传输。小型 Docker 镜像更加高效，可以快速推送、拉取和部署。
 
@@ -58,43 +80,69 @@
 
 1.  为此练习创建一个名为`normal-build`的新目录：
 
-[PRE4]
+```
+$ mkdir normal-build
+```
 
 1.  转到新创建的`normal-build`目录：
 
-[PRE5]
+```
+$ cd normal-build
+```
 
 1.  在`normal-build`目录中，创建一个名为`welcome.go`的文件。此文件将在构建时复制到 Docker 镜像中：
 
-[PRE6]
+```
+$ touch welcome.go
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`welcome.go`文件：
 
-[PRE7]
+```
+$ vim welcome.go
+```
 
 1.  将以下内容添加到`welcome.go`文件中，保存并退出`welcome.go`文件：
 
-[PRE8]
+```
+package main
+import "fmt"
+func main() {
+    fmt.Println("Welcome to multi-stage Docker builds")
+}
+```
 
 这是一个用 Golang 编写的简单的`hello world`应用程序。这将在执行时输出`"Welcome to multi-stage Docker builds"`。
 
 1.  在`normal-build`目录中，创建一个名为`Dockerfile`的文件：
 
-[PRE9]
+```
+$ touch Dockerfile
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE10]
+```
+$ vim Dockerfile 
+```
 
 1.  将以下内容添加到`Dockerfile`中并保存文件：
 
-[PRE11]
+```
+FROM golang:latest
+WORKDIR /myapp
+COPY welcome.go .
+RUN go build -o welcome .
+ENTRYPOINT ["./welcome"]
+```
 
 `Dockerfile`以`FROM`指令开头，指定最新的 Golang 镜像作为父镜像。这将把`/myapp`目录设置为 Docker 镜像的当前工作目录。然后，`COPY`指令将`welcome.go`源文件复制到 Docker 文件系统中。接下来是`go build`命令，用于构建您创建的 Golang 代码。最后，将执行 welcome 代码。
 
 1.  现在，构建 Docker 镜像：
 
-[PRE12]
+```
+$ docker build -t welcome:v1 .
+```
 
 您将看到该镜像成功构建，镜像 ID 为`b938bc11abf1`，标记为`welcome:v1`：
 
@@ -104,7 +152,9 @@
 
 1.  使用`docker image ls`命令列出计算机上所有可用的 Docker 镜像：
 
-[PRE13]
+```
+$ docker image ls
+```
 
 该命令应返回以下输出：
 
@@ -140,13 +190,33 @@
 
 现在，观察如何使用构建模式来创建最小的 Docker 镜像。以下是用于创建`Build` Docker 容器的第一个`Dockerfile`。这个`Dockerfile`被命名为 Dockerfile.build，以区别于`Runtime` `Dockerfile`：
 
-[PRE14]
+```
+# Start from latest golang parent image
+FROM golang:latest
+# Set the working directory
+WORKDIR /myapp
+# Copy source file from current directory to container
+COPY helloworld.go .
+# Build the application
+RUN go build -o helloworld .
+# Run the application
+ENTRYPOINT ["./helloworld"]
+```
 
 这是我们观察到的与普通 Docker 构建相同的`Dockerfile`。这是用来从`helloworld.go`源文件创建`helloworld`可执行文件的。
 
 以下是用于构建`Runtime` Docker 容器的第二个`Dockerfile`：
 
-[PRE15]
+```
+# Start from latest alpine parent image
+FROM alpine:latest
+# Set the working directory
+WORKDIR /myapp
+# Copy helloworld app from current directory to container
+COPY helloworld .
+# Run the application
+ENTRYPOINT ["./helloworld"]
+```
 
 与第一个`Dockerfile`相反，它是从`golang`父镜像创建的，这个第二个`Dockerfile`使用`alpine`镜像作为其父镜像，因为它是一个仅有 5MB 的最小尺寸的 Docker 镜像。这个镜像使用 Alpine Linux，一个轻量级的 Linux 发行版。接下来，`/myapp`目录被配置为工作目录。最后，`helloworld`构件被复制到 Docker 镜像中，并且使用`ENTRYPOINT`指令来运行应用程序。
 
@@ -154,13 +224,31 @@
 
 考虑以下用于在 Docker 容器之间复制构建构件的 shell 脚本：
 
-[PRE16]
+```
+#!/bin/sh
+# Build the builder Docker image 
+docker image build -t helloworld-build -f Dockerfile.build .
+# Create container from the build Docker image
+docker container create --name helloworld-build-container   helloworld-build
+# Copy build artifacts from build container to the local filesystem
+docker container cp helloworld-build-container:/myapp/helloworld .
+# Build the runtime Docker image
+docker image build -t helloworld .
+# Remove the build Docker container
+docker container rm -f helloworld-build-container
+# Remove the copied artifact
+rm helloworld
+```
 
 这个 shell 脚本将首先使用`Dockerfile.build`文件构建`helloworld-build` Docker 镜像。下一步是从`helloworld-build`镜像创建一个 Docker 容器，以便我们可以将`helloworld`构件复制到 Docker 主机。容器创建后，我们需要执行命令将`helloworld`构件从`helloworld-build-container`复制到 Docker 主机的当前目录。现在，我们可以使用`docker image build`命令构建运行时容器。最后，我们将执行必要的清理任务，如删除中间构件，比如`helloworld-build-container`容器和`helloworld`可执行文件。
 
 一旦我们执行了 shell 脚本，我们应该能够看到两个 Docker 镜像：
 
-[PRE17]
+```
+REPOSITORY         TAG      IMAGE ID       CREATED       SIZE
+helloworld         latest   faff247e2b35   3 hours ago   7.6MB
+helloworld-build   latest   f8c10c5bd28d   3 hours ago   805MB
+```
 
 注意两个 Docker 镜像之间的大小差异。`helloworld` Docker 镜像的大小仅为 7.6MB，这是从 805MB 的`helloworld-build`镜像中大幅减少的。
 
@@ -174,75 +262,126 @@
 
 1.  为这个练习创建一个名为`builder-pattern`的新目录：
 
-[PRE18]
+```
+$ mkdir builder-pattern
+```
 
 1.  导航到新创建的`builder-pattern`目录：
 
-[PRE19]
+```
+$ cd builder-pattern
+```
 
 1.  在`builder-pattern`目录中，创建一个名为`welcome.go`的文件。这个文件将在构建时复制到 Docker 镜像中：
 
-[PRE20]
+```
+$ touch welcome.go
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`welcome.go`文件：
 
-[PRE21]
+```
+$ vim welcome.go
+```
 
 1.  将以下内容添加到`welcome.go`文件中，然后保存并退出该文件：
 
-[PRE22]
+```
+package main
+import "fmt"
+func main() {
+    fmt.Println("Welcome to multi-stage Docker builds")
+}
+```
 
 这是一个用 Golang 编写的简单的`hello world`应用程序。一旦执行，它将输出“欢迎来到多阶段 Docker 构建”。
 
 1.  在`builder-pattern`目录中，创建一个名为`Dockerfile.build`的文件。这个文件将包含您将用来创建`build` Docker 镜像的所有指令：
 
-[PRE23]
+```
+$ touch Dockerfile.build
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile.build`：
 
-[PRE24]
+```
+$ vim Dockerfile.build
+```
 
 1.  将以下内容添加到`Dockerfile.build`文件中并保存该文件：
 
-[PRE25]
+```
+FROM golang:latest
+WORKDIR /myapp
+COPY welcome.go .
+RUN go build -o welcome .
+ENTRYPOINT ["./welcome"]
+```
 
 这与您在*练习 4.01*中为`Dockerfile`创建的内容相同，*使用常规构建过程构建 Docker 镜像*。
 
 1.  接下来，为运行时容器创建`Dockerfile`。在`builder-pattern`目录中，创建一个名为`Dockerfile`的文件。这个文件将包含您将用来创建运行时 Docker 镜像的所有指令：
 
-[PRE26]
+```
+$ touch Dockerfile
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE27]
+```
+$ vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`并保存该文件：
 
-[PRE28]
+```
+FROM scratch
+WORKDIR /myapp
+COPY welcome .
+ENTRYPOINT ["./welcome"]
+```
 
 这个`Dockerfile`使用了 scratch 镜像，这是 Docker 中最小的镜像，作为父镜像。然后，它将`/myapp`目录配置为工作目录。接下来，欢迎可执行文件从 Docker 主机复制到运行时 Docker 镜像。最后，使用`ENTRYPOINT`指令来执行欢迎可执行文件。
 
 1.  创建一个 shell 脚本，在两个 Docker 容器之间复制可执行文件。在`builder-pattern`目录中，创建一个名为`build.sh`的文件。这个文件将包含协调两个 Docker 容器之间构建过程的步骤：
 
-[PRE29]
+```
+$ touch build.sh
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`build.sh`文件：
 
-[PRE30]
+```
+$ vim build.sh
+```
 
 1.  将以下内容添加到 shell 脚本中并保存文件：
 
-[PRE31]
+```
+#!/bin/sh
+echo "Creating welcome builder image"
+docker image build -t welcome-builder:v1 -f Dockerfile.build .
+docker container create --name welcome-builder-container   welcome-builder:v1
+docker container cp welcome-builder-container:/myapp/welcome .
+docker container rm -f welcome-builder-container
+echo "Creating welcome runtime image"
+docker image build -t welcome-runtime:v1 .
+rm welcome
+```
 
 这个 shell 脚本将首先构建`welcome-builder` Docker 镜像并从中创建一个容器。然后它将从容器中将编译的 Golang 可执行文件复制到本地文件系统。接下来，`welcome-builder-container`容器将被删除，因为它是一个中间容器。最后，将构建`welcome-runtime`镜像。
 
 1.  为`build.sh` shell 脚本添加执行权限：
 
-[PRE32]
+```
+$ chmod +x build.sh
+```
 
 1.  现在您已经有了两个`Dockerfiles`和 shell 脚本，通过执行`build.sh` shell 脚本构建 Docker 镜像：
 
-[PRE33]
+```
+$ ./build.sh
+```
 
 镜像将成功构建并标记为`welcome-runtime:v1`：
 
@@ -252,7 +391,9 @@
 
 1.  使用`docker image` ls 命令列出计算机上所有可用的 Docker 镜像：
 
-[PRE34]
+```
+docker image ls
+```
 
 您应该得到所有可用 Docker 镜像的列表，如下图所示：
 
@@ -272,17 +413,39 @@
 
 现在，让我们观察一下多阶段`Dockerfile`的结构：
 
-[PRE35]
+```
+# Start from latest golang parent image
+FROM golang:latest
+# Set the working directory
+WORKDIR /myapp
+# Copy source file from current directory to container
+COPY helloworld.go .
+# Build the application
+RUN go build -o helloworld .
+# Start from latest alpine parent image
+FROM alpine:latest
+# Set the working directory
+WORKDIR /myapp
+# Copy helloworld app from current directory to container
+COPY --from=0 /myapp/helloworld .
+# Run the application
+ENTRYPOINT ["./helloworld"]
+```
 
 普通的`Dockerfile`和多阶段`Dockerfile`之间的主要区别在于，多阶段`Dockerfile`将使用多个`FROM`指令来构建每个阶段。每个新阶段将从一个新的父镜像开始，并且不包含来自先前镜像的任何内容，除了有选择地复制的可执行文件。使用`COPY --from=0`将可执行文件从第一阶段复制到第二阶段。
 
 构建 Docker 镜像并将镜像标记为`multi-stage:v1`：
 
-[PRE36]
+```
+docker image build -t multi-stage:v1 .
+```
 
 现在，您可以列出可用的 Docker 镜像：
 
-[PRE37]
+```
+REPOSITORY    TAG      IMAGE ID       CREATED         SIZE
+multi-stage   latest   75e1f4bcabd0   7 seconds ago   7.6MB
+```
 
 您可以看到，这导致了与构建模式中观察到的相同大小的 Docker 镜像。
 
@@ -292,19 +455,43 @@
 
 默认情况下，多阶段`Dockerfile`中的阶段由整数编号引用，从第一阶段开始为`0`。可以通过在`FROM`指令中添加`AS <NAME>`来为这些阶段命名，以增加可读性和可维护性。以下是您在前面的代码块中观察到的多阶段`Dockerfile`的改进版本：
 
-[PRE38]
+```
+# Start from latest golang parent image
+FROM golang:latest AS builder 
+# Set the working directory
+WORKDIR /myapp
+# Copy source file from current directory to container
+COPY helloworld.go .
+# Build the application
+RUN go build -o helloworld .
+# Start from latest alpine parent image
+FROM alpine:latest AS runtime
+# Set the working directory
+WORKDIR /myapp
+# Copy helloworld app from current directory to container
+COPY --from=builder /myapp/helloworld .
+# Run the application
+ENTRYPOINT ["./helloworld"]
+```
 
 在前面的示例中，我们将第一阶段命名为`builder`，第二阶段命名为`runtime`，如下所示：
 
-[PRE39]
+```
+FROM golang:latest AS builder
+FROM alpine:latest AS runtime
+```
 
 然后，在第二阶段复制工件时，您使用了`--from`标志的名称`builder`：
 
-[PRE40]
+```
+COPY --from=builder /myapp/helloworld .
+```
 
 在构建多阶段`Dockerfile`时，可能会有一些情况，您只想构建到特定的构建阶段。考虑到您的`Dockerfile`有两个阶段。第一个是构建开发阶段，包含所有构建和调试工具，第二个是构建仅包含运行时工具的生产镜像。在项目的代码开发阶段，您可能只需要构建到开发阶段，以便在必要时测试和调试代码。在这种情况下，您可以使用`docker build`命令的`--target`标志来指定一个中间阶段作为最终镜像的阶段：
 
-[PRE41]
+```
+docker image build --target builder -t multi-stage-dev:v1 .
+```
 
 在前面的例子中，您使用了`--target builder`来停止在构建阶段停止构建。
 
@@ -316,37 +503,64 @@
 
 1.  为这个练习创建一个名为`multi-stage`的新目录：
 
-[PRE42]
+```
+mkdir multi-stage
+```
 
 1.  导航到新创建的`multi-stage`目录：
 
-[PRE43]
+```
+cd multi-stage
+```
 
 1.  在`multi-stage`目录中，创建一个名为`welcome.go`的文件。这个文件将在构建时复制到 Docker 镜像中：
 
-[PRE44]
+```
+$ touch welcome.go
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`welcome.go`文件：
 
-[PRE45]
+```
+$ vim welcome.go
+```
 
 1.  将以下内容添加到`welcome.go`文件中，然后保存并退出此文件：
 
-[PRE46]
+```
+package main
+import "fmt"
+func main() {
+    fmt.Println("Welcome to multi-stage Docker builds")
+}
+```
 
 这是一个用 Golang 编写的简单的`hello world`应用程序。一旦执行，它将输出`"Welcome to multi-stage Docker builds"`。
 
 在 multi-stage 目录中，创建一个名为`Dockerfile`的文件。这个文件将是多阶段`Dockerfile`：
 
-[PRE47]
+```
+touch Dockerfile
+```
 
 1.  现在，使用您喜欢的文本编辑器打开`Dockerfile`：
 
-[PRE48]
+```
+vim Dockerfile
+```
 
 1.  将以下内容添加到`Dockerfile`中并保存文件：
 
-[PRE49]
+```
+FROM golang:latest AS builder
+WORKDIR /myapp
+COPY welcome.go .
+RUN go build -o welcome .
+FROM scratch
+WORKDIR /myapp
+COPY --from=builder /myapp/welcome .
+ENTRYPOINT ["./welcome"]
+```
 
 这个多阶段`Dockerfile`使用最新的`golang`镜像作为父镜像，这个阶段被命名为`builder`。接下来，指定`/myapp`目录作为当前工作目录。然后，使用`COPY`指令复制`welcome.go`源文件，并使用`RUN`指令构建 Golang 文件。
 
@@ -354,7 +568,9 @@
 
 1.  使用以下命令构建 Docker 镜像：
 
-[PRE50]
+```
+docker build -t welcome-optimized:v1 .
+```
 
 镜像将成功构建并标记为`welcome-optimized:v1`：
 
@@ -364,7 +580,9 @@
 
 1.  使用`docker image ls`命令列出计算机上所有可用的 Docker 镜像。这些镜像可以在您的计算机上使用，无论是从 Docker Registry 拉取还是在您的计算机上构建：
 
-[PRE51]
+```
+docker images
+```
 
 从以下输出中可以看出，`welcome-optimized`镜像与您在*练习 4.02 中构建的`welcome-runtime`镜像大小相同，构建 Docker 镜像使用以下命令：
 
@@ -416,13 +634,21 @@
 
 使用`--user`（或`-u`）标志与`docker run`命令是在运行 Docker 容器时更改默认用户的一种方法。`--user`（或`-u`）标志可以指定用户名或用户 ID：
 
-[PRE52]
+```
+$ docker run --user=9999 ubuntu:focal
+```
 
 在前面的命令中，我们指定了用户 ID 为`9999`。如果我们将用户指定为 ID，则相应的用户不必在 Docker 容器中可用。
 
 此外，我们可以在`Dockerfile`中使用`USER`指令来定义默认用户。但是，可以在启动 Docker 容器时使用`--user`标志覆盖此值：
 
-[PRE53]
+```
+FROM ubuntu:focal
+RUN apt-get update 
+RUN useradd demo-user
+USER demo-user
+CMD whoami
+```
 
 在前面的例子中，我们使用了`USER`指令将默认用户设置为`demo-user`。这意味着在`USER`指令之后的任何命令都将以`demo-user`身份执行。
 
@@ -430,7 +656,10 @@
 
 `.dockerignore`文件是 Docker 上下文中的一个特殊文本文件，用于指定在构建 Docker 镜像时要排除的文件列表。一旦执行`docker build`命令，Docker 客户端将整个构建上下文打包为一个 TAR 归档文件，并将其上传到 Docker 守护程序。当我们执行`docker build`命令时，输出的第一行是`Sending build context to Docker daemon`，这表示 Docker 客户端正在将构建上下文上传到 Docker 守护程序。
 
-[PRE54]
+```
+Sending build context to Docker daemon  18.6MB
+Step 1/5 : FROM ubuntu:focal
+```
 
 每次构建 Docker 镜像时，构建上下文都将被发送到 Docker 守护程序。由于这将在 Docker 镜像构建过程中占用时间和带宽，建议排除所有在最终 Docker 镜像中不需要的文件。`.dockerignore`文件可用于实现此目的。除了节省时间和带宽外，`.dockerignore`文件还用于排除机密文件，例如密码文件和密钥文件，以防止其出现在构建上下文中。
 
@@ -438,7 +667,12 @@
 
 以下是一个示例`.dockerignore`文件的内容：
 
-[PRE55]
+```
+PASSWORDS.txt
+tmp/
+*.md
+!README.md
+```
 
 在上面的示例中，我们特别排除了`PASSWORDS.txt`文件和`tmp`目录，以及除`README.md`文件之外的所有扩展名为`.md`的文件。
 
@@ -448,23 +682,41 @@
 
 例如，考虑以下`Dockerfile`，它将首先更新软件包存储库，然后安装`redis-server`和`nginx`软件包：
 
-[PRE56]
+```
+FROM ubuntu:focal
+RUN apt-get update
+RUN apt-get install -y nginx
+RUN apt-get install -y redis-server
+```
 
 这个`Dockerfile`可以通过合并三个`RUN`指令来优化：
 
-[PRE57]
+```
+FROM ubuntu:focal
+RUN apt-get update \
+  && apt-get install -y nginx redis-server
+```
 
 ## 不安装不必要的工具
 
 不安装不必要的调试工具（如`vim`，`curl`和`telnet`）并删除不必要的依赖项可以帮助创建尺寸小的高效 Docker 镜像。一些软件包管理器（如`apt`）将自动安装推荐和建议的软件包，以及所需的软件包。我们可以通过在`apt-get install`命令中指定`no-install-recommends`标志来避免这种情况：
 
-[PRE58]
+```
+FROM ubuntu:focal
+RUN apt-get update \
+  && apt-get install --no-install-recommends -y nginx 
+```
 
 在上面的示例中，我们正在使用`no-install-recommends`标志安装`nginx`软件包，这将帮助将最终镜像大小减少约 10MB。
 
 除了使用`no-install-recommends`标志之外，我们还可以删除`apt`软件包管理器的缓存，以进一步减少最终的 Docker 镜像大小。这可以通过在`apt-get install`命令的末尾运行`rm -rf /var/lib/apt/lists/*`来实现：
 
-[PRE59]
+```
+FROM ubuntu:focal
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y nginx \
+    && rm -rf /var/lib/apt/lists/*
+```
 
 在本节中，我们讨论了编写`Dockerfile`时的最佳实践。遵循这些最佳实践将有助于减少构建时间，减小镜像大小，增加安全性，并增加 Docker 镜像的可维护性。
 
@@ -482,7 +734,39 @@
 
 你的任务是使用多阶段`Dockerfile`来将下面代码块中给出的 Golang 应用程序 docker 化：
 
-[PRE60]
+```
+package main
+import (
+    "net/http"
+    "fmt"
+    "log"
+    "os"
+)
+func main() {
+    http.HandleFunc("/", defaultHandler)
+    http.HandleFunc("/contact", contactHandler)
+    http.HandleFunc("/login", loginHandler)
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
+    }
+    log.Println("Service started on port " + port)
+    err := http.ListenAndServe(":"+port, nil)
+    if err != nil {
+        log.Fatal("ListenAndServe: ", err)
+        return
+    }
+}
+func defaultHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "<h1>Home Page</h1>")
+}
+func contactHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "<h1>Contact Us</h1>")
+}
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "<h1>Login Page</h1>")
+}
+```
 
 执行以下步骤完成这个活动：
 

@@ -38,7 +38,23 @@
 
 **Dockerfile**只是一个包含一组用户定义指令的纯文本文件。当 Dockerfile 被`docker image build`命令调用时，它用于组装容器映像。Dockerfile 看起来像下面这样：
 
-[PRE0]
+```
+FROM alpine:latest
+LABEL maintainer="Russ McKendrick <russ@mckendrick.io>"
+LABEL description="This example Dockerfile installs NGINX."
+RUN apk add --update nginx && \
+ rm -rf /var/cache/apk/* && \
+ mkdir -p /tmp/nginx/
+
+COPY files/nginx.conf /etc/nginx/nginx.conf
+COPY files/default.conf /etc/nginx/conf.d/default.conf
+ADD files/html.tar.gz /usr/share/nginx/
+
+EXPOSE 80/tcp
+
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]
+```
 
 如您所见，即使没有解释，也很容易了解 Dockerfile 的每个步骤指示`build`命令要做什么。
 
@@ -80,11 +96,15 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 然而，使用太多标签也会导致镜像效率低下，因此我建议使用[`label-schema.org/`](http://label-s%20chema.org/)中详细介绍的标签模式。你可以使用以下 Docker `inspect`命令查看容器的标签：
 
-[PRE1]
+```
+$ docker image inspect <IMAGE_ID>
+```
 
 或者，你可以使用以下内容来过滤标签：
 
-[PRE2]
+```
+$ docker image inspect -f {{.Config.Labels}} <IMAGE_ID>
+```
 
 在我们的示例 Dockerfile 中，我们添加了两个标签：
 
@@ -98,11 +118,17 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 `RUN`指令是我们与镜像交互以安装软件和运行脚本、命令和其他任务的地方。从我们的`RUN`指令中可以看到，实际上我们运行了三个命令：
 
-[PRE3]
+```
+RUN apk add --update nginx && \
+ rm -rf /var/cache/apk/* && \
+ mkdir -p /tmp/nginx/
+```
 
 我们三个命令中的第一个相当于在 Alpine Linux 主机上有一个 shell 时运行以下命令：
 
-[PRE4]
+```
+$ apk add --update nginx
+```
 
 此命令使用 Alpine Linux 的软件包管理器安装 nginx。
 
@@ -110,15 +136,23 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 我们链中的下一个命令删除任何临时文件等，以使我们的镜像尺寸最小化：
 
-[PRE5]
+```
+$ rm -rf /var/cache/apk/*
+```
 
 我们链中的最后一个命令创建了一个路径为`/tmp/nginx/`的文件夹，这样当我们运行容器时，nginx 将能够正确启动：
 
-[PRE6]
+```
+$ mkdir -p /tmp/nginx/
+```
 
 我们也可以在 Dockerfile 中使用以下内容来实现相同的结果：
 
-[PRE7]
+```
+RUN apk add --update nginx
+RUN rm -rf /var/cache/apk/*
+RUN mkdir -p /tmp/nginx/
+```
 
 然而，就像添加多个标签一样，这被认为是低效的，因为它会增加镜像的总体大小，大多数情况下我们应该尽量避免这种情况。当然也有一些有效的用例，我们将在本章后面进行讨论。在大多数情况下，构建镜像时应避免这种命令的运行。
 
@@ -126,25 +160,60 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 乍一看，`COPY`和`ADD`看起来像是在执行相同的任务；然而，它们之间有一些重要的区别。`COPY`指令是两者中更为直接的：
 
-[PRE8]
+```
+COPY files/nginx.conf /etc/nginx/nginx.conf
+COPY files/default.conf /etc/nginx/conf.d/default.conf
+```
 
 正如你可能已经猜到的那样，我们正在从构建镜像的主机上的文件夹中复制两个文件。第一个文件是`nginx.conf`，其中包含一个基本的 nginx 配置文件：
 
-[PRE9]
+```
+user nginx;
+worker_processes 1;
+
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+ worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /var/log/nginx/access.log main;
+    sendfile off;
+    keepalive_timeout 65;
+    include /etc/nginx/conf.d/*.conf;
+}
+```
 
 这将覆盖作为 APK 安装的一部分安装的 NGINX 配置在`RUN`指令中。接下来的文件`default.conf`是我们可以配置的最简单的虚拟主机，并且具有以下内容：
 
-[PRE10]
+```
+server {
+  location / {
+      root /usr/share/nginx/html;
+  }
+}
+```
 
 同样，这将覆盖任何现有文件。到目前为止，一切都很好，那么为什么我们要使用`ADD`指令呢？在我们的情况下，看起来像是以下的样子：
 
-[PRE11]
+```
+ADD files/html.tar.gz /usr/share/nginx/
+```
 
 正如你所看到的，我们正在添加一个名为`html.tar.gz`的文件，但实际上我们在 Dockerfile 中并没有对存档进行任何操作。这是因为`ADD`会自动上传、解压缩并将生成的文件夹和文件放置在我们告诉它的路径上，而在我们的情况下是`/usr/share/nginx/`。这给了我们我们在`default.conf`文件中定义的虚拟主机块中的 web 根目录`/usr/share/nginx/html/`。
 
 `ADD`指令也可以用于从远程源添加内容。例如，考虑以下情况：
 
-[PRE12]
+```
+ADD http://www.myremotesource.com/files/html.tar.gz /usr/share/nginx/
+```
 
 上述命令行将从`http://www.myremotesource.com/files/`下载`html.tar.gz`并将文件放置在镜像的`/usr/share/nginx/`文件夹中。来自远程源的存档文件被视为文件，不会被解压缩，这在使用它们时需要考虑到，这意味着文件必须在`RUN`指令之前添加，这样我们就可以手动解压缩文件夹并删除`html.tar.gz`文件。
 
@@ -154,7 +223,9 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 例如，在我们的 Dockerfile 中，我们告诉 Docker 在每次运行镜像时打开端口`80`：
 
-[PRE13]
+```
+EXPOSE 80/tcp
+```
 
 # ENTRYPOINT 和 CMD
 
@@ -164,19 +235,28 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 例如，如果你想要一个默认命令在容器内执行，你可以做类似以下示例的事情，但一定要使用一个保持容器活动的命令。在我们的情况下，我们使用以下命令：
 
-[PRE14]
+```
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]
+```
 
 这意味着每当我们从我们的镜像启动一个容器时，nginx 二进制文件都会被执行，因为我们已经将其定义为我们的`ENTRYPOINT`，然后我们定义的`CMD`也会被执行，这相当于运行以下命令：
 
-[PRE15]
+```
+$ nginx -g daemon off;
+```
 
 `ENTRYPOINT`的另一个用法示例如下：
 
-[PRE16]
+```
+$ docker container run --name nginx-version dockerfile-example -v
+```
 
 这相当于在我们的主机上运行以下命令：
 
-[PRE17]
+```
+$ nginx -v
+```
 
 请注意，我们不必告诉 Docker 使用 nginx。因为我们将 nginx 二进制文件作为我们的入口点，我们传递的任何命令都会覆盖 Dockerfile 中定义的`CMD`。
 
@@ -202,7 +282,9 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 `ONBUILD`指令可以与`ADD`和`RUN`指令一起使用，例如以下示例：
 
-[PRE18]
+```
+ONBUILD RUN apk update && apk upgrade && rm -rf /var/cache/apk/*
+```
 
 这将在我们的镜像作为另一个容器镜像的基础时运行更新和软件包升级。
 
@@ -234,7 +316,9 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 在使用`docker build`命令时，有很多开关可以使用。因此，让我们在`docker image build`命令上使用非常方便的`--help`开关，查看我们可以做的一切。
 
-[PRE19]
+```
+$ docker image build --help
+```
 
 然后列出了许多不同的标志，您可以在构建映像时传递这些标志。现在，这可能看起来很多，但在所有这些选项中，我们只需要使用`--tag`或其简写`-t`来命名我们的映像。
 
@@ -252,21 +336,43 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 我们将要查看的第一种用于构建基本容器映像的方法是创建一个 Dockerfile。实际上，我们将使用上一节中的 Dockerfile，然后针对它执行`docker image build`命令，以获得一个 nginx 映像。因此，让我们再次开始查看 Dockerfile：
 
-[PRE20]
+```
+FROM alpine:latest
+LABEL maintainer="Russ McKendrick <russ@mckendrick.io>"
+LABEL description="This example Dockerfile installs NGINX."
+RUN apk add --update nginx && \
+ rm -rf /var/cache/apk/* && \
+ mkdir -p /tmp/nginx/
+
+COPY files/nginx.conf /etc/nginx/nginx.conf
+COPY files/default.conf /etc/nginx/conf.d/default.conf
+ADD files/html.tar.gz /usr/share/nginx/
+
+EXPOSE 80/tcp
+
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]
+```
 
 不要忘记您还需要在文件夹中的`default.conf`、`html.tar.gz`和`nginx.conf`文件。您可以在附带的 GitHub 存储库中找到这些文件。
 
 因此，我们可以通过两种方式构建此图像。第一种方式是在使用`docker image build`命令时指定`-f`开关。我们还将利用`-t`开关为新图像指定一个唯一名称：
 
-[PRE21]
+```
+$ docker image build --file <path_to_Dockerfile> --tag <REPOSITORY>:<TAG> .
+```
 
 现在，`<REPOSITORY>`通常是您在 Docker Hub 上注册的用户名。我们将在第三章*存储和分发图像*中更详细地讨论这一点；目前，我们将使用`local`，而`<TAG>`是您想要提供的唯一容器值。通常，这将是一个版本号或其他描述符：
 
-[PRE22]
+```
+$ docker image build --file /path/to/your/dockerfile --tag local:dockerfile-example .
+```
 
 通常，不使用`--file`开关，当您需要将其他文件包含在新图像中时，可能会有些棘手。进行构建的更简单的方法是将 Dockerfile 单独放在一个文件夹中，以及使用`ADD`或`COPY`指令将任何其他文件注入到图像中：
 
-[PRE23]
+```
+$ docker image build --tag local:dockerfile-example .
+```
 
 最重要的是要记住最后的句点（或周期）。这是告诉`docker image build`命令在当前文件夹中构建的指示。构建图像时，您应该看到类似以下终端输出：
 
@@ -274,7 +380,9 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 构建完成后，您应该能够运行以下命令来检查图像是否可用，以及图像的大小：
 
-[PRE24]
+```
+$ docker image ls
+```
 
 如您从以下终端输出中所见，我的图像大小为 5.98 MB：
 
@@ -282,11 +390,15 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 您可以通过运行此命令启动一个包含您新构建的图像的容器：
 
-[PRE25]
+```
+$ docker container run -d --name dockerfile-example -p 8080:80 local:dockerfile-example
+```
 
 这将启动一个名为`dockerfile-example`的容器，您可以使用以下命令检查它是否正在运行：
 
-[PRE26]
+```
+$ docker container ls 
+```
 
 打开浏览器并转到`http://localhost:8080/`应该会显示一个非常简单的网页，看起来像以下内容：
 
@@ -294,7 +406,9 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 接下来，我们可以快速运行本章前一节提到的一些命令，首先是以下命令：
 
-[PRE27]
+```
+$ docker container run --name nginx-version local:dockerfile-example -v
+```
 
 如您从以下终端输出中所见，我们目前正在运行 nginx 版本 1.14.0：
 
@@ -302,7 +416,9 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 接下来，我们可以看一下要运行的下一个命令，现在我们已经构建了第一个图像，显示了我们在构建时嵌入的标签。要查看此信息，请运行以下命令：
 
-[PRE28]
+```
+$ docker image inspect -f {{.Config.Labels}} local:dockerfile-example
+```
 
 如您从以下输出中所见，这显示了我们输入的信息：
 
@@ -310,7 +426,10 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 在我们继续之前，你可以使用以下命令停止和删除我们启动的容器：
 
-[PRE29]
+```
+$ docker container stop dockerfile-example
+$ docker container rm dockerfile-example nginx-version  
+```
 
 我们将在第四章“管理容器”中更详细地介绍 Docker 容器命令。
 
@@ -324,17 +443,28 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 首先，我们应该下载我们想要用作基础的镜像；和以前一样，我们将使用 Alpine Linux：
 
-[PRE30]
+```
+$ docker image pull alpine:latest
+```
 
 接下来，我们需要在前台运行一个容器，这样我们就可以与它进行交互：
 
-[PRE31]
+```
+$ docker container run -it --name alpine-test alpine /bin/sh
+```
 
 容器运行后，你可以使用`apk`命令（在这种情况下）或者你的 Linux 版本的软件包管理命令来添加必要的软件包。
 
 例如，以下命令将安装 nginx：
 
-[PRE32]
+```
+$ apk update
+$ apk upgrade
+$ apk add --update nginx
+$ rm -rf /var/cache/apk/*
+$ mkdir -p /tmp/nginx/
+$ exit
+```
 
 安装完所需的软件包后，你需要保存容器。在前面一组命令的末尾使用`exit`命令将停止运行的容器，因为我们正在从中分离的 shell 进程恰好是保持容器在前台运行的进程。你可以在终端输出中看到这一点，如下所示：
 
@@ -344,21 +474,29 @@ Alpine Linux，由于其体积和强大的功能，已成为 Docker 官方容器
 
 因此，要将我们停止的容器保存为镜像，你需要执行类似以下的操作：
 
-[PRE33]
+```
+$ docker container commit <container_name> <REPOSITORY>:<TAG>
+```
 
 例如，我运行了以下命令来保存我们启动和自定义的容器的副本：
 
-[PRE34]
+```
+$ docker container commit alpine-test local:broken-container 
+```
 
 注意我如何称呼我的镜像为`broken-container`？采用这种方法的一个用例是，如果由于某种原因您的容器出现问题，那么将失败的容器保存为镜像非常有用，甚至将其导出为 TAR 文件与他人分享，以便在解决问题时获得一些帮助。
 
 要保存镜像文件，只需运行以下命令：
 
-[PRE35]
+```
+$ docker image save -o <name_of_file.tar> <REPOSITORY>:<TAG>
+```
 
 因此，对于我们的示例，我运行了以下命令：
 
-[PRE36]
+```
+$ docker image save -o broken-container.tar local:broken-container
+```
 
 这给了我一个名为`broken-container.tar`的 6.6 MB 文件。虽然我们有这个文件，您可以解压它并查看一下，就像您可以从以下结构中看到的那样：
 
@@ -386,15 +524,23 @@ Docker 已经为我们做了一些艰苦的工作，并在 Docker Hub 上创建�
 
 一旦下载完成，您需要创建一个使用`scratch`的 Dockerfile，然后添加`tar.gz`文件，确保使用正确的文件，就像下面的例子一样：
 
-[PRE37]
+```
+FROM scratch
+ADD files/alpine-minirootfs-3.8.0-x86_64.tar.gz /
+CMD ["/bin/sh"]
+```
 
 现在您已经有了 Dockerfile 和操作系统的 TAR 文件，您可以通过运行以下命令构建您的镜像，就像构建任何其他 Docker 镜像一样：
 
-[PRE38]
+```
+$ docker image build --tag local:fromscratch .
+```
 
 您可以通过运行以下命令来比较镜像大小与我们构建的其他容器镜像：
 
-[PRE39]
+```
+$ docker image ls
+```
 
 正如您在以下截图中所看到的，我构建的镜像与我们从 Docker Hub 使用的 Alpine Linux 镜像的大小完全相同：
 
@@ -402,13 +548,17 @@ Docker 已经为我们做了一些艰苦的工作，并在 Docker Hub 上创建�
 
 现在我们已经构建了自己的镜像，可以通过运行以下命令来测试它：
 
-[PRE40]
+```
+$ docker container run -it --name alpine-test local:fromscratch /bin/sh
+```
 
 如果出现错误，则可能已经创建或正在运行名为 alpine-test 的容器。通过运行`docker container stop alpine-test`，然后运行`docker container rm alpine-test`来删除它。
 
 这应该会启动到 Alpine Linux 镜像的 shell 中。您可以通过运行以下命令来检查：
 
-[PRE41]
+```
+$ cat /etc/*release
+```
 
 这将显示容器正在运行的版本信息。要了解整个过程的样子，请参见以下终端输出：
 
@@ -428,19 +578,29 @@ Docker 已经为我们做了一些艰苦的工作，并在 Docker Hub 上创建�
 
 要在 Dockerfile 中使用 ENVs，你可以使用`ENV`指令。`ENV`指令的结构如下：
 
-[PRE42]
+```
+ENV <key> <value>
+ENV username admin
+```
 
 或者，你也可以在两者之间使用等号：
 
-[PRE43]
+```
+ENV <key>=<value>
+ENV username=admin
+```
 
 现在，问题是，为什么有两种定义它们的方式，它们有什么区别？在第一个例子中，你只能在一行上设置一个`ENV`；然而，它很容易阅读和理解。在第二个`ENV`示例中，你可以在同一行上设置多个环境变量，如下所示：
 
-[PRE44]
+```
+ENV username=admin database=wordpress tableprefix=wp
+```
 
 你可以使用 Docker `inspect`命令查看镜像上设置了哪些 ENVs：
 
-[PRE45]
+```
+$ docker image inspect <IMAGE_ID> 
+```
 
 现在我们知道它们在 Dockerfile 中需要如何设置，让我们看看它们的实际操作。到目前为止，我们一直在使用 Dockerfile 构建一个只安装了 nginx 的简单镜像。让我们来构建一些更加动态的东西。使用 Alpine Linux，我们将执行以下操作：
 
@@ -458,19 +618,92 @@ Docker 已经为我们做了一些艰苦的工作，并在 Docker Hub 上创建�
 
 我们的 Dockerfile 如下所示：
 
-[PRE46]
+```
+FROM alpine:latest
+LABEL maintainer="Russ McKendrick <russ@mckendrick.io>"
+LABEL description="This example Dockerfile installs Apache & PHP."
+ENV PHPVERSION=7
+
+RUN apk add --update apache2 php${PHPVERSION}-apache2 php${PHPVERSION} && \
+ rm -rf /var/cache/apk/* && \
+ mkdir /run/apache2/ && \
+ rm -rf /var/www/localhost/htdocs/index.html && \
+ echo "<?php phpinfo(); ?>" > /var/www/localhost/htdocs/index.php && \
+ chmod 755 /var/www/localhost/htdocs/index.php
+
+EXPOSE 80/tcp
+
+ENTRYPOINT ["httpd"]
+CMD ["-D", "FOREGROUND"]
+```
 
 如您所见，我们选择安装了 PHP7；我们可以通过运行以下命令构建镜像：
 
-[PRE47]
+```
+$ docker build --tag local/apache-php:7 .
+```
 
 注意我们已经稍微改变了命令。这次，我们将镜像称为`local/apache-php`，并将版本标记为`7`。通过运行上述命令获得的完整输出可以在这里找到：
 
-[PRE48]
+```
+Sending build context to Docker daemon 2.56kB
+Step 1/8 : FROM alpine:latest
+ ---> 11cd0b38bc3c
+Step 2/8 : LABEL maintainer="Russ McKendrick <russ@mckendrick.io>"
+ ---> Using cache
+ ---> 175e9ebf182b
+Step 3/8 : LABEL description="This example Dockerfile installs Apache & PHP."
+ ---> Running in 095e42841956
+Removing intermediate container 095e42841956
+ ---> d504837e80a4
+Step 4/8 : ENV PHPVERSION=7
+ ---> Running in 0df665a9b23e
+Removing intermediate container 0df665a9b23e
+ ---> 7f2c212a70fc
+Step 5/8 : RUN apk add --update apache2 php${PHPVERSION}-apache2 php${PHPVERSION} && rm -rf /var/cache/apk/* && mkdir /run/apache2/ && rm -rf /var/www/localhost/htdocs/index.html && echo "<?php phpinfo(); ?>" > /var/www/localhost/htdocs/index.php && chmod 755 /var/www/localhost/htdocs/index.php
+ ---> Running in ea77c54e08bf
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.8/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.8/community/x86_64/APKINDEX.tar.gz
+(1/14) Installing libuuid (2.32-r0)
+(2/14) Installing apr (1.6.3-r1)
+(3/14) Installing expat (2.2.5-r0)
+(4/14) Installing apr-util (1.6.1-r2)
+(5/14) Installing pcre (8.42-r0)
+(6/14) Installing apache2 (2.4.33-r1)
+Executing apache2-2.4.33-r1.pre-install
+(7/14) Installing php7-common (7.2.8-r1)
+(8/14) Installing ncurses-terminfo-base (6.1-r0)
+(9/14) Installing ncurses-terminfo (6.1-r0)
+(10/14) Installing ncurses-libs (6.1-r0)
+(11/14) Installing libedit (20170329.3.1-r3)
+(12/14) Installing libxml2 (2.9.8-r0)
+(13/14) Installing php7 (7.2.8-r1)
+(14/14) Installing php7-apache2 (7.2.8-r1)
+Executing busybox-1.28.4-r0.trigger
+OK: 26 MiB in 27 packages
+Removing intermediate container ea77c54e08bf
+ ---> 49b49581f8e2
+Step 6/8 : EXPOSE 80/tcp
+ ---> Running in e1cbc518ef07
+Removing intermediate container e1cbc518ef07
+ ---> a061e88eb39f
+Step 7/8 : ENTRYPOINT ["httpd"]
+ ---> Running in 93ac42d6ce55
+Removing intermediate container 93ac42d6ce55
+ ---> 9e09239021c2
+Step 8/8 : CMD ["-D", "FOREGROUND"]
+ ---> Running in 733229cc945a
+Removing intermediate container 733229cc945a
+ ---> 649b432e8d47
+Successfully built 649b432e8d47
+Successfully tagged local/apache-php:7 
+```
 
 我们可以通过运行以下命令来检查一切是否按预期运行，以使用该镜像启动一个容器：
 
-[PRE49]
+```
+$ docker container run -d -p 8080:80 --name apache-php7 local/apache-php:7
+```
 
 一旦它启动，打开浏览器并转到`http://localhost:8080/`，您应该看到一个显示正在使用 PHP7 的页面：
 
@@ -480,15 +713,66 @@ Docker 已经为我们做了一些艰苦的工作，并在 Docker Hub 上创建�
 
 现在，在您的 Dockerfile 中，将`PHPVERSION`从`7`更改为`5`，然后运行以下命令构建新镜像：
 
-[PRE50]
+```
+$ docker image build --tag local/apache-php:5 .
+```
 
 如您从以下终端输出中所见，大部分输出都是相同的，除了正在安装的软件包：
 
-[PRE51]
+```
+Sending build context to Docker daemon 2.56kB
+Step 1/8 : FROM alpine:latest
+ ---> 11cd0b38bc3c
+Step 2/8 : LABEL maintainer="Russ McKendrick <russ@mckendrick.io>"
+ ---> Using cache
+ ---> 175e9ebf182b
+Step 3/8 : LABEL description="This example Dockerfile installs Apache & PHP."
+ ---> Using cache
+ ---> d504837e80a4
+Step 4/8 : ENV PHPVERSION=5
+ ---> Running in 0646b5e876f6
+Removing intermediate container 0646b5e876f6
+ ---> 3e17f6c10a50
+Step 5/8 : RUN apk add --update apache2 php${PHPVERSION}-apache2 php${PHPVERSION} && rm -rf /var/cache/apk/* && mkdir /run/apache2/ && rm -rf /var/www/localhost/htdocs/index.html && echo "<?php phpinfo(); ?>" > /var/www/localhost/htdocs/index.php && chmod 755 /var/www/localhost/htdocs/index.php
+ ---> Running in d55a7726e9a7
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.8/main/x86_64/APKINDEX.tar.gz
+fetch http://dl-cdn.alpinelinux.org/alpine/v3.8/community/x86_64/APKINDEX.tar.gz
+(1/10) Installing libuuid (2.32-r0)
+(2/10) Installing apr (1.6.3-r1)
+(3/10) Installing expat (2.2.5-r0)
+(4/10) Installing apr-util (1.6.1-r2)
+(5/10) Installing pcre (8.42-r0)
+(6/10) Installing apache2 (2.4.33-r1)
+Executing apache2-2.4.33-r1.pre-install
+(7/10) Installing php5 (5.6.37-r0)
+(8/10) Installing php5-common (5.6.37-r0)
+(9/10) Installing libxml2 (2.9.8-r0)
+(10/10) Installing php5-apache2 (5.6.37-r0)
+Executing busybox-1.28.4-r0.trigger
+OK: 32 MiB in 23 packages
+Removing intermediate container d55a7726e9a7
+ ---> 634ab90b168f
+Step 6/8 : EXPOSE 80/tcp
+ ---> Running in a59f40d3d5df
+Removing intermediate container a59f40d3d5df
+ ---> d1aadf757f59
+Step 7/8 : ENTRYPOINT ["httpd"]
+ ---> Running in c7a1ab69356d
+Removing intermediate container c7a1ab69356d
+ ---> 22a9eb0e6719
+Step 8/8 : CMD ["-D", "FOREGROUND"]
+ ---> Running in 8ea92151ce22
+Removing intermediate container 8ea92151ce22
+ ---> da34eaff9541
+Successfully built da34eaff9541
+Successfully tagged local/apache-php:5
+```
 
 我们可以通过运行以下命令在端口`9090`上启动一个容器：
 
-[PRE52]
+```
+$ docker container run -d -p 9090:80 --name apache-php5 local/apache-php:5
+```
 
 再次打开您的浏览器，但这次转到`http://localhost:9090/`，应该显示我们正在运行 PHP5：
 
@@ -496,7 +780,9 @@ Docker 已经为我们做了一些艰苦的工作，并在 Docker Hub 上创建�
 
 最后，您可以通过运行此命令来比较镜像的大小：
 
-[PRE53]
+```
+$ docker image ls
+```
 
 您应该看到以下终端输出：
 
@@ -508,21 +794,48 @@ Docker 已经为我们做了一些艰苦的工作，并在 Docker Hub 上创建�
 
 幸运的是，Alpine Linux 中 PHP 的命名方案只是替换版本号并保持我们需要安装的软件包的相同名称，这意味着我们运行以下命令：
 
-[PRE54]
+```
+RUN apk add --update apache2 php${PHPVERSION}-apache2 php${PHPVERSION}
+```
 
 但实际上它被解释为以下内容：
 
-[PRE55]
+```
+RUN apk add --update apache2 php7-apache2 php7
+```
 
 或者，对于 PHP5，它被解释为以下内容：
 
-[PRE56]
+```
+RUN apk add --update apache2 php5-apache2 php5
+```
 
 这意味着我们不必手动替换版本号来浏览整个 Dockerfile。当从远程 URL 安装软件包时，这种方法特别有用，比如软件发布页面。
 
 接下来是一个更高级的示例——一个安装和配置 HashiCorp 的 Consul 的 Dockerfile。在这个 Dockerfile 中，我们使用环境变量来定义文件的版本号和 SHA256 哈希：
 
-[PRE57]
+```
+FROM alpine:latest
+LABEL maintainer="Russ McKendrick <russ@mckendrick.io>"
+LABEL description="An image with the latest version on Consul."
+
+ENV CONSUL_VERSION=1.2.2 CONSUL_SHA256=7fa3b287b22b58283b8bd5479291161af2badbc945709eb5412840d91b912060
+
+RUN apk add --update ca-certificates wget && \
+ wget -O consul.zip https://releases.hashicorp.com/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_amd64.zip && \
+ echo "$CONSUL_SHA256 *consul.zip" | sha256sum -c - && \
+ unzip consul.zip && \
+ mv consul /bin/ && \
+ rm -rf consul.zip && \
+ rm -rf /tmp/* /var/cache/apk/*
+
+EXPOSE 8300 8301 8301/udp 8302 8302/udp 8400 8500 8600 8600/udp
+
+VOLUME [ "/data" ]
+
+ENTRYPOINT [ "/bin/consul" ]
+CMD [ "agent", "-data-dir", "/data", "-server", "-bootstrap-expect", "1", "-client=0.0.0.0"]
+```
 
 正如你所看到的，Dockerfiles 可以变得非常复杂，使用 ENV 可以帮助维护。每当 Consul 的新版本发布时，我只需要更新 `ENV` 行并将其提交到 GitHub，这将触发构建新镜像——如果我们配置了的话；我们将在下一章中讨论这个问题。
 
@@ -550,23 +863,83 @@ Docker 已经为我们做了一些艰苦的工作，并在 Docker Hub 上创建�
 
 Dockerfile 包含两个不同的构建阶段。第一个名为`builder`，使用来自 Docker Hub 的官方 Go 容器镜像。在这里，我们正在安装先决条件，直接从 GitHub 下载源代码，然后将其编译成静态二进制文件：
 
-[PRE58]
+```
+FROM golang:latest as builder
+WORKDIR /go-http-hello-world/
+RUN go get -d -v golang.org/x/net/html 
+ADD https://raw.githubusercontent.com/geetarista/go-http-hello-world/master/hello_world/hello_world.go ./hello_world.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+
+FROM scratch 
+COPY --from=builder /go-http-hello-world/app .
+CMD ["./app"] 
+```
 
 由于我们的静态二进制文件具有内置的 Web 服务器，从操作系统的角度来看，我们实际上不需要其他任何东西。因此，我们可以使用`scratch`作为基础镜像，这意味着我们的镜像将只包含我们从构建镜像中复制的静态二进制文件，不会包含任何`builder`环境。
 
 构建镜像，我们只需要运行以下命令：
 
-[PRE59]
+```
+$ docker image build --tag local:go-hello-world .
+```
 
 命令的输出可以在以下代码块中找到——有趣的部分发生在第 5 步和第 6 步之间：
 
-[PRE60]
+```
+Sending build context to Docker daemon 9.216kB
+Step 1/8 : FROM golang:latest as builder
+latest: Pulling from library/golang
+55cbf04beb70: Pull complete
+1607093a898c: Pull complete
+9a8ea045c926: Pull complete
+d4eee24d4dac: Pull complete
+9c35c9787a2f: Pull complete
+6a66653f6388: Pull complete
+102f6b19f797: Pull complete
+Digest: sha256:957f390aceead48668eb103ef162452c6dae25042ba9c41762f5210c5ad3aeea
+Status: Downloaded newer image for golang:latest
+ ---> d0e7a411e3da
+Step 2/8 : WORKDIR /go-http-hello-world/
+ ---> Running in e1d56745f358
+Removing intermediate container e1d56745f358
+ ---> f18dfc0166a0
+Step 3/8 : RUN go get -d -v golang.org/x/net/html
+ ---> Running in 5e97d81db53c
+Fetching https://golang.org/x/net/html?go-get=1
+Parsing meta tags from https://golang.org/x/net/html?go-get=1 (status code 200)
+get "golang.org/x/net/html": found meta tag get.metaImport{Prefix:"golang.org/x/net", VCS:"git", RepoRoot:"https://go.googlesource.com/net"} at https://golang.org/x/net/html?go-get=1
+get "golang.org/x/net/html": verifying non-authoritative meta tag
+Fetching https://golang.org/x/net?go-get=1
+Parsing meta tags from https://golang.org/x/net?go-get=1 (status code 200)
+golang.org/x/net (download)
+Removing intermediate container 5e97d81db53c
+ ---> f94822756a52
+Step 4/8 : ADD https://raw.githubusercontent.com/geetarista/go-http-hello-world/master/hello_world/hello_world.go ./hello_world.go
+Downloading 393B
+ ---> ecf3944740e1
+Step 5/8 : RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o app .
+ ---> Running in 6e2d39c4d8ba
+Removing intermediate container 6e2d39c4d8ba
+ ---> 247fcbfb7a4d
+Step 6/8 : FROM scratch
+ --->
+Step 7/8 : COPY --from=builder /go-http-hello-world/app .
+ ---> a69cf59ab1d3
+Step 8/8 : CMD ["./app"]
+ ---> Running in c99076fad7fb
+Removing intermediate container c99076fad7fb
+ ---> 67296001bdc0
+Successfully built 67296001bdc0
+Successfully tagged local:go-hello-world
+```
 
 如您所见，在第 5 步和第 6 步之间，我们的二进制文件已经被编译，包含`builder`环境的容器已被移除，留下了存储我们二进制文件的镜像。第 7 步将二进制文件复制到使用 scratch 启动的新容器中，只留下我们需要的内容。
 
 如果你运行以下命令，你会明白为什么不应该将应用程序与其构建环境一起发布是个好主意：
 
-[PRE61]
+```
+$ docker image ls
+```
 
 我们的输出截图显示，`golang`镜像为`794MB`；加上我们的源代码和先决条件后，大小增加到`832MB`：
 
@@ -576,11 +949,15 @@ Dockerfile 包含两个不同的构建阶段。第一个名为`builder`，使用
 
 您可以通过使用以下命令启动一个容器来测试该应用程序：
 
-[PRE62]
+```
+$ docker container run -d -p 8000:80 --name go-hello-world local:go-hello-world
+```
 
 应用程序可以通过浏览器访问，并在每次加载页面时简单地递增计数器。要在 macOS 和 Linux 上进行测试，可以使用`curl`命令，如下所示：
 
-[PRE63]
+```
+$ curl http://localhost:8000/
+```
 
 这应该给您类似以下的东西：
 
@@ -588,7 +965,10 @@ Dockerfile 包含两个不同的构建阶段。第一个名为`builder`，使用
 
 Windows 用户可以在浏览器中简单地访问`http://localhost:8000/`。要停止和删除正在运行的容器，请使用以下命令：
 
-[PRE64]
+```
+$ docker container stop go-hello-world
+$ docker container rm go-hello-world
+```
 
 正如您所看到的，使用多阶段构建是一个相对简单的过程，并且符合应该已经开始感到熟悉的指令。
 

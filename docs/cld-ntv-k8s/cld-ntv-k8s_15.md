@@ -142,7 +142,34 @@ Kubernetes 为我们提供了许多内置选项，用于集群配置和容器权
 
 Admission-controller-server.pseudo
 
-[PRE0]
+```
+// This function is called when a request hits the
+// "/mutate" endpoint
+function acceptAdmissionWebhookRequest(req)
+{
+  // First, we need to validate the incoming req
+  // This function will check if the request is formatted properly
+  // and will add a "valid" attribute If so
+  // The webhook will be a POST request from Kubernetes in the
+  // "AdmissionReviewRequest" schema
+  req = validateRequest(req);
+  // If the request isn't valid, return an Error
+  if(!req.valid) return Error; 
+  // Next, we need to decide whether to accept or deny the Admission
+  // Request. This function will add the "accepted" attribute
+  req = decideAcceptOrDeny(req);
+  if(!req.accepted) return Error;
+  // Now that we know we want to allow this resource, we need to
+  // decide if any "patches" or changes are necessary
+  patch = patchResourceFromWebhook(req);
+  // Finally, we create an AdmissionReviewResponse and pass it back
+  // to Kubernetes in the response
+  // This AdmissionReviewResponse includes the patches and
+  // whether the resource is accepted.
+  admitReviewResp = createAdmitReviewResp(req, patch);
+  return admitReviewResp;
+}
+```
 
 现在我们有了一个简单的服务器用于我们的自定义准入控制器，我们可以配置一个 Kubernetes 准入 webhook 来调用它。
 
@@ -154,7 +181,18 @@ Admission-controller-server.pseudo
 
 Service-webhook.yaml
 
-[PRE1]
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-custom-webhook-server
+spec:
+  selector:
+    app: my-custom-webhook-server
+  ports:
+    - port: 443
+      targetPort: 8443
+```
 
 重要的是要注意，我们的服务器需要使用 HTTPS，以便 Kubernetes 接受 webhook 响应。有许多配置的方法，我们不会在本书中详细介绍。证书可以是自签名的，但证书的通用名称和 CA 需要与设置 Kubernetes 集群时使用的名称匹配。
 
@@ -164,7 +202,25 @@ Service-webhook.yaml
 
 Mutating-webhook-config-service.yaml
 
-[PRE2]
+```
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: my-service-webhook
+webhooks:
+  - name: my-custom-webhook-server.default.svc
+    rules:
+      - operations: [ "CREATE" ]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods", "deployments", "configmaps"]
+    clientConfig:
+      service:
+        name: my-custom-webhook-server
+        namespace: default
+        path: "/mutate"
+      caBundle: ${CA_PEM_B64}
+```
 
 让我们分解一下我们的`MutatingWebhookConfiguration`的 YAML。正如你所看到的，我们可以在这个配置中配置多个 webhook - 尽管在这个示例中我们只做了一个。
 
@@ -180,15 +236,28 @@ Mutating-webhook-config-service.yaml
 
 To-deny-pod.yaml
 
-[PRE3]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod-to-deny
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+```
 
 现在，我们可以创建我们的 Pod 来检查准入控制器。我们可以使用以下命令：
 
-[PRE4]
+```
+kubectl create -f to-deny-pod.yaml
+```
 
 这导致以下输出：
 
-[PRE5]
+```
+Error from server (InternalError): error when creating "to-deny-pod.yaml": Internal error occurred: admission webhook "my-custom-webhook-server.default.svc" denied the request: Pod name contains "to-deny"!
+```
 
 就是这样！我们的自定义准入控制器成功拒绝了一个不符合我们在服务器中指定条件的 Pod。对于被修补（而不是被拒绝但被更改）的资源，`kubectl`不会显示任何特殊响应。您需要获取相关资源以查看修补的效果。
 
@@ -224,17 +293,23 @@ Pod 安全策略可用于防止 Pod 以 root 身份运行，限制端口和卷�
 
 如果您正在自行管理 Kubernetes，并且尚未启用 PSP 准入控制器，您可以通过使用以下标志重新启动`kube-apiserver`组件来启用它：
 
-[PRE6]
+```
+kube-apiserver --enable-admission-plugins=PodSecurityPolicy,ServiceAccount…<all other desired admission controllers>
+```
 
 如果您的 Kubernetes API 服务器是使用`systemd`文件运行的（如果遵循*Kubernetes：困难的方式*，它将是这样），则应该在那里更新标志。通常，`systemd`文件放置在`/etc/systemd/system/`文件夹中。
 
 为了找出已经启用了哪些准入插件，您可以运行以下命令：
 
-[PRE7]
+```
+kube-apiserver -h | grep enable-admission-plugins
+```
 
 此命令将显示已启用的准入插件的长列表。例如，您将在输出中看到以下准入插件：
 
-[PRE8]
+```
+NamespaceLifecycle, LimitRanger, ServiceAccount…
+```
 
 现在我们确定了 PSP 准入控制器已启用，我们实际上可以创建 PSP 了。
 
@@ -244,7 +319,33 @@ Pod 安全策略本身可以使用典型的 Kubernetes 资源 YAML 创建。以�
 
 Privileged-psp.yaml
 
-[PRE9]
+```
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: privileged-psp
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
+spec:
+  privileged: true
+  allowedCapabilities:
+  - '*'
+  volumes:
+  - '*'
+  hostNetwork: true
+  hostPorts:
+  - min: 2000
+    max: 65535
+  hostIPC: true
+  hostPID: true
+  allowPrivilegeEscalation: true
+  runAsUser:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+```
 
 此 Pod 安全策略允许用户或服务账户（通过**RoleBinding**或**ClusterRoleBinding**）创建具有特权功能的 Pod。例如，使用此`PodSecurityPolicy`的 Pod 将能够绑定到主机网络的端口`2000`-`65535`，以任何用户身份运行，并绑定到任何卷类型。此外，我们还有一个关于`allowedProfileNames`的`seccomp`限制的注释-这可以让您了解`Seccomp`和`AppArmor`注释与`PodSecurityPolicies`的工作原理。
 
@@ -254,13 +355,37 @@ Privileged-psp.yaml
 
 Privileged-clusterrole.yaml
 
-[PRE10]
+```
+apiVersion: rbac.authorization.k8s.io
+kind: ClusterRole
+metadata:
+  name: privileged-role
+rules:
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs:     ['use']
+  resourceNames:
+  - privileged-psp
+```
 
 现在，我们可以将新创建的`ClusterRole`绑定到我们打算创建特权 Pod 的用户或服务账户上。让我们使用`ClusterRoleBinding`来做到这一点：
 
 Privileged-clusterrolebinding.yaml
 
-[PRE11]
+```
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: privileged-crb
+roleRef:
+  kind: ClusterRole
+  name: privileged-role
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: Group
+  apiGroup: rbac.authorization.k8s.io
+  name: system:authenticated
+```
 
 在我们的情况下，我们希望让集群上的每个经过身份验证的用户都能创建特权 Pod，因此我们绑定到`system:authenticated`组。
 
@@ -270,7 +395,38 @@ Privileged-clusterrolebinding.yaml
 
 unprivileged-psp.yaml
 
-[PRE12]
+```
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: unprivileged-psp
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  supplementalGroups:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 65535
+  readOnlyRootFilesystem: false
+```
 
 正如您所看到的，这个 Pod 安全策略在其对创建的 Pod 施加的限制方面大不相同。在此策略下，不允许任何 Pod 以 root 身份运行或升级为 root。它们还对它们可以绑定的卷的类型有限制（在前面的代码片段中已经突出显示了这一部分）-它们不能使用主机网络或直接绑定到主机端口。
 
@@ -282,7 +438,24 @@ unprivileged-psp.yaml
 
 Specific-user-id-psp.yaml
 
-[PRE13]
+```
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: specific-user-psp
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAs'
+    ranges:
+      - min: 1
+        max: 3000
+  readOnlyRootFilesystem: false
+```
 
 应用此 Pod 安全策略后，将阻止任何以用户 ID`0`或`3001`或更高的身份运行的 Pod。为了创建一个满足这个条件的 Pod，我们在 Pod 规范的`securityContext`中使用`runAs`选项。
 
@@ -290,7 +463,20 @@ Specific-user-id-psp.yaml
 
 Specific-user-pod.yaml
 
-[PRE14]
+```
+apiVersion: v1
+kind: Pod
+metadata:
+  name: specific-user-pod
+spec:
+  securityContext:
+    runAsUser: 1000
+  containers:
+  - name: test
+    image: busybox
+    securityContext:
+      allowPrivilegeEscalation: false
+```
 
 正如您在这个 YAML 中看到的，我们为我们的 Pod 指定了一个特定的用户 ID`1000`来运行。我们还禁止我们的 Pod 升级为 root。即使`specific-user-psp`已经生效，这个 Pod 规范也可以成功调度。
 
@@ -306,7 +492,26 @@ Kubernetes 中的网络策略类似于防火墙规则或路由表。它们允许
 
 Label-restriction-policy.yaml
 
-[PRE15]
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: server
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend
+    ports:
+    - protocol: TCP
+      port: 80
+```
 
 现在，让我们逐步解析这个网络策略的 YAML，因为这将帮助我们解释随着我们的进展一些更复杂的网络策略。
 
@@ -324,7 +529,18 @@ Label-restriction-policy.yaml
 
 Full-restriction-policy.yaml
 
-[PRE16]
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: full-restriction-policy
+  namespace: development
+spec:
+  policyTypes:
+  - Ingress
+  - Egress
+  podSelector: {}
+```
 
 在这个`NetworkPolicy`中，我们指定我们将包括`Ingress`和`Egress`策略，但我们没有为它们写一个块。这样做的效果是自动拒绝任何`Egress`和`Ingress`的流量，因为没有规则可以匹配流量。
 
@@ -342,7 +558,36 @@ Full-restriction-policy.yaml
 
 覆盖限制网络策略.yaml
 
-[PRE17]
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: override-restriction-policy
+  namespace: development
+spec:
+  podSelector:
+    matchLabels:
+      app: server
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend
+    ports:
+    - protocol: TCP
+      port: 443
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: database
+    ports:
+    - protocol: TCP
+      port: 6379
+```
 
 在这个网络策略中，我们允许`development`命名空间中的服务器 Pod 在端口`443`上接收来自前端 Pod 的流量，并在端口`6379`上向数据库 Pod 发送流量。
 
@@ -350,7 +595,21 @@ Full-restriction-policy.yaml
 
 全开放网络策略.yaml
 
-[PRE18]
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all-egress
+spec:
+  podSelector: {}
+  egress:
+  - {}
+  ingress:
+  - {}
+  policyTypes:
+  - Egress
+  - Ingress
+```
 
 现在我们已经讨论了如何使用网络策略来设置 Pod 之间的流量规则。然而，也可以将网络策略用作外部防火墙。为了做到这一点，我们创建基于外部 IP 而不是 Pod 作为源或目的地的网络策略规则。
 
@@ -358,7 +617,31 @@ Full-restriction-policy.yaml
 
 外部 IP 网络策略.yaml
 
-[PRE19]
+```
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: specific-ip-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: worker
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - ipBlock:
+        cidr: 157.10.0.0/16
+        except:
+        - 157.10.1.0/24
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 157.10.0.0/16
+        except:
+        - 157.10.1.0/24
+```
 
 在这个网络策略中，我们指定了一个`Ingress`规则和一个`Egress`规则。每个规则根据网络请求的源 IP 而不是来自哪个 Pod 来接受或拒绝流量。
 
@@ -392,7 +675,10 @@ Falco 附带了一套广泛的默认规则，可以在内核级别增加显著�
 
 1.  首先，我们需要将`falcosecurity`存储库添加到我们本地的 Helm 中：
 
-[PRE20]
+```
+helm repo add falcosecurity https://falcosecurity.github.io/charts
+helm repo update
+```
 
 接下来，我们可以继续使用 Helm 实际安装 Falco。
 
@@ -402,7 +688,9 @@ Falco Helm 图表有许多可能可以在 values 文件中更改的变量-要全
 
 1.  要安装 Falco，请运行以下命令：
 
-[PRE21]
+```
+helm install falco falcosecurity/falco
+```
 
 此命令将使用默认值安装 Falco，您可以在[`github.com/falcosecurity/charts/blob/master/falco/values.yaml`](https://github.com/falcosecurity/charts/blob/master/falco/values.yaml)上查看默认值。
 
@@ -416,7 +704,13 @@ Falco Helm 图表有许多可能可以在 values 文件中更改的变量-要全
 
 Custom-falco.yaml
 
-[PRE22]
+```
+customRules:
+  my-rules.yaml: |-
+    Rule1
+    Rule2
+    etc...
+```
 
 现在是讨论 Falco 规则结构的好时机。为了说明，让我们借用一些来自随 Falco Helm 图表一起提供的`Default` Falco 规则集的规则。
 
@@ -426,7 +720,18 @@ Custom-falco.yaml
 
 首先，让我们看一下规则条目本身。这个规则使用了一些辅助条目，几个宏和列表 - 但我们将在稍后讨论这些：
 
-[PRE23]
+```
+- rule: Launch Privileged Container
+  desc: Detect the initial process started in a privileged container. Exceptions are made for known trusted images.
+  condition: >
+    container_started and container
+    and container.privileged=true
+    and not falco_privileged_containers
+    and not user_privileged_containers
+  output: Privileged container started (user=%user.name command=%proc.cmdline %container.info image=%container.image.repository:%container.image.tag)
+  priority: INFO
+  tags: [container, cis, mitre_privilege_escalation, mitre_lateral_movement]
+```
 
 正如您所看到的，Falco 规则有几个部分。首先，我们有规则名称和描述。然后，我们指定规则的触发条件 - 这充当 Linux 系统调用的过滤器。如果系统调用匹配`condition`块中的所有逻辑过滤器，规则就会被触发。
 
@@ -444,13 +749,35 @@ Custom-falco.yaml
 
 为了了解这个规则是如何真正工作的，让我们看一下在前面规则中引用的所有宏的完整参考：
 
-[PRE24]
+```
+- macro: container
+  condition: (container.id != host)
+- macro: container_started
+  condition: >
+    ((evt.type = container or
+     (evt.type=execve and evt.dir=< and proc.vpid=1)) and
+     container.image.repository != incomplete)
+- macro: user_sensitive_mount_containers
+  condition: (container.image.repository = docker.io/sysdig/agent)
+- macro: falco_privileged_containers
+  condition: (openshift_image or
+              user_trusted_containers or
+              container.image.repository in (trusted_images) or
+              container.image.repository in (falco_privileged_images) or
+              container.image.repository startswith istio/proxy_ or
+              container.image.repository startswith quay.io/sysdig)
+- macro: user_privileged_containers
+  condition: (container.image.repository endswith sysdig/agent)
+```
 
 您将在前面的 YAML 中看到，每个宏实际上只是一块可重用的`Sysdig`过滤器语法块，通常使用其他宏来完成规则功能。列表在这里没有显示，它们类似于宏，但不描述过滤逻辑。相反，它们包括一个字符串值列表，可以作为使用过滤器语法的比较的一部分。
 
 例如，在`falco_privileged_containers`宏中的`(``trusted_images)`引用了一个名为`trusted_images`的列表。以下是该列表的来源：
 
-[PRE25]
+```
+- list: trusted_images
+  items: []
+```
 
 正如您所看到的，在默认规则中，这个特定列表是空的，但自定义规则集可以在这个列表中使用一组受信任的镜像，然后这些受信任的镜像将自动被所有使用`trusted_image`列表作为其过滤规则一部分的其他宏和规则所使用。
 
@@ -460,13 +787,30 @@ Custom-falco.yaml
 
 在结构上，这些 Kubernetes 审计事件规则的工作方式与 Falco 的 Linux 系统调用规则相同。以下是 Falco 中默认 Kubernetes 规则的示例：
 
-[PRE26]
+```
+- rule: Create Disallowed Pod
+  desc: >
+    Detect an attempt to start a pod with a container image outside of a list of allowed images.
+  condition: kevt and pod and kcreate and not allowed_k8s_containers
+  output: Pod started with container not in allowed list (user=%ka.user.name pod=%ka.resp.name ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  priority: WARNING
+  source: k8s_audit
+  tags: [k8s]
+```
 
 这个规则在 Falco 中针对 Kubernetes 审计事件（基本上是控制平面事件），在创建不在`allowed_k8s_containers`列表中的 Pod 时发出警报。默认的`k8s`审计规则包含许多类似的规则，大多数在触发时输出格式化日志。
 
 现在，我们在本章的前面谈到了一些 Pod 安全策略，你可能会发现 PSPs 和 Falco Kubernetes 审计事件规则之间有一些相似之处。例如，看看默认的 Kubernetes Falco 规则中的这个条目：
 
-[PRE27]
+```
+- rule: Create HostNetwork Pod
+  desc: Detect an attempt to start a pod using the host network.
+  condition: kevt and pod and kcreate and ka.req.pod.host_network intersects (true) and not ka.req.pod.containers.image.repository in (falco_hostnetwork_images)
+  output: Pod started using host network (user=%ka.user.name pod=%ka.resp.name ns=%ka.target.namespace images=%ka.req.pod.containers.image)
+  priority: WARNING
+  source: k8s_audit
+  tags: [k8s]
+```
 
 这个规则在尝试使用主机网络启动 Pod 时触发，直接映射到主机网络 PSP 设置。
 

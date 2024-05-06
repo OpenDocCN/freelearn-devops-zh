@@ -50,7 +50,24 @@ Jenkins 管道由两种元素组成：阶段和步骤。以下图显示了它们
 
 例如，让我们扩展`Hello World`管道，包含两个阶段：
 
-[PRE0]
+```
+pipeline {
+     agent any
+     stages {
+          stage('First Stage') {
+               steps {
+                    echo 'Step 1\. Hello World'
+               }
+          }
+          stage('Second Stage') {
+               steps {
+                    echo 'Step 2\. Second time Hello'
+                    echo 'Step 3\. Third time Hello'
+               }
+          }
+     }
+}
+```
 
 管道在环境方面没有特殊要求（任何从属代理），并在两个阶段内执行三个步骤。当我们点击“立即构建”时，我们应该看到可视化表示：
 
@@ -68,7 +85,33 @@ Jenkins 管道由两种元素组成：阶段和步骤。以下图显示了它们
 
 让我们准备一个实验，在我们描述所有细节之前，阅读以下管道定义并尝试猜测它的作用：
 
-[PRE1]
+```
+pipeline {
+     agent any
+     triggers { cron('* * * * *') }
+     options { timeout(time: 5) }
+     parameters { 
+          booleanParam(name: 'DEBUG_BUILD', defaultValue: true, 
+          description: 'Is it the debug build?') 
+     }
+     stages {
+          stage('Example') {
+               environment { NAME = 'Rafal' }
+               when { expression { return params.DEBUG_BUILD } } 
+               steps {
+                    echo "Hello from $NAME"
+                    script {
+                         def browsers = ['chrome', 'firefox']
+                         for (int i = 0; i < browsers.size(); ++i) {
+                              echo "Testing the ${browsers[i]} browser."
+                         }
+                    }
+               }
+          }
+     }
+     post { always { echo 'I will always say Hello again!' } }
+}
+```
 
 希望管道没有吓到你。它相当复杂。实际上，它是如此复杂，以至于它包含了所有可能的 Jenkins 指令。为了回答实验谜题，让我们逐条看看管道的执行指令：
 
@@ -180,7 +223,18 @@ Jenkins 管道由两种元素组成：阶段和步骤。以下图显示了它们
 
 我们可以创建一个名为`calculator`的新流水线，并将代码放在一个名为 Checkout 的阶段的**流水线脚本**中：
 
-[PRE2]
+```
+pipeline {
+     agent any
+     stages {
+          stage("Checkout") {
+               steps {
+                    git url: 'https://github.com/leszko/calculator.git'
+               }
+          }
+     }
+}
+```
 
 流水线可以在任何代理上执行，它的唯一步骤只是从存储库下载代码。我们可以点击“立即构建”并查看是否成功执行。
 
@@ -230,7 +284,9 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 让我们首先将存储库克隆到文件系统：
 
-[PRE3]
+```
+$ git clone https://github.com/leszko/calculator.git
+```
 
 将从[`start.spring.io/`](http://start.spring.io/)下载的项目解压到 Git 创建的目录中。
 
@@ -238,13 +294,18 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 结果，`calculator`目录应该有以下文件：
 
-[PRE4]
+```
+$ ls -a
+. .. build.gradle .git .gitignore gradle gradlew gradlew.bat README.md src
+```
 
 为了在本地执行 Gradle 操作，您需要安装 Java JDK（在 Ubuntu 中，您可以通过执行`sudo apt-get install -y default-jdk`来完成）。
 
 我们可以使用以下代码在本地编译项目：
 
-[PRE5]
+```
+$ ./gradlew compileJava
+```
 
 在 Maven 的情况下，您可以运行`./mvnw compile`。Gradle 和 Maven 都编译`src`目录中的 Java 类。
 
@@ -252,7 +313,11 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 现在，我们可以将其`commit`和`push`到 GitHub 存储库中：
 
-[PRE6]
+```
+$ git add .
+$ git commit -m "Add Spring Boot skeleton"
+$ git push -u origin master
+```
 
 运行`git push`命令后，您将被提示输入 GitHub 凭据（用户名和密码）。
 
@@ -262,7 +327,13 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 我们可以使用以下代码在管道中添加一个`编译`阶段：
 
-[PRE7]
+```
+stage("Compile") {
+     steps {
+          sh "./gradlew compileJava"
+     }
+}
+```
 
 请注意，我们在本地和 Jenkins 管道中使用了完全相同的命令，这是一个非常好的迹象，因为本地开发过程与持续集成环境保持一致。运行构建后，您应该看到两个绿色的框。您还可以在控制台日志中检查项目是否已正确编译。
 
@@ -280,15 +351,45 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 计算器的第一个版本将能够添加两个数字。让我们将业务逻辑作为一个类添加到`src/main/java/com/leszko/calculator/Calculator.java`文件中：
 
-[PRE8]
+```
+package com.leszko.calculator;
+import org.springframework.stereotype.Service;
+
+@Service
+public class Calculator {
+     int sum(int a, int b) {
+          return a + b;
+     }
+}
+```
 
 为了执行业务逻辑，我们还需要在单独的文件`src/main/java/com/leszko/calculator/CalculatorController.java`中添加网络服务控制器：
 
-[PRE9]
+```
+package com.leszko.calculator;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+class CalculatorController {
+     @Autowired
+     private Calculator calculator;
+
+     @RequestMapping("/sum")
+     String sum(@RequestParam("a") Integer a, 
+                @RequestParam("b") Integer b) {
+          return String.valueOf(calculator.sum(a, b));
+     }
+}
+```
 
 这个类将业务逻辑公开为一个网络服务。我们可以运行应用程序并查看它的工作方式：
 
-[PRE10]
+```
+$ ./gradlew bootRun
+```
 
 它应该启动我们的网络服务，我们可以通过浏览器导航到页面`http://localhost:8080/sum?a=1&b=2`来检查它是否工作。这应该对两个数字（`1`和`2`）求和，并在浏览器中显示`3`。
 
@@ -298,17 +399,40 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 让我们在文件`src/test/java/com/leszko/calculator/CalculatorTest.java`中创建一个单元测试：
 
-[PRE11]
+```
+package com.leszko.calculator;
+import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+
+public class CalculatorTest {
+     private Calculator calculator = new Calculator();
+
+     @Test
+     public void testSum() {
+          assertEquals(5, calculator.sum(2, 3));
+     }
+}
+```
 
 我们可以使用`./gradlew test`命令在本地运行测试。然后，让我们`commit`代码并将其`push`到存储库中：
 
-[PRE12]
+```
+$ git add .
+$ git commit -m "Add sum logic, controller and unit test"
+$ git push
+```
 
 # 创建一个单元测试阶段
 
 现在，我们可以在管道中添加一个`单元测试`阶段：
 
-[PRE13]
+```
+stage("Unit test") {
+     steps {
+          sh "./gradlew test"
+     }
+}
+```
 
 在 Maven 的情况下，我们需要使用`./mvnw test`。
 
@@ -338,11 +462,31 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 让我们在项目的根目录中创建一个名为`Jenkinsfile`的文件：
 
-[PRE14]
+```
+pipeline {
+     agent any
+     stages {
+          stage("Compile") {
+               steps {
+                    sh "./gradlew compileJava"
+               }
+          }
+          stage("Unit test") {
+               steps {
+                    sh "./gradlew test"
+               }
+          }
+     }
+}
+```
 
 我们现在可以`commit`添加的文件并`push`到 GitHub 存储库：
 
-[PRE15]
+```
+$ git add .
+$ git commit -m "Add sum Jenkinsfile"
+$ git push
+```
 
 # 从 Jenkinsfile 运行流水线
 
@@ -384,19 +528,35 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 为了从 Gradle 运行 JaCoCo，我们需要通过在插件部分添加以下行将`jacoco`插件添加到`build.gradle`文件中：
 
-[PRE16]
+```
+apply plugin: "jacoco"
+```
 
 接下来，如果我们希望在代码覆盖率过低的情况下使 Gradle 失败，我们还可以将以下配置添加到`build.gradle`文件中：
 
-[PRE17]
+```
+jacocoTestCoverageVerification {
+     violationRules {
+          rule {
+               limit {
+                    minimum = 0.2
+               }
+          }
+     }
+}
+```
 
 此配置将最小代码覆盖率设置为 20%。我们可以使用以下命令运行它：
 
-[PRE18]
+```
+$ ./gradlew test jacocoTestCoverageVerification
+```
 
 该命令检查代码覆盖率是否至少为 20%。您可以尝试不同的最小值来查看构建失败的级别。我们还可以使用以下命令生成测试覆盖报告：
 
-[PRE19]
+```
+$ ./gradlew test jacocoTestReport
+```
 
 您还可以在`build/reports/jacoco/test/html/index.html`文件中查看完整的覆盖报告：
 
@@ -406,7 +566,14 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 将代码覆盖率阶段添加到流水线中与之前的阶段一样简单：
 
-[PRE20]
+```
+stage("Code coverage") {
+     steps {
+          sh "./gradlew jacocoTestReport"
+          sh "./gradlew jacocoTestCoverageVerification"
+     }
+}
+```
 
 添加了这个阶段后，如果有人提交了未经充分测试的代码，构建将失败。
 
@@ -416,7 +583,19 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 为了在 Jenkins 中发布代码覆盖率报告，我们需要以下阶段定义：
 
-[PRE21]
+```
+stage("Code coverage") {
+     steps {
+          sh "./gradlew jacocoTestReport"
+          publishHTML (target: [
+               reportDir: 'build/reports/jacoco/test/html',
+               reportFiles: 'index.html',
+               reportName: "JaCoCo Report"
+          ])
+          sh "./gradlew jacocoTestCoverageVerification"
+     }
+}
+```
 
 此阶段将生成的 JaCoCo 报告复制到 Jenkins 输出。当我们再次运行构建时，我们应该会看到代码覆盖率报告的链接（在左侧菜单下方的“立即构建”下）。
 
@@ -444,7 +623,20 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 为了添加 Checkstyle 配置，我们需要定义代码检查的规则。我们可以通过指定`config/checkstyle/checkstyle.xml`文件来做到这一点：
 
-[PRE22]
+```
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+     "-//Puppy Crawl//DTD Check Configuration 1.2//EN"
+     "http://www.puppycrawl.com/dtds/configuration_1_2.dtd">
+
+<module name="Checker">
+     <module name="TreeWalker">
+          <module name="JavadocType">
+               <property name="scope" value="public"/>
+          </module>
+     </module>
+</module>
+```
 
 配置只包含一个规则：检查公共类、接口和枚举是否用 Javadoc 记录。如果没有，构建将失败。
 
@@ -452,15 +644,29 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 我们还需要将`checkstyle`插件添加到`build.gradle`文件中：
 
-[PRE23]
+```
+apply plugin: 'checkstyle'
+```
 
 然后，我们可以运行以下代码来运行`checkstyle`：
 
-[PRE24]
+```
+$ ./gradlew checkstyleMain
+```
 
 在我们的项目中，这应该会导致失败，因为我们的公共类（`Calculator.java`，`CalculatorApplication.java`，`CalculatorTest.java`，`CalculatorApplicationTests.java`）都没有 Javadoc 注释。我们需要通过添加文档来修复它，例如，在`src/main/java/com/leszko/calculator/CalculatorApplication.java`文件中：
 
-[PRE25]
+```
+/
+ * Main Spring Application.
+ */
+@SpringBootApplication
+public class CalculatorApplication {
+     public static void main(String[] args) {
+          SpringApplication.run(CalculatorApplication.class, args);
+     }
+}
+```
 
 现在，构建应该成功。
 
@@ -468,7 +674,13 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 我们可以在流水线中添加一个“静态代码分析”阶段：
 
-[PRE26]
+```
+stage("Static code analysis") {
+     steps {
+          sh "./gradlew checkstyleMain"
+     }
+}
+```
 
 现在，如果有人提交了一个没有 Javadoc 的公共类文件，构建将失败。
 
@@ -476,7 +688,13 @@ Spring Boot 是一个简化构建企业应用程序的 Java 框架。Gradle 是�
 
 与 JaCoCo 非常相似，我们可以将 Checkstyle 报告添加到 Jenkins 中：
 
-[PRE27]
+```
+publishHTML (target: [
+     reportDir: 'build/reports/checkstyle/',
+     reportFiles: 'main.html',
+     reportName: "Checkstyle Report"
+])
+```
 
 它会生成一个指向 Checkstyle 报告的链接。
 
@@ -544,7 +762,11 @@ Jenkins 定期调用 GitHub 并检查存储库是否有任何推送。然后，�
 
 **轮询 SCM**的配置也更简单，因为从 Jenkins 到 GitHub 的连接方式已经设置好了（Jenkins 从 GitHub 检出代码，因此需要访问权限）。对于我们的计算器项目，我们可以通过在流水线中添加`triggers`声明（在`agent`之后）来设置自动触发：
 
-[PRE28]
+```
+triggers {
+     pollSCM('* * * * *')
+}
+```
 
 第一次手动运行流水线后，自动触发被设置。然后，它每分钟检查 GitHub，对于新的提交，它会开始构建。为了测试它是否按预期工作，您可以提交并推送任何内容到 GitHub 存储库，然后查看构建是否开始。
 
@@ -582,7 +804,15 @@ Jenkins 提供了很多宣布其构建状态的方式。而且，与 Jenkins 中
 
 流水线配置可以如下：
 
-[PRE29]
+```
+post {
+     always {
+          mail to: 'team@company.com',
+          subject: "Completed Pipeline: ${currentBuild.fullDisplayName}",
+          body: "Your build completed, please check: ${env.BUILD_URL}"
+     }
+}
+```
 
 请注意，所有通知通常在流水线的`post`部分中调用，该部分在所有步骤之后执行，无论构建是否成功或失败。我们使用了`always`关键字；然而，还有不同的选项：
 
@@ -608,7 +838,15 @@ Jenkins 提供了很多宣布其构建状态的方式。而且，与 Jenkins 中
 
 让我们看一个 Slack 的样本流水线配置，在构建失败后发送通知：
 
-[PRE30]
+```
+post {
+     failure {
+          slackSend channel: '#dragons-team',
+          color: 'danger',
+          message: "The pipeline ${currentBuild.fullDisplayName} failed."
+     }
+}
+```
 
 # 团队空间
 
@@ -690,7 +928,11 @@ Jenkins 提供了很多宣布其构建状态的方式。而且，与 Jenkins 中
 
 1.  每个与功能相关的代码都添加到`if`语句中（而不是提交到`feature`分支），例如：
 
-[PRE31]
+```
+        if (feature_toggle) {
+             // do something
+        }
+```
 
 1.  在功能开发期间：
 
@@ -728,7 +970,10 @@ Jenkins 提供了很多宣布其构建状态的方式。而且，与 Jenkins 中
 
 我们可以创建一个新的分支并看看它是如何工作的。让我们创建一个名为`feature`的新分支并将其`push`到存储库中：
 
-[PRE32]
+```
+$ git checkout -b feature
+$ git push origin feature
+```
 
 一会儿之后，您应该会看到一个新的分支管道被自动创建并运行：
 

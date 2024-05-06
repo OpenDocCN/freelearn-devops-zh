@@ -200,43 +200,142 @@ Devstack 可以在 Ubuntu 16.04/17.04、Fedora 24/25 和 CentOS/RHEL 7 以及 De
 
 1.  使用以下方法添加一个 stack 用户。您应该以启用了`sudo`的非 root 用户身份运行 DevStack：
 
-[PRE0]
+```
+        $ sudo useradd -s /bin/bash -d /opt/stack -m stack   
+```
 
 1.  现在为用户添加`sudo`权限。
 
-[PRE1]
+```
+        $ echo "stack ALL=(ALL) NOPASSWD: ALL" | sudo tee 
+        /etc/sudoers.d/stack
+        $ sudo su - stack    
+```
 
 1.  下载 DevStack。DevStack 默认安装来自 Git 的项目的主版本。您也可以指定使用稳定的分支：
 
-[PRE2]
+```
+        $ git clone https://git.openstack.org/openstack-dev/devstack 
+        /opt/stack/devstack
+        $ cd /opt/stack/devstack  
+```
 
 1.  创建`local.conf`文件。这是 DevStack 用于安装的`config`文件。以下是 DevStack 启动所需的最小配置（请参考[`docs.openstack.org/devstack/latest/`](https://docs.openstack.org/devstack/latest/)获取更多配置信息）：
 
-[PRE3]
+```
+        $ cat > local.conf << END
+        [[local|localrc]]
+        DATABASE_PASSWORD=password
+        RABBIT_PASSWORD=password
+        SERVICE_TOKEN=password
+        SERVICE_PASSWORD=password
+        ADMIN_PASSWORD=password 
+ enable_service s-proxy
+ enable_service s-object
+ enable_service s-container
+ enable_service s-account 
+ END 
+```
 
 1.  开始安装。这可能需要大约 15 到 20 分钟，具体取决于您的互联网连接和主机容量：
 
-[PRE4]
+```
+          $ ./stack.sh  
+```
 
 您将看到类似以下的输出：
 
-[PRE5]
+```
+=========================
+DevStack Component Timing
+=========================
+Total runtime    3033
+
+run_process       24
+test_with_retry    3
+apt-get-update    19
+pip_install      709
+osc              269
+wait_for_service  25
+git_timed        730
+dbsync            20
+apt-get          625
+=========================
+
+This is your host IP address: 10.0.2.15
+This is your host IPv6 address: ::1
+Horizon is now available at http://10.0.2.15/dashboard
+Keystone is serving at http://10.0.2.15/identity/
+The default users are: admin and demo
+The password: password
+
+WARNING:
+Using lib/neutron-legacy is deprecated, and it will be removed in the future
+With the removal of screen support, tail_log is deprecated and will be removed after Queens
+
+Services are running under systemd unit files.
+For more information see:
+https://docs.openstack.org/devstack/latest/systemd.html
+
+DevStack Version: pike
+Change: 0f75c57ad6b0011561777ae95b53612051149518 Merge "doc: How to remote-pdb under systemd" 2017-09-08 02:24:21 +0000
+OS Version: Ubuntu 16.04 xenial
+
+2017-09-09 08:00:09.397 | stack.sh completed in 3033 seconds.  
+```
 
 您可以访问 Horizon 来体验 OpenStack 的 Web 界面，或者您可以在 shell 中使用`openrc`，然后使用 OpenStack 命令行工具来管理虚拟机、网络、卷和镜像。以下是您的操作步骤：
 
-[PRE6]
+```
+$ source openrc admin admin  
+```
 
 # 创建 KeyStone 用户
 
 现在让我们创建一个用户，然后为其分配管理员角色。这些操作将由 KeyStone 处理：
 
-[PRE7]
+```
+$ openstack domain list 
++---------+---------+---------+--------------------+ 
+| ID      | Name    | Enabled | Description        | 
++---------+---------+---------+--------------------+ 
+| default | Default | True    | The default domain | 
++---------+---------+---------+--------------------+ 
+
+$ openstack user create --domain default --password-prompt my-new-user 
+User Password: 
+Repeat User Password: 
++---------------------+----------------------------------+ 
+| Field               | Value                            | 
++---------------------+----------------------------------+ 
+| domain_id           | default                          | 
+| enabled             | True                             | 
+| id                  | 755bebd276f3451fa49f1194aee4dc20 | 
+| name                | my-new-user                      | 
+| options             | {}                               | 
+| password_expires_at | None                             | 
++---------------------+----------------------------------+ 
+```
 
 # 为用户分配角色
 
 我们将为我们的用户`my-new-user`分配一个管理员角色：
 
-[PRE8]
+```
+$ openstack role add --domain default --user my-new-user admin 
+
+$ openstack user show my-new-user 
++---------------------+----------------------------------+ 
+| Field               | Value                            | 
++---------------------+----------------------------------+ 
+| domain_id           | default                          | 
+| enabled             | True                             | 
+| id                  | 755bebd276f3451fa49f1194aee4dc20 | 
+| name                | my-new-user                      | 
+| options             | {}                               | 
+| password_expires_at | None                             | 
++---------------------+----------------------------------+ 
+```
 
 # 使用 Nova 创建虚拟机
 
@@ -244,45 +343,185 @@ Devstack 可以在 Ubuntu 16.04/17.04、Fedora 24/25 和 CentOS/RHEL 7 以及 De
 
 Glance 中可用的图像列表是由 DevStack 创建的：
 
-[PRE9]
+```
+$ openstack image list 
++--------------------------------------+--------------------------+--------+ 
+| ID                                   | Name                     | Status | 
++--------------------------------------+--------------------------+--------+ 
+| f396a79e-7ccf-4354-8201-623e4a6ec115 | cirros-0.3.5-x86_64-disk | active | 
+| 0bc135f6-ebb5-4e8c-a44a-8b96954dfd93 | kubernetes/pause         | active | 
++--------------------------------------+--------------------------+--------+  
+```
 
 还要检查由 DevStack 安装创建的 Neutron 中的网络列表：
 
-[PRE10]
+```
+$ openstack network list
++--------------------------------------+---------+----------------------------------------------------------------------------+
+| ID                                   | Name    | Subnets                                                                    |
++--------------------------------------+---------+----------------------------------------------------------------------------+
+| 765cab64-cfaf-49f7-8e51-194cb9f40b9e | public  | af1dc81e-30f6-48b1-8e4f-6c978fe863e8, f430926e-5648-4f88-a4bd-d009bf316dda |
+| a021cfcd-cf4b-41f2-b30a-033c12c542e4 | private | 254b646c-e518-4418-bcef-08ea0a44f4bc, 93651473-3533-46a3-b77e-a2056d6f6ec5 |
++--------------------------------------+---------+----------------------------------------------------------------------------+  
+```
 
 Nova 提供了一个指定 VM 资源的 flavor。以下是由 DevStack 在 Nova 中创建的 flavor 列表：
 
-[PRE11]
+```
+$ openstack flavor list                                                                                        +----+-----------+-------+------+-----------+-------+-----------+
+| ID | Name      |   RAM | Disk | Ephemeral | VCPUs | Is Public |
++----+-----------+-------+------+-----------+-------+-----------+
+| 1  | m1.tiny   |   512 |    1 |         0 |     1 | True      |
+| 2  | m1.small  |  2048 |   20 |         0 |     1 | True      |
+| 3  | m1.medium |  4096 |   40 |         0 |     2 | True      |
+| 4  | m1.large  |  8192 |   80 |         0 |     4 | True      |
+| 42 | m1.nano   |    64 |    0 |         0 |     1 | True      |
+| 5  | m1.xlarge | 16384 |  160 |         0 |     8 | True      |
+| 84 | m1.micro  |   128 |    0 |         0 |     1 | True      |
+| c1 | cirros256 |   256 |    0 |         0 |     1 | True      |
+| d1 | ds512M    |   512 |    5 |         0 |     1 | True      |
+| d2 | ds1G      |  1024 |   10 |         0 |     1 | True      |
+| d3 | ds2G      |  2048 |   10 |         0 |     2 | True      |
+| d4 | ds4G      |  4096 |   20 |         0 |     4 | True      |
++----+-----------+-------+------+-----------+-------+-----------+  
+```
 
 我们将创建一个密钥对，用于 SSH 到在 Nova 中创建的 VM：
 
-[PRE12]
+```
+$ openstack keypair create --public-key ~/.ssh/id_rsa.pub mykey
++-------------+-------------------------------------------------+
+| Field       | Value                                           |
++-------------+-------------------------------------------------+
+| fingerprint | 98:0a:d5:70:30:34:16:06:79:3e:fc:33:14:b1:d9:b7 |
+| name        | mykey                                           |
+| user_id     | bbcd13444b1e4e4886eb8f36f4e80600                |
++-------------+-------------------------------------------------+  
+```
 
 让我们使用之前列出的所有资源创建一个 VM：
 
-[PRE13]
+```
+$ openstack server create --flavor m1.tiny --image f396a79e-7ccf-4354-8201-623e4a6ec115   --nic net-id=a021cfcd-cf4b-41f2-b30a-033c12c542e4  --key-name mykey test-vm
++-------------------------------------+-----------------------------------------------------------------+
+| Field                               | Value                                                           |
++-------------------------------------+-----------------------------------------------------------------+
+| OS-DCF:diskConfig                   | MANUAL                                                          |
+| OS-EXT-AZ:availability_zone         |                                                                 |
+| OS-EXT-SRV-ATTR:host                | None                                                            |
+| OS-EXT-SRV-ATTR:hypervisor_hostname | None                                                            |
+| OS-EXT-SRV-ATTR:instance_name       |                                                                 |
+| OS-EXT-STS:power_state              | NOSTATE                                                         |
+| OS-EXT-STS:task_state               | scheduling                                                      |
+| OS-EXT-STS:vm_state                 | building                                                        |
+| OS-SRV-USG:launched_at              | None                                                            |
+| OS-SRV-USG:terminated_at            | None                                                            |
+| accessIPv4                          |                                                                 |
+| accessIPv6                          |                                                                 |
+| addresses                           |                                                                 |
+| adminPass                           | dTTHcP3dByXR                                                    |
+| config_drive                        |                                                                 |
+| created                             | 2017-09-09T08:36:55Z                                            |
+| flavor                              | m1.tiny (1)                                                     |
+| hostId                              |                                                                 |
+| id                                  | 6dc0c74c-7259-4730-929e-b0f3d39a2c45                            |
+| image                               | cirros-0.3.5-x86_64-disk (f396a79e-7ccf-4354-8201-623e4a6ec115) |
+| key_name                            | mykey                                                           |
+| name                                | test-vm                                                         |
+| progress                            | 0                                                               |
+| project_id                          | 7994b2ef08de4a05a5db61fcbee29506                                |
+| properties                          |                                                                 |
+| security_groups                     | name='default'                                                  |
+| status                              | BUILD                                                           |
+| updated                             | 2017-09-09T08:36:55Z                                            |
+| user_id                             | bbcd13444b1e4e4886eb8f36f4e80600                                |
+| volumes_attached                    |                                                                 |
++-------------------------------------+-----------------------------------------------------------------+    
+
+```
 
 检查服务器列表，以验证 VM 是否成功启动：
 
-[PRE14]
+```
+$ openstack server list
++--------------------------------------+---------+--------+--------------------------------------------------------+--------------------------+---------+
+| ID                                   | Name    | Status | Networks                                               | Image                    | Flavor  |
++--------------------------------------+---------+--------+--------------------------------------------------------+--------------------------+---------+
+| 6dc0c74c-7259-4730-929e-b0f3d39a2c45 | test-vm | ACTIVE | private=10.0.0.8, fd26:4d99:7734:0:f816:3eff:feaf:e37b | cirros-0.3.5-x86_64-disk | m1.tiny |
++--------------------------------------+---------+--------+-------------------------------------------------------+--------------------------+---------+  
+```
 
 # 将卷附加到 VM
 
 现在我们的 VM 正在运行，让我们尝试做一些更有雄心的事情。我们现在将在 Cinder 中创建一个卷，并将其附加到我们正在运行的 VM 上：
 
-[PRE15]
+```
+$ openstack availability zone list
++-----------+-------------+
+| Zone Name | Zone Status |
++-----------+-------------+
+| internal  | available   |
+| nova      | available   |
+| nova      | available   |
+| nova      | available   |
+| nova      | available   |
++-----------+-------------+
+
+$ openstack volume create --size 1 --availability-zone nova my-new-volume
++---------------------+--------------------------------------+
+| Field               | Value                                |
++---------------------+--------------------------------------+
+| attachments         | []                                   |
+| availability_zone   | nova                                 |
+| bootable            | false                                |
+| consistencygroup_id | None                                 |
+| created_at          | 2017-09-09T08:41:33.020340           |
+| description         | None                                 |
+| encrypted           | False                                |
+| id                  | 889c1f21-7ca5-4913-aa80-44182cea824e |
+| migration_status    | None                                 |
+| multiattach         | False                                |
+| name                | my-new-volume                        |
+| properties          |                                      |
+| replication_status  | None                                 |
+| size                | 1                                    |
+| snapshot_id         | None                                 |
+| source_volid        | None                                 |
+| status              | creating                             |
+| type                | lvmdriver-1                          |
+| updated_at          | None                                 |
+| user_id             | bbcd13444b1e4e4886eb8f36f4e80600     |
++---------------------+--------------------------------------+  
+```
 
 让我们检查 Cinder 中的卷列表。我们将看到我们的卷已创建并处于可用状态：
 
-[PRE16]
+```
+$ openstack volume list
++--------------------------------------+---------------+-----------+------+-------------+
+| ID                                   | Name          | Status    | Size | Attached to |
++--------------------------------------+---------------+-----------+------+-------------+
+| 889c1f21-7ca5-4913-aa80-44182cea824e | my-new-volume | available |    1 |             |
++--------------------------------------+---------------+-----------+------+-------------+  
+```
 
 让我们将这个卷附加到我们的 VM 上：
 
-[PRE17]
+```
+$ openstack server add volume test-vm 889c1f21-7ca5-4913-aa80-44182cea824e
+
+```
 
 验证卷是否已附加：
 
-[PRE18]
+```
+$ openstack volume list
++--------------------------------------+---------------+--------+------+----------------------------------+
+| ID                                   | Name          | Status | Size | Attached to                      |
++--------------------------------------+---------------+--------+------+----------------------------------+
+| 889c1f21-7ca5-4913-aa80-44182cea824e | my-new-volume | in-use |    1 | Attached to test-vm on /dev/vdb  |
++--------------------------------------+---------------+--------+------+----------------------------------+  
+```
 
 您可以在这里看到卷已附加到我们的`test-vm`虚拟机上。
 
@@ -290,15 +529,63 @@ Nova 提供了一个指定 VM 资源的 flavor。以下是由 DevStack 在 Nova 
 
 我们将尝试将图像上传到 Swift。首先，检查帐户详细信息：
 
-[PRE19]
+```
+$ openstack object store account show
++------------+---------------------------------------+
+| Field      | Value                                 |
++------------+---------------------------------------+
+| Account    | AUTH_8ef89519b0454b57a038b6f044fa0101 |
+| Bytes      | 0                                     |
+| Containers | 0                                     |
+| Objects    | 0                                     |
++------------+---------------------------------------+  
+```
 
 我们将创建一个图像容器来存储所有我们的图像。同样，我们可以在一个帐户中创建多个容器，使用任何逻辑名称来存储不同类型的数据：
 
-[PRE20]
+```
+$ openstack container create images
++---------------------------------------+-----------+------------------------------------+
+| account                               | container | x-trans-id                         |
++---------------------------------------+-----------+------------------------------------+
+| AUTH_8ef89519b0454b57a038b6f044fa0101 | images    | tx3f28728ccbbe4fcabfe1b-0059b3af9b |
++---------------------------------------+-----------+------------------------------------+
+
+$ openstack container list
++--------+
+| Name   |
++--------+
+| images |
++--------+  
+```
 
 现在我们有了一个容器，让我们将一个图像上传到容器中：
 
-[PRE21]
+```
+$ openstack object create images sunrise.jpeg
++--------------+-----------+----------------------------------+
+| object       | container | etag                             |
++--------------+-----------+----------------------------------+
+| sunrise.jpeg | images    | 243f98a9d31d140bb123e56624703106 |
++--------------+-----------+----------------------------------+
+
+$ openstack object list images
++--------------+
+| Name         |
++--------------+
+| sunrise.jpeg |
++--------------+
+
+$ openstack container show images
++--------------+---------------------------------------+
+| Field        | Value                                 |
++--------------+---------------------------------------+
+| account      | AUTH_8ef89519b0454b57a038b6f044fa0101 |
+| bytes_used   | 2337288                               |
+| container    | images                                |
+| object_count | 1                                     |
++--------------+---------------------------------------+  
+```
 
 您可以看到图像已成功上传到 Swift 对象存储。
 

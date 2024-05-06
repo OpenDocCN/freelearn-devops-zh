@@ -74,15 +74,41 @@ Docker^(TM)是 Docker，Inc.的注册商标。
 
 代码块设置如下：
 
-[PRE0]
+```
+[Unit] 
+Description=MyApp 
+After=docker.service 
+Requires=docker.service 
+
+[Service] 
+TimeoutStartSec=0 
+ExecStartPre=-/usr/bin/docker kill busybox1 
+ExecStartPre=-/usr/bin/docker rm busybox1 
+ExecStartPre=/usr/bin/docker pull busybox 
+ExecStart=/usr/bin/docker run --name busybox1 busybox /bin/sh -c "while true; do echo Hello World; sleep 1; done" 
+```
 
 当我们希望引起您对代码块的特定部分的注意时，相关行或项目将以粗体显示：
 
-[PRE1]
+```
+[Service] 
+Type=notify 
+EnvironmentFile=-/etc/sysconfig/docker 
+EnvironmentFile=-/etc/sysconfig/docker-storage 
+ExecStart=/usr/bin/docker -d -H fd:// $OPTIONS $DOCKER_STORAGE_OPTIONS 
+LimitNOFILE=1048576 
+LimitNPROC=1048576 
+
+[Install] 
+WantedBy=multi-user.target 
+```
 
 任何命令行输入或输出都以以下方式编写：
 
-[PRE2]
+```
+$ docker pull fedora 
+
+```
 
 **新术语**和**重要单词**以粗体显示。例如，在屏幕上看到的单词，例如菜单或对话框中的单词，会以这种方式出现在文本中：“转到项目主页，在**APIs & auth**部分下，选择**APIs**，并启用 Google **Compute Engine API**。”
 

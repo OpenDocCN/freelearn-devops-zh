@@ -30,7 +30,20 @@
 
 根据 TDD 实践，我们首先为`hit`和`getHit`功能添加单元测试用例，如下面的代码片段所示。在这里，测试文件的名称为`test_hitcount.py`：
 
-[PRE0]
+```
+import unittest
+import hitcount
+
+class HitCountTest (unittest.TestCase):
+     def testOneHit(self):
+         # increase the hit count for user user1
+         hitcount.hit("user1")
+         # ensure that the hit count for user1 is just 1
+         self.assertEqual(b'1', hitcount.getHit("user1"))
+
+if __name__ == '__main__':
+    unittest.main()
+```
 
 ### 注意
 
@@ -40,31 +53,81 @@
 
 现在，使用 Python 的单元测试框架运行测试套件，如下所示：
 
-[PRE1]
+```
+$ python3 -m unittest 
+
+```
 
 以下是单元测试框架生成的输出：
 
-[PRE2]
+```
+E 
+====================================================================== 
+ERROR: test_hitcount (unittest.loader.ModuleImportFailure) 
+---------------------------------------------------------------------- 
+Traceback (most recent call last): 
+...OUTPUT TRUNCATED ... 
+ImportError: No module named 'hitcount' 
+
+---------------------------------------------------------------------- 
+Ran 1 test in 0.001s 
+
+FAILED (errors=1) 
+
+```
 
 如预期的那样，测试失败并显示错误消息`ImportError: No module named 'hitcount'`，因为我们甚至还没有创建文件，因此无法导入`hitcount`模块。
 
 现在，在与`test_hitcount.py`相同的目录中创建一个名为`hitcount.py`的文件：
 
-[PRE3]
+```
+$ touch hitcount.py 
+
+```
 
 继续运行单元测试套件：
 
-[PRE4]
+```
+$ python3 -m unittest 
+
+```
 
 以下是单元测试框架生成的输出：
 
-[PRE5]
+```
+E 
+====================================================================== 
+ERROR: testOneHit (test_hitcount.HitCountTest) 
+---------------------------------------------------------------------- 
+Traceback (most recent call last): 
+ File "/home/user/test_hitcount.py", line 10, in testOneHit 
+ hitcount.hit("peter") 
+AttributeError: 'module' object has no attribute 'hit' 
+
+---------------------------------------------------------------------- 
+Ran 1 test in 0.001s 
+
+FAILED (errors=1) 
+
+```
 
 再次，测试套件失败，就像之前一样，但是出现了不同的错误消息`AttributeError: 'module' object has no attribute 'hit'`。我们之所以会得到这个错误，是因为我们还没有实现`hit`函数。
 
 让我们继续在`hitcount.py`中实现`hit`和`getHit`函数，如下所示：
 
-[PRE6]
+```
+import redis
+# connect to redis server
+r = redis.StrictRedis(host='0.0.0.0', port=6379, db=0)
+
+# increase the hit count for the usr
+def hit(usr):
+    r.incr(usr)
+
+# get the hit count for the usr
+   def getHit(usr):
+    return (r.get(usr))
+```
 
 ### 注意
 
@@ -74,21 +137,49 @@
 
 以下命令用于安装`pip3`：
 
-[PRE7]
+```
+$ wget -qO- https://bootstrap.pypa.io/get-pip.py | sudo python3 - 
+
+```
 
 在此程序的第一行中，我们导入了`redis`驱动程序，这是`redis`数据库的连接驱动程序。在接下来的一行中，我们将连接到`redis`数据库，然后我们将继续实现`hit`和`getHit`函数。
 
 `redis`驱动程序是一个可选的 Python 模块，因此让我们继续使用 pip 安装程序安装`redis`驱动程序，如下所示：
 
-[PRE8]
+```
+$ sudo pip3 install redis 
+
+```
 
 即使安装了`redis`驱动程序，我们的`unittest`仍然会失败，因为我们尚未运行`redis`数据库服务器。因此，我们可以运行`redis`数据库服务器以成功完成我们的单元测试，或者采用传统的 TDD 方法来模拟`redis`驱动程序。模拟是一种测试方法，其中复杂的行为被预定义或模拟的行为替代。在我们的示例中，为了模拟 redis 驱动程序，我们将利用一个名为 mockredis 的第三方 Python 包。这个模拟包可以在[`github.com/locationlabs/mockredis`](https://github.com/locationlabs/mockredis)找到，`pip`安装程序的名称是`mockredispy`。让我们使用 pip 安装这个模拟：
 
-[PRE9]
+```
+$ sudo pip3 install mockredispy 
+
+```
 
 安装了`mockredispy`，`redis`模拟器之后，让我们重构我们之前编写的测试代码`test_hitcount.py`，以使用`mockredis`模块提供的模拟`redis`功能。这是通过`unittest.mock`模拟框架提供的 patch 方法来实现的，如下面的代码所示：
 
-[PRE10]
+```
+import unittest
+from unittest.mock import patch
+
+# Mock for redis
+import mockredis
+import hitcount
+
+class HitCountTest(unittest.TestCase):
+
+    @patch('hitcount.r',mockredis.mock_strict_redis_client(host='0.0.0.0', port=6379, db=0))
+    def testOneHit(self):
+        # increase the hit count for user user1
+        hitcount.hit("user1")
+        # ensure that the hit count for user1 is just 1
+        self.assertEqual(b'1', hitcount.getHit("user1"))
+
+if __name__ == '__main__':
+    unittest.main()
+```
 
 ### 注意
 
@@ -96,7 +187,15 @@
 
 现在，再次运行测试套件：
 
-[PRE11]
+```
+$ python3 -m unittest 
+. 
+---------------------------------------------------------------------- 
+Ran 1 test in 0.000s 
+
+OK 
+
+```
 
 最后，正如我们在前面的输出中所看到的，我们通过测试、代码和重构周期成功实现了访客计数功能。
 
@@ -108,7 +207,29 @@
 
 1.  创建一个`Dockerfile`来构建一个带有`python3`运行时、`redis`和`mockredispy`包、`test_hitcount.py`测试文件和访客计数实现`hitcount.py`的镜像，最后启动单元测试：
 
-[PRE12]
+```
+#############################################
+# Dockerfile to build the unittest container
+#############################################
+
+# Base image is python
+FROM python:latest
+
+# Author: Dr. Peter
+MAINTAINER Dr. Peter <peterindia@gmail.com>
+
+# Install redis driver for python and the redis mock
+RUN pip install redis && pip install mockredispy
+
+# Copy the test and source to the Docker image
+ADD src/ /src/
+
+# Change the working directory to /src/
+WORKDIR /src/
+
+# Make unittest as the default execution
+ENTRYPOINT python3 -m unittest
+```
 
 ### 注意
 
@@ -118,11 +239,43 @@
 
 1.  使用`docker build`子命令构建`hit_unittest` Docker 镜像：
 
-[PRE13]
+```
+$ sudo docker build -t hit_unittest . 
+Sending build context to Docker daemon 11.78 kB 
+Sending build context to Docker daemon 
+Step 0 : FROM python:latest 
+ ---> 32b9d937b993 
+Step 1 : MAINTAINER Dr. Peter <peterindia@gmail.com> 
+ ---> Using cache 
+ ---> bf40ee5f5563 
+Step 2 : RUN pip install redis && pip install mockredispy 
+ ---> Using cache 
+ ---> a55f3bdb62b3 
+Step 3 : ADD src/ /src/ 
+ ---> 526e13dbf4c3 
+Removing intermediate container a6d89cbce053 
+Step 4 : WORKDIR /src/ 
+ ---> Running in 5c180e180a93 
+ ---> 53d3f4e68f6b 
+Removing intermediate container 5c180e180a93 
+Step 5 : ENTRYPOINT python3 -m unittest 
+ ---> Running in 74d81f4fe817 
+ ---> 063bfe92eae0 
+Removing intermediate container 74d81f4fe817 
+Successfully built 063bfe92eae0 
+
+```
 
 1.  现在我们已经成功构建了镜像，让我们使用`docker run`子命令启动我们的容器，并使用单元测试包，如下所示：
 
-[PRE14]
+```
+$ sudo docker run --rm -it hit_unittest . 
+---------------------------------------------------------------------- 
+Ran 1 test in 0.001s 
+
+OK 
+
+```
 
 显然，单元测试成功运行且无错误，因为我们已经打包了被测试的代码。
 
@@ -138,7 +291,12 @@
 
 1.  我们开始启动 Python 运行时交互式容器，使用`docker run`子命令：
 
-[PRE15]
+```
+$ sudo docker run -it \ 
+ -v /home/peter/src/hitcount:/src \ 
+ python:latest /bin/bash 
+
+```
 
 在这个例子中，`/home/peter/src/hitcount` Docker 主机目录被标记为源代码和测试文件的占位符。该目录在容器中被挂载为`/src`。
 
@@ -146,33 +304,81 @@
 
 1.  切换到 Python 运行时交互式容器终端，将当前工作目录更改为`/src`，并运行单元测试：
 
-[PRE16]
+```
+root@a8219ac7ed8e:~# cd /src 
+root@a8219ac7ed8e:/src# python3 -m unittest 
+E 
+====================================================================== 
+ERROR: test_hitcount (unittest.loader.ModuleImportFailure) 
+. . . TRUNCATED OUTPUT . . . 
+ File "/src/test_hitcount.py", line 4, in <module> 
+ import mockredis 
+ImportError: No module named 'mockredis' 
+
+----------------------------------------------------------------- 
+Ran 1 test in 0.001s 
+
+FAILED (errors=1) 
+
+```
 
 显然，测试失败是因为找不到`mockredis` Python 库。
 
 1.  继续安装`mockredispy pip`包，因为前一步失败了，无法在运行时环境中找到`mockredis`库：
 
-[PRE17]
+```
+root@a8219ac7ed8e:/src# pip install mockredispy 
+
+```
 
 1.  重新运行 Python 单元测试：
 
-[PRE18]
+```
+root@a8219ac7ed8e:/src# python3 -m unittest 
+E 
+================================================================= 
+ERROR: test_hitcount (unittest.loader.ModuleImportFailure) 
+. . . TRUNCATED OUTPUT . . . 
+ File "/src/hitcount.py", line 1, in <module> 
+ import redis 
+ImportError: No module named 'redis' 
+
+Ran 1 test in 0.001s 
+
+FAILED (errors=1) 
+
+```
 
 再次，测试失败，因为尚未安装`redis`驱动程序。
 
 1.  继续使用 pip 安装程序安装`redis`驱动程序，如下所示：
 
-[PRE19]
+```
+root@a8219ac7ed8e:/src# pip install redis 
+
+```
 
 1.  成功安装了`redis`驱动程序后，让我们再次运行单元测试：
 
-[PRE20]
+```
+root@a8219ac7ed8e:/src# python3 -m unittest 
+. 
+----------------------------------------------------------------- 
+Ran 1 test in 0.000s 
+
+OK 
+
+```
 
 显然，这次单元测试通过了，没有警告或错误消息。
 
 1.  现在我们有一个足够好的运行时环境来运行我们的测试用例。最好将这些更改提交到 Docker 镜像以便重用，使用`docker commit`子命令：
 
-[PRE21]
+```
+$ sudo docker commit a8219ac7ed8e python_rediswithmock 
+fcf27247ff5bb240a935ec4ba1bddbd8c90cd79cba66e52b21e1b48f984c7db2 
+
+```
 
 从现在开始，我们可以使用`python_rediswithmock`镜像来启动新的容器进行 TDD。
 
@@ -188,25 +394,44 @@
 
 1.  我们首先要添加 Jenkins 的受信任的 PGP 公钥：
 
-[PRE22]
+```
+$ wget -q -O - \ 
+ https://jenkins-ci.org/debian/jenkins-ci.org.key | \ 
+ sudo apt-key add - 
+
+```
 
 在这里，我们使用`wget`来下载 PGP 公钥，然后使用 apt-key 工具将其添加到受信任密钥列表中。由于 Ubuntu 和 Debian 共享相同的软件打包，Jenkins 为两者提供了一个通用的软件包。
 
 1.  将 Debian 软件包位置添加到`apt`软件包源列表中，如下所示：
 
-[PRE23]
+```
+$ sudo sh -c \ 
+ 'echo deb http://pkg.jenkins-ci.org/debian binary/ > \ 
+ /etc/apt/sources.list.d/jenkins.list' 
+
+```
 
 1.  添加了软件包源后，继续运行`apt-get`命令更新选项，以重新同步来自源的软件包索引：
 
-[PRE24]
+```
+$ sudo apt-get update 
+
+```
 
 1.  现在，使用`apt-get`命令安装选项来安装`jenkins`，如下所示：
 
-[PRE25]
+```
+$ sudo apt-get install jenkins 
+
+```
 
 1.  最后，使用`service`命令激活`jenkins`服务：
 
-[PRE26]
+```
+$ sudo service jenkins start 
+
+```
 
 1.  `jenkins`服务可以通过任何 Web 浏览器访问，只需指定安装了 Jenkins 的系统的 IP 地址（`10.1.1.13`）。Jenkins 的默认端口号是`8080`。以下截图是**Jenkins**的入口页面或**仪表板**：![准备 Jenkins 环境](img/7937OT_09_02.jpg)
 
@@ -234,15 +459,26 @@
 
 1.  确保安装了`git`软件包，否则使用`apt-get`命令安装`git`软件包：
 
-[PRE27]
+```
+$ sudo apt-get install git 
+
+```
 
 1.  到目前为止，我们一直在使用`sudo`命令运行 Docker 客户端，但不幸的是，我们无法在 Jenkins 中调用`sudo`，因为有时它会提示输入密码。为了克服`sudo`密码提示问题，我们可以利用 Docker 组，任何属于 Docker 组的用户都可以在不使用`sudo`命令的情况下调用 Docker 客户端。Jenkins 安装总是设置一个名为`jenkins`的用户和组，并使用该用户和组运行 Jenkins 服务器。因此，我们只需要将`jenkins`用户添加到 Docker 组，即可使 Docker 客户端在不使用`sudo`命令的情况下工作：
 
-[PRE28]
+```
+$ sudo gpasswd -a jenkins docker 
+Adding user jenkins to group docker 
+
+```
 
 1.  重新启动`jenkins`服务，以使组更改生效，使用以下命令：
 
-[PRE29]
+```
+$ sudo service jenkins restart 
+ * Restarting Jenkins Continuous Integration Server jenkins              [ OK ] 
+
+```
 
 我们已经设置了一个 Jenkins 环境，现在能够自动从[`github.com`](http://github.com)存储库中拉取最新的源代码，将其打包为 Docker 镜像，并执行规定的测试场景。
 
@@ -276,7 +512,28 @@
 
 1.  **控制台输出**选项将显示构建的详细信息，如下所示：
 
-[PRE30]
+```
+Started by user anonymous 
+Building in workspace /var/lib/jenkins/jobs/Docker-Testing/workspace 
+Cloning the remote Git repository 
+Cloning repository https://github.com/thedocker/testing/ 
+. . . OUTPUT TRUNCATED . . . 
++ docker build -t docker_testing_using_jenkins . 
+Sending build context to Docker daemon 121.9 kB 
+
+Sending build context to Docker daemon 
+Step 0 : FROM python:latest 
+. . . OUTPUT TRUNCATED . . . 
+Successfully built ad4be4b451e6 
++ docker run --rm docker_testing_using_jenkins 
+. 
+---------------------------------------------------------------------- 
+Ran 1 test in 0.000s 
+
+OK 
+Finished: SUCCESS 
+
+```
 
 1.  显然，测试失败是因为错误的模块名**error_hitcount**，这是我们故意引入的。现在，让我们故意在**test_hitcount.py**中引入一个错误，观察对 Jenkins 构建的影响。由于我们已经配置了 Jenkins，它会忠实地轮询 GitHub 并启动构建：![自动化 Docker 测试流程](img/7937OT_09_15.jpg)
 
@@ -284,7 +541,20 @@
 
 1.  最后一步，打开失败构建的**控制台输出**：
 
-[PRE31]
+```
+Started by an SCM change 
+Building in workspace /var/lib/jenkins/jobs/Docker-Testing/workspace 
+. . . OUTPUT TRUNCATED . . . 
+ImportError: No module named 'error_hitcount' 
+
+---------------------------------------------------------------------- 
+Ran 1 test in 0.001s 
+
+FAILED (errors=1) 
+Build step 'Execute shell' marked build as failure 
+Finished: FAILURE 
+
+```
 
 显然，测试失败是因为我们故意引入的错误模块名`error_hitcount`。
 

@@ -70,15 +70,29 @@ Docker 镜像是构成软件应用程序的所有文件的集合。对原始镜�
 
 在上一章中，我们通过使用`busybox`镜像演示了典型的`Hello World!`示例。现在需要仔细观察`docker pull`子命令的输出，这是一个用于下载 Docker 镜像的标准命令。您可能已经注意到输出文本中存在`busybox:latest`的文本，我们将通过对`docker pull`子命令添加`-a`选项来详细解释这个谜团。
 
-[PRE0]
+```
+$ sudo docker pull -a busybox
+
+```
 
 令人惊讶的是，您会发现 Docker 引擎使用`-a`选项下载了更多的镜像。您可以通过运行`docker images`子命令轻松检查 Docker 主机上可用的镜像，这非常方便，并且通过运行此命令可以揭示有关`:latest`和其他附加镜像的更多细节。让我们运行这个命令：
 
-[PRE1]
+```
+$ sudo docker images
+
+```
 
 您将获得以下镜像列表：
 
-[PRE2]
+```
+REPOSITORY TAG                  IMAGE ID      CREATED       VIRTUAL SIZE
+busybox    ubuntu-14.04         f6169d24347d  3 months ago  5.609 MB
+busybox    ubuntu-12.04         492dad4279ba  3 months ago  5.455 MB
+busybox    buildroot-2014.02    4986bf8c1536  3 months ago  2.433 MB
+busybox    latest               4986bf8c1536  3 months ago  2.433 MB
+busybox    buildroot-2013.08.1  2aed48a4e41d  3 months ago  2.489 MB
+
+```
 
 显然，我们在前面的列表中有五个项目，为了更好地理解这些项目，我们需要理解 Docker images 子命令打印出的信息。以下是可能的类别列表：
 
@@ -100,11 +114,17 @@ Docker 镜像是构成软件应用程序的所有文件的集合。对原始镜�
 
 默认情况下，Docker 始终使用标记为`latest`的镜像。每个镜像变体都可以通过其标签直接识别。可以通过在标签和存储库名称之间添加`:`来将镜像标记为合格。例如，您可以使用`busybox:ubuntu-14.04`标签启动一个容器，如下所示：
 
-[PRE3]
+```
+$ sudo docker run -t -i busybox:ubuntu-14.04
+
+```
 
 `docker pull`子命令将始终下载具有该存储库中`latest`标签的镜像变体。但是，如果您选择下载除最新版本之外的其他镜像变体，则可以通过使用以下命令来限定镜像的标签名称来执行此操作：
 
-[PRE4]
+```
+$ sudo docker pull busybox:ubuntu-14.04
+
+```
 
 ## Docker Hub 注册表
 
@@ -116,11 +136,17 @@ Docker 社区的热心人士已经构建了一个镜像存储库，并且已经�
 
 除了官方存储库之外，Docker Hub 注册表还为第三方开发人员和提供商提供了一个平台，供他们共享供一般用户使用的镜像。第三方镜像以其开发人员或存款人的用户 ID 为前缀。例如，`thedockerbook/helloworld`是一个第三方镜像，其中`thedockerbook`是用户 ID，`helloworld`是镜像存储库名称。您可以使用`docker pull`子命令下载任何第三方镜像，如下所示：
 
-[PRE5]
+```
+$ sudo docker pull thedockerbook/helloworld
+
+```
 
 除了前面的存储库之外，Docker 生态系统还提供了一种利用来自 Docker Hub 注册表以外的任何第三方存储库中的镜像的机制，并且它还提供了本地存储库中托管的镜像。如前所述，Docker 引擎默认情况下已编程为在`index.docker.io`中查找镜像，而在第三方或本地存储库中，我们必须手动指定应从哪里拉取镜像的路径。手动存储库路径类似于没有协议说明符的 URL，例如`https://`、`http://`和`ftp://`。以下是从第三方存储库中拉取镜像的示例：
 
-[PRE6]
+```
+$ sudo docker pull registry.example.com/myapp
+
+```
 
 ## 搜索 Docker 镜像
 
@@ -128,11 +154,21 @@ Docker 社区的热心人士已经构建了一个镜像存储库，并且已经�
 
 您可以使用`docker search`子命令在 Docker Hub 注册表中搜索 Docker 镜像，如本示例所示：
 
-[PRE7]
+```
+$ sudo docker search mysql
+
+```
 
 在`mysql`上的搜索将列出 400 多个镜像，如下所示：
 
-[PRE8]
+```
+NAME             DESCRIPTION          STARS  OFFICIAL   AUTOMATED
+mysql            MySQL is the...      147    [OK]
+tutum/mysql      MySQL Server..       60                [OK]
+orchardup/mysql                       34                [OK]
+. . . OUTPUT TRUNCATED . . .
+
+```
 
 如前面的搜索输出摘录所示，图像是根据其星级排序的。搜索结果还表明图像是否官方。为了保持专注，在这个例子中，我们将只显示两个图像。在这里，您可以看到`mysql`的官方版本，它拉取了一个`147`星级的图像作为其第一个结果。第二个结果显示，这个版本的`mysql`图像是由用户`tutum`发布的。Docker 容器正迅速成为分布式应用程序的标准构建块。借助全球许多社区成员的热情贡献，将实现 Docker 图像的动态存储库。基于存储库的软件工程将使用户和程序员更容易快速编写和组装他们的项目。官方存储库可以免费从 Docker Hub Registry 下载，这些是经过策划的图像。它们代表了一个专注于为应用程序提供良好图像基础的社区努力，以便开发人员和系统管理员可以专注于构建新功能和功能，同时最大程度地减少他们在商品脚手架和管道上的重复工作。
 
@@ -144,27 +180,51 @@ Docker 社区的热心人士已经构建了一个镜像存储库，并且已经�
 
 在下面的示例中，我们将使用`ubuntu:14.04`镜像和`/bin/bash`作为命令启动一个交互式容器：
 
-[PRE9]
+```
+$ sudo docker run -i -t ubuntu:14.04 /bin/bash
+
+```
 
 由于`ubuntu`镜像尚未下载，如果我们使用`docker pull`子命令，那么我们将收到以下消息，并且`run`命令将自动开始拉取`ubuntu`镜像，并显示以下消息：
 
-[PRE10]
+```
+Unable to find image 'ubuntu:14.04' locally
+Pulling repository ubuntu
+
+```
 
 一旦下载完成，容器将与`ubuntu:14.04`镜像一起启动。它还将在容器内启动一个 bash shell，因为我们已指定`/bin/bash`作为要执行的命令。这将使我们进入一个 bash 提示符，如下所示：
 
-[PRE11]
+```
+root@742718c21816:/#
+
+```
 
 前面的 bash 提示将确认我们的容器已成功启动，并且准备好接受我们的输入。如果您对提示中的十六进制数字`742718c21816`感到困惑，那么它只是容器的主机名。在 Docker 术语中，主机名与容器`ID`相同。
 
 让我们快速交互式地运行一些命令，然后确认我们之前提到的提示是正确的，如下所示：
 
-[PRE12]
+```
+root@742718c21816:/# hostname
+742718c21816
+root@742718c21816:/# id
+uid=0(root) gid=0(root) groups=0(root)
+root@742718c21816:/# echo $PS1
+${debian_chroot:+($debian_chroot)}\u@\h:\w\$
+root@742718c21816:/#
+
+```
 
 从前面的三个命令可以清楚地看出，提示是通过使用用户 ID、主机名和当前工作目录组成的。
 
 现在，让我们使用 Docker 的一个特色功能，将其从交互式容器中分离出来，然后查看 Docker 为该容器管理的细节。是的，我们可以通过使用*Ctrl* + *P*和*Ctrl* + *Q*转义序列将其从容器中分离出来。这个转义序列将从容器中分离 TTY，并将我们置于 Docker 主机提示符`$`中，但是容器将继续运行。`docker ps`子命令将列出所有正在运行的容器及其重要属性，如下所示：
 
-[PRE13]
+```
+$ sudo docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED              STATUS              PORTS               NAMES
+742718c21816        ubuntu:14.04        "/bin/bash"         About a minute ago   Up About a minute                       jolly_lovelace
+
+```
 
 `docker ps`子命令将列出以下详细信息：
 
@@ -184,7 +244,11 @@ Docker 社区的热心人士已经构建了一个镜像存储库，并且已经�
 
 查看了容器状态后，让我们使用`docker attach`子命令将其重新附加到我们的容器中，如下例所示。我们可以使用容器的`ID`或名称。在这个例子中，我们使用了容器的名称。如果你看不到提示符，那么再次按下*Enter*键：
 
-[PRE14]
+```
+$ sudo docker attach jolly_lovelace
+root@742718c21816:/#
+
+```
 
 ### 注意
 
@@ -192,7 +256,20 @@ Docker 允许任意次数地附加到容器，这对屏幕共享非常方便。
 
 `docker attach`子命令将我们带回容器提示符。让我们使用这些命令对正在运行的交互式容器进行更多实验：
 
-[PRE15]
+```
+root@742718c21816:/# pwd
+/
+root@742718c21816:/# ls
+bin   dev  home  lib64  mnt  proc  run   srv  tmp  var
+boot  etc  lib   media  opt  root  sbin  sys  usr
+root@742718c21816:/# cd usr
+root@742718c21816:/usr# ls
+bin  games  include  lib  local  sbin  share  src
+root@742718c21816:/usr# exit
+exit
+$
+
+```
 
 一旦对交互式容器发出 bash 退出命令，它将终止 bash shell 进程，进而停止容器。因此，我们将会回到 Docker 主机的提示符`$`。
 
@@ -202,23 +279,49 @@ Docker 允许任意次数地附加到容器，这对屏幕共享非常方便。
 
 让我们以交互模式启动一个容器，就像在上一节中所做的那样：
 
-[PRE16]
+```
+$ sudo docker run -i -t ubuntu:14.04 /bin/bash
+
+```
 
 让我们把目录切换到`/home`，如下所示：
 
-[PRE17]
+```
+root@d5ad60f174d3:/# cd /home
+
+```
 
 现在我们可以使用`touch`命令创建三个空文件，如下面的代码片段所示。第一个`ls -l`命令将显示目录中没有文件，第二个`ls -l`命令将显示有三个空文件：
 
-[PRE18]
+```
+root@d5ad60f174d3:/home# ls -l
+total 0
+root@d5ad60f174d3:/home# touch {abc,cde,fgh}
+root@d5ad60f174d3:/home# ls -l
+total 0
+-rw-r--r-- 1 root root 0 Sep 29 10:54 abc
+-rw-r--r-- 1 root root 0 Sep 29 10:54 cde
+-rw-r--r-- 1 root root 0 Sep 29 10:54 fgh
+root@d5ad60f174d3:/home#
+
+```
 
 Docker 引擎优雅地管理其文件系统，并允许我们使用`docker diff`子命令检查容器文件系统。为了检查容器文件系统，我们可以将其与容器分离，或者使用 Docker 主机的另一个终端，然后发出`docker diff`子命令。由于我们知道任何`ubuntu`容器都有其主机名，这是其提示的一部分，也是容器的`ID`，我们可以直接使用从提示中获取的容器`ID`运行`docker diff`子命令，如下所示：
 
-[PRE19]
+```
+$ sudo docker diff d5ad60f174d3
+
+```
 
 在给定的示例中，`docker diff`子命令将生成四行，如下所示：
 
-[PRE20]
+```
+C /home
+A /home/abc
+A /home/cde
+A /home/fgh
+
+```
 
 前面的输出表明`/home`目录已被修改，这由`C,`表示，`/home/abc`，`/home/cde`和`/home/fgh`文件已被添加，这些由`A`表示。此外，`D`表示删除。由于我们没有删除任何文件，因此它不在我们的示例输出中。
 
@@ -230,33 +333,66 @@ Docker 引擎使您能够使用一组`docker`子命令`start`，`stop`和`restar
 
 现在，让我们启动我们的容器，并尝试使用`docker stop`子命令，如下所示：
 
-[PRE21]
+```
+$ sudo docker run -i -t ubuntu:14.04 /bin/bash
+root@da1c0f7daa2a:/#
+
+```
 
 启动容器后，让我们使用从提示中获取的容器`ID`在该容器上运行`docker stop`子命令。当然，我们必须使用第二个屏幕或终端来运行此命令，命令将始终回显到容器`ID`，如下所示：
 
-[PRE22]
+```
+$ sudo docker stop da1c0f7daa2a
+da1c0f7daa2a
+
+```
 
 现在，如果我们切换到正在运行容器的屏幕或终端，我们将注意到容器正在被终止。如果你更仔细观察，你还会注意到容器提示旁边的文本`exit`。这是由于 bash shell 的 SIGTERM 处理机制导致的，如下所示：
 
-[PRE23]
+```
+root@da1c0f7daa2a:/# exit
+$
+
+```
 
 如果我们再进一步运行`docker ps`子命令，那么我们将在列表中找不到这个容器。事实上，默认情况下，`docker ps`子命令总是列出处于运行状态的容器。由于我们的容器处于停止状态，它已经舒适地被从列表中排除了。现在，你可能会问，我们如何看到处于停止状态的容器呢？好吧，`docker ps`子命令带有一个额外的参数`-a`，它将列出 Docker 主机中的所有容器，而不管它的状态如何。可以通过运行以下命令来实现：
 
-[PRE24]
+```
+$ sudo docker ps -a
+CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS                      PORTS               NAMES
+da1c0f7daa2a        ubuntu:14.04        "/bin/bash"            20 minutes ago        Exited (0) 10 minutes ago                        desperate_engelbart
+$
+
+```
 
 接下来，让我们看看`docker start`子命令，它用于启动一个或多个已停止的容器。容器可以通过`docker stop`子命令或正常或异常地终止容器中的主进程而被移动到停止状态。对于正在运行的容器，此子命令没有任何效果。
 
 让我们使用`docker start`子命令`start`先前停止的容器，如下所示：
 
-[PRE25]
+```
+$ sudo docker start da1c0f7daa2a
+da1c0f7daa2a
+$
+
+```
 
 默认情况下，`docker start`子命令不会附加到容器。您可以通过在`docker start`子命令中使用`-a`选项或显式使用`docker attach`子命令将其附加到容器，如下所示：
 
-[PRE26]
+```
+$ sudo docker attach da1c0f7daa2a
+root@da1c0f7daa2a:/#
+
+```
 
 现在让我们运行`docker ps`并验证容器的运行状态，如下所示：
 
-[PRE27]
+```
+$ sudo docker ps
+CONTAINER ID        IMAGE               COMMAND                CREATED             STATUS                      PORTS               NAMES
+da1c0f7daa2a        ubuntu:14.04        "/bin/bash"            25 minutes ago        Up 3 minutes                        desperate_engelbart
+$
+
+```
 
 `restart`命令是`stop`和`start`功能的组合。换句话说，`restart`命令将通过`docker stop`子命令遵循的精确步骤`stop`一个正在运行的容器，然后它将启动`start`过程。此功能将默认通过`docker restart`子命令执行。
 
@@ -264,27 +400,65 @@ Docker 引擎使您能够使用一组`docker`子命令`start`，`stop`和`restar
 
 在看完`pause`和`unpause`的技术解释后，让我们看一个详细的示例来说明这个功能是如何工作的。我们使用了两个屏幕或终端场景。在一个终端上，我们启动了容器，并使用了一个无限循环来显示日期和时间，每隔 5 秒睡眠一次，然后继续循环。我们将运行以下命令：
 
-[PRE28]
+```
+$ sudo docker run -i -t ubuntu:14.04 /bin/bash
+root@c439077aa80a:/# while true; do date; sleep 5; done
+Thu Oct  2 03:11:19 UTC 2014
+Thu Oct  2 03:11:24 UTC 2014
+Thu Oct  2 03:11:29 UTC 2014
+Thu Oct  2 03:11:34 UTC 2014
+Thu Oct  2 03:11:59 UTC 2014
+Thu Oct  2 03:12:04 UTC 2014
+Thu Oct  2 03:12:09 UTC 2014
+Thu Oct  2 03:12:14 UTC 2014
+Thu Oct  2 03:12:19 UTC 2014
+Thu Oct  2 03:12:24 UTC 2014
+Thu Oct  2 03:12:29 UTC 2014
+Thu Oct  2 03:12:34 UTC 2014
+$
+
+```
 
 我们的小脚本非常忠实地每 5 秒打印一次日期和时间，但在以下位置有一个例外：
 
-[PRE29]
+```
+Thu Oct  2 03:11:34 UTC 2014
+Thu Oct  2 03:11:59 UTC 2014
+
+```
 
 在这里，我们遇到了 25 秒的延迟，因为这是我们在第二个终端屏幕上启动了`docker pause`子命令的时候，如下所示：
 
-[PRE30]
+```
+$ sudo docker pause c439077aa80a
+c439077aa80a
+
+```
 
 当我们暂停容器时，我们使用`docker ps`子命令查看了容器上的进程状态，它在同一屏幕上，并清楚地指示容器已被暂停，如此命令结果所示：
 
-[PRE31]
+```
+$ sudo docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS                   PORTS               NAMES
+c439077aa80a        ubuntu:14.04        "/bin/bash"         47 seconds ago      Up 46 seconds (Paused)                       ecstatic_torvalds
+
+```
 
 我们继续使用`docker unpause`子命令，解冻了我们的容器，继续执行，并开始打印日期和时间，就像我们在前面的命令中看到的那样，如下所示：
 
-[PRE32]
+```
+$ sudo docker unpause c439077aa80a
+c439077aa80a
+
+```
 
 我们在本节开始时解释了`pause`和`unpause`命令。最后，使用`docker stop`子命令停止了容器和其中运行的脚本，如下所示：
 
-[PRE33]
+```
+$ sudo docker stop c439077aa80a
+c439077aa80a
+
+```
 
 ## 容器清理
 
@@ -294,15 +468,30 @@ Docker 引擎使您能够使用一组`docker`子命令`start`，`stop`和`restar
 
 另一种选择是使用`docker ps`子命令的`-a`选项列出所有容器，然后通过使用`docker rm`子命令手动删除它们，如下所示：
 
-[PRE34]
+```
+$ sudo docker ps -a
+CONTAINER ID IMAGE        COMMAND     CREATED       STATUS
+                   PORTS   NAMES
+7473f2568add ubuntu:14.04 "/bin/bash" 5 seconds ago Exited(0) 3 seconds ago         jolly_wilson
+$ sudo docker rm 7473f2568add
+7473f2568add
+$
+
+```
 
 两个`docker`子命令，即`docker rm`和`docker ps`，可以组合在一起自动删除所有当前未运行的容器，如下命令所示：
 
-[PRE35]
+```
+$ sudo docker rm 'sudo docker ps -aq --no-trunc'
+
+```
 
 在上述命令中，反引号内的命令将产生每个容器的完整容器 ID 列表，无论是运行还是其他状态，这将成为`docker rm`子命令的参数。除非使用`-f`选项强制执行其他操作，否则`docker rm`子命令将仅删除未运行状态的容器。对于正在运行的容器，它将生成以下错误，然后继续到列表中的下一个容器：
 
-[PRE36]
+```
+Error response from daemon: You cannot remove a running container. Stop the container before attempting removal or use -f
+
+```
 
 ## 从容器构建镜像
 
@@ -312,39 +501,72 @@ Docker 引擎使您能够使用一组`docker`子命令`start`，`stop`和`restar
 
 1.  通过使用以下`docker run`子命令启动`ubuntu:14.04`容器，如下所示：
 
-[PRE37]
+```
+$ sudo docker run -i -t ubuntu:14.04 /bin/bash
+
+```
 
 1.  启动容器后，让我们快速验证我们的镜像中是否有`wget`可用。我们已经使用`which`命令并将`wget`作为参数用于此目的，在我们的情况下，它返回空值，这基本上意味着它在这个容器中找不到任何`wget`安装。该命令如下运行：
 
-[PRE38]
+```
+root@472c96295678:/# which wget
+root@472c96295678:/#
+
+```
 
 1.  现在让我们继续下一步，涉及`wget`安装。由于这是一个全新的`ubuntu`容器，在安装`wget`之前，我们必须与`ubuntu`软件包存储库同步，如下所示：
 
-[PRE39]
+```
+root@472c96295678:/# apt-get update
+
+```
 
 1.  一旦`ubuntu`软件包存储库同步完成，我们可以继续安装`wget`，如下所示：
 
-[PRE40]
+```
+root@472c96295678:/# apt-get install -y wget
+
+```
 
 1.  完成`wget`安装后，让我们通过调用`which`命令并将`wget`作为参数来确认我们的`wget`安装，如下所示：
 
-[PRE41]
+```
+root@472c96295678:/#which wget
+/usr/bin/wget
+root@472c96295678:/#
+
+```
 
 1.  安装任何软件都会改变基础镜像的组成，我们也可以通过本章节*跟踪容器内部变化*介绍的`docker diff`子命令来追踪这些变化。我们可以在第二个终端或屏幕上使用`docker diff`子命令，如下所示：
 
-[PRE42]
+```
+$ sudo docker diff 472c96295678
+
+```
 
 前面的命令将显示对`ubuntu`镜像的几百行修改。这些修改包括软件包存储库的更新，`wget`二进制文件以及`wget`的支持文件。
 
 1.  最后，让我们转向提交镜像的最重要步骤。Docker `commit`子命令可以在运行或停止的容器上执行。当在运行容器上执行`commit`时，Docker 引擎将在`commit`操作期间暂停容器，以避免任何数据不一致。我们强烈建议在停止的容器上执行`commit`操作。我们可以通过`docker commit`子命令将容器提交为镜像，如下所示：
 
-[PRE43]
+```
+$ sudo docker commit 472c96295678 \
+ learningdocker/ubuntu_wget
+a530f0a0238654fa741813fac39bba2cc14457aee079a7ae1fe1c64dc7e1ac25
+
+```
 
 我们已经使用名称`learningdocker/ubuntu_wget`提交了我们的镜像。
 
 我们逐步看到了如何从容器创建镜像。现在，让我们快速列出我们的 Docker 主机上的镜像，并使用以下命令查看这个新创建的镜像是否是镜像列表的一部分：
 
-[PRE44]
+```
+$ sudo docker images
+REPOSITORY                      TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+learningdocker/ubuntu_wget   latest              a530f0a02386        48 seconds ago      221.3 MB
+busybox                         buildroot-2014.02   e72ac664f4f0        2 days ago          2.433 MB
+ubuntu                          14.04               6b4e8a7373fe        2 days ago          194.8 MB
+
+```
 
 从前面的`docker images`子命令输出中，很明显我们从容器创建的镜像非常成功。
 
@@ -356,11 +578,24 @@ Docker 引擎使您能够使用一组`docker`子命令`start`，`stop`和`restar
 
 `docker run`子命令支持一个选项`-d`，它将以分离模式启动一个容器，也就是说，它将以守护进程的方式启动一个容器。为了举例说明，让我们回到我们在“暂停和恢复”容器示例中使用的日期和时间脚本，如下所示：
 
-[PRE45]
+```
+$ sudo docker run -d ubuntu \
+ /bin/bash -c "while true; do date; sleep 5; done"
+0137d98ee363b44f22a48246ac5d460c65b67e4d7955aab6cbb0379ac421269b
+
+```
 
 `docker logs`子命令用于查看守护进程容器生成的输出，如下所示：
 
-[PRE46]
+```
+$ sudo docker logs \
+0137d98ee363b44f22a48246ac5d460c65b67e4d7955aab6cbb0379ac421269b
+Sat Oct  4 17:41:04 UTC 2014
+Sat Oct  4 17:41:09 UTC 2014
+Sat Oct  4 17:41:14 UTC 2014
+Sat Oct  4 17:41:19 UTC 2014
+
+```
 
 # 总结
 

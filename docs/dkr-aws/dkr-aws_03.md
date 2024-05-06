@@ -229,7 +229,34 @@
 
 一旦您完成了注册 MFA 设备并使用 MFA 登出并重新登录到 AWS 控制台，您现在满足了导致您之前创建的`RequireMFAPolicy`中的以下语句不被应用的要求：
 
-[PRE0]
+```
+{
+    "Sid": "DenyEverythingExceptForBelowUnlessMFAd",
+    "Effect": "Deny",
+    "NotAction": [
+        "iam:ListVirtualMFADevices",
+        "iam:ListMFADevices",
+        "iam:ListUsers",
+        "iam:ListAccountAliases",
+        "iam:CreateVirtualMFADevice",
+        "iam:EnableMFADevice",
+        "iam:ResyncMFADevice",
+        "iam:ChangePassword",
+        "iam:CreateLoginProfile",
+        "iam:DeleteLoginProfile",
+        "iam:GetAccountPasswordPolicy",
+        "iam:GetAccountSummary",
+        "iam:GetLoginProfile",
+        "iam:UpdateLoginProfile"
+    ],
+    "Resource": "*",
+    "Condition": {
+        "Null": {
+            "aws:MultiFactorAuthAge": "true"
+        }
+    }
+}
+```
 
 在上述代码中，重要的是要注意`Deny`的 IAM 效果是绝对的——一旦 IAM 遇到给定权限或一组权限的`Deny`，那么该权限就无法被允许。然而，`Condition`属性使这个广泛的`Deny`有条件——只有在特殊条件`aws:MultiFactorAuthAge`为 false 的情况下才会应用，这种情况发生在您没有使用 MFA 登录时。
 
@@ -265,11 +292,23 @@
 
 此时，您需要将 SSH 私钥移动到计算机上的适当位置，并按下面的示例修改私钥文件的默认权限：
 
-[PRE1]
+```
+> mv ~/Downloads/admin.pem ~/.ssh/admin.pem
+> chmod 600 ~/.ssh/admin.pem
+```
 
 请注意，如果您不使用 chmod 命令修改权限，当您尝试使用 SSH 密钥时，将会出现以下错误：
 
-[PRE2]
+```
+> ssh -i ~/.ssh/admin.pem 192.0.2.1
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@ WARNING: UNPROTECTED PRIVATE KEY FILE! @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+Permissions 0644 for '/Users/jmenga/.ssh/admin.pem' are too open.
+It is required that your private key files are NOT accessible by others.
+This private key will be ignored.
+Load key "/Users/jmenga/.ssh/admin.pem": bad permissions
+```
 
 # 使用 AWS CLI
 
@@ -285,19 +324,33 @@ AWS CLI 是用 Python 编写的，因此您必须安装 Python 2 或 Python 3，
 
 假设您已满足这些先决条件，您可以在终端中使用`pip`命令安装 AWS CLI，并使用`--upgrade`标志升级到最新的 AWS CLI 版本（如果已安装），并使用`--user`标志避免修改系统库：
 
-[PRE3]
+```
+> pip install awscli --upgrade --user
+Collecting awscli
+  Downloading https://files.pythonhosted.org/packages/69/18/d0c904221d14c45098da04de5e5b74a6effffb90c2b002bc2051fd59222e/awscli-1.15.45-py2.py3-none-any.whl (1.3MB)
+    100% |████████████████████████████████| 1.3MB 1.2MB/s
+...
+...
+Successfully installed awscli-1.15.45 botocore-1.10.45 colorama-0.3.9 pyasn1-0.4.3 python-dateutil-2.7.3
+```
 
 根据您的环境，如果您使用的是 Python 3，您可能需要用`pip3 install`命令替换`pip install`。
 
 如果您现在尝试运行 AWS CLI 命令，该命令将失败，并指示您必须配置您的环境：
 
-[PRE4]
+```
+> aws ec2 describe-vpcs
+You must specify a region. You can also configure your region by running "aws configure".
+```
 
 # 创建 AWS 访问密钥
 
 如果您按照前面的代码建议运行`aws configure`命令，将提示您输入 AWS 访问密钥 ID：
 
-[PRE5]
+```
+> aws configure
+AWS Access Key ID [None]:
+```
 
 要使用 AWS CLI 和 AWS SDK，您必须创建 AWS 访问密钥，这是由访问密钥 ID 和秘密访问密钥值组成的凭据。要创建访问密钥，请在 AWS 控制台中打开 IAM 仪表板，从左侧菜单中选择**用户**，然后单击您的用户名。在**安全凭据**选项卡下的**访问密钥**部分，单击**创建访问密钥**按钮，这将打开一个对话框，允许您查看访问密钥 ID 和秘密访问密钥值：
 
@@ -309,11 +362,21 @@ AWS CLI 是用 Python 编写的，因此您必须安装 Python 2 或 Python 3，
 
 回到您的终端，现在您可以完成`aws configure`设置过程：
 
-[PRE6]
+```
+> aws configure
+AWS Access Key ID [None]: AKIAJXNI5XLCSBRQAZCA
+AWS Secret Access Key [None]: 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
+Default region name [None]: us-east-1
+Default output format [None]:
+```
 
 如果您现在尝试运行之前尝试过的`aws ec2 describe-vpcs`命令，该命令仍然失败；但是，错误是不同的：
 
-[PRE7]
+```
+> aws ec2 describe-vpcs
+
+An error occurred (UnauthorizedOperation) when calling the DescribeVpcs operation: You are not authorized to perform this operation.
+```
 
 现在的问题是，您未被授权执行此命令，因为您刚刚创建的访问密钥与您的用户帐户相关联，您必须假定管理员角色以获得管理特权。
 
@@ -323,23 +386,48 @@ AWS CLI 是用 Python 编写的，因此您必须安装 Python 2 或 Python 3，
 
 当您运行`aws configure`命令时，AWS CLI 在名为`.aws`的文件夹中创建了两个重要文件，该文件夹位于您的主目录中：
 
-[PRE8]
+```
+> ls -l ~/.aws
+
+total 16
+-rw------- 1 jmenga staff 29  23 Jun 19:31 config
+-rw------- 1 jmenga staff 116 23 Jun 19:31 credentials
+```
 
 `credentials`文件保存了一个或多个命名配置文件中的 AWS 凭据：
 
-[PRE9]
+```
+> cat ~/.aws/credentials
+[default]
+aws_access_key_id = AKIAJXNI5XLCSBRQAZCA
+aws_secret_access_key = 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
+```
 
 在上述代码中，请注意`aws configure`命令创建了一个名为`default`的配置文件，并将访问密钥 ID 和秘密访问密钥值存储在该文件中。作为最佳实践，特别是如果您正在使用多个 AWS 账户，我建议避免使用默认配置文件，因为如果输入 AWS CLI 命令，AWS CLI 将默认使用此配置文件。您很快将学会如何使用命名配置文件来处理多个 AWS 账户，如果您有一个默认配置文件，很容易忘记指定要使用的配置文件，并在默认配置文件引用的账户中意外执行操作。我更喜欢根据您正在使用的账户的名称命名每个配置文件，例如，在这里，我已将凭据文件中的默认配置文件重命名为`docker-in-aws`，因为我将我的 AWS 账户命名为`docker-in-aws`：
 
-[PRE10]
+```
+[docker-in-aws]
+aws_access_key_id = AKIAJXNI5XLCSBRQAZCA
+aws_secret_access_key = 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
+```
 
 AWS CLI 创建的另一个文件是`~/.aws/config`文件，如下所示：
 
-[PRE11]
+```
+[default]
+region = us-east-1
+```
 
 该文件包括命名的配置文件，并且因为您在运行`aws configure`命令时指定了默认区域，所以`default`配置文件中已经添加了`region`变量。配置文件支持许多变量，允许您执行更高级的任务，比如自动假定角色，因此这就是我们需要配置 CLI 以假定我们在本章前面创建的`admin`角色的地方。鉴于我们已经在`credentials`文件中重命名了`default`配置文件，以下代码演示了将`default`配置文件重命名为`docker-in-aws`并添加支持假定`admin`角色的操作：
 
-[PRE12]
+```
+[profile docker-in-aws]
+source_profile = docker-in-aws
+role_arn = arn:aws:iam::385605022855:role/admin
+role_session_name=justin.menga
+mfa_serial = arn:aws:iam::385605022855:mfa/justin.menga
+region = us-east-1
+```
 
 请注意，在配置命名配置文件时，我们在配置文件名前面添加了`profile`关键字，这是必需的。我们还在配置文件中配置了许多变量：
 
@@ -363,7 +451,36 @@ AWS CLI 创建的另一个文件是`~/.aws/config`文件，如下所示：
 
 上面的代码演示了使用这两种方法：
 
-[PRE13]
+```
+> aws ec2 describe-vpcs --profile docker-in-aws
+Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga: ****
+{
+    "Vpcs": [
+        {
+            "VpcId": "vpc-f8233a80",
+            "InstanceTenancy": "default",
+            "CidrBlockAssociationSet": [
+                {
+                    "AssociationId": "vpc-cidr-assoc-32524958",
+                    "CidrBlock": "172.31.0.0/16",
+                    "CidrBlockState": {
+                        "State": "associated"
+                    }
+                }
+            ],
+            "State": "available",
+            "DhcpOptionsId": "dopt-a037f9d8",
+            "CidrBlock": "172.31.0.0/16",
+            "IsDefault": true
+        }
+    ]
+}
+> export AWS_PROFILE=docker-in-aws
+> aws ec2 describe-vpcs --query Vpcs[].VpcId
+[
+    "vpc-f8233a80"
+]
+```
 
 在上面的示例中，请注意当您首次运行`aws`命令时，会提示您输入 MFA 令牌，但是当您下次运行该命令时，将不会提示您。这是因为默认情况下，从承担角色获取的临时会话凭据在一个小时内有效，并且 AWS CLI 会缓存凭据，以便您在不必在每次执行命令时刷新凭据的情况下重用它们。当然，在一个小时后，由于临时会话凭据将会过期，您将再次被提示输入 MFA 令牌。
 
@@ -383,9 +500,35 @@ AWS CLI 创建的另一个文件是`~/.aws/config`文件，如下所示：
 
 [CloudFormation 用户指南](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/Welcome.html)详细描述了[模板结构](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html)，但是出于本书的目的，我们只需要关注一个基本的模板结构，最好通过一个真实的例子来演示，您可以将其保存在计算机上一个方便的位置的名为`stack.yml`的文件中。
 
-[PRE14]
+```
+AWSTemplateFormatVersion: "2010-09-09"
 
-[PRE15]
+Description: Cloud9 Management Station
+
+Parameters:
+ EC2InstanceType:
+   Type: String
+   Description: EC2 instance type
+   Default: t2.micro
+ SubnetId:
+   Type: AWS::EC2::Subnet::Id
+   Description: Target subnet for instance
+
+Resources:
+  ManagementStation:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      Name: !Sub ${AWS::StackName}-station
+      Description:
+        Fn::Sub: ${AWS::StackName} Station
+      AutomaticStopTimeMinutes: 15
+```
+
+```
+      InstanceType: !Ref EC2InstanceType
+      SubnetId:
+        Ref: SubnetId
+```
 
 在上述代码中，CloudFormation 定义了一个 Cloud9 管理站 - Cloud9 提供基于云的 IDE 和终端，在 EC2 实例上运行。让我们通过这个例子来讨论模板的结构和特性。
 
@@ -425,7 +568,20 @@ AWS CLI 创建的另一个文件是`~/.aws/config`文件，如下所示：
 
 您可以通过在 AWS 控制台中选择**服务**|**VPC**|**子网**，或者通过运行带有 JMESPath 查询的`aws ec2 describe-subnets` AWS CLI 命令来确定每个子网属于哪个可用区：
 
-[PRE16]
+```
+> aws ec2 describe-subnets --query 'Subnets[].[SubnetId,AvailabilityZone,CidrBlock]' \
+    --output table
+-----------------------------------------------------
+| DescribeSubnets                                   |
++-----------------+--------------+------------------+
+| subnet-a5d3ecee | us-east-1a   | 172.31.16.0/20   |
+| subnet-c2abdded | us-east-1d   | 172.31.80.0/20   |
+| subnet-aae11aa5 | us-east-1f   | 172.31.48.0/20   |
+| subnet-fd3a43c2 | us-east-1e   | 172.31.64.0/20   |
+| subnet-324e246f | us-east-1b   | 172.31.32.0/20   |
+| subnet-d281a2b6 | us-east-1c   | 172.31.0.0/20    |
++-----------------+--------------+------------------+
+```
 
 此时，您可以单击**下一步**，然后在**创建堆栈**向导中单击**创建**，以开始部署新堆栈。在 CloudFormation 仪表板中，您将看到创建了一个名为**cloud9-management**的新堆栈，最初状态为`CREATE_IN_PROGRESS`。通过 CloudFormation 部署 Cloud9 环境的一个有趣行为是，通过`AWS::Cloud9::Environment`资源会自动创建一个单独的子 CloudFormation 堆栈，这在部署其他类型的 CloudFormation 资源时是不太常见的。部署完成后，堆栈的状态将变为`CREATE_COMPLETE`：
 
@@ -449,13 +605,51 @@ AWS CLI 创建的另一个文件是`~/.aws/config`文件，如下所示：
 
 要测试更新您的 CloudFormation 堆栈，让我们对`stack.yml`模板进行小的更改：
 
-[PRE17]
+```
+AWSTemplateFormatVersion: "2010-09-09"
 
-[PRE18]
+Description: Cloud9 Management Station
+
+Parameters:
+  EC2InstanceType:
+    Type: String
+    Description: EC2 instance type
+    Default: t2.micro
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Target subnet for instance
+
+```
+
+```
+Resources:
+  ManagementStation:
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      Name: !Sub ${AWS::StackName}-station
+      Description:
+        Fn::Sub: ${AWS::StackName} Station
+ AutomaticStopTimeMinutes: 20
+      InstanceType: !Ref EC2InstanceType
+      SubnetId:
+        Ref: SubnetId
+```
 
 应用此更改，我们将使用 AWS CLI 而不是使用 AWS 控制台，AWS CLI 支持通过`aws cloudformation deploy`命令部署 CloudFormation 模板。我们将在本书的其余部分大量使用此命令，现在是介绍该命令的好时机：
 
-[PRE19]
+```
+> export AWS_PROFILE=docker-in-aws
+> aws cloudformation deploy --stack-name cloud9-management --template-file stack.yml \
+--parameter-overrides SubnetId=subnet-a5d3ecee
+Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga: ****
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+
+Failed to create/update the stack. Run the following command
+to fetch the list of events leading up to the failure
+aws cloudformation describe-stack-events --stack-name cloud9-management
+```
 
 在上述代码中，我们首先确保配置了正确的配置文件，然后运行`aws cloudformation deploy`命令，使用`--stack-name`标志指定堆栈名称和`--template-file`标志指定模板文件。`--parameter-overrides`标志允许您以`<parameter>=<value>`格式提供输入参数值-请注意，在像这样的更新场景中，如果您不指定任何参数覆盖，将使用先前提供的参数值（在本例中创建堆栈时）。
 

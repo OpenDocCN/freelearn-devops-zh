@@ -76,7 +76,27 @@ ReplicaSets 允许我们通知 Kubernetes 维护特定 Pod 规范的一定数量
 
 replica-set.yaml
 
-[PRE0]
+```
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: myapp-group
+  labels:
+    app: myapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp-container
+        image: busybox
+```
 
 正如您所看到的，除了`template`部分（本质上是一个 Pod 定义），在我们的 ReplicaSet 规范中还有一个`selector`键和一个`replicas`键。让我们从`replicas`开始。
 
@@ -112,29 +132,45 @@ ReplicaSet 控制器如何决定一个 Pod 何时停止工作？它查看 Pod �
 
 复制先前列出的 `replica-set.yaml` 文件，并在与你的 YAML 文件相同的文件夹中使用以下命令在你的集群上运行它：
 
-[PRE1]
+```
+kubectl apply -f replica-set.yaml
+```
 
 为了检查 ReplicaSet 是否已正确创建，请运行 `kubectl get pods` 来获取默认命名空间中的 Pods。
 
 由于我们没有为 ReplicaSet 指定命名空间，它将默认创建。`kubectl get pods` 命令应该给你以下结果：
 
-[PRE2]
+```
+NAME                            READY     STATUS    RESTARTS   AGE
+myapp-group-192941298-k705b     1/1       Running   0          1m
+myapp-group-192941298-o9sh8     1/1       Running   0        1m
+myapp-group-192941298-n8gh2     1/1       Running   0        1m
+```
 
 现在，尝试使用以下命令删除一个 ReplicaSet Pod：
 
-[PRE3]
+```
+kubectl delete pod myapp-group-192941298-k705b
+```
 
 ReplicaSet 将始终尝试保持指定数量的副本在线。
 
 让我们使用 `kubectl get` 命令再次查看我们正在运行的 pods：
 
-[PRE4]
+```
+NAME                         READY  STATUS             RESTARTS AGE
+myapp-group-192941298-u42s0  1/1    ContainerCreating  0     1m
+myapp-group-192941298-o9sh8  1/1    Running            0     2m
+myapp-group-192941298-n8gh2  1/1    Running            0     2m
+```
 
 如你所见，我们的 ReplicaSet 控制器正在启动一个新的 pod，以保持我们的副本数为三。
 
 最后，让我们使用以下命令删除我们的 ReplicaSet：
 
-[PRE5]
+```
+kubectl delete replicaset myapp-group
+```
 
 清理了一下我们的集群，让我们继续学习一个更复杂的控制器 - 部署。
 
@@ -150,7 +186,32 @@ ReplicaSet 将始终尝试保持指定数量的副本在线。
 
 deployment.yaml
 
-[PRE6]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp-deployment
+  labels:
+    app: myapp
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25% 
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+      - name: myapp-container
+        image: busybox
+```
 
 正如您所看到的，这与 ReplicaSet 的规范非常相似。我们在这里看到的区别是规范中的一个新键：`strategy`。
 
@@ -180,21 +241,29 @@ deployment.yaml
 
 要将我们的`myapp-deployment`扩展到五个副本，我们可以运行以下命令：
 
-[PRE7]
+```
+kubectl scale deployment myapp-deployment --replicas=5
+```
 
 同样，如果需要，我们可以将我们的`myapp-deployment`回滚到旧版本。为了演示这一点，首先让我们手动编辑我们的部署，以使用容器的新版本：
 
-[PRE8]
+```
+Kubectl set image deployment myapp-deployment myapp-container=busybox:1.2 –record=true
+```
 
 这个命令告诉 Kubernetes 将我们部署中容器的版本更改为 1.2。然后，我们的部署将按照前面的图表中的步骤来推出我们的更改。
 
 现在，假设我们想回到之前更新容器图像版本之前的版本。我们可以使用`rollout undo`命令轻松实现这一点：
 
-[PRE9]
+```
+Kubectl rollout undo deployment myapp-deployment
+```
 
 在我们之前的情况下，我们只有两个版本，初始版本和我们更新容器的版本，但如果有其他版本，我们可以在`undo`命令中指定它们，就像这样：
 
-[PRE10]
+```
+Kubectl rollout undo deployment myapp-deployment –to-revision=10
+```
 
 这应该让您对为什么部署如此有价值有所了解-它们为我们提供了对应用程序新版本的推出的精细控制。接下来，我们将讨论一个与部署和副本集协同工作的 Kubernetes 智能缩放器。
 
@@ -210,7 +279,20 @@ HPA 的 YAML 文件如下所示：
 
 hpa.yaml
 
-[PRE11]
+```
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: myapp-hpa
+spec:
+  maxReplicas: 5
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: myapp-deployment
+  targetCPUUtilizationPercentage: 70
+```
 
 在上述规范中，我们有`scaleTargetRef`，它指定了 HPA 应该自动缩放的内容，以及调整参数。
 
@@ -254,7 +336,24 @@ hpa.yaml
 
 daemonset-1.yaml
 
-[PRE12]
+```
+apiVersion: apps/v1 
+kind: DaemonSet
+metadata:
+  name: log-collector
+spec:
+  selector:
+      matchLabels:
+        name: log-collector   
+  template:
+    metadata:
+      labels:
+        name: log-collector
+    spec:
+      containers:
+      - name: fluentd
+        image: fluentd
+```
 
 如您所见，这与您典型的 ReplicaSet 规范非常相似，只是我们没有指定副本的数量。这是因为 DaemonSet 会尝试在集群中的每个节点上运行一个 Pod。
 
@@ -262,7 +361,26 @@ daemonset-1.yaml
 
 daemonset-2.yaml
 
-[PRE13]
+```
+apiVersion: apps/v1 
+kind: DaemonSet
+metadata:
+  name: log-collector
+spec:
+  selector:
+      matchLabels:
+        name: log-collector   
+  template:
+    metadata:
+      labels:
+        name: log-collector
+    spec:
+      nodeSelector:
+        type: bigger-node 
+      containers:
+      - name: fluentd
+        image: fluentd
+```
 
 这个 YAML 将限制我们的 DaemonSet 只能在其标签中匹配`type=bigger-node`的节点上运行。我们将在*第八章*中更多地了解有关节点选择器的信息，*Pod 放置控制*。现在，让我们讨论一种非常适合运行有状态应用程序（如数据库）的控制器类型 - StatefulSet。
 
@@ -276,17 +394,44 @@ StatefulSets 与 ReplicaSets 和 Deployments 非常相似，但有一个关键�
 
 statefulset.yaml
 
-[PRE14]
+```
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: stateful
+spec:
+  selector:
+    matchLabels:
+      app: stateful-app
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        app: stateful-app
+    spec:
+      containers:
+      - name: app
+        image: busybox
+```
 
 这个 YAML 将创建一个具有五个应用程序副本的 StatefulSet。
 
 让我们看看 StatefulSet 如何与典型的 Deployment 或 ReplicaSet 不同地维护 Pod 标识。让我们使用以下命令获取所有 Pods：
 
-[PRE15]
+```
+kubectl get pods
+```
 
 输出应如下所示：
 
-[PRE16]
+```
+NAME      		   READY     STATUS    RESTARTS   AGE
+stateful-app-0     1/1       Running   0         55s
+stateful-app-1     1/1       Running   0         48s
+stateful-app-2     1/1       Running   0         26s
+stateful-app-3     1/1       Running   0         18s
+stateful-app-4     0/1       Pending   0         3s
+```
 
 如您所见，在这个例子中，我们有五个 StatefulSet Pods，每个都有一个数字指示其标识。这个属性对于有状态的应用程序非常有用，比如数据库集群。在 Kubernetes 上运行数据库集群时，主 Pod 与副本 Pod 的标识很重要，我们可以使用 StatefulSet 标识来轻松管理它。
 
@@ -302,7 +447,21 @@ Kubernetes 中 Job 资源的目的是运行可以完成的任务，这使它们�
 
 job-1.yaml
 
-[PRE17]
+```
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: runner
+spec:
+  template:
+    spec:
+      containers:
+      - name: run-job
+        image: node:lts-jessie
+        command: ["node", "job.js"]
+      restartPolicy: Never
+  backoffLimit: 4
+```
 
 这个 Job 将启动一个单独的 Pod，并运行一个命令 `node job.js`，直到完成，然后 Pod 将关闭。在这个和未来的示例中，我们假设使用的容器镜像有一个名为 `job.js` 的文件，其中包含了作业逻辑。`node:lts-jessie` 容器镜像默认情况下不会有这个文件。这是一个不使用并行性运行的 Job 的示例。正如您可能从 Docker 的使用中知道的那样，多个命令参数必须作为字符串数组传递。
 
@@ -314,7 +473,22 @@ job-1.yaml
 
 job-2.yaml
 
-[PRE18]
+```
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: runner
+spec:
+  parallelism: 3
+  template:
+    spec:
+      containers:
+      - name: run-job
+        image: node:lts-jessie
+        command: ["node", "job.js"]
+      restartPolicy: Never
+  backoffLimit: 4
+```
 
 如您所见，我们使用 `parallelism` 键添加了三个副本。此外，您可以将纯作业并行性替换为指定数量的完成次数，在这种情况下，Kubernetes 可以跟踪 Job 已完成的次数。您仍然可以为此设置并行性，但如果不设置，它将默认为 1。
 
@@ -322,7 +496,23 @@ job-2.yaml
 
 job-3.yaml
 
-[PRE19]
+```
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: runner
+spec:
+  parallelism: 2
+  completions: 4
+  template:
+    spec:
+      containers:
+      - name: run-job
+        image: node:lts-jessie
+        command: ["node", "job.js"]
+      restartPolicy: Never
+  backoffLimit: 4
+```
 
 Kubernetes 上的作业提供了一种很好的方式来抽象一次性进程，并且许多第三方应用程序将它们链接到工作流中。正如你所看到的，它们非常容易使用。
 
@@ -336,7 +526,23 @@ Kubernetes 中的 CronJobs 使用非常典型的 cron 表示法进行配置。�
 
 cronjob-1.yaml
 
-[PRE20]
+```
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "0 1 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+           - name: run-job
+             image: node:lts-jessie
+             command: ["node", "job.js"]
+          restartPolicy: OnFailure
+```
 
 这个 CronJob 将在每天凌晨 1 点创建一个与我们之前的 Job 规范相同的 Job。要快速查看 cron 时间表示法，以解释我们凌晨 1 点工作的语法，请继续阅读。要全面了解 cron 表示法，请查看[`man7.org/linux/man-pages/man5/crontab.5.html`](http://man7.org/linux/man-pages/man5/crontab.5.html)。
 
@@ -356,7 +562,24 @@ Cron 表示法由五个值组成，用空格分隔。每个值可以是数字整
 
 cronjob-2.yaml
 
-[PRE21]
+```
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "0 1 * * *"
+  jobTemplate:
+    spec:
+      parallelism: 3
+      template:
+        spec:
+          containers:
+           - name: run-job
+             image: node:lts-jessie
+             command: ["node", "job.js"]
+          restartPolicy: OnFailure
+```
 
 请注意，为了使其工作，你的 CronJob 容器中的代码需要优雅地处理并行性，这可以使用工作队列或其他类似的模式来实现。
 
@@ -384,7 +607,32 @@ Web 层的 YAML 文件可能如下所示：
 
 example-deployment-web.yaml
 
-[PRE22]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webtier-deployment
+  labels:
+    tier: web
+spec:
+  replicas: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 25% 
+  selector:
+    matchLabels:
+      tier: web
+  template:
+    metadata:
+      labels:
+        tier: web
+    spec:
+      containers:
+      - name: reactapp-container
+        image: myreactapp
+```
 
 在前面的 YAML 中，我们使用`tier`标签对我们的应用程序进行标记，并将其用作我们的`matchLabels`选择器。
 
@@ -392,7 +640,32 @@ example-deployment-web.yaml
 
 example-deployment-mid.yaml
 
-[PRE23]
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: midtier-deployment
+  labels:
+    tier: mid
+spec:
+  replicas: 8
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25% 
+  selector:
+    matchLabels:
+      tier: mid
+  template:
+    metadata:
+      labels:
+        tier: mid
+    spec:
+      containers:
+      - name: myjavaapp-container
+        image: myjavaapp
+```
 
 正如您在前面的代码中所看到的，我们的中间层应用程序与 Web 层设置非常相似，并且我们使用了另一个 Deployment。
 
@@ -400,7 +673,35 @@ example-deployment-mid.yaml
 
 example-statefulset.yaml
 
-[PRE24]
+```
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-db
+  labels:
+    tier: db
+spec:
+  serviceName: "postgres"
+  replicas: 2
+  selector:
+    matchLabels:
+      tier: db
+  template:
+    metadata:
+      labels:
+        tier: db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:latest
+        envFrom:
+          - configMapRef:
+              name: postgres-conf
+        volumeMounts:
+        - name: pgdata
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+```
 
 在前面的 YAML 文件中，我们可以看到一些我们尚未审查的新概念 - ConfigMaps 和卷。我们将在*第六章*，*Kubernetes 应用程序配置*和*第七章*，*Kubernetes 上的存储*中更仔细地了解它们的工作原理，但现在让我们专注于规范的其余部分。我们有我们的`postgres`容器以及在默认的 Postgres 端口`5432`上设置的端口。
 
@@ -408,7 +709,36 @@ example-statefulset.yaml
 
 example-daemonset.yaml
 
-[PRE25]
+```
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: kube-system
+  labels:
+    tier: logging
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        tier: logging
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1-debian-papertrail
+        env:
+          - name: FLUENT_PAPERTRAIL_HOST
+            value: "mycompany.papertrailapp.com"
+          - name: FLUENT_PAPERTRAIL_PORT
+            value: "61231"
+          - name: FLUENT_HOSTNAME
+            value: "DEV_CLUSTER"
+```
 
 在这个 DaemonSet 中，我们正在设置 FluentD（一个流行的开源日志收集器）将日志转发到 Papertrail，一个基于云的日志收集器和搜索工具。同样，在这个 YAML 文件中，有一些我们以前没有审查过的内容。例如，`tolerations`部分用于`node-role.kubernetes.io/master`，实际上允许我们的 DaemonSet 将 Pod 放置在主节点上，而不仅仅是工作节点上。我们将在*第八章* *Pod 放置控制*中审查这是如何工作的。
 

@@ -20,7 +20,10 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 在本章中，我们将研究 Docker 守护程序远程 API，并使用`curl`命令（[`curl.haxx.se/docs/manpage.html`](http://curl.haxx.se/docs/manpage.html)）与不同 API 的端点进行通信，这将类似于以下命令：
 
-[PRE0]
+```
+$ curl -X <REQUEST> -H <HEADER> <OPTION> <ENDPOINT>
+
+```
 
 前面的请求将返回一个返回代码和与我们选择的端点和请求相对应的输出。`GET`、`PUT`和`DELETE`是不同类型的请求，如果没有指定，默认请求是 GET。每个 API 端点对于返回代码都有自己的解释。
 
@@ -36,15 +39,24 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 1.  在 Fedora 20 系统上，在配置文件（/etc/sysconfig/docker）中添加`-H tcp://0.0.0.0:2375`选项，如下所示：
 
-[PRE1]
+```
+OPTIONS=--selinux-enabled -H tcp://0.0.0.0:2375
+
+```
 
 1.  重新启动 Docker 服务。在 Fedora 上，运行以下命令：
 
-[PRE2]
+```
+$ sudo systemctl restart docker
+
+```
 
 1.  从远程客户端连接到 Docker 主机：
 
-[PRE3]
+```
+$ docker -H <Docker Host>:2375 info
+
+```
 
 ![如何做…](img/image00367.jpeg)
 
@@ -60,11 +72,17 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 +   Docker CLI 查找环境变量；如果被设置了，那么 CLI 将使用该端点进行连接，例如，如果我们设置如下：
 
-[PRE4]
+```
+$ export DOCKER_HOST=tcp://dockerhost.example.com:2375
+
+```
 
 然后，在该会话中，未来的 docker 命令默认连接到远程 Docker 主机并运行此命令：
 
-[PRE5]
+```
+$ docker info
+
+```
 
 ## 另请参阅
 
@@ -84,55 +102,94 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 1.  要列出图像，请使用以下 API：
 
-[PRE6]
+```
+GET /images/json
+
+```
 
 以下是前述语法的一个例子：
 
-[PRE7]
+```
+$ curl http://dockerhost.example.com:2375/images/json
+
+```
 
 ![如何做…](img/image00368.jpeg)
 
 1.  要创建图像，请使用以下 API：
 
-[PRE8]
+```
+POST /images/create
+
+```
 
 以下是一些示例：
 
 +   从 Docker Hub 获取 Fedora 图像：
 
-[PRE9]
+```
+ $ curl -X POST 
+http://dockerhost.example.com:2375/images/create?fromImage=fedora
+
+```
 
 +   获取带有`latest`标签的 WordPress 图像：
 
-[PRE10]
+```
+ $  curl -X POST 
+http://dockerhost.example.com:2375/images/create?fromImage=wordpress&tag=latest
+
+```
 
 +   从可访问的 Web 服务器上的`tar`文件创建图像：
 
-[PRE11]
+```
+ $ curl -X POST 
+http://dockerhost.example.com:2375/images/create?fromSrc=http://localhost/image.tar
+
+```
 
 1.  要构建图像，请使用以下 API：
 
-[PRE12]
+```
+POST  /commit
+
+```
 
 以下是一些示例：
 
 +   从容器（`container id = 704a7c71f77d`）构建图像
 
-[PRE13]
+```
+ $ curl -X POST 
+http://dockerhost.example.com:2375/commit?container=704a7c71f77d
+
+```
 
 +   从 Docker 文件构建图像：
 
-[PRE14]
+```
+ $  curl -X POST  -H "Content-type:application/tar" --data-binary '@/tmp/Dockerfile.tar.gz'  
+http://dockerhost.example.com:2375/build?t=apache
+
+```
 
 由于 API 期望内容为`tar`文件，我们需要将 Docker 文件放入 tar 中并调用 API。
 
 1.  要删除图像，请使用以下 API：
 
-[PRE15]
+```
+DELETE  /images/<name>
+
+```
 
 以下是前述语法的一个例子：
 
-[PRE16]
+```
+$ curl -X DELETE
+http://dockerhost.example.com:2375/images/wordpress:3.9.1
+
+```
 
 ## 它是如何工作的…
 
@@ -160,65 +217,107 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 1.  要列出容器，请使用以下 API：
 
-[PRE17]
+```
+GET  /containers/json
+
+```
 
 以下是一些示例：
 
 +   获取所有正在运行的容器：
 
-[PRE18]
+```
+ $ curl -X GET http://shadowfax.example.com:2375/containers/json
+
+```
 
 +   获取所有正在运行的容器，包括已停止的容器
 
-[PRE19]
+```
+ $ curl -X GET http://shadowfax.example.com:2375/containers/json?all=True
+
+```
 
 1.  要创建一个新的容器，请使用以下 API：
 
-[PRE20]
+```
+POST  /containers/create
+
+```
 
 以下是一些示例
 
 +   从`fedora`镜像创建一个容器：
 
-[PRE21]
+```
+ $ curl -X POST  -H "Content-type:application/json" -d '{"Image": "fedora", "Cmd": ["ls"] }' http://dockerhost.example.com:2375/containers/create
+
+```
 
 +   从`fedora`镜像创建一个名为`f21`的容器：
 
-[PRE22]
+```
+ $ curl -X POST  -H "Content-type:application/json" -d '{"Image": "fedora", "Cmd": ["ls"] }' http://dockerhost.example.com:2375/containers/create?name=f21
+
+```
 
 1.  要启动一个容器，请使用以下 API：
 
-[PRE23]
+```
+POST /containers/<id>/start
+
+```
 
 例如，启动 ID 为`591ab8ac2650`的容器：
 
-[PRE24]
+```
+$ curl -X POST  -H "Content-type:application/json" -d '{"Dns":  ["4.2.2.1"] }' http://dockerhost.example.com:2375/containers/591ab8ac2650/start
+
+```
 
 请注意，当启动已停止的容器时，我们还传递了 DNS 选项，这将改变容器的 DNS 配置。
 
 1.  要检查一个容器，请使用以下 API：
 
-[PRE25]
+```
+GET  /containers/<id>/json
+
+```
 
 例如，检查 ID 为`591ab8ac2650`的容器：
 
-[PRE26]
+```
+$ curl -X GET http://dockerhost.example.com:2375/containers/591ab8ac2650/json
+
+```
 
 1.  要获取正在容器内运行的进程列表，请使用以下 API：
 
-[PRE27]
+```
+GET /containers/<id>/top
+
+```
 
 例如，获取 ID 为`591ab8ac2650`的容器中正在运行的进程：
 
-[PRE28]
+```
+$ curl -X GET http://dockerhost.example.com:2375/containers/591ab8ac2650/top
+
+```
 
 1.  要停止一个容器，请使用以下 API：
 
-[PRE29]
+```
+POST /containers/<id>/stop
+
+```
 
 例如，停止 ID 为`591ab8ac2650`的容器：
 
-[PRE30]
+```
+$ curl -X POST http://dockerhost.example.com:2375/containers/591ab8ac2650/stop
+
+```
 
 ## 它是如何工作的…
 
@@ -238,15 +337,25 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 +   在 Fedora 上安装`docker-py`：
 
-[PRE31]
+```
+$ sudo yum install python-docker-py
+
+```
 
 或者，使用`pip`来安装该软件包：
 
-[PRE32]
+```
+$ sudo pip install docker-py
+
+```
 
 +   导入模块：
 
-[PRE33]
+```
+$ python
+>>> import docker
+
+```
 
 ## 如何做…
 
@@ -254,25 +363,40 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 1.  通过 Unix 套接字连接：
 
-[PRE34]
+```
+ >>> client = docker.Client(base_url='unix://var/run/docker.sock', version='1.18',  timeout=10)
+
+```
 
 1.  通过 HTTP 连接：
 
-[PRE35]
+```
+ >>> client = docker.Client(base_url='http://dockerhost.example.com:2375', version='1.18',  timeout=10)
+
+```
 
 在这里，`base_url`是要连接的端点，`version`是客户端将使用的 API 版本，`timeout`是以秒为单位的超时值。
 
 1.  使用以下代码搜索图像：
 
-[PRE36]
+```
+>>> client.search ("fedora")
+
+```
 
 1.  使用以下代码拉取图像：
 
-[PRE37]
+```
+>>> client.pull("fedora", tag="latest")
+
+```
 
 1.  使用以下代码启动容器：
 
-[PRE38]
+```
+>>> client.create_container("fedora", command="ls", hostname=None, user=None, detach=False, stdin_open=False, tty=False, mem_limit=0, ports=None, environment=None, dns=None, volumes=None, volumes_from=None,network_disabled=False, name=None, entrypoint=None, cpu_shares=None, working_dir=None,memswap_limit=0)
+
+```
 
 ## 它是如何工作的…
 
@@ -300,53 +424,92 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 1.  在您的主机上创建一个目录，放置我们的 CA 和其他相关文件：
 
-[PRE39]
+```
+$ mkdirc-p /etc/docker
+$ cd  /etc/docker
+
+```
 
 1.  创建 CA 私钥和公钥：
 
-[PRE40]
+```
+$ openssl genrsa -aes256 -out ca-key.pem 2048
+$ openssl req -new -x509 -days 365 -key ca-key.pem -sha256 -out ca.pem
+
+```
 
 ![操作步骤...](img/image00369.jpeg)
 
 1.  现在，让我们创建服务器密钥和证书签名请求。确保`通用名称`与 Docker 守护程序系统的主机名匹配。在我们的情况下，它是`dockerhost.example.com`。
 
-[PRE41]
+```
+$ openssl genrsa -out server-key.pem 2048
+$ openssl req -subj "/CN=dockerhost.example.com" -new -key server-key.pem -out server.csr
+
+```
 
 ![操作步骤...](img/image00370.jpeg)
 
 1.  为了允许来自 127.0.0.1 和特定主机（例如 10.70.1.67）的连接，创建一个扩展配置文件并使用我们的 CA 签署公钥：
 
-[PRE42]
+```
+$ echo subjectAltName = IP:10.70.1.67,IP:127.0.0.1 > extfile.cnf
+$ openssl x509 -req -days 365 -in server.csr -CA ca.pem -CAkey ca-key.pem    -CAcreateserial -out server-cert.pem -extfile extfile.cnf
+
+```
 
 ![操作步骤...](img/image00371.jpeg)
 
 1.  对于客户端认证，创建一个客户端密钥和证书签名请求：
 
-[PRE43]
+```
+$ openssl genrsa -out key.pem 2048
+$ openssl req -subj '/CN=client' -new -key key.pem -out client.csr
+
+```
 
 ![操作步骤...](img/image00372.jpeg)
 
 1.  为了使密钥适用于客户端认证，创建一个扩展配置文件并签署公钥：
 
-[PRE44]
+```
+$ echo extendedKeyUsage = clientAuth > extfile_client.cnf
+$ openssl x509 -req -days 365 -in client.csr -CA ca.pem -CAkey ca-key.pem  -CAcreateserial -out cert.pem -extfile_client.cnf
+
+```
 
 ![操作步骤...](img/image00373.jpeg)
 
 1.  生成`cert.pem`和`server-cert.pem`后，我们可以安全地删除证书签名请求：
 
-[PRE45]
+```
+$ rm -rf client.csr server.csr
+
+```
 
 1.  为了加强安全性并保护密钥免受意外损坏，让我们更改权限：
 
-[PRE46]
+```
+$ chmod -v 0600 ca-key.pem key.pem server-key.pem ca.pem server-cert.pem cert.pem
+
+```
 
 1.  如果守护程序正在`dockerhost.example.com`上运行，请停止它。然后，从`/etc/docker`手动启动 Docker 守护程序：
 
-[PRE47]
+```
+ $ pwd
+ /etc/docker
+ $ docker -d --tlsverify --tlscacert=ca.pem --tlscert=server-cert.pem    --tlskey=server-key.pem   -H=0.0.0.0:2376
+
+```
 
 1.  从另一个终端，转到`/etc/docker`。运行以下命令连接到 Docker 守护程序：
 
-[PRE48]
+```
+$ cd /etc/docker
+$ docker --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem -H=127.0.0.1:2376 version
+
+```
 
 您将看到建立了 TLS 连接，并且可以在其上运行命令。您还可以将 CA 公钥和客户端的 TLS 证书和密钥放在用户的主目录中的`.docker`文件夹中，并使用`DOCKER_HOST`和`DOCKER_TLS_VERIFY`环境变量来默认进行安全连接。
 
@@ -362,6 +525,9 @@ Docker 还提供了用于与 Docker Hub 和 Docker 注册表通信的 API，Dock
 
 +   要设置 Docker 守护程序默认启动 TLS 配置，我们需要更新 Docker 配置文件。例如，在 Fedora 上，您可以在`/etc/sysconfig/docker`中更新`OPTIONS`参数如下：
 
-[PRE49]
+```
+OPTIONS='--selinux-enabled -H tcp://0.0.0.0:2376 --tlsverify     --tlscacert=/etc/docker/ca.pem --tlscert=/etc/docker/server-cert.pem --tlskey=/etc/docker/server-key.pem'
+
+```
 
 +   如果你还记得，在第一章中，*介绍和安装*，我们看到了如何使用 Docker Machine（[`docs.docker.com/machine/`](http://docs.docker.com/machine/)）来设置 Docker 主机，并且在这个设置过程中，TLS 设置发生在运行 Docker 守护程序的主机和客户端之间。在使用 Docker Machine 配置 Docker 主机后，检查客户端系统上的`.docker/machine`用户。

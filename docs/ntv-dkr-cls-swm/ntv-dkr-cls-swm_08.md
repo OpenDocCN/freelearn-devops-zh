@@ -90,11 +90,17 @@ Libnetwork 延续了“电池内置但可拆卸”的原则，这是作为插件
 
 当我们使用覆盖驱动程序创建网络时，如下所示：
 
-[PRE0]
+```
+$ docker network create --driver overlay --subnet 10.9.0.0/24 mh_net
+
+```
 
 命令将与分配器交谈。然后将进行子网保留，例如`10.9.0.0/24`，并在分配后立即在管理主机的内存中同意相关值。之后我们想要创建一个服务。然后我们稍后将该服务连接到网络。当我们创建一个服务时，如下所示：
 
-[PRE1]
+```
+$ docker service create --network mh_net nginx
+
+```
 
 编排器为该服务创建了一些任务（容器）。然后为每个创建的任务分配一个 IP 地址。在此分配过程中，分配将再次起作用。
 
@@ -140,17 +146,60 @@ Libnetwork 延续了“电池内置但可拆卸”的原则，这是作为插件
 
 要开始使用`libkv`，我们首先需要了解如何调用其 API。以下是 Go 中的`libkv Store`接口，适用于每个存储实现：
 
-[PRE2]
+```
+type Store interface {
+Put(key string, value []byte, options *WriteOptions) error
+Get(key string) (*KVPair, error)
+Delete(key string) error
+Exists(key string) (bool, error)
+Watch(key string, stopCh <-chan struct{}) (<-chan *KVPair, error)
+WatchTree(directory string, stopCh <-chan struct{}) (<-chan  
+       []*KVPair, 
+       error)
+NewLock(key string, options *LockOptions) (Locker, error)
+List(directory string) ([]*KVPair, error)
+DeleteTree(directory string) error
+AtomicPut(key string, value []byte, previous *KVPair, options 
+       *WriteOptions) (bool, *KVPair, error)
+AtomicDelete(key string, previous *KVPair) (bool, error)
+Close()
+}
+
+```
 
 我们需要知道如何`Put`，`Get`，`Delete`和`Watch`来基本地与存储进行交互。
 
 确保您的计算机上还安装了 Go 和 Git，并且 Git 可执行文件位于您的 PATH 上。然后，我们需要执行一些 go get 来安装我们程序的依赖项：
 
-[PRE3]
+```
+$ go get github.com/docker/libkv
+$ go get github.com/davecgh/go-spew/spew
+$ go get github.com/hashicorp/consul/api
+
+```
 
 这里我们提供了一个框架。在尝试运行以下程序之前，您需要启动一个单节点的`Consul`：
 
-[PRE4]
+```
+# Delete all keys in Consul
+$ curl -X DELETE http://localhost:8500/v1/kv/?recurse
+# Compile the program
+$ go build main.go
+# Run it
+$ ./main
+# Spew is dumping the result for us in details
+([]*store.KVPair) (len=1 cap=2) {
+(*store.KVPair)(0x10e00de0)({
+Key: (string) (len=27) "docker/nodes/127.0.0.1:2375",
+Value: ([]uint8) (len=14 cap=15) {
+00000000  31 32 37 2e 30 2e 30 2e  31 3a 32 33 37 35        
+      |127.0.0.1:2375|
+},
+LastIndex: (uint64) 736745
+})
+}
+
+```
 
 您还可以使用 curl 测试获取您的值。您放置的值应该在那里。我们应该继续使用`libkv`的 API，即`Get`和`Delete`。这留给读者作为练习。
 

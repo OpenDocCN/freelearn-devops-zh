@@ -244,7 +244,37 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 以下示例演示了如何向 todobackend-aws `stack.yml` CloudFormation 模板添加 CloudWatch 事件规则：
 
-[PRE0]
+```
+...
+...
+Resources:
+  EcsCapacityPermission:
+ Type: AWS::Lambda::Permission
+ Properties:
+ Action: lambda:InvokeFunction
+ FunctionName: !Ref EcsCapacityFunction
+ Principal: events.amazonaws.com
+ SourceArn: !Sub ${EcsCapacityEvents.Arn}
+ EcsCapacityEvents:
+ Type: AWS::Events::Rule
+ Properties:
+ Description: !Sub ${AWS::StackName} ECS Events Rule
+ EventPattern:
+ source:
+ - aws.ecs
+ detail-type:
+ - ECS Container Instance State Change
+ detail:
+ clusterArn:
+ - !Sub ${ApplicationCluster.Arn}
+ Targets:
+ - Arn: !Sub ${EcsCapacityFunction.Arn}
+ Id: !Sub ${AWS::StackName}-ecs-events
+  LifecycleHook:
+    Type: AWS::AutoScaling::LifecycleHook
+...
+...
+```
 
 `EcsCapacityEvents` 资源定义了事件规则，并包括两个关键属性：
 
@@ -256,19 +286,101 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 现在，让我们添加引用的 Lambda 函数，以及一个 IAM 角色和 CloudWatch 日志组：
 
-[PRE1]
+```
+...
+...
+Resources:
+  EcsCapacityRole:
+ Type: AWS::IAM::Role
+ Properties:
+ AssumeRolePolicyDocument:
+ Version: "2012-10-17"
+ Statement:
+ - Action:
+ - sts:AssumeRole
+ Effect: Allow
+ Principal:
+ Service: lambda.amazonaws.com
+ Policies:
+ - PolicyName: EcsCapacityPermissions
+ PolicyDocument:
+ Version: "2012-10-17"
+ Statement:
+ - Sid: ManageLambdaLogs
+ Effect: Allow
+ Action:
+ - logs:CreateLogStream
+ - logs:PutLogEvents
+ Resource: !Sub ${EcsCapacityLogGroup.Arn}
+ EcsCapacityFunction:
+ Type: AWS::Lambda::Function
+ DependsOn:
+ - EcsCapacityLogGroup
+ Properties:
+ Role: !Sub ${EcsCapacityRole.Arn}
+ FunctionName: !Sub ${AWS::StackName}-ecsCapacity
+ Description: !Sub ${AWS::StackName} ECS Capacity Manager
+ Code:
+ ZipFile: |
+ import json
+ def handler(event, context):
+ print("Received event %s" % json.dumps(event))
+ Runtime: python3.6
+ MemorySize: 128
+ Timeout: 300
+ Handler: index.handler
+  EcsCapacityLogGroup:
+ Type: AWS::Logs::LogGroup
+ DeletionPolicy: Delete
+ Properties:
+ LogGroupName: !Sub /aws/lambda/${AWS::StackName}-ecsCapacity
+ RetentionInDays: 7
+  EcsCapacityPermission:
+    Type: AWS::Lambda::Permission
+...
+...
+```
 
 到目前为止，你应该已经对如何使用 CloudFormation 定义 Lambda 函数有了很好的理解，所以我不会深入描述前面的例子。但是请注意，目前我已经实现了一个基本的函数，它只是简单地打印出接收到的任何事件——我们将使用这个函数来初步了解 ECS 容器实例状态更改事件的结构。
 
 此时，你现在可以使用 `aws cloudformation deploy` 命令部署你的更改：
 
-[PRE2]
+```
+> export AWS_PROFILE=docker-in-aws
+> aws cloudformation deploy --template-file stack.yml \
+ --stack-name todobackend --parameter-overrides $(cat dev.cfg) \
+ --capabilities CAPABILITY_NAMED_IAM
+Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga:
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+Successfully created/updated stack - todobackend
+```
 
 部署完成后，你可以通过停止运行在 ECS 集群上的现有 ECS 任务来触发 ECS 容器实例状态更改：
 
-[PRE3]
+```
+> aws ecs list-tasks --cluster todobackend-cluster
+{
+    "taskArns": [
+        "arn:aws:ecs:us-east-1:385605022855:task/5754a076-6f5c-47f1-8e73-c7b229315e31"
+    ]
+}
+> aws ecs stop-task --cluster todobackend-cluster --task 5754a076-6f5c-47f1-8e73-c7b229315e31
+```
 
-[PRE4]
+```
+{
+    "task": {
+        ...
+        ...
+        "lastStatus": "RUNNING",
+        "desiredStatus": "STOPPED",
+        ...
+        ...
+    }
+}
+```
 
 由于这个 ECS 任务与 ECS 服务相关联，ECS 将自动启动一个新的 ECS 任务，如果你前往 CloudWatch 控制台，选择日志，然后打开用于处理 ECS 容器实例状态更改事件的 Lambda 函数的日志组的最新日志流(`/aws/lambda/todobackend-ecsCapacity`)，你应该会看到一些事件已被记录：
 
@@ -278,7 +390,44 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 您可以看到`source`和`detail-type`属性与您之前配置的事件模式匹配，如果您在第二个事件中继续向下滚动，您应该会找到一个名为`registeredResources`和`remainingResources`的属性，如下例所示：
 
-[PRE5]
+```
+{
+  ...
+  ...
+  "clusterArn":  "arn:aws:ecs:us-east-1:385605022855:cluster/todobackend-cluster",      
+  "containerInstanceArn":  "arn:aws:ecs:us-east-1:385605022855:container-instance/d27868d6-79fd-4858-bec6-65720855e0b3",
+ "ec2InstanceId":  "i-0d9bd79d19a843216",
+  "registeredResources": [             
+    { "name":  "CPU", "type":  "INTEGER", "integerValue":  1024 },
+    {       "name":  "MEMORY",                 
+       "type":  "INTEGER",                 
+       "integerValue":  993 },
+    { "name":  "PORTS",                 
+       "type":  "STRINGSET",                 
+       "stringSetValue": ["22","2376","2375","51678","51679"]
+    }
+  ],
+  "remainingResources": [ 
+    { 
+      "name": "CPU", 
+      "type": "INTEGER", 
+      "integerValue": 774 
+    },
+    { 
+       "name": "MEMORY", 
+       "type": "INTEGER", 
+       "integerValue": 593 
+    },
+    {
+       "name": "PORTS", 
+       "type": "STRINGSET", 
+       "stringSetValue": ["22","2376","2375","51678","51679"]
+    }
+  ],
+  ...
+  ...
+}
+```
 
 `registeredResources`属性定义了分配给实例的总资源，而`remainingResources`指示每个资源的当前剩余数量。因为在前面的示例中，当 ECS 为 todobackend 服务启动新的 ECS 任务时会引发事件，因此从`registeredResources`中扣除了分配给此任务的总 250 个 CPU 单位和 400 MB 内存，然后反映在`remainingResources`属性中。还要注意在示例 12-6 的输出顶部，事件包括其他有用的信息，例如 ECS 集群 ARN 和 ECS 容器实例 ARN 值（由`clusterArn`和`containerInstanceArn`属性指定）。
 
@@ -286,7 +435,95 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 现在，您已经设置了一个 CloudWatch 事件和 Lambda 函数，每当检测到 ECS 容器实例状态变化时就会被调用，您现在可以在 Lambda 函数中实现所需的应用程序代码，以执行适当的 ECS 集群容量计算。
 
-[PRE6]
+```
+...
+...
+Resources:
+  ...
+  ...
+  EcsCapacityFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - EcsCapacityLogGroup
+    Properties:
+      Role: !Sub ${EcsCapacityRole.Arn}
+      FunctionName: !Sub ${AWS::StackName}-ecsCapacity
+      Description: !Sub ${AWS::StackName} ECS Capacity Manager
+      Code:
+ ZipFile: |
+ import json
+          import boto3
+          ecs = boto3.client('ecs')
+          # Max memory and CPU - you would typically inject these as environment variables
+          CONTAINER_MAX_MEMORY = 400
+          CONTAINER_MAX_CPU = 250
+
+          # Get current CPU
+          def check_cpu(instance):
+            return sum(
+              resource['integerValue']
+              for resource in instance['remainingResources']
+              if resource['name'] == 'CPU'
+            )
+          # Get current memory
+          def check_memory(instance):
+            return sum(
+              resource['integerValue']
+              for resource in instance['remainingResources']
+              if resource['name'] == 'MEMORY'
+            )
+          # Lambda entrypoint
+          def handler(event, context):
+            print("Received event %s" % json.dumps(event))
+
+            # STEP 1 - COLLECT RESOURCE DATA
+            cluster = event['detail']['clusterArn']
+            # The maximum CPU availble for an idle ECS instance
+            instance_max_cpu = next(
+              resource['integerValue']
+              for resource in event['detail']['registeredResources']
+              if resource['name'] == 'CPU')
+            # The maximum memory availble for an idle ECS instance
+            instance_max_memory = next(
+              resource['integerValue']
+              for resource in event['detail']['registeredResources']
+              if resource['name'] == 'MEMORY')
+            # Get current container capacity based upon CPU and memory
+            instance_arns = ecs.list_container_instances(
+              cluster=cluster
+            )['containerInstanceArns']
+            instances = [
+              instance for instance in ecs.describe_container_instances(
+                cluster=cluster,
+                containerInstances=instance_arns
+              )['containerInstances']
+              if instance['status'] == 'ACTIVE'
+            ]
+            cpu_capacity = 0
+            memory_capacity = 0
+            for instance in instances:
+              cpu_capacity += int(check_cpu(instance)/CONTAINER_MAX_CPU)
+              memory_capacity += int(check_memory(instance)/CONTAINER_MAX_MEMORY)
+            print("Current container cpu capacity of %s" % cpu_capacity)
+            print("Current container memory capacity of %s" % memory_capacity)
+
+            # STEP 2 - CALCULATE OVERALL CONTAINER CAPACITY
+            container_capacity = min(cpu_capacity, memory_capacity)
+            print("Overall container capacity of %s" % container_capacity)
+
+            # STEP 3 - CALCULATE IDLE HOST COUNT
+            idle_hosts = min(
+              cpu_capacity / int(instance_max_cpu / CONTAINER_MAX_CPU),
+              memory_capacity / int(instance_max_memory / CONTAINER_MAX_MEMORY)
+            )
+            print("Overall idle host capacity of %s" % idle_hosts)
+      Runtime: python3.6
+      MemorySize: 128
+      Timeout: 300
+      Handler: index.handler
+...
+...
+```
 
 在前面的示例中，您首先定义了 ECS 任务的最大 CPU 和最大内存，这是进行各种集群容量计算所必需的，我们使用当前配置的 CPU 和内存设置来支持 todobackend 服务，因为这是我们集群上唯一支持的应用程序。在`handler`函数中，第一步是使用接收到的 CloudWatch 事件收集当前的资源容量数据。该事件包括有关 ECS 容器实例在`registeredResources`属性中的最大容量的详细信息，还包括实例所属的 ECS 集群。该函数首先列出集群中的所有实例，然后使用 ECS 客户端上的`describe_container_instances`调用加载每个实例的详细信息。
 
@@ -302,7 +539,50 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 关于前面示例中的代码需要注意的一点是，它需要能够调用 ECS 服务并执行`ListContainerInstances`和`DescribeContainerInstances` API 调用的能力。这意味着您需要向 Lambda 函数 IAM 角色添加适当的 IAM 权限，如下例所示：
 
-[PRE7]
+```
+...
+...
+Resources:
+  ...
+  ...
+  EcsCapacityRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        - PolicyName: EcsCapacityPermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ListContainerInstances
+ Effect: Allow
+ Action:
+ - ecs:ListContainerInstances
+ Resource: !Sub ${ApplicationCluster.Arn}
+ - Sid: DescribeContainerInstances
+ Effect: Allow
+ Action:
+ - ecs:DescribeContainerInstances
+ Resource: "*"
+ Condition:
+ ArnEquals:
+ ecs:cluster: !Sub ${ApplicationCluster.Arn}
+              - Sid: ManageLambdaLogs
+                Effect: Allow
+                Action:
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+                Resource: !Sub ${EcsCapacityLogGroup.Arn}
+  ...
+  ...
+```
 
 # 测试集群容量计算
 
@@ -332,13 +612,122 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 此时，我们正在计算确定何时需要扩展或缩小集群的适当指标，并且函数中需要执行的最终任务是发布自定义 CloudWatch 事件指标，我们可以使用这些指标来触发自动扩展策略：
 
-[PRE8]
+```
+...
+...
+Resources:
+  ...
+  ...
+  EcsCapacityFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - EcsCapacityLogGroup
+    Properties:
+      Role: !Sub ${EcsCapacityRole.Arn}
+      FunctionName: !Sub ${AWS::StackName}-ecsCapacity
+      Description: !Sub ${AWS::StackName} ECS Capacity Manager
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import datetime
+          ecs = boto3.client('ecs') cloudwatch = boto3.client('cloudwatch') # Max memory and CPU - you would typically inject these as environment variables
+          CONTAINER_MAX_MEMORY = 400
+          CONTAINER_MAX_CPU = 250          ...
+          ...
+          # Lambda entrypoint
+          def handler(event, context):
+            print("Received event %s" % json.dumps(event))            ...
+            ...# STEP 3 - CALCULATE IDLE HOST COUNT            idle_hosts = min(
+              cpu_capacity / int(instance_max_cpu / CONTAINER_MAX_CPU),
+              memory_capacity / int(instance_max_memory / CONTAINER_MAX_MEMORY)
+            )
+            print("Overall idle host capacity of %s" % idle_hosts)
+
+ # STEP 4 - PUBLISH CLOUDWATCH METRICS
+ cloudwatch.put_metric_data(
+ Namespace='AWS/ECS',
+ MetricData=[
+              {
+                'MetricName': 'ContainerCapacity',
+                'Dimensions': [{
+                  'Name': 'ClusterName',
+                  'Value': cluster.split('/')[-1]
+                }],
+                'Timestamp': datetime.datetime.utcnow(),
+                'Value': container_capacity
+              }, 
+              {
+ 'MetricName': 'IdleHostCapacity',
+ 'Dimensions': [{
+ 'Name': 'ClusterName',
+ 'Value': cluster.split('/')[-1]
+ }],
+ 'Timestamp': datetime.datetime.utcnow(),
+ 'Value': idle_hosts
+ }
+            ])
+      Runtime: python3.6
+      MemorySize: 128
+      Timeout: 300
+      Handler: index.handler
+...
+...
+```
 
 在前面的示例中，您使用 CloudWatch 客户端的`put_metric_data`函数来发布 AWS/ECS 命名空间中的`ContainerCapacity`和`IdleHostCapacity`自定义指标。这些指标基于 ECS 集群进行维度化，由 ClusterName 维度名称指定，并且仅限于 todobackend ECS 集群。
 
 确保 Lambda 函数正确运行的最后一个配置任务是授予函数权限以发布 CloudWatch 指标。这可以通过在先前示例中创建的`EcsCapacityRole`中添加适当的 IAM 权限来实现：
 
-[PRE9]
+```
+...
+...
+Resources:
+  ...
+  ...
+  EcsCapacityRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        - PolicyName: EcsCapacityPermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: PublishCloudwatchMetrics
+ Effect: Allow
+ Action:
+ - cloudwatch:putMetricData
+ Resource: "*"
+              - Sid: ListContainerInstances
+                Effect: Allow
+                Action:
+                  - ecs:ListContainerInstances
+                Resource: !Sub ${ApplicationCluster.Arn}
+              - Sid: DescribeContainerInstances
+                Effect: Allow
+                Action:
+                  - ecs:DescribeContainerInstances
+                Resource: "*"
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !Sub ${ApplicationCluster.Arn}
+              - Sid: ManageLambdaLogs
+                Effect: Allow
+                Action:
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+                Resource: !Sub ${EcsCapacityLogGroup.Arn}
+  ...
+  ...
+```
 
 如果您现在使用`aws cloudformation deploy`命令部署更改，然后停止运行的 ECS 任务，在切换到 CloudWatch 控制台后，您应该能够看到与您的 ECS 集群相关的新指标被发布。如果您从左侧菜单中选择**指标**，然后在**所有指标**下选择**ECS > ClusterName**，您应该能够看到您的自定义指标（`ContainerCapacity`和`IdleHostCapacity`）。以下截图显示了这些指标基于一分钟内收集的最大值进行绘制。在图表的 12:49 处，您可以看到当您停止 ECS 任务时，`ContainerCapacity`和`IdleHostCapacity`指标都增加了，然后一旦 ECS 启动了新的 ECS 任务，这两个指标的值都减少了，因为新的 ECS 任务从您的集群中分配了资源：
 
@@ -350,7 +739,49 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 以下代码演示了向 todobackend 堆栈添加两个 CloudWatch 警报：
 
-[PRE10]
+```
+...
+...
+Resources:
+  ...
+  ...
+ ContainerCapacityAlarm:
+ Type: AWS::CloudWatch::Alarm
+ Properties:
+ AlarmDescription: ECS Cluster Container Free Capacity
+ AlarmActions:
+        - !Ref ApplicationAutoscalingScaleOutPolicy
+ Namespace: AWS/ECS
+ Dimensions:
+ - Name: ClusterName
+ Value: !Ref ApplicationCluster
+ MetricName: ContainerCapacity
+ Statistic: Minimum
+ Period: 60
+ EvaluationPeriods: 1
+ Threshold: 1
+ ComparisonOperator: LessThanThreshold
+ TreatMissingData: ignore
+ IdleHostCapacityAlarm:
+ Type: AWS::CloudWatch::Alarm
+ Properties:
+ AlarmDescription: ECS Cluster Container Free Capacity
+ AlarmActions:
+        - !Ref ApplicationAutoscalingScaleInPolicy
+ Namespace: AWS/ECS
+ Dimensions:
+ - Name: ClusterName
+ Value: !Ref ApplicationCluster
+ MetricName: IdleHostCapacity
+ Statistic: Maximum
+ Period: 60
+ EvaluationPeriods: 1
+ Threshold: 1
+ ComparisonOperator: GreaterThanThreshold
+ TreatMissingData: ignore
+  ...
+  ...
+```
 
 在前面的示例中，您添加了两个 CloudWatch 警报-一个`ContainerCapacityAlarm`，每当容器容量低于 1 时将用于触发扩展操作，以及一个`IdleHostCapacityAlarm`，每当空闲主机容量大于 1 时将用于触发缩减操作。每个警报的各种属性在此处有进一步的描述：
 
@@ -374,7 +805,61 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 以下示例演示了向 todobackend 堆栈添加扩展和缩减策略：
 
-[PRE11]
+```
+...
+...
+Resources:
+  ...
+  ...
+ ApplicationAutoscalingScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      ScalingAdjustment: 1
+      AutoScalingGroupName: !Ref ApplicationAutoscaling
+      Cooldown: 600
+  ApplicationAutoscalingScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      ScalingAdjustment: -1
+      AutoScalingGroupName: !Ref ApplicationAutoscaling
+      Cooldown: 600
+  ...
+  ...
+  ApplicationAutoscaling:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - DmesgLogGroup
+      - MessagesLogGroup
+      - DockerLogGroup
+      - EcsInitLogGroup
+      - EcsAgentLogGroup
+    CreationPolicy:
+      ResourceSignal:
+ Count: 1
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        SuspendProcesses:
+ - HealthCheck
+ - ReplaceUnhealthy
+ - AZRebalance
+ - AlarmNotification
+ - ScheduledActions        MinInstancesInService: 1
+        MinSuccessfulInstancesPercent: 100
+        WaitOnResourceSignals: "true"
+        PauseTime: PT15M
+    Properties:
+      LaunchConfigurationName: !Ref ApplicationAutoscalingLaunchConfiguration
+      MinSize: 0
+      MaxSize: 4
+ DesiredCapacity: 1        ...
+        ...
+
+```
 
 在上面的示例中，您定义了两种`SimpleScaling`类型的自动扩展策略，它代表了您可以实现的最简单的自动扩展形式。各种自动扩展类型的讨论超出了本书的范围，但如果您对了解更多可用选项感兴趣，可以参考[`docs.aws.amazon.com/autoscaling/ec2/userguide/as-scale-based-on-demand.html`](https://docs.aws.amazon.com/autoscaling/ec2/userguide/as-scale-based-on-demand.html)。`AdjustmentType`和`ScalingAdjustment`属性配置为增加或减少自动扩展组的一个实例的大小，而`Cooldown`属性提供了一种机制，以确保在指定的持续时间内禁用进一步的自动扩展操作，这可以帮助避免集群频繁地扩展和缩减。
 
@@ -388,7 +873,13 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 人为触发扩展操作，我们需要在`dev.cfg`配置文件中将`ApplicationDesiredCount`输入参数设置为 2，这将增加我们的 ECS 服务的 ECS 任务计数为 2，并导致 ECS 集群中的单个 ECS 容器实例不再具有足够的资源来支持任何进一步的附加容器：
 
-[PRE12]
+```
+ApplicationDesiredCount=2
+ApplicationImageId=ami-ec957491
+ApplicationImageTag=5fdbe62
+ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
+VpcId=vpc-f8233a80
+```
 
 此配置更改应导致`ContainerCapacity`指标下降到配置的警报阈值`1`以下，我们可以通过运行`aws cloudformation deploy`命令将更改部署到 CloudFormation 来进行测试。
 
@@ -412,7 +903,13 @@ CPU 和内存是您期望您的 ECS 集群控制和管理的典型和明显的�
 
 现在您已经成功测试了 ECS 集群容量管理解决方案的扩展行为，让我们现在通过在`dev.cfg`文件中将`ApplicationDesiredCount`减少到 1，并运行`aws cloudformation deploy`命令来部署修改后的计数，人为地触发缩减行为：
 
-[PRE13]
+```
+ApplicationDesiredCount=1
+ApplicationImageId=ami-ec957491
+ApplicationImageTag=5fdbe62
+ApplicationSubnets=subnet-a5d3ecee,subnet-324e246f
+VpcId=vpc-f8233a80
+```
 
 一旦这个改变被部署，您应该在 CloudWatch 控制台上看到空闲主机容量警报在几分钟后变为 ALARM 状态：
 
@@ -440,7 +937,49 @@ AWS 应用自动扩展比 EC2 自动扩展更复杂，至少需要几个组件�
 
 让我们首先通过在`stack.yml`模板中添加一个 CloudWatch 警报来触发应用程序自动扩展：
 
-[PRE14]
+```
+...
+...
+Resources:
+  ApplicationServiceLowCpuAlarm:
+ Type: AWS::CloudWatch::Alarm
+ Properties:
+ AlarmActions:
+ - !Ref ApplicationServiceAutoscalingScaleInPolicy
+ AlarmDescription: Todobackend Service Low CPU 
+ Namespace: AWS/ECS
+ Dimensions:
+ - Name: ClusterName
+ Value: !Ref ApplicationCluster
+ - Name: ServiceName
+ Value: !Sub ${ApplicationService.Name}
+ MetricName: CPUUtilization
+ Statistic: Average
+ Period: 60
+ EvaluationPeriods: 3
+ Threshold: 20
+ ComparisonOperator: LessThanThreshold
+ ApplicationServiceHighCpuAlarm:
+ Type: AWS::CloudWatch::Alarm
+ Properties:
+ AlarmActions:
+ - !Ref ApplicationServiceAutoscalingScaleOutPolicy
+ AlarmDescription: Todobackend Service High CPU 
+ Namespace: AWS/ECS
+ Dimensions:
+ - Name: ClusterName
+ Value: !Ref ApplicationCluster
+ - Name: ServiceName
+ Value: !Sub ${ApplicationService.Name}
+ MetricName: CPUUtilization
+ Statistic: Average
+ Period: 60
+ EvaluationPeriods: 3
+ Threshold: 40
+ ComparisonOperator: GreaterThanThreshold
+  ...
+  ...
+```
 
 在前面的示例中，为低 CPU 和高 CPU 条件创建了警报，并将其维度设置为运行在 todobackend ECS 集群上的 todobackend ECS 服务。当 ECS 服务的平均 CPU 利用率在 3 分钟（3 x 60 秒）的时间内大于 40%时，将触发高 CPU 警报，当平均 CPU 利用率在 3 分钟内低于 20%时，将触发低 CPU 警报。在每种情况下，都配置了警报操作，引用了我们即将创建的扩展和缩小策略资源。
 
@@ -448,7 +987,22 @@ AWS 应用自动扩展比 EC2 自动扩展更复杂，至少需要几个组件�
 
 AWS 应用自动缩放要求您定义自动缩放目标，这是您需要扩展或缩小的资源。对于 ECS 的用例，这被定义为 ECS 服务，如前面的示例所示：
 
-[PRE15]
+```
+...
+...
+Resources:
+ ApplicationServiceAutoscalingTarget:
+ Type: AWS::ApplicationAutoScaling::ScalableTarget
+ Properties:
+ ServiceNamespace: ecs
+ ResourceId: !Sub service/${ApplicationCluster}/${ApplicationService.Name}
+ ScalableDimension: ecs:service:DesiredCount
+ MinCapacity: 1
+ MaxCapacity: 4
+ RoleARN: !Sub ${ApplicationServiceAutoscalingRole.Arn}
+  ...
+  ...
+```
 
 在前面的示例中，您为自动缩放目标定义了以下属性：
 
@@ -468,7 +1022,41 @@ AWS 应用自动缩放要求您定义自动缩放目标，这是您需要扩展�
 
 在应用自动缩放目标的资源定义中，您引用了应用自动缩放服务将扮演的 IAM 角色。以下示例定义了此 IAM 角色以及应用自动缩放服务所需的权限：
 
-[PRE16]
+```
+...
+...
+Resources:
+  ApplicationServiceAutoscalingRole:
+ Type: AWS::IAM::Role
+ Properties:
+ AssumeRolePolicyDocument:
+ Version: "2012-10-17"
+ Statement:
+ - Action:
+ - sts:AssumeRole
+ Effect: Allow
+ Principal:
+ Service: application-autoscaling.amazonaws.com
+ Policies:
+ - PolicyName: AutoscalingPermissions
+ PolicyDocument:
+ Version: "2012-10-17"
+ Statement:
+ - Effect: Allow
+ Action:
+ - application-autoscaling:DescribeScalableTargets
+ - application-autoscaling:DescribeScalingActivities
+ - application-autoscaling:DescribeScalingPolicies
+ - cloudwatch:DescribeAlarms
+ - cloudwatch:PutMetricAlarm
+ - ecs:DescribeServices
+ - ecs:UpdateService
+ Resource: "*"
+  ApplicationServiceAutoscalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+  ...
+  ...
+```
 
 您可以看到应用自动缩放服务需要与应用自动缩放服务本身关联的一些读取权限，以及管理 CloudWatch 警报的能力，并且必须能够更新 ECS 服务以管理 ECS 服务的期望计数。请注意，您必须在 `AssumeRolePolicyDocument` 部分中将主体指定为 `application-autoscaling.amazonaws.com`，这允许应用自动缩放服务扮演该角色。
 
@@ -476,9 +1064,44 @@ AWS 应用自动缩放要求您定义自动缩放目标，这是您需要扩展�
 
 配置应用自动缩放时的最后一个任务是添加扩展和缩小策略：
 
-[PRE17]
+```
+...
+...
+Resources:
+  ApplicationServiceAutoscalingScaleInPolicy:
+ Type: AWS::ApplicationAutoScaling::ScalingPolicy
+ Properties:
+ PolicyName: ScaleIn
+ PolicyType: StepScaling
+ ScalingTargetId: !Ref ApplicationServiceAutoscalingTarget
+ StepScalingPolicyConfiguration:
+ AdjustmentType: ChangeInCapacity
+ Cooldown: 360
+ MetricAggregationType: Average
+ StepAdjustments:
+ - ScalingAdjustment: -1
+ MetricIntervalUpperBound: 0
+ ApplicationServiceAutoscalingScaleOutPolicy:
+Type: AWS::ApplicationAutoScaling::ScalingPolicy
+ Properties:
+ PolicyName: ScaleOut
+ PolicyType: StepScaling
+ ScalingTargetId: !Ref ApplicationServiceAutoscalingTarget
+ StepScalingPolicyConfiguration:
+ AdjustmentType: ChangeInCapacity
+ Cooldown: 360
+ MetricAggregationType: Average
+ StepAdjustments:
+ - ScalingAdjustment: 1
+ MetricIntervalLowerBound: 0
+```
 
-[PRE18]
+```
+ApplicationServiceAutoscalingRole:
+    Type: AWS::IAM::Role
+  ...
+  ...
+```
 
 在这里，您定义了扩展和缩小策略，确保资源名称与您之前引用的那些匹配，当您配置用于触发策略的 CloudWatch 警报时。`PolicyType`参数指定您正在配置 Step-Scaling 策略，它们的工作方式类似于您之前定义的 EC2 自动缩放策略，并允许您以增量步骤进行缩放。其余属性都相当容易理解，尽管`StepAdjustments`属性确实需要进一步描述。
 

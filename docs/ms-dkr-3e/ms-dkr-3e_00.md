@@ -68,11 +68,23 @@ Docker 在现代应用程序部署和架构方面是一个改变游戏规则的�
 
 代码块设置如下：
 
-[PRE0]
+```
+user nginx;
+worker_processes 1;
+
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+```
 
 任何命令行输入或输出都将按以下方式编写：
 
-[PRE1]
+```
+$ docker image inspect <IMAGE_ID>
+```
 
 粗体：表示新术语、重要单词或屏幕上看到的单词。例如，菜单或对话框中的单词会以这种方式出现在文本中。这是一个例子：“单击“创建”后，您将被带到类似下一个屏幕截图的屏幕。”
 

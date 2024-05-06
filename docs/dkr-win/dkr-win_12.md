@@ -30,19 +30,42 @@ Docker 平台在 Linux 和 Windows 之间几乎具有功能上的平等，但 Wi
 
 所有 Windows 进程都由用户帐户启动和拥有。用户帐户的权限决定了进程是否可以访问文件和其他资源，以及它们是否可用于修改或仅用于查看。在 Windows Server Core 的 Docker 基础映像中，有一个名为**容器管理员**的默认用户帐户。您在容器中从该映像启动的任何进程都将使用该用户帐户-您可以运行`whoami`工具，它只会输出当前用户名：
 
-[PRE0]
+```
+> docker container run mcr.microsoft.com/windows/servercore:ltsc2019 whoami
+user manager\containeradministrator
+```
 
 您可以通过启动 PowerShell 来运行交互式容器，并找到容器管理员帐户的用户 ID（SID）：
 
-[PRE1]
+```
+> docker container run -it --rm mcr.microsoft.com/windows/servercore:ltsc2019 powershell
+
+> $user = New-Object System.Security.Principal.NTAccount("containeradministrator"); `
+ $sid = $user.Translate([System.Security.Principal.SecurityIdentifier]); `
+ $sid.Value
+S-1-5-93-2-1
+```
 
 您会发现容器用户的 SID 始终相同，即`S-1-5-93-2-1`，因为该帐户是 Windows 映像的一部分。由于这个原因，它在每个容器中都具有相同的属性。容器进程实际上是在主机上运行的，但主机上没有**容器管理员**用户。实际上，如果您查看主机上的容器进程，您会看到用户名的空白条目。我将在后台容器中启动一个长时间运行的`ping`进程，并检查容器内的**进程 ID**（PID）：
 
-[PRE2]
+```
+> docker container run -d --name pinger mcr.microsoft.com/windows/servercore:ltsc2019 ping -t localhost
+f8060e0f95ba0f56224f1777973e9a66fc2ccb1b1ba5073ba1918b854491ee5b
+
+> docker container exec pinger powershell Get-Process ping -IncludeUserName
+Handles      WS(K)   CPU(s)     Id UserName               ProcessName
+-------      -----   ------     -- --------               -----------
+     86       3632     0.02   7704 User Manager\Contai... PING
+```
 
 这是在 Windows Server 2019 上运行的 Docker 中的 Windows Server 容器，因此`ping`进程直接在主机上运行，容器内的 PID 将与主机上的 PID 匹配。在服务器上，我可以检查相同 PID 的详细信息，本例中为`7704`：
 
-[PRE3]
+```
+> Get-Process -Id 7704 -IncludeUserName
+Handles      WS(K)   CPU(s)     Id UserName               ProcessName
+-------      -----   ------     -- --------               -----------
+     86       3624     0.03   7704                        PING
+```
 
 由于容器用户在主机上没有映射任何用户，所以没有用户名。实际上，主机进程是在匿名用户下运行的，并且它在主机上没有权限，它只有在一个容器的沙盒环境中配置的权限。如果发现了允许攻击者打破容器的 Windows Server 漏洞，他们将以无法访问主机资源的主机进程运行。
 
@@ -56,7 +79,10 @@ Docker 平台在 Linux 和 Windows 之间几乎具有功能上的平等，但 Wi
 
 您可以通过以最低特权用户帐户运行容器进程来减轻这种情况。Nano Server 映像使用了这种方法 - 它们设置了一个容器管理员用户，但容器进程的默认帐户是一个没有管理员权限的用户。您可以通过在 Nano Server 容器中回显用户名来查看这一点：
 
-[PRE4]
+```
+> docker container run mcr.microsoft.com/windows/nanoserver:1809 cmd /C echo %USERDOMAIN%\%USERNAME%
+User Manager\ContainerUser
+```
 
 Nano Server 镜像没有`whoami`命令，甚至没有安装 PowerShell。它只设置了运行新应用程序所需的最低限度。这是容器安全性的另一个方面。如果`whoami`命令中存在漏洞，那么您的容器应用程序可能会受到威胁，因此 Microsoft 根本不打包该命令。这是有道理的，因为您不会在生产应用程序中使用它。在 Windows Server Core 中仍然存在它，以保持向后兼容性。
 
@@ -66,7 +92,13 @@ Nano Server 镜像没有`whoami`命令，甚至没有安装 PowerShell。它只�
 
 在某些情况下，Web 应用程序需要写入访问权限以保存状态，但可以在 Dockerfile 中以非常细的级别授予。例如，开源**内容管理系统**（**CMS**）Umbraco 可以打包为 Docker 镜像，但 IIS 用户组需要对内容文件夹进行写入权限。您可以使用`RUN`指令设置 ACL 权限，而不是更改 Dockerfile 以将服务作为管理帐户运行。
 
-[PRE5]
+```
+RUN $acl = Get-Acl $env:UMBRACO_ROOT; `
+ $newOwner = System.Security.Principal.NTAccount; `
+ $acl.SetOwner($newOwner); `
+ Set-Acl -Path $env:UMBRACO_ROOT -AclObject $acl; `
+ Get-ChildItem -Path $env:UMBRACO_ROOT -Recurse | Set-Acl -AclObject $acl
+```
 
 我不会在这里详细介绍 Umbraco，但它在容器中运行得非常好。您可以在我的 GitHub 存储库[`github.com/sixeyed/dockerfiles-windows`](https://github.com/sixeyed/dockerfiles-windows)中找到 Umbraco 和许多其他开源软件的示例 Dockerfile。
 
@@ -80,27 +112,54 @@ Docker 有机制来防止单个容器使用过多的资源。您可以启动带�
 
 我有一个简单的.NET 控制台应用程序和一个 Dockerfile，可以将其打包到`ch09-resource-check`文件夹中。该应用程序被设计为占用计算资源，我可以在容器中运行它，以展示 Docker 如何限制恶意应用程序的影响。我可以使用该应用程序成功分配 600MB 的内存，如下所示：
 
-[PRE6]
+```
+> docker container run dockeronwindows/ch09-resource-check:2e /r Memory /p 600
+I allocated 600MB of memory, and now I'm done.
+```
 
 控制台应用程序在容器中分配了 600MB 的内存，实际上是在 Windows Server 容器中从服务器中分配了 600MB 的内存。我在没有任何约束的情况下运行了容器，因此该应用程序可以使用服务器拥有的所有内存。如果我使用`docker container run`命令中的`--memory`限制将容器限制为 500MB 的内存，那么该应用程序将无法分配 600MB：
 
-[PRE7]
+```
+> docker container run --memory 500M dockeronwindows/ch09-resource-check:2e /r Memory /p 600 
+Unhandled Exception: OutOfMemoryException.
+```
 
 示例应用程序也可以占用 CPU。它计算 Pi 的小数点位数，这是一个计算成本高昂的操作。在不受限制的容器中，计算 Pi 到 20000 位小数只需要在我的四核开发笔记本上不到一秒钟：
 
-[PRE8]
+```
+> docker container run dockeronwindows/ch09-resource-check:2e /r Cpu /p 20000
+I calculated Pi to 20000 decimal places in 924ms. The last digit is 8.
+```
 
 我可以通过在`run`命令中指定`--cpu`限制来使用 CPU 限制，并且 Docker 将限制可用于此容器的计算资源，为其他任务保留更多的 CPU。相同的计算时间超过了两倍：
 
-[PRE9]
+```
+> docker container run --cpus 1 dockeronwindows/ch09-resource-check:2e /r Cpu /p 20000
+I calculated Pi to 20000 decimal places in 2208ms. The last digit is 8.
+```
 
 生产 Docker Swarm 部署可以使用部署部分的资源限制来应用相同的内存和 CPU 约束。这个例子将新的 NerdDinner REST API 限制为可用 CPU 的 25%和 250MB 的内存：
 
-[PRE10]
+```
+nerd-dinner-api:
+  image: dockeronwindows/ch07-nerd-dinner-api:2e
+  deploy: resources:
+      limits:
+        cpus: '0.25'
+        memory: 250M
+...
+```
 
 验证资源限制是否生效可能是具有挑战性的。获取 CPU 计数和内存容量的底层 Windows API 使用操作系统内核，在容器中将是主机的内核。内核报告完整的硬件规格，因此限制似乎不会在容器内生效，但它们是强制执行的。您可以使用 WMI 来检查限制，但输出将不如预期：
 
-[PRE11]
+```
+> docker container run --cpus 1 --memory 1G mcr.microsoft.com/windows/servercore:ltsc2019 powershell `
+ "Get-WmiObject Win32_ComputerSystem | select NumberOfLogicalProcessors, TotalPhysicalMemory"
+
+NumberOfLogicalProcessors TotalPhysicalMemory
+------------------------- -------------------
+                        4         17101447168
+```
 
 在这里，容器报告有四个 CPU 和 16 GB 的 RAM，尽管它被限制为一个 CPU 和 1 GB 的 RAM。实际上已经施加了限制，但它们在 WMI 调用的上层操作。如果容器内运行的进程尝试分配超过 1 GB 的 RAM，那么它将失败。
 
@@ -154,7 +213,10 @@ Windows 上的 Docker 具有一个大的安全功能，Linux 上的 Docker 没�
 
 Hyper-V 容器也可以在 Windows Server 上使用`isolation`选项运行。此命令将 IIS 镜像作为 Hyper-V 容器运行，将端口`80`发布到主机上的随机端口：
 
-[PRE12]
+```
+docker container run -d -p 80 --isolation=hyperv `
+  mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2019
+```
 
 容器的行为方式相同。外部用户可以浏览主机上的`80`端口，流量由容器处理。在主机上，您可以运行`docker container inspect`来查看 IP 地址并直接进入容器。Docker 网络、卷和集群模式等功能对 Hyper-V 容器也适用。
 
@@ -236,11 +298,15 @@ Docker 安全扫描可用于 Docker Hub 的官方存储库以及 Docker Trusted 
 
 指定 Windows 版本还清楚地表明了如何管理 Docker 化应用程序的 Windows 更新。.NET Framework 应用程序的 Dockerfile 可能是这样开始的：
 
-[PRE13]
+```
+FROM mcr.microsoft.com/windows/servercore:1809_KB4471332
+```
 
 这将镜像固定为带有更新`KB4471332`的 Windows Server 2019。这是一个可搜索的知识库 ID，告诉您这是 Windows 2018 年 12 月的更新。随着新的 Windows 基础镜像的发布，您可以通过更改`FROM`指令中的标签并重新构建镜像来更新应用程序，例如使用发布`KB4480116`，这是 2019 年 1 月的更新：
 
-[PRE14]
+```
+FROM mcr.microsoft.com/windows/servercore:1809_KB4480116
+```
 
 我将在第十章中介绍自动构建和部署，*使用 Docker 打造持续部署流水线*。通过一个良好的 CI/CD 流水线，您可以使用新的 Windows 版本重新构建您的镜像，并运行所有测试以确认更新不会影响任何功能。然后，您可以通过使用`docker stack deploy`或`docker service update`在没有停机时间的情况下将更新推出到所有正在运行的应用程序，指定应用程序镜像的新版本。整个过程可以自动化，因此 IT 管理员在*补丁星期二*时的痛苦会随着 Docker 的出现而消失。
 
@@ -264,11 +330,36 @@ DTR 授权模型的某些部分与 Docker Hub 相似。用户可以拥有公共�
 
 要将镜像推送到名为`private-app`的存储库，需要使用完整的 DTR 域标记它的存储库名称为用户`elton`。我的 DTR 实例正在运行在`dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com`，所以我需要使用的完整镜像名称是`dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app`：
 
-[PRE15]
+```
+docker image tag sixeyed/file-echo:nanoserver-1809 `
+ dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app
+```
 
 这是一个私人存储库，所以只能被用户`elton`访问。DTR 呈现与任何其他 Docker 注册表相同的 API，因此我需要使用`docker login`命令登录，指定 DTR 域作为注册表地址：
 
-[PRE16]
+```
+> docker login dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com
+Username: elton
+Password:
+Login Succeeded
+
+> docker image push dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app
+The push refers to repository [dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app]
+2f2b0ced10a1: Pushed
+d3b13b9870f8: Pushed
+81ab83c18cd9: Pushed
+cc38bf58dad3: Pushed
+af34821b76eb: Pushed
+16575d9447bd: Pushing [==================================================>]  52.74kB
+0e5e668fa837: Pushing [==================================================>]  52.74kB
+3ec5dbbe3201: Pushing [==================================================>]  1.191MB
+1e88b250839e: Pushing [==================================================>]  52.74kB
+64cb5a75a70c: Pushing [>                                                  ]  2.703MB/143MB
+eec13ab694a4: Waiting
+37c182b75172: Waiting
+...
+...
+```
 
 如果我将存储库设为公开，任何有权访问 DTR 的人都可以拉取镜像，但这是一个用户拥有的存储库，所以只有`elton`账户有推送权限。
 
@@ -326,7 +417,24 @@ DTR 利用 UCP 管理的客户端证书对镜像进行数字签名，可以追�
 
 我可以给我的私有镜像添加`v2`标签，在 PowerShell 会话中启用内容信任，并将标记的镜像推送到 DTR：
 
-[PRE17]
+```
+> docker image tag `
+    dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app `
+    dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app:v2
+
+> $env:DOCKER_CONTENT_TRUST=1
+
+> >docker image push dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app:v2The push refers to repository [dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app]
+2f2b0ced10a1: Layer already exists
+...
+v2: digest: sha256:4c830828723a89e7df25a1f6b66077c1ed09e5f99c992b5b5fbe5d3f1c6445f2 size: 3023
+Signing and pushing trust metadata
+Enter passphrase for root key with ID aa2544a:
+Enter passphrase for new repository key with ID 2ef6158:
+Repeat passphrase for new repository key with ID 2ef6158:
+Finished initializing "dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app"
+Successfully signed dtrapp-dow2e-hvfz.centralus.cloudapp.azure.com/elton/private-app:v2
+```
 
 推送图像的行为会添加数字签名，在这种情况下使用`elton`帐户的证书并为存储库创建新的密钥对。DTR 记录每个图像标签的签名，在 UI 中我可以看到`v2`图像标签已签名：
 
@@ -374,7 +482,14 @@ Docker 使用固定的`SWMTKN`前缀用于令牌，因此您可以运行自动�
 
 加入令牌可以通过`join-token rotate`命令进行旋转，可以针对工作节点令牌或管理节点令牌进行操作：
 
-[PRE18]
+```
+> docker swarm join-token --rotate worker
+Successfully rotated worker join token.
+
+To add a worker to this swarm, run the following command:
+
+ docker swarm join --token SWMTKN-1-0ngmvmnpz0twctlya5ifu3ajy3pv8420st...  10.211.55.7:2377
+```
 
 令牌旋转是集群的完全托管操作。所有现有节点都会更新，并且任何错误情况，如节点离线或在旋转过程中加入，都会得到优雅处理。
 

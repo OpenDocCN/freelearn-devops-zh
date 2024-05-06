@@ -46,13 +46,21 @@ Dockerfile 中指令的顺序很重要。指令按顺序评估，从 Dockerfile 
 
 `FROM`指令设置正在创建的镜像的基础，并指示 Docker 守护程序新镜像的基础应该是指定为参数的现有 Docker 镜像。指定的镜像可以使用与我们在第二章中看到的 Docker `container run`命令相同的语法来描述。在这里，它是一个`FROM`指令，指定使用官方的`nginx`镜像，版本为 1.15.2：
 
-[PRE0]
+```
+# Dockerfile
+FROM nginx:1.15.2
+```
 
 请注意，在这个例子中，没有指定指示指定的镜像是官方 nginx 镜像的存储库。如果没有指定标签，将假定为`latest`标签。
 
 `FROM`指令将创建我们新镜像中的第一层。该层将是指令参数中指定的镜像大小，因此最好指定满足新镜像所需条件的最小镜像。一个特定于应用程序的镜像，比如`nginx`，会比一个操作系统镜像，比如 ubuntu，要小。而`alpine`的操作系统镜像会比其他操作系统的镜像，比如 Ubuntu、CentOS 或 RHEL，要小得多。`FROM`指令可以使用一个特殊的关键字作为参数。它是`scratch`。Scratch 不是一个可以拉取或运行的镜像，它只是向 Docker 守护程序发出信号，表明你想要构建一个带有空基础镜像层的镜像。`FROM scratch`指令被用作许多其他基础镜像的基础层，或者用于专门的应用程序特定镜像。你已经看到了这样一个专门的应用程序镜像的例子：hello-world。hello-world 镜像的完整 Dockerfile 如下：
 
-[PRE1]
+```
+# hello-world Dockerfile
+FROM scratch
+COPY hello /
+CMD ["/hello"]
+```
 
 我们将很快讨论`COPY`和`CMD`指令，但是你应该根据它的 Dockerfile 来感受一下 hello-world 镜像有多小。在 Docker 镜像的世界中，越小越好。参考一下一些镜像的大小：
 
@@ -62,11 +70,29 @@ Dockerfile 中指令的顺序很重要。指令按顺序评估，从 Dockerfile 
 
 LABEL 指令是向 Docker 镜像添加元数据的一种方法。当创建镜像时，此指令会向镜像添加嵌入式键值对。一个镜像可以有多个 LABEL，并且每个 LABEL 指令可以提供一个或多个标签。LABEL 指令最常见的用途是提供有关镜像维护者的信息。这些数据以前有自己的指令。请参阅有关现在已弃用的 MAINTAINER 指令的下面提示框。以下是一些有效的 LABEL 指令示例：
 
-[PRE2]
+```
+# LABEL instruction syntax
+# LABEL <key>=<value> <key>=<value> <key>=<value> ...
+LABEL maintainer="Earl Waud <earlwaud@mycompany.com>"
+LABEL "description"="My development Ubuntu image"
+LABEL version="1.0"
+LABEL label1="value1" \
+ label2="value2" \
+ lable3="value3"
+LABEL my-multi-line-label="Labels can span \
+more than one line in a Dockerfile."
+LABEL support-email="support@mycompany.com" support-phone="(123) 456-7890"
+```
 
 LABEL 指令是 Dockerfile 中可以多次使用的指令之一。你将会在后面学到，一些可以多次使用的指令只会保留最后一次使用的内容，忽略之前的所有使用。但是 LABEL 指令不同。每次使用 LABEL 指令都会向生成的镜像添加一个额外的标签。然而，如果两次或更多次使用 LABEL 具有相同的键，标签将获得最后一个匹配的 LABEL 指令中提供的值。就像这样：
 
-[PRE3]
+```
+# earlier in the Dockerfile
+LABEL version="1.0"
+# later in the Dockerfile...
+LABEL version="2.0"
+# The Docker image metadata will show version="2.0"
+```
 
 重要的是要知道，在你的 FROM 指令中指定的基础镜像可能包含使用 LABEL 指令创建的标签，并且它们将自动包含在你正在构建的镜像的元数据中。如果你的 Dockerfile 中的 LABEL 指令使用与 FROM 镜像的 Dockerfile 中使用的 LABEL 指令相同的键，你（后来的）值将覆盖 FROM 镜像中的值。你可以使用 inspect 命令查看镜像的所有标签：
 
@@ -78,7 +104,12 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 你已经在“FROM 指令”部分的 hello-world Dockerfile 中看到了使用 COPY 指令的示例。COPY 指令用于将文件和文件夹复制到正在构建的 Docker 镜像中。COPY 指令的语法如下：
 
-[PRE4]
+```
+# COPY instruction syntax
+COPY [--chown=<user>:<group>] <src>... <dest>
+# Use double quotes for paths containing whitespace)
+COPY [--chown=<user>:<group>] ["<src>",... "<dest>"]
+```
 
 请注意，--chown 参数仅适用于基于 Linux 的容器。如果没有--chown 参数，所有者 ID 和组 ID 都将设置为 0。
 
@@ -88,7 +119,24 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 在我们之前的 hello-world Dockerfile 示例中，您看到了一个`COPY`指令，它将一个名为`hello`的可执行文件复制到图像的文件系统根位置。它看起来像这样：`COPY hello /`。这是一个基本的`COPY`指令。以下是一些其他示例：
 
-[PRE5]
+```
+# COPY instruction Dockerfile for Docker Quick Start
+FROM alpine:latest
+LABEL maintainer="Earl Waud <earlwaud@mycompany.com>"
+LABEL version=1.0
+# copy multiple files, creating the path "/theqsg/files" in the process
+COPY file* theqsg/files/
+# copy all of the contents of folder "folder1" to "/theqsg/" 
+# (but not the folder "folder1" itself)
+COPY folder1 theqsg/
+# change the current working directory in the image to "/theqsg"
+WORKDIR theqsg
+# copy the file special1 into "/theqsg/special-files/"
+COPY --chown=35:35 special1 special-files/
+# return the current working directory to "/"
+WORKDIR /
+CMD ["sh"]
+```
 
 通过从图像运行容器并执行`ls`命令，我们可以看到使用前面的 Dockerfile 得到的图像文件系统会是什么样子：
 
@@ -100,7 +148,12 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 `ADD`指令用于将文件和文件夹复制到正在构建的 Docker 图像中。`ADD`指令的语法如下：
 
-[PRE6]
+```
+# ADD instruction syntax
+ADD [--chown=<user>:<group>] <src>... <dest>
+# Use double quotes for paths containing whitespace)
+ADD [--chown=<user>:<group>] ["<src>",... "<dest>"]
+```
 
 现在，您可能会认为`ADD`指令似乎就像我们刚刚审查的`COPY`指令一样。嗯，你没错。基本上，我们看到`COPY`指令所做的所有事情，`ADD`指令也可以做。它使用与`COPY`指令相同的语法，两者之间的`WORKDIR`指令的效果也是相同的。那么，为什么我们有两个执行相同操作的命令呢？
 
@@ -114,7 +167,15 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 如前所述，`ADD`指令可以使用 URL 作为源值。以下是一个包含使用 URL 的`ADD`指令的示例 Dockerfile：
 
-[PRE7]
+```
+# ADD instruction Dockerfile for Docker Quick Start
+FROM alpine
+LABEL maintainer="Earl Waud <earlwaud@mycompany.com>"
+LABEL version=3.0
+ADD https://github.com/docker-library/hello-world/raw/master/amd64/hello-world/hello /
+RUN chmod +x /hello
+CMD ["/hello"]
+```
 
 在`ADD`指令中使用 URL 是有效的，将文件下载到镜像中，但是这个功能并不被 Docker 推荐。以下是 Docker 文档对使用`ADD`的建议：
 
@@ -126,11 +187,28 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 正如您可能猜到的那样，`ENV`指令用于定义将在从正在构建的镜像创建的运行容器中设置的环境变量。使用典型的键值对定义变量。Dockerfile 可以有一个或多个`ENV`指令。以下是`ENV`指令的语法：
 
-[PRE8]
+```
+# ENV instruction syntax
+# This is the form to create a single environment variable per instruction
+# Everything after the space following the <key> becomes the value
+ENV <key> <value>
+# This is the form to use when you want to create more than one variable per instruction
+ENV <key>=<value> ...
+```
 
 每个`ENV`指令将创建一个或多个环境变量（除非键名重复）。让我们看一下 Dockerfile 中的一些`ENV`指令：
 
-[PRE9]
+```
+# ENV instruction Dockerfile for Docker Quick Start
+FROM alpine
+LABEL maintainer="Earl Waud <earlwaud@mycompany.com>"
+ENV appDescription This app is a sample of using ENV instructions
+ENV appName=env-demo
+ENV note1="The First Note First" note2=The\ Second\ Note\ Second \
+note3="The Third Note Third"
+ENV changeMe="Old Value"
+CMD ["sh"]
+```
 
 使用此 Dockerfile 构建镜像后，您可以检查镜像元数据，并查看已创建的环境变量：
 
@@ -146,7 +224,13 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 有时在构建 Docker 镜像时，您可能需要使用变量数据来自定义构建。`ARG`指令是处理这种情况的工具。要使用它，您需要将`ARG`指令添加到 Dockerfile 中，然后在执行构建命令时，通过`--build-arg`参数传入变量数据。`--build-arg`参数使用现在熟悉的键值对格式：
 
-[PRE10]
+```
+# The ARG instruction syntax
+ARG <varname>[=<default value>]
+
+# The build-arg parameter syntax
+docker image build --build-arg <varname>[=<value>] ...
+```
 
 您可以在 Dockerfile 中使用多个`ARG`指令，并在 docker image build 命令上使用相应的`--build-arg`参数。对于每个`--build-arg`参数的使用，都必须包括一个`ARG`指令。如果没有`ARG`指令，则在构建过程中`--build-arg`参数将不会被设置，并且您将收到警告消息。如果您没有提供`--build-arg`参数，或者没有为现有的`ARG`指令提供`--build-arg`参数的值部分，并且该`ARG`指令包括默认值，那么变量将被分配默认值。
 
@@ -154,11 +238,33 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 在 `ARG` 指令中定义的参数不会持续到从创建的镜像运行的容器中，但是 ARG 指令会在生成的镜像中创建新的零字节大小的层。以下是使用 `ARG` 指令的教育示例：
 
-[PRE11]
+```
+# ARG instruction Dockerfile for Docker Quick Start
+FROM alpine
+LABEL maintainer="Earl Waud <earlwaud@mycompany.com>"
+
+ENV key1="ENV is stronger than an ARG"
+RUN echo ${key1}
+ARG key1="not going to matter"
+RUN echo ${key1}
+
+RUN echo ${key2}
+ARG key2="defaultValue"
+RUN echo ${key2}
+ENV key2="ENV value takes over"
+RUN echo ${key2}
+CMD ["sh"]
+```
 
 创建一个包含上述代码块中显示的内容的 Dockerfile，并运行以下构建命令，以查看 `ENV` 和 `ARG` 指令的范围如何发挥作用：
 
-[PRE12]
+```
+# Build the image and look at the output from the echo commands
+ docker image build --rm \
+ --build-arg key1="buildTimeValue" \
+ --build-arg key2="good till env instruction" \
+ --tag arg-demo:2.0 .
+```
 
 第一个 `echo ${key1}` 会让你看到，即使有一个 `--build-arg` 参数用于 `key1`，它也不会被存储为 `key1`，因为有一个相同键名的 `ENV` 指令。这对于第二个 `echo ${key1}` 仍然成立，这是在 ARG `key1` 指令之后。当 `ARG` 和 `EVN` 指令具有相同的键名时，ENV 变量值总是获胜。
 
@@ -168,11 +274,34 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 这是一对具有类似功能的指令。它们都可以在构建镜像时使用，设置参数以便在其他 Dockerfile 指令中使用。可以使用这些参数的其他 Dockerfile 指令包括 `FROM`、`LABEL`、`COPY`、`ADD`、`ENV`、`USER`、`WORKDIR`、`RUN`、`VOLUME`、`EXPOSE`、`STOPSIGNAL` 和 `ONBUILD`。以下是在其他 Docker 命令中使用 `ARG` 和 `ENV` 变量的示例：
 
-[PRE13]
+```
+# ENV vs ARG instruction Dockerfile for Docker Quick Start
+FROM alpine
+LABEL maintainer="Earl Waud <earlwaud@mycompany.com>"
+ENV lifecycle="production"
+RUN echo ${lifecycle}
+ARG username="35"
+RUN echo ${username}
+ARG appdir
+RUN echo ${appdir}
+ADD hello /${appdir}/
+RUN chown -R ${username}:${username} ${appdir}
+WORKDIR ${appdir}
+USER ${username}
+CMD ["./hello"]
+```
 
 使用这个 Dockerfile，你会想为 `appdir` `ARG` 指令提供 `--build-arg` 参数，并且在构建命令中提供用户名（如果你想要覆盖默认值）。你也可以在运行时提供一个 `--env` 参数来覆盖生命周期变量。以下是可能使用的构建和运行命令：
 
-[PRE14]
+```
+# Build the arg3 demo image
+docker image build --rm \
+ --build-arg appdir="/opt/hello" \
+ --tag arg-demo:3.0 .
+
+# Run the arg3 demo container
+docker container run --rm --env lifecycle="test" arg-demo:3.0
+```
 
 虽然 `ENV` 和 `ARG` 指令可能看起来相似，但它们实际上是非常不同的。以下是记住 `ENV` 和 `ARG` 指令创建的参数之间的关键区别：
 
@@ -190,11 +319,23 @@ MAINTAINER 指令有一个专门用于提供有关镜像维护者信息的 Docke
 
 USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像运行的容器设置当前用户（和组）。`USER`指令的语法如下：
 
-[PRE15]
+```
+# User instruction syntax
+USER <user>[:<group>] or
+USER <UID>[:<GID>]
+```
 
 如果将命名用户（或组）作为`USER`指令的参数提供，则该用户（和组）必须已经存在于系统的 passwd 文件（或组文件）中，否则将发生构建错误。如果将`UID`（或`GID`）作为`USER`命令的参数提供，则不会执行检查用户（或组）是否存在。考虑以下 Dockerfile：
 
-[PRE16]
+```
+# USER instruction Dockerfile for Docker Quick Start 
+FROM alpine
+LABEL maintainer="Earl Waud <earl@mycompany.com>"
+RUN id
+USER games:games
+run id
+CMD ["sh"]
+```
 
 当图像构建开始时，当前用户是 root 或`UID=0` `GID=0`。然后，执行`USER`指令将当前用户和组设置为`games:games`。由于这是 Dockerfile 中`USER`指令的最后一次使用，所有使用构建图像运行的容器将具有当前用户（和组）设置为 games。构建和运行如下所示：
 
@@ -206,11 +347,35 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 我们已经在一些示例中看到了`WORKDIR`指令的使用，用于演示其他指令。它有点像 Linux 的`cd`和`mkdir`命令的组合。`WORKDIR`指令将把图像中的当前工作目录更改为指令中提供的值。如果参数中路径的任何部分尚不存在，则将作为执行指令的一部分创建它。`WORKDIR`指令的语法如下：
 
-[PRE17]
+```
+# WORKDIR instruction syntax
+WORKDIR instruction syntax
+WORKDIR /path/to/workdir
+```
 
 `WORKDIR`指令可以使用`ENV`或`ARG`参数值作为其参数的全部或部分。Dockerfile 可以有多个`WORKDIR`指令，每个后续的`WORKDIR`指令将相对于前一个（如果使用相对路径）。以下是演示此可能性的示例：
 
-[PRE18]
+```
+# WORKDIR instruction Dockerfile for Docker Quick Start
+FROM alpine
+# Absolute path...
+WORKDIR /
+# relative path, relative to previous WORKDIR instruction
+# creates new folder
+WORKDIR sub-folder-level-1
+RUN touch file1.txt
+# relative path, relative to previous WORKDIR instruction
+# creates new folder
+WORKDIR sub-folder-level-2
+RUN touch file2.txt
+# relative path, relative to previous WORKDIR instruction
+# creates new folder
+WORKDIR sub-folder-level-3
+RUN touch file3.txt
+# Absolute path, creates three sub folders...
+WORKDIR /l1/l2/l3
+CMD ["sh"]
+```
 
 从这个 Dockerfile 构建镜像将导致镜像具有三层嵌套的文件夹。从镜像运行容器并列出文件和文件夹将如下所示：
 
@@ -226,13 +391,25 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 `VOLUME`指令将创建一个存储位置，该位置位于美国文件系统之外，并且通过这样做，允许存储在容器的生命周期之外持久存在。以下是`VOLUME`指令的语法：
 
-[PRE19]
+```
+# VOLUME instruction syntax
+VOLUME ["/data"]
+# or for creating multiple volumes with a single instruction
+VOLUME /var/log /var/db /moreData
+```
 
 创建卷的其他方法是向 docker `container run`命令添加卷参数，或者使用 docker volume create 命令。我们将在第四章 *Docker Volumes*中详细介绍这些方法。
 
 这是一个简单的示例 Dockerfile。它在`/myvol`创建了一个卷，其中将有一个名为`greeting`的文件：
 
-[PRE20]
+```
+# VOLUME instruction Dockerfile for Docker Quick Start
+FROM alpine
+RUN mkdir /myvol
+RUN echo "hello world" > /myvol/greeting
+VOLUME /myvol
+CMD ["sh"]
+```
 
 基于从此 Dockerfile 创建的镜像运行容器将在主机系统上创建一个挂载点，最初包含`greeting`文件。当容器退出时，挂载点将保留。在运行具有要持久保存的挂载点的容器时，使用`--rm`参数要小心。使用`--rm`，没有其他卷参数，将导致容器退出时清理挂载点。看起来是这样的：
 
@@ -256,7 +433,10 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 `EXPOSE`指令是记录镜像期望在使用 Dockerfile 构建的镜像运行容器时打开的网络端口的一种方式。`EXPOSE`指令的语法如下：
 
-[PRE21]
+```
+# EXPOSE instruction syntax
+EXPOSE <port> [<port>/<protocol>...]
+```
 
 重要的是要理解，在 Dockerfile 中包含`EXPOSE`指令实际上并不会在容器中打开网络端口。当从具有`EXPOSE`指令的 Dockerfile 中的镜像运行容器时，仍然需要包括`-p`或`-P`参数来实际打开网络端口到容器。
 
@@ -268,19 +448,56 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 `RUN`指令是 Dockerfile 的真正工作马。这是您对生成的 Docker 镜像产生最大变化的工具。基本上，它允许您在镜像中执行任何命令。`RUN`指令有两种形式。以下是语法：
 
-[PRE22]
+```
+# RUN instruction syntax
+# Shell form to run the command in a shell
+# For Linux the default is "/bin/sh -c"
+# For Windows the default is "cmd /S /C"
+RUN <command>
+
+# Exec form
+RUN ["executable", "param1", "param2"]
+```
 
 每个`RUN`指令在镜像中创建一个新的层，随后的每个指令的层都将建立在`RUN`指令的层的结果之上。除非使用`SHELL`指令覆盖，默认情况下，shell 形式的指令将使用默认 shell。如果您正在构建一个不包含 shell 的容器，您将需要使用`RUN`指令的 exec 形式。您还可以使用 exec 形式的指令来使用不同的 shell。例如，要使用 bash shell 运行命令，您可以添加一个`RUN`指令，如下所示：
 
-[PRE23]
+```
+# Exec form of RUN instruction using bash
+RUN ["/bin/bash", "-c", "echo hello world > /myvol/greeting"]
+```
 
 `RUN`命令的用途仅受想象力的限制，因此提供`RUN`指令示例的详尽列表是不可能的，但以下是一些使用两种形式的指令的示例，只是为了给您一些想法：
 
-[PRE24]
+```
+# RUN instruction Dockerfile for Docker Quick Start
+FROM ubuntu
+RUN useradd --create-home -m -s /bin/bash dev
+RUN mkdir /myvol
+RUN echo "hello DQS Guide" > /myvol/greeting
+RUN ["chmod", "664", "/myvol/greeting"]
+RUN ["chown", "dev:dev", "/myvol/greeting"]
+VOLUME /myvol
+USER dev
+CMD ["/bin/bash"]
+```
 
 当您知道您的镜像将包含 bash 时，可以添加一个有趣且有用的`RUN`指令。这个想法是我在 Dockercon 16 上得知的，由我的同事*Marcello de Sales*与我分享。您可以使用以下代码在 shell 进入容器时创建自定义提示。如果您不喜欢鲸鱼图形，可以更改并使用任何您喜欢的东西。我包括了一些我喜欢的选项。以下是代码：
 
-[PRE25]
+```
+# RUN instruction Dockerfile for Docker Quick Start
+FROM ubuntu
+RUN useradd --create-home -m -s /bin/bash dev
+# Add a fun prompt for dev user of my-app
+# whale: "\xF0\x9F\x90\xB3"
+# alien:"\xF0\x9F\x91\xBD"
+# fish:"\xF0\x9F\x90\xA0"
+# elephant:"\xF0\x9F\x91\xBD"
+# moneybag:"\xF0\x9F\x92\xB0"
+RUN echo 'PS1="\[$(tput bold)$(tput setaf 4)\]my-app $(echo -e "\xF0\x9F\x90\xB3") \[$(tput sgr0)\] [\\u@\\h]:\\W \\$ "' >> /home/dev/.bashrc && \
+ echo 'alias ls="ls --color=auto"' >> /home/dev/.bashrc
+USER dev
+CMD ["/bin/bash"]
+```
 
 生成的提示如下：
 
@@ -296,11 +513,23 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 `CMD`指令有三种形式。第一种是 shell 形式。第二种是 exec 形式，这是最佳实践形式。第三种是特殊的 exec 形式，它有两个参数，并且与`ENTRYPOINT`指令一起使用，我们将在*ENTRYPOINT 指令*部分讨论它。以下是`CMD`指令的语法。
 
-[PRE26]
+```
+# CMD instruction syntax
+CMD command param1 param2 (shell form)
+CMD ["executable","param1","param2"] (exec form)
+CMD ["param1","param2"] (as default parameters to ENTRYPOINT)
+```
 
 以下是一些`CMD`指令的示例供您参考：
 
-[PRE27]
+```
+# CMD instruction examples
+CMD ["/bin/bash"]
+CMD while true; do echo 'DQS Expose Demo' | nc -l -p 80; done
+CMD echo "How many words are in this echo command" | wc -
+CMD tail -f /dev/null
+CMD ["-latr", "/var/opt"]
+```
 
 与`RUN`指令一样，`CMD`指令的 shell 形式默认使用`["/bin/sh", "-c"]` shell 命令（或`["cmd", "/S", "/C"]`用于 Windows），除非它被`SHELL`指令覆盖。然而，与`RUN`指令不同，`CMD`指令在构建镜像时不执行任何操作，而是在从镜像构建的容器运行时执行。如果正在构建的容器镜像没有 shell，则可以使用指令的 exec 形式，因为它不会调用 shell。`CMD`指令向镜像添加了一个大小为零字节的层。
 
@@ -308,7 +537,13 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 `ENTRYPOINT`指令用于配置 docker 镜像以像应用程序或命令一样运行。例如，我们可以使用`ENTRYPOINT`指令制作一个显示`curl`命令帮助信息的镜像。考虑这个 Dockerfile：
 
-[PRE28]
+```
+# ENTRYPOINT instruction Dockerfile for Docker Quick Start
+FROM alpine
+RUN apk add curl
+ENTRYPOINT ["curl"]
+CMD ["--help"]
+```
 
 我们可以运行容器镜像，不覆盖`CMD`参数，它将显示`curl`命令的帮助信息。然而，当我们用`CMD`覆盖参数运行容器时，在这种情况下是一个 URL，响应将是`curl`该 URL。看一下：
 
@@ -316,7 +551,11 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 当为具有`ENTRYPOINT`指令的 exec 形式的容器提供运行参数时，这些参数将附加到`ENTRYPOINT`指令，覆盖`CMD`指令中提供的任何内容。在这个例子中，`--help`被`google.com`运行参数覆盖，所以结果指令是`curl google.com`。以下是`ENTRYPOINT`指令的实际语法：
 
-[PRE29]
+```
+# ENTRYPOINT instruction syntax
+ENTRYPOINT command param1 param2 (shell form)
+ENTRYPOINT ["executable", "param1", "param2"] (exec form, best practice)
+```
 
 与`CMD`指令一样，只有最后一个`ENTRYPOINT`指令是重要的。同样，这允许您在使用`FROM`镜像时使用或覆盖`ENTRYPOINT`指令。与`RUN`和`CMD`指令一样，使用 shell 形式将调用`["/bin/sh", "-c"]`（或在 Windows 上为`["cmd", "/S", "/C"]`）。当使用指令的 exec 形式时，情况并非如此。这对于没有 shell 或 shell 不可用于活动用户上下文的镜像非常重要。但是，您将不会获得 shell 处理，因此在使用指令的 exec 形式时，任何 shell 环境变量都不会被替换。通常最好尽可能使用`ENTRYPOINT`指令的 exec 形式。
 
@@ -334,17 +573,35 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 `HEALTHCHECK`指令是 Dockerfile 中相对较新的添加，用于定义在容器内运行的命令，以测试容器的应用程序健康状况。当容器具有`HEALTHCHECK`时，它会获得一个特殊的状态变量。最初，该变量将被设置为`starting`。每当成功执行`HEALTHCHECK`时，状态将被设置为`healthy`。当执行`HEALTHCHECK`并失败时，失败计数值将被递增，然后与重试值进行比较。如果失败计数等于或超过重试值，则状态将被设置为`unhealthy`。`HEALTHCHECK`指令的语法如下：
 
-[PRE30]
+```
+# HEALTHCHECK instruction syntax
+HEALTHCHECK [OPTIONS] CMD command (check container health by running a command inside the container)
+HEALTHCHECK NONE (disable any HEALTHCHECK inherited from the base image)
+```
 
 在设置`HEALTHCHECK`时有四个选项可用，这些选项如下：
 
-[PRE31]
+```
+# HEALTHCHECK CMD options
+--interval=DURATION (default: 30s)
+--timeout=DURATION (default: 30s)
+--start-period=DURATION (default: 0s)
+--retries=N (default: 3)
+```
 
 `--interval`选项允许您定义`HEALTHCHECK`测试之间的时间间隔。`--timeout`选项允许您定义被视为`HEALTHCHECK`测试时间过长的时间量。如果超过超时时间，测试将自动视为失败。`--start-period`选项允许在容器启动期间定义一个无失败时间段。最后，`--retries`选项允许您定义多少连续失败才能将`HEALTHCHECK`状态更新为`unhealthy`。
 
 `HEALTHCHECK`指令的`CMD`部分遵循与`CMD`指令相同的规则。有关`CMD`指令的完整详情，请参阅前面的部分。使用的`CMD`在退出时将提供一个状态，该状态要么是成功的 0，要么是失败的 1。以下是使用`HEALTHCHECK`指令的 Dockerfile 示例：
 
-[PRE32]
+```
+# HEALTHCHECK instruction Dockerfile for Docker Quick Start
+FROM alpine
+RUN apk add curl
+EXPOSE 80/tcp
+HEALTHCHECK --interval=30s --timeout=3s \
+ CMD curl -f http://localhost/ || exit 1
+CMD while true; do echo 'DQS Expose Demo' | nc -l -p 80; done
+```
 
 使用上述 Dockerfile 构建的镜像运行容器如下：
 
@@ -356,15 +613,29 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 `ONBUILD`指令是在创建将成为另一个 Dockerfile 中`FROM`指令参数的镜像时使用的工具。`ONBUILD`指令只是向您的镜像添加元数据，具体来说是存储在镜像中而不被其他方式使用的触发器。然而，当您的镜像作为另一个 Dockerfile 中`FROM`命令的参数提供时，该元数据触发器会被使用。以下是`ONBUILD`指令的语法：
 
-[PRE33]
+```
+# ONBUILD instruction syntax
+ONBUILD [INSTRUCTION]
+```
 
 `ONBUILD`指令有点像 Docker 时间机器，用于将指令发送到未来。（如果您知道我刚刚输入*Doctor time machine*多少次，您可能会笑！）让我们用一个简单的例子来演示`ONBUILD`指令的使用。首先，我们将使用以下 Dockerfile 构建一个名为`my-base`的镜像：
 
-[PRE34]
+```
+# my-base Dockerfile
+FROM alpine
+LABEL maintainer="Earl Waud <earlwaud@mycompany.com>"
+ONBUILD LABEL version="1.0"
+ONBUILD LABEL support-email="support@mycompany.com" support-phone="(123) 456-7890"
+CMD ["sh"]
+```
 
 接下来，让我们构建一个名为`my-app`的镜像，该镜像是从`my-base`镜像构建的，如下所示：
 
-[PRE35]
+```
+# my-app Dockerfile
+FROM my-base:1.0
+CMD ["sh"]
+```
 
 检查生成的`my-app`镜像，我们可以看到`ONBUILD`指令中提供的 LABEL 命令被发送到未来，到达`my-app`镜像：
 
@@ -376,11 +647,19 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 `STOPSIGNAL`指令用于设置系统调用信号，该信号将被发送到容器，告诉它退出。指令中使用的参数可以是无符号数字，等于内核系统调用表中的位置，也可以是大写的实际信号名称。以下是该指令的语法：
 
-[PRE36]
+```
+# STOPSIGNAL instruction syntax
+STOPSIGNAL signal
+```
 
 `STOPSIGNAL`指令的示例包括以下内容：
 
-[PRE37]
+```
+# Sample STOPSIGNAL instruction using a position number in the syscall table
+STOPSIGNAL 9
+# or using a signal name
+STOPSIGNAL SIGQUIT
+```
 
 `STOPSIGNAL`指令提供的参数在发出`docker container stop`命令时使用。请记住，使用`ENTRYPOINT`和/或`CMD`指令的执行形式非常重要，以便应用程序成为 PID 1，并直接接收信号。以下是有关在 Docker 中使用信号的出色博客文章链接：[`medium.com/@gchudnov/trapping-signals-in-docker-containers-7a57fdda7d86`](https://medium.com/@gchudnov/trapping-signals-in-docker-containers-7a57fdda7d86)。该文章提供了使用 node.js 应用程序处理信号的出色示例，包括代码和 Dockerfile。
 
@@ -388,7 +667,10 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 正如您在本章的许多部分中所阅读的，有几个指令有两种形式，即执行形式或 shell 形式。如前所述，所有 shell 形式默认使用`["/bin/sh", "-c"]`用于 Linux 容器，以及`["cmd", "/S", "/C"]`用于 Windows 容器。`SHELL`指令允许您更改该默认设置。以下是`SHELL`指令的语法：
 
-[PRE38]
+```
+# SHELL instruction syntax
+SHELL ["executable", "parameters"]
+```
 
 `SHELL`指令可以在 Dockerfile 中使用多次。所有使用 shell 的指令，并且在`SHELL`指令之后，将使用新的 shell。因此，根据需要可以在单个 Dockerfile 中多次更改 shell。在创建 Windows 容器时，这可能特别有用，因为它允许您在`cmd.exe`和`powershell.exe`之间来回切换。
 
@@ -396,11 +678,20 @@ USER 指令允许您为 Dockerfile 中接下来的所有指令和从构建图像
 
 好的，镜像构建命令不是 Dockerfile 指令。相反，它是用于将 Dockerfile 转换为 docker 镜像的 docker 命令。Docker 镜像构建命令将 docker 构建上下文，包括 Dockerfile，发送到 docker 守护程序，它解析 Dockerfile 并逐层构建镜像。我们将很快讨论构建上下文，但现在可以将其视为根据 Dockerfile 中的内容构建 Docker 镜像所需的一切。构建命令的语法如下：
 
-[PRE39]
+```
+# Docker image build command syntax
+Usage: docker image build [OPTIONS] PATH | URL | -
+```
 
 图像构建命令有许多选项。我们现在不会涵盖所有选项，但让我们看一下一些最常见的选项：
 
-[PRE40]
+```
+# Common options used with the image build command
+--rm         Remove intermediate containers after a successful build
+--build-arg  Set build-time variables
+--tag        Name and optionally a tag in the 'name:tag' format
+--file       Name of the Dockerfile (Default is 'PATH/Dockerfile')
+```
 
 Docker 守护程序通过从 Dockerfile 中的每个命令创建新的图像来构建图像。每个新图像都是在前一个图像的基础上构建的。使用可选的`--rm`参数将指示守护程序在构建成功完成时删除所有中间图像。当重新构建成功构建的图像时，使用此选项将减慢构建过程，但会保持本地图像缓存的清洁。
 
@@ -412,7 +703,12 @@ Docker 守护程序通过从 Dockerfile 中的每个命令创建新的图像来�
 
 以下是一些图像构建命令供参考：
 
-[PRE41]
+```
+# build command samples
+docker image build --rm --build-arg username=35 --tag arg-demo:2.0 .
+docker image build --rm --tag user-demo:1.0 .
+docker image build --rm --tag workdir-demo:1.0 .
+```
 
 您会注意到前面每个示例中都有一个尾随的`。`。这个句号表示当前工作目录是图像构建的构建上下文的根目录。
 
@@ -420,11 +716,18 @@ Docker 守护程序通过从 Dockerfile 中的每个命令创建新的图像来�
 
 解析指令是 Dockerfile 中可选注释行的一个特殊子集。任何解析指令必须出现在第一个正常注释行之前。它们还必须出现在任何空行或其他构建指令之前，包括`FROM`指令。基本上，所有解析指令必须位于 Dockerfile 的顶部。顺便说一句，如果你还没有弄清楚，你可以通过以`#`字符开头来创建一个普通的注释行。解析指令的语法如下：
 
-[PRE42]
+```
+# directive=value
+# The line above shows the syntax for a parser directive
+```
 
 那么，您可以使用解析器指令做什么呢？目前，唯一支持的是`escape`。`escape`解析器指令用于更改用于指示下一个字符在指令中被视为字符而不是表示的特殊字符的字符。如果不使用解析器指令，则默认值为`\`。在本章的几个示例中，您已经看到了它用于转义换行符，允许在 Dockerfile 中将指令继续到下一行。如果需要使用不同的`escape`字符，可以使用`escape`解析器指令来处理。您可以将`escape`字符设置为两种选择之一：
 
-[PRE43]
+```
+# escape=\ (backslash)
+Or
+# escape=` (backtick)
+```
 
 一个例子是当您在 Windows 系统上创建 Dockerfile 时可能需要更改用作`escape`字符的字符。如您所知，`\`用于区分路径字符串中的文件夹级别，例如`c:\windows\system32`。
 
@@ -440,7 +743,12 @@ Docker 守护程序通过从 Dockerfile 中的每个命令创建新的图像来�
 
 构建上下文成为 Dockerfile 中命令的文件系统根。例如，考虑使用以下`COPY`指令：
 
-[PRE44]
+```
+# build context Dockerfile for Docker Quick Start guide
+FROM scratch
+COPY hello /
+CMD ["/hello"]
+```
 
 这告诉 Docker 守护程序将`hello`文件从构建上下文的根目录复制到容器镜像的根目录。
 
@@ -458,7 +766,13 @@ Docker 守护程序通过从 Dockerfile 中的每个命令创建新的图像来�
 
 `.dockerignore`文件中的行顺序很重要。文件后面的匹配模式将覆盖文件前面的匹配模式。如果您添加一个与`.dockerignore`文件或 Dockerfile 文件匹配的模式，它们仍将与构建上下文一起发送到 docker 守护程序，但它们将不可用于任何`ADD`或`COPY`指令，因此不能出现在生成的镜像中。这是一个例子：
 
-[PRE45]
+```
+# Example of a .dockerignore file
+# Exclude unwanted files
+/*~
+/*.log
+/.DS_Store
+```
 
 # 总结
 

@@ -40,11 +40,79 @@
 
 在某个时候，您可能希望保存可写的容器层，以便以后用作常规镜像。虽然强烈不建议这种类型的镜像拼接，我大多数情况下也会同意，但您可能会发现在其他方式无法调查容器代码时，它可以为您提供一个宝贵的调试工具。要从现有容器创建镜像，有`docker commit`命令：
 
-[PRE0]
+```
+$ docker commit --help
+
+Usage:  docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
+
+Create a new image from a container's changes
+
+Options:
+ -a, --author string    Author (e.g., "John Hannibal Smith <hannibal@a-team.com>")
+ -c, --change list      Apply Dockerfile instruction to the created image
+ --help             Print usage
+ -m, --message string   Commit message
+ -p, --pause            Pause container during commit (default true)
+```
 
 如您所见，我们只需要一些基本信息，Docker 会处理其余的部分。我们自己试一下如何：
 
-[PRE1]
+```
+$ # Run a new NGINX container and add a new file to it
+$ docker run -d nginx:latest
+2020a3b1c0fdb83c1f70c13c192eae25e78ca8288c441d753d5b42461727fa78
+$ docker exec -it \
+              2020a3b1 \
+              /bin/bash -c "/bin/echo test > /root/testfile"
+
+$ # Make sure that the file is in /root
+$ docker exec -it \
+              2020a3b1 \
+              /bin/ls /root
+testfile
+
+$ # Check what this container's base image is so that we can see changes
+$ docker inspect 2020a3b1 | grep Image
+ "Image": "sha256:b8efb18f159bd948486f18bd8940b56fd2298b438229f5bd2bcf4cedcf037448",
+ "Image": "nginx:latest",
+
+$ # Commit our changes to a new image called "new_nginx_image"
+$ docker commit -a "Author Name <author@site.com>" \
+                -m "Added a test file" \
+                2020a3b1 new_nginx_image
+sha256:fda147bfb46277e55d9edf090c5a4afa76bc4ca348e446ca980795ad4160fc11
+
+$ # Clean up our original container
+$ docker stop 2020a3b1 && docker rm 2020a3b1
+2020a3b1
+2020a3b1
+
+$ # Run this new image that includes the custom file
+$ docker run -d new_nginx_image
+16c5835eef14090e058524c18c9cb55f489976605f3d8c41c505babba660952d
+
+$ # Verify that the file is there
+$ docker exec -it \
+              16c5835e \
+              /bin/ls /root
+testfile
+
+$ # What about the content?
+$ docker exec -it \
+              16c5835e \
+              /bin/cat /root/testfile
+test
+
+$ See what the new container's image is recorded as
+$ docker inspect 16c5835e | grep Image
+ "Image": "sha256:fda147bfb46277e55d9edf090c5a4afa76bc4ca348e446ca980795ad4160fc11",
+ "Image": "new_nginx_image",
+
+$ # Clean up
+$ docker stop 16c5835e && docker rm 16c5835e
+16c5835e
+16c5835e
+```
 
 `docker commit -c`开关非常有用，并且像 Dockerfile 一样向镜像添加命令，并接受 Dockerfile 接受的相同指令，但由于这种形式很少使用，我们决定跳过它。如果您想了解更多关于这种特定形式和/或更多关于`docker commit`的信息，请随意在闲暇时探索[`docs.docker.com/engine/reference/commandline/commit/#commit-a-container-with-new-configurations`](https://docs.docker.com/engine/reference/commandline/commit/#commit-a-container-with-new-configurations)。
 
@@ -66,7 +134,65 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 警告！以下部分不使用 TLS 安全或经过身份验证的注册表配置。虽然在一些孤立的 VPC 中，这种配置可能是可以接受的，但通常情况下，您希望使用 TLS 证书来保护传输层，并添加某种形式的身份验证。幸运的是，由于 API 是基于 HTTP 的，您可以在不安全的注册表上使用反向代理的 Web 服务器，就像我们之前使用 NGINX 一样。由于证书需要被您的 Docker 客户端评估为“有效”，而这个过程对于几乎每个操作系统来说都是不同的，因此在大多数配置中，这里的工作通常不具备可移植性，这就是为什么我们跳过它的原因。
 
-[PRE2]
+```
+$ # Make our registry storage folder
+$ mkdir registry_storage
+
+$ # Start our registry, mounting the data volume in the container
+$ # at the expected location. Use standard port 5000 for it.
+$ docker run -d \
+ -p 5000:5000 \
+ -v $(pwd)/registry_storage:/var/lib/registry \
+ --restart=always \
+ --name registry \
+ registry:2 
+19e4edf1acec031a34f8e902198e6615fda1e12fb1862a35442ac9d92b32a637
+
+$ # Pull a test image into our local Docker storage
+$ docker pull ubuntu:latest
+latest: Pulling from library/ubuntu
+<snip>
+Digest: sha256:2b9285d3e340ae9d4297f83fed6a9563493945935fc787e98cc32a69f5687641
+Status: Downloaded newer image for ubuntu:latest
+
+$ # "Tag our image" by marking it as something that is linked to our local registry
+$ # we just started
+$ docker tag ubuntu:latest localhost:5000/local-ubuntu-image
+
+$ # Push our ubuntu:latest image into our local registry under "local-ubuntu-image" name
+$ docker push localhost:5000/local-ubuntu-image
+The push refers to a repository [localhost:5000/local-ubuntu-image]
+<snip>
+latest: digest: sha256:4b56d10000d71c595e1d4230317b0a18b3c0443b54ac65b9dcd3cac9104dfad2 size: 1357
+
+$ # Verify that our image is in the right location in registry container
+$ ls registry_storage/docker/registry/v2/repositories/
+local-ubuntu-image
+
+$ # Remove our images from our main Docker storage
+$ docker rmi ubuntu:latest localhost:5000/local-ubuntu-image
+Untagged: ubuntu:latest
+Untagged: localhost:5000/local-ubuntu-image:latest
+<snip>
+
+$ # Verify that our Docker Engine doesn't have either our new image
+$ # nor ubuntu:latest
+$ docker images
+REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
+
+$ # Pull the image from our registry container to verify that our registry works
+$ docker pull localhost:5000/local-ubuntu-image
+Using default tag: latest
+latest: Pulling from local-ubuntu-image
+<snip>
+Digest: sha256:4b56d10000d71c595e1d4230317b0a18b3c0443b54ac65b9dcd3cac9104dfad2
+Status: Downloaded newer image for localhost:5000/local-ubuntu-image:latest
+
+$ # Great! Verify that we have the image.
+$ docker images
+REPOSITORY                          TAG                 IMAGE ID            CREATED             SIZE
+localhost:5000/local-ubuntu-image   latest              8b72bba4485f        23 hours ago        120MB
+```
 
 如您所见，使用本地注册表似乎非常容易！这里引入的唯一新事物可能需要在注册表本身之外进行一些覆盖的是`--restart=always`，它确保容器在意外退出时自动重新启动。标记是必需的，以将图像与注册表关联起来，因此通过执行`docker tag [<source_registry>/]<original_tag_or_id> [<target_registry>/]<new_tag>`，我们可以有效地为现有图像标签分配一个新标签，或者我们可以创建一个新标签。正如在这个小的代码片段中所示，源和目标都可以以可选的存储库位置为前缀，如果未指定，则默认为`docker.io`（Docker Hub）。
 
@@ -82,7 +208,11 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 我要给你的最后一条建议是，根据我的经验，注册表的云提供商后端文档一直都是错误的，并且一直（我敢说是故意的吗？）错误。我强烈建议，如果注册表拒绝了你的设置，你应该查看源代码，因为设置正确的变量相当不直观。你也可以使用挂载文件来配置注册表，但如果你不想在集群刚启动时构建一个新的镜像，环境变量是一个不错的选择。环境变量都是全大写的名称，用`_`连接起来，并与可用选项的层次结构相匹配：
 
-[PRE3]
+```
+parent
+└─ child_option
+ └─ some_setting
+```
 
 然后，注册表的这个字段将设置为`-e PARENT_CHILD_OPTION_SOME_SETTING=<value>`。
 
@@ -90,9 +220,24 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 为了帮助那些将使用最有可能的后备存储（在“文件系统”之外）部署注册表的人，即`s3`，我将留下一个可用的（在撰写本文时）配置：
 
-[PRE4]
+```
+$ docker run -d \
+ -p 5000:5000 \
+ -v $(pwd)/registry_storage:/var/lib/registry \
+             -e REGISTRY_STORAGE=s3 \
+ -e REGISTRY_STORAGE_CACHE_BLOBDESCRIPTOR=inmemory \
+ -e REGISTRY_STORAGE_S3_ACCESSKEY=<aws_key_id> \
+ -e REGISTRY_STORAGE_S3_BUCKET=<bucket> \
+ -e REGISTRY_STORAGE_S3_REGION=<s3_region> \
+ -e REGISTRY_STORAGE_S3_SECRETKEY=<aws_key_secret> \
+ --restart=always \
+ --name registry \
+ registry:2
+```
 
-[PRE5]
+```
+ --name registry
+```
 
 # 底层存储驱动程序
 
@@ -106,17 +251,31 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 要查看您正在使用的后备文件系统，可以输入`docker info`并查找`Storage Driver`部分：
 
-[PRE6]
+```
+$ docker info
+<snip>
+Storage Driver: overlay2
+ Backing Filesystem: extfs
+ Supports d_type: true
+ Native Overlay Diff: true
+<snip>
+```
 
 警告！在大多数情况下，更改存储驱动程序将删除您的计算机上由旧驱动程序存储的任何和所有图像和层的访问权限，因此请谨慎操作！此外，我相信通过更改存储驱动程序而不通过 CLI 手动清理图像和容器，或者通过从`/var/lib/docker/`中删除内容，将使这些图像和容器悬空，因此请确保在考虑这些更改时清理一下。
 
 如果您想将存储驱动程序更改为我们将在此处讨论的任何选项，您可以编辑（或创建缺失的）`/etc/docker/daemon.json`并在其中添加以下内容，之后应重新启动 docker 服务：
 
-[PRE7]
+```
+{
+  "storage-driver": "driver_name"
+}
+```
 
 如果`daemon.json`不起作用，您还可以尝试通过向`DOCKER_OPTS`添加`-s`标志并重新启动服务来更改`/etc/default/docker`：
 
-[PRE8]
+```
+DOCKER_OPTS="-s driver_name"
+```
 
 一般来说，Docker 正在从`/etc/default/docker`（取决于发行版的路径）过渡到`/etc/docker/daemon.json`作为其配置文件，因此，如果您在互联网或其他文档中看到引用了前者文件，请查看是否可以找到`daemon.json`的等效配置，因为我相信它将在将来的某个时候完全取代另一个（就像所有的书籍一样，可能是在这本书发布后的一周内）。
 
@@ -152,19 +311,47 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 首先是清理您运行过但忘记使用`--rm`的所有容器，使用`docker rm`：
 
-[PRE9]
+```
+$ docker rm $(docker ps -aq)
+86604ed7bb17
+<snip>
+7f7178567aba
+```
 
 这个命令有效地找到所有容器（`docker ps`），甚至是您停止的容器（`-a`标志），并且只返回它们的 ID（`-q`标志）。然后将其传递给`docker rm`，它将尝试逐个删除它们。如果有任何容器仍在运行，它将给出警告并跳过它们。一般来说，如果您的容器是无状态的或者具有在容器本身之外存储的状态，这通常是一个很好的做法，您可以随时执行。
 
 接下来，尽管可能更具破坏性和节省空间，但要删除您积累的 Docker 镜像。如果您经常遇到空间问题，手动删除可能非常有效。一个经验法则是，任何标签为`<none>`的镜像（也称为悬空）通常可以使用`docker rmi`来删除，因为在大多数情况下，这些镜像表明该镜像已被`Dockerfile`的新版本取代：
 
-[PRE10]
+```
+$ docker images --filter "dangling=true"
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+<none>              <none>              873473f192c8        7 days ago          129MB
+<snip>
+registry            <none>              751f286bc25e        7 weeks ago         33.2MB
+
+$ # Use those image IDs and delete them
+$ docker rmi $(docker images -q --filter "dangling=true")
+ Deleted: sha256:873473f192c8977716fcf658c1fe0df0429d4faf9c833b7c24ef269cacd140ff
+<snip>
+Deleted: sha256:2aee30e0a82b1a6b6b36b93800633da378832d623e215be8b4140e8705c4101f
+```
 
 # 自动清理
 
 我们刚刚做的所有事情似乎都很痛苦，很难记住，所以 Docker 最近添加了`docker image prune`来帮助解决这个问题。通过使用`docker image prune`，所有悬空的镜像将被一条命令删除：
 
-[PRE11]
+```
+$ docker image prune 
+WARNING! This will remove all dangling images.
+Are you sure you want to continue? [y/N] y 
+Deleted Images:
+untagged: ubuntu@sha256:2b9285d3e340ae9d4297f83fed6a9563493945935fc787e98cc32a69f5687641
+deleted: sha256:8b72bba4485f1004e8378bc6bc42775f8d4fb851c750c6c0329d3770b3a09086
+<snip>
+deleted: sha256:f4744c6e9f1f2c5e4cfa52bab35e67231a76ede42889ab12f7b04a908f058551
+
+Total reclaimed space: 188MB
+```
 
 如果您打算清理与容器无关的所有镜像，还可以运行`docker image prune -a`。鉴于这个命令相当具有破坏性，除了在 Docker 从属节点上夜间/每周定时器上运行它以减少空间使用之外，在大多数情况下我不建议这样做。
 
@@ -172,7 +359,23 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 最后但同样重要的是卷的清理，可以使用`docker volume`命令进行管理。我建议在执行此操作时要极度谨慎，以避免删除您可能需要的数据，并且只使用手动卷选择或`prune`。
 
-[PRE12]
+```
+$ docker volume ls
+DRIVER              VOLUME NAME
+local               database_volume
+local               local_storage
+local               swarm_test_database_volume
+
+$ docker volume prune 
+WARNING! This will remove all volumes not used by at least one container.
+Are you sure you want to continue? [y/N] y 
+Deleted Volumes:
+local_storage
+swarm_test_database_volume
+database_volume
+
+Total reclaimed space: 630.5MB
+```
 
 作为参考，我在写这一章的那周对 Docker 的使用相当轻，清理了陈旧的容器、镜像和卷后，我的文件系统使用量减少了大约 3GB。虽然这个数字大部分是个人经验，并且可能看起来不多，但在具有小实例硬盘的云节点和添加了持续集成的集群上，保留这些东西会比你意识到的更快地耗尽磁盘空间，因此期望花一些时间手动执行这个过程，或者为您的节点自动化这个过程，比如使用`systemd`定时器或`crontab`。
 
@@ -192,7 +395,11 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 我们之前见过这些，但也许我们不知道它们是什么。绑定挂载将特定文件或文件夹挂载到容器沙箱中的指定位置，用`:`分隔。到目前为止，我们使用的一般语法应该类似于以下内容：
 
-[PRE13]
+```
+$ docker run <run_params> \
+             -v /path/on/host:/path/on/container \
+             <image>...
+```
 
 这个功能的新的 Docker 语法正在逐渐成为标准，其中`-v`和`--volume`现在正在被`--mount`替换，所以你也应该习惯这种语法。事实上，从现在开始，我们将尽可能多地使用两种语法，以便你能够熟悉任何一种风格，但在撰写本书时，`--mount`还没有像替代方案那样完全功能，所以根据工作情况和不工作情况，可能会有一些交替。
 
@@ -212,13 +419,27 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 这是我们用于`--volume`的比较版本：
 
-[PRE14]
+```
+$ docker run <run_params> \
+             --mount source=/path/on/host,target=/path/on/container \
+             <image>...
+```
 
 # 只读绑定挂载
 
 我们之前没有真正涵盖的另一种绑定挂载类型是只读绑定挂载。当容器中挂载的数据需要保持只读时，这种配置非常有用，尤其是从主机向多个容器传递配置文件时。这种挂载卷的形式看起来有点像这样，适用于两种语法风格：
 
-[PRE15]
+```
+$ # Old-style
+$ docker run <run_params> \
+             -v /path/on/host:/path/on/container:ro \
+             <image>...
+
+$ # New-style
+$ docker run <run_params> \
+             --mount source=/path/on/host,target=/path/on/container,readonly \
+             <image>...
+```
 
 正如稍早提到的，只读卷相对于常规挂载可以为我们提供一些东西，这是从主机传递配置文件到容器的。这通常在 Docker 引擎主机有一些影响容器运行代码的配置时使用（即，用于存储或获取数据的路径前缀，我们正在运行的主机，机器从`/etc/resolv.conf`使用的 DNS 解析器等），因此在大型部署中广泛使用，并且经常会看到。
 
@@ -232,15 +453,101 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 现在我们知道了命名数据卷是什么，让我们通过使用早期配置方法（而不是直接运行容器创建一个）来创建一个。
 
-[PRE16]
+```
+$ # Create our volume
+$ docker volume create mongodb_data
+mongodb_data
+
+$ docker volume inspect mongodb_data
+[
+ {
+ "Driver": "local",
+ "Labels": {},
+ "Mountpoint": "/var/lib/docker/volumes/mongodb_data/_data",
+ "Name": "mongodb_data",
+ "Options": {},
+ "Scope": "local"
+ }
+]
+
+$ # We can start our container now
+$ # XXX: For non-bind-mounts, the new "--mount" option
+$ #      works fine so we will use it here
+$ docker run -d \
+             --mount source=mongodb_data,target=/data/db \
+             mongo:latest
+888a8402d809174d25ac14ba77445c17ab5ed371483c1f38c918a22f3478f25a
+
+$ # Did it work?
+$ docker exec -it 888a8402 ls -la /data/db
+total 200
+drwxr-xr-x 4 mongodb mongodb  4096 Sep 16 14:10 .
+drwxr-xr-x 4 root    root     4096 Sep 13 21:18 ..
+-rw-r--r-- 1 mongodb mongodb    49 Sep 16 14:08 WiredTiger
+<snip>
+-rw-r--r-- 1 mongodb mongodb    95 Sep 16 14:08 storage.bson
+
+$ # Stop the container
+$ docker stop 888a8402 && docker rm 888a8402
+888a8402
+888a8402
+
+$ # What does our host's FS have in the
+$ # volume storage? (path used is from docker inspect output)
+$ sudo ls -la /var/lib/docker/volumes/mongodb_data/_data
+total 72
+drwxr-xr-x 4  999 docker 4096 Sep 16 09:08 .
+drwxr-xr-x 3 root root   4096 Sep 16 09:03 ..
+-rw-r--r-- 1  999 docker 4096 Sep 16 09:08 collection-0-6180071043564974707.wt
+<snip>
+-rw-r--r-- 1  999 docker 4096 Sep 16 09:08 WiredTiger.wt
+
+$ # Remove the new volume
+$ docker volume rm mongodb_data
+mongodb_data
+```
 
 在使用之前手动创建卷（使用`docker volume create`）通常是不必要的，但在这里这样做是为了演示这样做的长格式，但我们可以只是启动我们的容器作为第一步，Docker 将自行创建卷。
 
-[PRE17]
+```
+$ # Verify that we don't have any volumes
+$ docker volume ls
+DRIVER              VOLUME NAME
+
+$ # Run our MongoDB without creating the volume beforehand
+$ docker run -d \
+             --mount source=mongodb_data,target=/data/db \
+             mongo:latest
+f73a90585d972407fc21eb841d657e5795d45adc22d7ad27a75f7d5b0bf86f69
+
+$ # Stop and remove our container
+$ docker stop f73a9058 && docker rm f73a9058
+f73a9058
+f73a9058
+
+$ # Check our volumes
+$ docker volume ls
+DRIVER              VOLUME NAME
+local               4182af67f0d2445e8e2289a4c427d0725335b732522989087579677cf937eb53
+local               mongodb_data
+
+$ # Remove our new volumes
+$ docker volume rm mongodb_data 4182af67f0d2445e8e2289a4c427d0725335b732522989087579677cf937eb53
+mongodb_data
+4182af67f0d2445e8e2289a4c427d0725335b732522989087579677cf937eb53
+```
 
 你可能已经注意到，在这里，我们最终得到了两个卷，而不仅仅是我们预期的`mongodb_data`，如果你按照前面的例子进行了这个例子，你可能实际上有三个（一个命名，两个随机命名）。这是因为每个启动的容器都会创建`Dockerfile`中定义的所有本地卷，无论你是否给它们命名，而且我们的 MongoDB 镜像实际上定义了两个卷：
 
-[PRE18]
+```
+$ # See what volumes Mongo image defines
+$ docker inspect mongo:latest | grep -A 3 Volumes
+<snip>
+            "Volumes": {
+                "/data/configdb": {},
+                "/data/db": {}
+            },
+```
 
 我们只给第一个命名，所以`/data/configdb`卷收到了一个随机的名称。要注意这样的事情，因为如果你不够注意，你可能会遇到空间耗尽的问题。偶尔运行`docker volume prune`可以帮助回收空间，但要小心使用这个命令，因为它会销毁所有未绑定到容器的卷。
 
@@ -278,7 +585,16 @@ Docker 最近推出了一个名为 Docker Cloud 的服务（[`cloud.docker.com/`
 
 您可以在[`docs.docker.com/engine/extend/legacy_plugins/#volume-plugins`](https://docs.docker.com/engine/extend/legacy_plugins/#volume-plugins)找到大多数驱动程序。配置后，如果您手动进行管理挂载而没有编排，可以按以下方式使用它们：
 
-[PRE19]
+```
+$ # New-style volume switch (--mount)
+$ docker run --mount source=<volume_name>,target=/dest/path,volume-driver=<name> \
+             <image>...
+
+$ # Old-style volume switch
+$ docker run -v <volume_name>:/dest/path \
+             --volume-driver <name> \
+             <image>...
+```
 
 供参考，目前我认为处理可移动卷最受欢迎的插件是 Flocker、REX-Ray ([`github.com/codedellemc/rexray`](https://github.com/codedellemc/rexray))和 GlusterFS，尽管有许多可供选择的插件，其中许多具有类似的功能。如前所述，对于如此重要的功能，这个生态系统的状态相当糟糕，似乎几乎每个大型参与者都在运行他们的集群时要么分叉并构建自己的存储解决方案，要么他们自己制作并保持封闭源。一些部署甚至选择使用标签来避免完全避开这个话题，并强制特定容器去特定主机，以便它们可以使用本地挂载的卷。
 
@@ -292,7 +608,71 @@ Flocker 的母公司 ClusterHQ 因财务原因于 2016 年 12 月停止运营，
 
 要复制这项工作，您需要访问一个启用了 SSH 并且可以从 Docker 引擎运行的地方到达的辅助机器（尽管您也可以在回环上运行），因为它使用的是支持存储系统。您还需要在设备上创建目标文件夹`ssh_movable_volume`，可能还需要根据您的设置在`sshfs`卷参数中添加`-o odmap=user`。
 
-[PRE20]
+```
+$ # Install the plugin
+$ docker plugin install vieux/sshfs 
+Plugin "vieux/sshfs" is requesting the following privileges:
+ - network: [host]
+ - mount: [/var/lib/docker/plugins/]
+ - mount: []
+ - device: [/dev/fuse]
+ - capabilities: [CAP_SYS_ADMIN]
+Do you grant the above permissions? [y/N] y
+latest: Pulling from vieux/sshfs
+2381f72027fc: Download complete 
+Digest: sha256:72c8cfd1a6eb02e6db4928e27705f9b141a2a0d7f4257f069ce8bd813784b558
+Status: Downloaded newer image for vieux/sshfs:latest
+Installed plugin vieux/sshfs
+
+$ # Sanity check
+$ docker plugin ls
+ID                  NAME                 DESCRIPTION               ENABLED
+0d160591d86f        vieux/sshfs:latest   sshFS plugin for Docker   true
+
+$ # Add our password to a file
+$ echo -n '<password>' > password_file
+
+$ # Create a volume backed by sshfs on a remote server with SSH daemon running
+$ docker volume create -d vieux/sshfs \
+ -o sshcmd=user@192.168.56.101/ssh_movable_volume \
+ -o password=$(cat password_file) \
+ ssh_movable_volume
+ssh_movable_volume
+
+$ # Sanity check
+$ docker volume ls
+DRIVER               VOLUME NAME
+vieux/sshfs:latest   ssh_movable_volume
+
+$ # Time to test it with a container
+$ docker run -it \
+ --rm \
+ --mount source=ssh_movable_volume,target=/my_volume,volume-driver=vieux/sshfs:latest \
+ ubuntu:latest \
+ /bin/bash
+
+root@75f4d1d2ab8d:/# # Create a dummy file
+root@75f4d1d2ab8d:/# echo 'test_content' > /my_volume/test_file
+
+root@75f4d1d2ab8d:/# exit
+exit
+
+$ # See that the file is hosted on the remote server
+$ ssh user@192.168.56.101
+user@192.168.56.101's password: 
+<snip>
+user@ubuntu:~$ cat ssh_movable_volume/test_file 
+test_content
+
+$ # Get back to our Docker Engine host
+user@ubuntu:~$ exit
+logout
+Connection to 192.168.56.101 closed.
+
+$ # Clean up the volume
+$ docker volume rm ssh_movable_volume
+ssh_movable_volume
+```
 
 由于卷的使用方式，这个卷大多是可移动的，并且可以允许我们需要的可移动特性，尽管大多数其他插件使用一个在 Docker 之外并行在每个主机上运行的进程来管理卷的挂载、卸载和移动，因此这些指令将大不相同。
 
@@ -308,13 +688,86 @@ Flocker 的母公司 ClusterHQ 因财务原因于 2016 年 12 月停止运营，
 
 这一部分不像我在其他地方放置的小信息框那样，因为这是一个足够大的问题，足够棘手，值得有自己的部分。要理解容器**用户 ID**（**UID**）和**组 ID**（**GID**）发生了什么，我们需要了解主机系统权限是如何工作的。当你有一个带有组和用户权限的文件时，它们实际上都被映射为数字，而不是保留为用户名或组名，当你使用常规的`ls`开关列出东西时，你会看到它们：
 
-[PRE21]
+```
+$ # Create a folder and a file that we will mount in the container
+$ mkdir /tmp/foo
+$ cd /tmp/foo
+$ touch foofile
+
+$ # Let's see what we have. Take note of owner and group of the file and directory
+$ ls -la
+total 0
+drwxrwxr-x  2 user user   60 Sep  8 20:20 .
+drwxrwxrwt 56 root root 1200 Sep  8 20:20 ..
+-rw-rw-r--  1 user user    0 Sep  8 20:20 foofile
+
+$ # See what our current UID and GID are
+$ id
+uid=1001(user) gid=1001(user) <snip>
+
+$ # How about we see the actual values that the underlying system uses
+$  ls -na
+total 0
+drwxrwxr-x  2 1001 1001   60 Sep  8 20:20 .
+drwxrwxrwt 56    0    0 1200 Sep  8 20:20 ..
+-rw-rw-r--  1 1001 1001    0 Sep  8 20:20 foofile
+```
 
 当您执行`ls`时，系统会读取`/etc/passwd`和`/etc/group`以显示权限的实际用户名和组名，这是 UID/GID 映射到权限的唯一方式，但底层值是 UID 和 GID。
 
 正如你可能已经猜到的那样，这种用户到 UID 和组到 GID 的映射在容器化系统中可能无法很好地转换，因为容器将不具有相同的`/etc/passwd`和`/etc/group`文件，但外部卷上的文件权限是与数据一起存储的。例如，如果容器有一个 GID 为`1001`的组，它将匹配我们的`foofile`上的组权限位`-rw`，如果它有一个 UID 为`1001`的用户，它将匹配我们文件上的`-rw`用户权限。相反，如果您的 UID 和 GID 不匹配，即使容器和主机上有相同名称的组或用户，您也不会拥有正确的 UID 和 GID 以进行适当的权限处理。是时候看看我们可以用这个做成什么样的混乱了：
 
-[PRE22]
+```
+$ ls -la
+total 0
+drwxrwxr-x  2 user user   60 Sep  8 21:16 .
+drwxrwxrwt 57 root root 1220 Sep  8 21:16 ..
+-rw-rw-r--  1 user user    0 Sep  8 21:16 foofile 
+$ ls -na
+total 0
+drwxrwxr-x  2 1001 1001   60 Sep  8 21:16 .
+drwxrwxrwt 57    0    0 1220 Sep  8 21:16 ..
+-rw-rw-r--  1 1001 1001    0 Sep  8 21:16 foofile
+
+$ # Start a container with this volume mounted
+$ # Note: We have to use the -v form since at the time of writing this
+$ #       you can't mount a bind mount with absolute path :(
+$ docker run --rm \
+             -it \
+             -v $(pwd)/foofile:/tmp/foofile \
+             ubuntu:latest /bin/bash
+
+root@d7776ec7b655:/# # What does the container sees as owner/group?
+root@d7776ec7b655:/# ls -la /tmp
+total 8
+drwxrwxrwt 1 root root 4096 Sep  9 02:17 .
+drwxr-xr-x 1 root root 4096 Sep  9 02:17 ..
+-rw-rw-r-- 1 1001 1001    0 Sep  9 02:16 foofile 
+root@d7776ec7b655:/# # Our container doesn't know about our users
+root@d7776ec7b655:/# # so it only shows UID/GID 
+root@d7776ec7b655:/# # Let's change the owner/group to root (UID 0) and set setuid flag
+root@d7776ec7b655:/# chown 0:0 /tmp/foofile 
+root@d7776ec7b655:/# chmod +x 4777 /tmp/foofile 
+
+root@d7776ec7b655:/# # See what the permissions look like now in container
+root@d7776ec7b655:/# ls -la /tmp
+total 8
+drwxrwxrwt 1 root root 4096 Sep  9 02:17 .
+drwxr-xr-x 1 root root 4096 Sep  9 02:17 ..
+-rwsrwxrwx 1 root root    0 Sep  9 02:16 foofile
+
+root@d7776ec7b655:/# # Exit the container
+root@d7776ec7b655:/# exit
+exit
+
+$ # What does our unmounted volume looks like?
+$ ls -la
+total 0
+drwxrwxr-x  2 user user   60 Sep  8 21:16 .
+drwxrwxrwt 57 root root 1220 Sep  8 21:17 ..
+-rwsrwxrwx  1 root root    0 Sep  8 21:16 foofile
+$ # Our host now has a setuid file! Bad news! 
+```
 
 警告！在文件上设置`setuid`标志是一个真正的安全漏洞，它以文件所有者的权限执行文件。如果我们决定编译一个程序并在其上设置此标志，我们可能会对主机造成大量的破坏。有关此标志的更多信息，请参阅[`en.wikipedia.org/wiki/Setuid`](https://en.wikipedia.org/wiki/Setuid)。
 
@@ -324,21 +777,74 @@ Docker 一直在努力使用户命名空间工作，以避免一些这些安全�
 
 加剧这个 UID/GID 问题的是另一个问题，即在这样的独立环境中会发生的问题：即使在两个容器之间以相同的顺序安装了所有相同的软件包，由于用户和组通常是按名称而不是特定的 UID/GID 创建的，你不能保证在容器运行之间这些一致，如果你想重新挂载已升级或重建的容器之间的相同卷，这是一个严重的问题。因此，你必须确保卷上的 UID 和 GID 是稳定的，方法类似于我们在一些早期示例中所做的，在安装包之前：
 
-[PRE23]
+```
+RUN groupadd -r -g 910 mongodb && \
+ useradd -r -u 910 -g 910 mongodb && \
+ mkdir -p /data/db && \
+ chown -R mongodb:mongodb /data/db && \
+ chmod -R 700 /data/db && \
+ apt-get install mongodb-org
+```
 
 在这里，我们创建了一个 GID 为`910`的组`mongodb`和一个 UID 为`910`的用户`mongodb`，然后确保我们的数据目录由它拥有，然后再安装 MongoDB。通过这样做，当安装`mongodb-org`软件包时，用于运行数据库的组和用户已经存在，并且具有不会更改的确切 UID/GID。有了稳定的 UID/GID，我们可以在任何具有相同配置的构建容器上挂载和重新挂载卷，因为这两个数字将匹配，并且它应该在我们将卷移动到的任何机器上工作。
 
 最后可能需要担心的一件事（在上一个示例中也是一个问题）是，挂载文件夹将覆盖主机上已创建的文件夹并替换其权限。这意味着，如果你将一个新文件夹挂载到容器上，要么你必须手动更改卷的权限，要么在容器启动时更改所有权。让我们看看我是什么意思：
 
-[PRE24]
+```
+$ mkdir /tmp/some_folder
+$ ls -la /tmp | grep some_folder
+drwxrwxr-x  2 sg   sg        40 Sep  8 21:56 some_folder
+
+$ # Mount this folder to a container and list the content
+$ docker run -it \
+             --rm \
+             -v /tmp/some_folder:/tmp/some_folder \
+             ubuntu:latest \
+             ls -la /tmp
+total 8
+drwxrwxrwt 1 root root 4096 Sep  9 02:59 .
+drwxr-xr-x 1 root root 4096 Sep  9 02:59 ..
+drwxrwxr-x 2 1000 1000   40 Sep  9 02:56 some_folder
+
+$ # Somewhat expected but we will do this now by overlaying
+$ # an existing folder (/var/log - root owned) in the container
+
+$ # First a sanity chech
+$ docker run -it \
+             --rm \
+             ubuntu:latest \
+             ls -la /var | grep log
+drwxr-xr-x 4 root root  4096 Jul 10 18:56 log 
+$ # Seems ok but now we mount our folder here
+$ docker run -it \
+             --rm \
+             -v /tmp/some_folder:/var/log \
+             ubuntu:latest \
+             ls -la /var | grep log
+drwxrwxr-x 2 1000  1000   40 Sep  9 02:56 log
+```
 
 正如你所看到的，容器内文件夹上已经设置的任何权限都被我们挂载的目录卷完全覆盖了。如前所述，避免在容器中运行服务的有限用户出现权限错误的最佳方法是在容器启动时使用包装脚本更改挂载路径上的权限，或者使用挂载卷启动容器并手动更改权限，前者是更可取的选项。最简单的包装脚本大致如下：
 
-[PRE25]
+```
+#!/bin/bash -e
+
+# Change owner of volume to the one we expect
+chown mongodb:mongodb /path/to/volume
+
+# Optionally you can use this recursive version too
+# but in most cases it is a bit heavy-handed
+# chown -R mongodb:mongodb /path/to/volume
+
+su - <original limited user> -c '<original cmd invocation>'
+```
 
 将此脚本放在容器的`/usr/bin/wrapper.sh`中，并在`Dockerfile`中以 root 身份运行的地方添加以下代码片段应该足以解决问题：
 
-[PRE26]
+```
+<snip>
+CMD [ "/usr/bin/wrapper.sh" ]
+```
 
 当容器启动时，卷将已经挂载，并且脚本将在将命令传递给容器的原始运行程序之前，更改卷的用户和组为正确的用户和组，从而解决了我们的问题。
 

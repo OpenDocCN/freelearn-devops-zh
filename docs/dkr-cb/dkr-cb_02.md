@@ -36,7 +36,10 @@
 
 在上一章中，安装 Docker 后，我们拉取了一个镜像，并从中创建了一个容器。Docker 的主要目标是运行容器。在本章中，我们将看到我们可以对容器进行不同的操作，如启动、停止、列出、删除等。这将帮助我们将 Docker 用于不同的用例，如测试、CI/CD、设置 PaaS 等，我们将在后面的章节中进行介绍。在开始之前，让我们通过运行以下命令来验证 Docker 安装：
 
-[PRE0]
+```
+$ docker version
+
+```
 
 ![介绍](img/image00279.jpeg)
 
@@ -56,11 +59,17 @@
 
 1.  要在 Docker 注册表上搜索镜像，请运行以下命令：
 
-[PRE1]
+```
+docker search TERM
+
+```
 
 以下是搜索 Fedora 镜像的示例：
 
-[PRE2]
+```
+$ docker search fedora |  head -n5
+
+```
 
 ![如何做…](img/image00280.jpeg)
 
@@ -80,7 +89,10 @@ Docker 在 Docker 公共注册表上搜索镜像，该注册表在[`registry.hub
 
 +   要列出获得超过 20 颗星并且是自动化的图像，请运行以下命令：
 
-[PRE3]
+```
+$ docker search -s 20 --automated fedora
+
+```
 
 ![还有更多...](img/image00281.jpeg)
 
@@ -98,7 +110,10 @@ Docker 在 Docker 公共注册表上搜索镜像，该注册表在[`registry.hub
 
 +   要获取 Docker 搜索的帮助，请运行以下命令：
 
-[PRE4]
+```
+$ docker search --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#search`](https://docs.docker.com/reference/commandline/cli/#search)
 
@@ -114,11 +129,17 @@ Docker 在 Docker 公共注册表上搜索镜像，该注册表在[`registry.hub
 
 1.  要在 Docker 注册表上拉取图像，请运行以下命令：
 
-[PRE5]
+```
+docker pull NAME[:TAG]
+
+```
 
 以下是拉取 Fedora 图像的示例：
 
-[PRE6]
+```
+$ docker pull fedora
+
+```
 
 ![如何做...](img/image00282.jpeg)
 
@@ -130,19 +151,31 @@ Docker 在 Docker 公共注册表上搜索镜像，该注册表在[`registry.hub
 
 +   图像标签将相同类型的图像分组。例如，CentOS 可以具有标签如`centos5`，`centos6`等的图像。例如，要拉取具有特定标签的图像，请运行以下命令：
 
-[PRE7]
+```
+$ docker pull centos:centos7
+
+```
 
 +   默认情况下，将拉取具有最新标签的图像。要拉取所有对应于所有标签的图像，请使用以下命令：
 
-[PRE8]
+```
+$ docker pull --all-tags centos
+
+```
 
 +   使用 Docker 1.6（[`blog.docker.com/2015/04/docker-release-1-6/`](https://blog.docker.com/2015/04/docker-release-1-6/)），我们可以通过称为“摘要”的新内容可寻址标识符构建和引用图像。当我们想要使用特定图像而不是标签时，这是一个非常有用的功能。要拉取具有特定摘要的图像，可以考虑以下语法：
 
-[PRE9]
+```
+$ docker pull  <image>@sha256:<digest>
+
+```
 
 以下是一个命令的示例：
 
-[PRE10]
+```
+$ docker pull debian@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf
+
+```
 
 仅支持 Docker 注册表 v2 的摘要。
 
@@ -152,7 +185,10 @@ Docker 在 Docker 公共注册表上搜索镜像，该注册表在[`registry.hub
 
 +   查看 Docker `pull`的`help`选项：
 
-[PRE11]
+```
+$ docker pull --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#pull`](https://docs.docker.com/reference/commandline/cli/#pull)
 
@@ -168,7 +204,10 @@ Docker 在 Docker 公共注册表上搜索镜像，该注册表在[`registry.hub
 
 1.  运行以下命令列出图像：
 
-[PRE12]
+```
+$ docker images
+
+```
 
 ![如何做...](img/image00283.jpeg)
 
@@ -188,7 +227,10 @@ Docker 客户端与 Docker 服务器通信，并获取服务器端的图像列�
 
 +   查看`docker images`的`help`选项：
 
-[PRE13]
+```
+$ docker images --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#images`](https://docs.docker.com/reference/commandline/cli/#images)
 
@@ -204,11 +246,17 @@ Docker 客户端与 Docker 服务器通信，并获取服务器端的图像列�
 
 1.  启动容器的语法如下：
 
-[PRE14]
+```
+docker run [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+
+```
 
 以下是一个命令的示例：
 
-[PRE15]
+```
+$ docker run -i -t --name=f21 fedora /bin/bash
+
+```
 
 默认情况下，Docker 会选择带有最新标签的镜像：
 
@@ -244,29 +292,50 @@ Docker 客户端与 Docker 服务器通信，并获取服务器端的图像列�
 
 +   `run`命令创建并启动容器。使用 Docker 1.3 或更高版本，可以使用`create`命令只创建容器，然后使用`start`命令稍后运行它，如下例所示：
 
-[PRE16]
+```
+$ ID=$(docker create -t -i fedora bash)
+$ docker start -a -i $ID
+
+```
 
 +   容器可以在后台启动，然后我们可以在需要时附加到它。我们需要使用`-d`选项在后台启动容器：
 
-[PRE17]
+```
+$ docker run -d -i -t fedora /bin/bash
+0df95cc49e258b74be713c31d5a28b9d590906ed9d6e1a2dc756 72aa48f28c4f
+
+```
 
 前面的命令返回容器的容器 ID，稍后我们可以附加到该容器，如下所示：
 
-[PRE18]
+```
+$ ID='docker run -d -t -i fedora /bin/bash'
+$ docker attach $ID
+
+```
 
 在前面的情况下，我们选择了`/bin/bash`在容器内运行。如果我们附加到容器，我们将获得一个交互式 shell。我们可以运行一个非交互式进程，并将其在后台运行，以创建一个守护进程容器，如下所示：
 
-[PRE19]
+```
+$ docker run -d  fedora /bin/bash -c  "while [ 1 ]; do echo hello docker ; sleep 1; done"
+
+```
 
 +   要在退出后删除容器，请使用`--rm`选项启动容器，如下所示：
 
-[PRE20]
+```
+$ docker run --rm fedora date
+
+```
 
 一旦`date`命令退出，容器将被删除。
 
 +   `run`命令的`--read-only`选项将以`只读`模式挂载根文件系统：
 
-[PRE21]
+```
+$ docker run --read-only -d -i -t fedora /bin/bash
+
+```
 
 请记住，此选项只是确保我们不能修改根文件系统上的任何内容，但我们正在写入卷，这将在本书的后面部分进行介绍。当我们不希望用户意外地在容器内写入内容时，此选项非常有用，如果容器没有提交或复制到非临时存储（如卷）上，这些内容将会丢失。
 
@@ -280,7 +349,10 @@ Docker 客户端与 Docker 服务器通信，并获取服务器端的图像列�
 
 +   查看`docker run`的`help`选项：
 
-[PRE22]
+```
+$ docker run --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#run`](https://docs.docker.com/reference/commandline/cli/#run)
 
@@ -298,7 +370,10 @@ Docker 客户端与 Docker 服务器通信，并获取服务器端的图像列�
 
 1.  要列出容器，请运行以下命令：
 
-[PRE23]
+```
+docker ps [ OPTIONS ]
+
+```
 
 ![如何做…](img/image00285.jpeg)
 
@@ -328,7 +403,10 @@ Docker 守护程序可以查看与容器关联的元数据并将其列出。默�
 
 +   要显示最后创建的容器，包括非运行容器，请运行以下命令：
 
-[PRE24]
+```
+$ docker ps -l
+
+```
 
 +   使用`--filter/-f`选项对`ps`进行标记，我们可以列出具有特定标签的容器。有关更多详细信息，请参阅本章中的*标记和过滤容器*示例。
 
@@ -338,7 +416,10 @@ Docker 守护程序可以查看与容器关联的元数据并将其列出。默�
 
 +   查看`docker ps`的`help`选项：
 
-[PRE25]
+```
+$ docker ps --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#ps`](https://docs.docker.com/reference/commandline/cli/#ps)
 
@@ -354,11 +435,17 @@ Docker 守护程序可以查看与容器关联的元数据并将其列出。默�
 
 1.  要从容器中获取日志，请运行以下命令：
 
-[PRE26]
+```
+docker logs [-f|--follow[=false]][-t|--timestamps[=false]] CONTAINER
+
+```
 
 1.  让我们以前面部分的示例为例，运行一个守护式容器并查看日志：
 
-[PRE27]
+```
+$ docker run -d  fedora /bin/bash -c  "while [ 1 ]; do echo hello docker ; sleep 1; done"
+
+```
 
 ![如何做…](img/image00288.jpeg)
 
@@ -374,7 +461,10 @@ Docker 将查看来自`/var/lib/docker/containers/<Container ID>`的容器特定
 
 +   查看`docker logs`的`help`选项：
 
-[PRE28]
+```
+$ docker logs --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#logs`](https://docs.docker.com/reference/commandline/cli/#logs)
 
@@ -390,11 +480,18 @@ Docker 将查看来自`/var/lib/docker/containers/<Container ID>`的容器特定
 
 1.  要停止容器，请运行以下命令：
 
-[PRE29]
+```
+docker stop [-t|--time[=10]] CONTAINER [CONTAINER...]
+
+```
 
 1.  如果您已经有一个正在运行的容器，那么您可以继续停止它；如果没有，我们可以创建一个然后停止它，如下所示：
 
-[PRE30]
+```
+$ ID='docker run -d -i fedora /bin/bash'
+$ docker stop $ID
+
+```
 
 ## 它是如何工作的…
 
@@ -406,13 +503,19 @@ Docker 将查看来自`/var/lib/docker/containers/<Container ID>`的容器特定
 
 +   要停止所有正在运行的容器，请运行以下命令：
 
-[PRE31]
+```
+$ docker stop 'docker ps -q'
+
+```
 
 ## 另请参阅
 
 +   查看`docker stop`的`help`选项：
 
-[PRE32]
+```
+$ docker stop --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#stop`](https://docs.docker.com/reference/commandline/cli/#stop)
 
@@ -428,11 +531,19 @@ Docker 将查看来自`/var/lib/docker/containers/<Container ID>`的容器特定
 
 1.  使用以下命令：
 
-[PRE33]
+```
+$ docker rm [ OPTIONS ] CONTAINER [ CONTAINER ]
+
+```
 
 1.  让我们首先启动一个容器，然后停止它，然后使用以下命令删除它：
 
-[PRE34]
+```
+$ ID='docker run -d -i fedora /bin/bash '
+$ docker stop $ID
+$ docker rm $ID
+
+```
 
 ![如何做…](img/image00289.jpeg)
 
@@ -444,7 +555,11 @@ Docker 将查看来自`/var/lib/docker/containers/<Container ID>`的容器特定
 
 +   要删除所有容器，我们首先需要停止所有正在运行的容器，然后再删除它们。在运行命令之前要小心，因为这些命令将删除正在运行和停止的容器：
 
-[PRE35]
+```
+$ docker stop 'docker ps -q'
+$ docker rm 'docker ps -aq'
+
+```
 
 +   有选项可以删除与容器相关的指定链接和卷，我们将在后面探讨。
 
@@ -456,7 +571,10 @@ Docker 守护程序将删除在启动容器时创建的读/写层。
 
 +   查看`docker rm`的`help`选项
 
-[PRE36]
+```
+$ docker rm --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#rm`](https://docs.docker.com/reference/commandline/cli/#rm)
 
@@ -472,11 +590,17 @@ Docker 守护程序将删除在启动容器时创建的读/写层。
 
 您可以使用以下语法设置重新启动策略：
 
-[PRE37]
+```
+$ docker run --restart=POLICY [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+
+```
 
 以下是一个命令的示例：
 
-[PRE38]
+```
+$ docker run --restart=always -d -i -t fedora /bin/bash
+
+```
 
 有三种重新启动策略可供选择：
 
@@ -490,7 +614,10 @@ Docker 守护程序将删除在启动容器时创建的读/写层。
 
 您还可以使用`on-failure`策略给出可选的重新启动计数，如下所示：
 
-[PRE39]
+```
+$ docker run --restart=on-failure:3 -d -i -t fedora /bin/bash
+
+```
 
 前面的命令只会在发生故障时重新启动容器三次。
 
@@ -498,7 +625,10 @@ Docker 守护程序将删除在启动容器时创建的读/写层。
 
 +   查看`docker run`的`help`选项：
 
-[PRE40]
+```
+$ docker run --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#run`](https://docs.docker.com/reference/commandline/cli/#run)。
 
@@ -518,11 +648,17 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 1.  要使用`privileged`模式，请使用以下命令：
 
-[PRE41]
+```
+$ docker run --privileged [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+
+```
 
 1.  现在让我们尝试使用特权访问的前面的示例：
 
-[PRE42]
+```
+$ docker run  --privileged  -i -t fedora /bin/bash
+
+```
 
 ![如何做…](img/image00291.jpeg)
 
@@ -534,7 +670,10 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 这种模式会带来安全风险，因为容器可以在 Docker 主机上获得根级访问权限。使用 Docker 1.2 或更高版本，添加了两个新标志`--cap-add`和`--cap-del`，以在容器内提供细粒度的控制。例如，要防止容器内的任何`chown`，请使用以下命令：
 
-[PRE43]
+```
+$ docker run --cap-drop=CHOWN [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+
+```
 
 查看第九章，“Docker 安全性”，了解更多详情。
 
@@ -542,7 +681,10 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 +   查看`docker run`的`help`选项：
 
-[PRE44]
+```
+$ docker run --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#run`](https://docs.docker.com/reference/commandline/cli/#run)
 
@@ -560,11 +702,17 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 1.  暴露端口的语法如下：
 
-[PRE45]
+```
+$ docker run --expose=PORT [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+
+```
 
 例如，要在启动容器时暴露端口 22，请运行以下命令：
 
-[PRE46]
+```
+$ docker run --expose=22 -i -t fedora /bin/bash
+
+```
 
 ## 还有更多…
 
@@ -574,7 +722,10 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 +   查看`docker run`的`help`选项：
 
-[PRE47]
+```
+$ docker run --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#run`](https://docs.docker.com/reference/commandline/cli/#run)
 
@@ -590,11 +741,17 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 1.  您可以使用以下语法将主机设备的访问权限提供给容器：
 
-[PRE48]
+```
+$ docker run --device=<Host Device>:<Container Device Mapping>:<Permissions>   [ OPTIONS ]  IMAGE[:TAG]  [COMMAND]  [ARG...]
+
+```
 
 这是一个命令的例子：
 
-[PRE49]
+```
+$ docker run --device=/dev/sdc:/dev/xvdc -i -t fedora /bin/bash
+
+```
 
 ## 它是如何工作的…
 
@@ -604,7 +761,10 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 +   查看`docker run`的`help`选项：
 
-[PRE50]
+```
+ $ docker run --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#run`](https://docs.docker.com/reference/commandline/cli/#run)
 
@@ -620,11 +780,18 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 1.  您可以使用以下命令在运行的容器中注入进程：
 
-[PRE51]
+```
+ $ docker exec [-d|--detach[=false]] [--help] [-i|--interactive[=false]] [-t|--tty[=false]] CONTAINER COMMAND [ARG...]
+
+```
 
 1.  让我们启动一个`nginx`容器，然后注入`bash`进去：
 
-[PRE52]
+```
+$ ID='docker run -d nginx'
+$ docker run -it $ID bash
+
+```
 
 ![如何做…](img/image00292.jpeg)
 
@@ -636,7 +803,10 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 +   查看 Docker inspect 的`help`选项：
 
-[PRE53]
+```
+ $ docker exec --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#exec`](https://docs.docker.com/reference/commandline/cli/#exec)
 
@@ -652,11 +822,30 @@ Linux 将传统上与超级用户关联的特权分为不同的单元，称为�
 
 1.  要检查容器/镜像，请运行以下命令：
 
-[PRE54]
+```
+$ docker inspect [-f|--format="" CONTAINER|IMAGE [CONTAINER|IMAGE...]
+
+```
 
 1.  我们将启动一个容器，然后对其进行检查：
 
-[PRE55]
+```
+$ ID='docker run -d -i fedora /bin/bash'
+$ docker inspect $ID
+[{
+ "Args": [],
+ "Config": {
+ "AttachStderr": false,
+ "AttachStdin": false,
+ "AttachStdout": false,
+ "Cmd": [
+ "/bin/bash"
+ ],
+ .........
+ .........
+}]
+
+```
 
 ## 工作原理…
 
@@ -666,13 +855,20 @@ Docker 将查看给定镜像或容器的元数据和配置，并呈现出来。
 
 使用`-f | --format`选项，我们可以使用 Go（编程语言）模板来获取特定信息。以下命令将给出容器的 IP 地址：
 
-[PRE56]
+```
+$ docker inspect --format='{{.NetworkSettings.IPAddress}}'  $ID
+172.17.0.2
+
+```
 
 ## 另请参阅
 
 +   查看`docker inspect`的`help`选项：
 
-[PRE57]
+```
+ $ docker inspect --help
+
+```
 
 +   Docker 网站上的文档[`docs.docker.com/reference/commandline/cli/#inspect`](https://docs.docker.com/reference/commandline/cli/#inspect)
 
@@ -696,7 +892,10 @@ Docker 还为容器、镜像和事件提供了过滤器（[`docs.docker.com/refe
 
 1.  要使用 `--label/-l` 选项启动容器，请运行以下命令：
 
-[PRE58]
+```
+$ docker run --label environment=dev f21 date
+
+```
 
 1.  让我们启动一个没有标签的容器，并使用相同的标签启动另外两个：![操作步骤如下…](img/image00294.jpeg)
 

@@ -70,7 +70,10 @@ minikube 可以安装在 Windows、macOS 和 Linux 上。接下来是三个平�
 
 Minikube-install-mac.sh
 
-[PRE0]
+```
+     curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-darwin-amd64 \
+&& sudo install minikube-darwin-amd64 /usr/local/bin/minikube
+```
 
 ### 在 Linux 上安装
 
@@ -78,7 +81,10 @@ Minikube-install-mac.sh
 
 Minikube-install-linux.sh
 
-[PRE1]
+```
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
+&& sudo install minikube-linux-amd64 /usr/local/bin/minikube
+```
 
 ## 在 minikube 上创建一个集群
 
@@ -132,7 +138,17 @@ AWS 的托管 Kubernetes 服务称为 EKS，或弹性 Kubernetes 服务。有几
 
 Eks-create-cluster.sh
 
-[PRE2]
+```
+eksctl create cluster \
+--name prod \
+--version 1.17 \
+--nodegroup-name standard-workers \
+--node-type t2.small \
+--nodes 3 \
+--nodes-min 1 \
+--nodes-max 4 \
+--node-ami auto
+```
 
 这将创建一个由三个`t2.small`实例组成的集群，这些实例被设置为一个具有一个节点最小和四个节点最大的自动缩放组。使用的 Kubernetes 版本将是`1.17`。重要的是，`eksctl`从一个默认区域开始，并根据选择的节点数量，在该区域的多个可用区中分布它们。
 
@@ -140,7 +156,9 @@ Eks-create-cluster.sh
 
 使用以下代码测试配置：
 
-[PRE3]
+```
+kubectl get nodes
+```
 
 您应该看到您的节点及其关联的 IP 列表。您的集群已准备就绪！接下来，让我们看看 Google 的 GKE 设置过程。
 
@@ -158,7 +176,10 @@ GKE 是 Google Cloud 的托管 Kubernetes 服务。使用 gcloud 命令行工具
 
 现在 API 已激活，请使用以下命令在 Google Cloud 中设置您的项目和计算区域：
 
-[PRE4]
+```
+gcloud config set project proj_id
+gcloud config set compute/zone compute_zone
+```
 
 在命令中，`proj_id`对应于您想要在 Google Cloud 中创建集群的项目 ID，`compute_zone`对应于您在 Google Cloud 中期望的计算区域。
 
@@ -178,29 +199,44 @@ GKE 中的**多区**集群意味着具有单个控制平面副本和两个或多
 
 现在，要实际创建您的集群，您可以运行以下命令以使用默认设置创建名为 `dev` 的集群：
 
-[PRE5]
+```
+gcloud container clusters create dev \
+    --zone [compute_zone]
+```
 
 此命令将在您选择的计算区域创建一个单区域集群。
 
 为了创建一个多区域集群，您可以运行以下命令：
 
-[PRE6]
+```
+gcloud container clusters create dev \
+    --zone [compute_zone_1]
+    --node-locations [compute_zone_1],[compute_zone_2],[etc]
+```
 
 在这里，`compute_zone_1` 和 `compute_zone_2` 是不同的 Google Cloud 区域。此外，可以通过 `node-locations` 标志添加更多区域。
 
 最后，要创建一个区域集群，您可以运行以下命令：
 
-[PRE7]
+```
+gcloud container clusters create dev \
+    --region [region] \
+    --node-locations [compute_zone_1],[compute_zone_2],[etc]
+```
 
 在这种情况下，`node-locations` 标志实际上是可选的。如果省略，集群将在该区域内的所有区域中创建工作节点。如果您想更改此默认行为，可以使用 `node-locations` 标志进行覆盖。
 
 现在您已经运行了一个集群，需要配置您的 `kubeconfig` 文件以与集群通信。为此，只需将集群名称传递给以下命令：
 
-[PRE8]
+```
+gcloud container clusters get-credentials [cluster_name]
+```
 
 最后，使用以下命令测试配置：
 
-[PRE9]
+```
+kubectl get nodes
+```
 
 与 EKS 一样，您应该看到所有已配置节点的列表。成功！最后，让我们来看看 Azure 的托管服务。
 
@@ -212,23 +248,43 @@ Microsoft Azure 的托管 Kubernetes 服务称为 AKS。可以通过 Azure CLI �
 
 要在 AKS 上创建集群，可以使用 Azure CLI 工具，并运行以下命令以创建服务主体（集群将使用该服务主体访问 Azure 资源的角色）：
 
-[PRE10]
+```
+az ad sp create-for-rbac --skip-assignment --name myClusterPrincipal
+```
 
 此命令的结果将是一个包含有关服务主体信息的 JSON 对象，我们将在下一步中使用。此 JSON 对象如下所示：
 
-[PRE11]
+```
+{
+  "appId": "559513bd-0d99-4c1a-87cd-851a26afgf88",
+  "displayName": "myClusterPrincipal",
+  "name": "http://myClusterPrincipal",
+  "password": "e763725a-5eee-892o-a466-dc88d980f415",
+  "tenant": "72f988bf-90jj-41af-91ab-2d7cd011db48"
+}
+```
 
 现在，您可以使用上一个 JSON 命令中的值来实际创建您的 AKS 集群：
 
 Aks-create-cluster.sh
 
-[PRE12]
+```
+az aks create \
+    --resource-group devResourceGroup \
+    --name myCluster \
+    --node-count 2 \
+    --service-principal <appId> \
+    --client-secret <password> \
+    --generate-ssh-keys
+```
 
 此命令假定存在名为 `devResourceGroup` 的资源组和名为 `devCluster` 的集群。对于 `appId` 和 `password`，请使用服务主体创建步骤中的值。
 
 最后，要在您的计算机上生成正确的 `kubectl` 配置，您可以运行以下命令：
 
-[PRE13]
+```
+az aks get-credentials --resource-group devResourceGroup --name myCluster
+```
 
 到这一步，您应该能够正确运行 `kubectl` 命令。使用 `kubectl get nodes` 命令测试配置。
 
@@ -270,7 +326,9 @@ Kubespray 与 Kops 和 Kubeadm 都不同。与 Kops 不同，Kubespray 并不固
 
 要快速启动使用 Kubeadm 的主节点，您只需要运行一个命令：
 
-[PRE14]
+```
+kubeadm init
+```
 
 此初始化命令可以接受几个可选参数 - 根据您的首选集群设置、网络等，您可能需要使用它们。
 
@@ -280,7 +338,9 @@ Kubespray 与 Kops 和 Kubeadm 都不同。与 Kops 不同，Kubespray 并不固
 
 为了引导工作节点，您需要运行保存的`join`命令。命令的形式如下：
 
-[PRE15]
+```
+kubeadm join --token [TOKEN] [IP ON MASTER]:[PORT ON MASTER] --discovery-token-ca-cert-hash sha256:[HASH VALUE]
+```
 
 此命令中的令牌是引导令牌。它用于验证节点之间的身份，并将新节点加入集群。拥有此令牌的访问权限即可加入新节点到集群中，因此请谨慎对待。
 
@@ -288,7 +348,10 @@ Kubespray 与 Kops 和 Kubeadm 都不同。与 Kops 不同，Kubespray 并不固
 
 使用 Kubeadm，kubectl 已经在主节点上正确设置。但是，要从任何其他机器或集群外部使用 kubectl，您可以将主节点上的配置复制到本地机器：
 
-[PRE16]
+```
+scp root@[IP OF MASTER]:/etc/kubernetes/admin.conf .
+kubectl --kubeconfig ./admin.conf get nodes 
+```
 
 这个`kubeconfig`将是集群管理员配置 - 为了指定其他用户（和权限），您需要添加新的服务账户并为他们生成`kubeconfig`文件。
 
@@ -302,7 +365,9 @@ Kubespray 与 Kops 和 Kubeadm 都不同。与 Kops 不同，Kubespray 并不固
 
 在 OS X 上，安装 Kops 的最简单方法是使用 Homebrew：
 
-[PRE17]
+```
+brew update && brew install kops
+```
 
 或者，您可以从 Kops GitHub 页面上获取最新的稳定 Kops 二进制文件，网址为[`github.com/kubernetes/kops/releases/tag/1.12.3`](https://github.com/kubernetes/kops/releases/tag/1.12.3)。
 
@@ -312,7 +377,11 @@ Kubespray 与 Kops 和 Kubeadm 都不同。与 Kops 不同，Kubespray 并不固
 
 Kops-linux-install.sh
 
-[PRE18]
+```
+curl -LO https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64
+chmod +x kops-linux-amd64
+sudo mv kops-linux-amd64 /usr/local/bin/kops
+```
 
 ## 在 Windows 上安装
 
@@ -324,21 +393,37 @@ Kops-linux-install.sh
 
 首先，为`kops`用户创建一个 IAM 组：
 
-[PRE19]
+```
+aws iam create-group --group-name kops_users
+```
 
 然后，为`kops_users`组附加所需的角色。为了正常运行，Kops 将需要`AmazonEC2FullAccess`，`AmazonRoute53FullAccess`，`AmazonS3FullAccess`，`IAMFullAccess`和`AmazonVPCFullAccess`。我们可以通过运行以下命令来实现这一点：
 
 提供-aws-policies-to-kops.sh
 
-[PRE20]
+```
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess --group-name kops
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonRoute53FullAccess --group-name kops
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess --group-name kops
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/IAMFullAccess --group-name kops
+aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AmazonVPCFullAccess --group-name kops
+```
 
 最后，创建`kops`用户，将其添加到`kops_users`组，并创建程序访问密钥，然后保存：
 
-[PRE21]
+```
+aws iam create-user --user-name kops
+aws iam add-user-to-group --user-name kops --group-name kops_users
+aws iam create-access-key --user-name kops
+```
 
 为了让 Kops 访问您的新 IAM 凭据，您可以使用以下命令配置 AWS CLI，使用前一个命令（`create-access-key`）中的访问密钥和秘钥：
 
-[PRE22]
+```
+aws configure
+export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
+export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
+```
 
 ## 设置状态存储
 
@@ -348,15 +433,25 @@ Kops-linux-install.sh
 
 像往常一样，使用 S3 时，存储桶名称需要是唯一的。您可以使用 AWS SDK 轻松创建一个存储桶（确保将`my-domain-dev-state-store`替换为您想要的 S3 存储桶名称）：
 
-[PRE23]
+```
+aws s3api create-bucket \
+    --bucket my-domain-dev-state-store \
+    --region us-east-1
+```
 
 启用存储桶加密和版本控制是最佳实践：
 
-[PRE24]
+```
+aws s3api put-bucket-versioning --bucket prefix-example-com-state-store  --versioning-configuration Status=Enabled
+aws s3api put-bucket-encryption --bucket prefix-example-com-state-store --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
+```
 
 最后，要设置 Kops 的变量，请使用以下命令：
 
-[PRE25]
+```
+export NAME=devcluster.k8s.local
+export KOPS_STATE_STORE=s3://my-domain-dev-cluster-state-store
+```
 
 重要提示
 
@@ -370,15 +465,27 @@ Kops 支持多种状态存储位置，如 AWS S3，Google Cloud Storage，Kubern
 
 Kops-create-cluster.sh
 
-[PRE26]
+```
+kops create cluster \
+    --node-count 3 \
+    --zones us-east-1a,us-east-1b,us-east-1c \
+    --master-zones us-east-1a,us-east-1b,us-east-1c \
+    --node-size t2.medium \
+    --master-size t2.medium \
+    ${NAME}
+```
 
 要查看已创建的配置，请使用以下命令：
 
-[PRE27]
+```
+kops edit cluster ${NAME}
+```
 
 最后，要创建我们的集群，请运行以下命令：
 
-[PRE28]
+```
+kops update cluster ${NAME} --yes
+```
 
 集群创建过程可能需要一些时间，但一旦完成，您的`kubeconfig`应该已经正确配置，可以使用 kubectl 与您的新集群进行交互。
 
@@ -418,11 +525,38 @@ Kops-create-cluster.sh
 
 示例-systemd-control-plane
 
-[PRE29]
+```
+[Unit]
+Description=etcd
+Documentation=https://github.com/coreos
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/etcd \\
+  --name ${ETCD_NAME} \\
+  --cert-file=/etc/etcd/kubernetes.pem \\
+  --key-file=/etc/etcd/kubernetes-key.pem \\
+  --peer-cert-file=/etc/etcd/kubernetes.pem \\
+  --peer-key-file=/etc/etcd/kubernetes-key.pem \\
+  --trusted-ca-file=/etc/etcd/ca.pem \\
+  --peer-trusted-ca-file=/etc/etcd/ca.pem \\
+  --peer-client-cert-auth \\
+  --initial-cluster-state new \\
+  --data-dir=/var/lib/etcd
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target
+```
 
 该服务文件为我们的 etcd 组件提供了运行时定义，它将在每个主节点上启动。要在我们的节点上实际启动 etcd，我们运行以下命令：
 
-[PRE30]
+```
+{
+  sudo systemctl daemon-reload
+  sudo systemctl enable etcd
+  sudo systemctl start etcd
+}
+```
 
 这使得`etcd`服务能够在节点重新启动时自动重新启动。
 
@@ -434,21 +568,60 @@ Kops-create-cluster.sh
 
 让我们来看看我们的`kube-apiserver`组件的服务文件定义，按照以下各节进行拆分。`Unit`部分只是我们`systemd`文件的一个快速描述：
 
-[PRE31]
+```
+[Unit]
+Description=Kubernetes API Server
+Documentation=https://github.com/kubernetes/kubernetes
+```
 
 Api-server-systemd-example
 
 第二部分是服务的实际启动命令，以及要传递给服务的任何变量：
 
-[PRE32]
+```
+[Service]
+ExecStart=/usr/local/bin/kube-apiserver \\
+  --advertise-address=${INTERNAL_IP} \\
+  --allow-privileged=true \\
+  --apiserver-count=3 \\
+  --audit-log-maxage=30 \\
+  --audit-log-maxbackup=3 \\
+  --audit-log-maxsize=100 \\
+  --audit-log-path=/var/log/audit.log \\
+  --authorization-mode=Node,RBAC \\
+  --bind-address=0.0.0.0 \\
+  --client-ca-file=/var/lib/kubernetes/ca.pem \\
+  --enable-admission-plugins=NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota \\
+  --etcd-cafile=/var/lib/kubernetes/ca.pem \\
+  --etcd-certfile=/var/lib/kubernetes/kubernetes.pem \\
+  --etcd-keyfile=/var/lib/kubernetes/kubernetes-key.pem \\
+  --etcd-
+  --service-account-key-file=/var/lib/kubernetes/service-account.pem \\
+  --service-cluster-ip-range=10.10.0.0/24 \\
+  --service-node-port-range=30000-32767 \\
+  --tls-cert-file=/var/lib/kubernetes/kubernetes.pem \\
+  --tls-private-key-file=/var/lib/kubernetes/kubernetes-key.pem \\
+  --v=2
+```
 
 最后，`Install`部分允许我们指定一个`WantedBy`目标：
 
-[PRE33]
+```
+Restart=on-failure
+RestartSec=5
+ [Install]
+WantedBy=multi-user.target
+```
 
 `kube-scheduler`和`kube-controller-manager`的服务文件将与`kube-apiserver`的定义非常相似，一旦我们准备在节点上启动组件，这个过程就很容易：
 
-[PRE34]
+```
+{
+  sudo systemctl daemon-reload
+  sudo systemctl enable kube-apiserver kube-controller-manager kube-scheduler
+  sudo systemctl start kube-apiserver kube-controller-manager kube-scheduler
+}
+```
 
 与`etcd`类似，我们希望确保服务在节点关闭时重新启动。
 
@@ -460,7 +633,27 @@ Api-server-systemd-example
 
 Kubelet-systemd-example
 
-[PRE35]
+```
+[Unit]
+Description=Kubernetes Kubelet
+Documentation=https://github.com/kubernetes/kubernetes
+After=containerd.service
+Requires=containerd.service
+[Service]
+ExecStart=/usr/local/bin/kubelet \\
+  --config=/var/lib/kubelet/kubelet-config.yaml \\
+  --container-runtime=remote \\
+  --container-runtime-endpoint=unix:///var/run/containerd/containerd.sock \\
+  --image-pull-progress-deadline=2m \\
+  --kubeconfig=/var/lib/kubelet/kubeconfig \\
+  --network-plugin=cni \\
+  --register-node=true \\
+  --v=2
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=multi-user.target
+```
 
 正如你所看到的，这个服务定义引用了`cni`、容器运行时和`kubelet-config`文件。`kubelet-config`文件包含我们工作节点所需的 TLS 信息。
 

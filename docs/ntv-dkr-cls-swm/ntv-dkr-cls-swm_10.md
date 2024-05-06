@@ -62,7 +62,10 @@ Docker for AWS 当然具备创建 Docker Swarm（模式）基础架构的能力�
 
 现在，我们准备好进入我们的新 Docker Swarm 基础架构。只需选择一个管理者的公共 IP 并使用在第一步中指定的 SSH 密钥连接到它：
 
-[PRE0]
+```
+ ssh docker@ec2-52-91-75-252.compute-1.amazonaws.com
+
+```
 
 ![Docker for AWS](img/image_10_004.jpg)
 
@@ -80,7 +83,10 @@ Docker for AWS 当然具备创建 Docker Swarm（模式）基础架构的能力�
 
 要生成最后一个，您可以方便地使用一个 docker 镜像，并使用以下命令启动它：
 
-[PRE1]
+```
+ docker run -it docker4x/create-sp-azure docker-swarm
+
+```
 
 在过程中，您将需要通过浏览器登录到指定的 URL。最后，将为您提供一对 ID/密钥，供您在 Azure 向导表单中输入。
 
@@ -92,7 +98,10 @@ Docker for AWS 当然具备创建 Docker Swarm（模式）基础架构的能力�
 
 将创建一组经典虚拟机来运行指定数量的管理者（这里是 1）和工作节点（这里是 4），以及适当的内部网络、负载均衡器和路由器。就像在 Docker for AWS 中一样，您可以通过 SSH 连接到一个管理者的公共 IP 来开始使用部署的 Swarm：
 
-[PRE2]
+```
+ ssh docker@52.169.125.191
+
+```
 
 ![Docker for Azure](img/image_10_007.jpg)
 
@@ -168,7 +177,18 @@ Docker 数据中心和 Docker for AWS 之间的主要区别在于前者旨在成
 
 在 OpenStack 上创建一个 Docker 主机的 Machine 命令将如下所示：
 
-[PRE3]
+```
+ docker-machine create \
+ --driver openstack \
+ --openstack-image-id 98011e9a-fc46-45b6-ab2c-cf6c43263a22 \
+ --openstack-flavor-id 3 \
+ --openstack-floatingip-pool public \
+ --openstack-net-id 44ead515-da4b-443b-85cc-a5d13e06ddc85 \
+ --openstack-sec-groups machine \
+ --openstack-ssh-user ubuntu \
+ ubuntu1
+
+```
 
 ## OpenStack Nova
 
@@ -182,7 +202,13 @@ Docker 数据中心和 Docker for AWS 之间的主要区别在于前者旨在成
 
 最后一种方法更有前途，因为 Machine 会自动安装 Docker，而不必在新创建的实例上进行后续的黑客攻击或使用其他工具（例如使用通用驱动程序的 Machine，Belt，Ansible，Salt 或其他脚本）。但在撰写本文时（Machine 0.8.2），Machine 不支持批量主机创建，因此您将不得不使用一些基本的 shell 逻辑循环`docker-machine`命令：
 
-[PRE4]
+```
+ #!/bin/bash
+ for i in `seq 0 9`; do
+ docker-machine create -d openstack ... openstack-machine-$i
+ done
+
+```
 
 这根本不是一个好的用户体验，因为当我们谈论数十个主机时，机器的扩展性仍然非常糟糕。
 
@@ -208,7 +234,24 @@ OpenStack Heat 有点类似于 Docker Compose，允许您通过模板启动系�
 
 在 Heat 中，一切都始于 YAML 模板，借助它，您可以在启动之前对基础架构进行建模，就像您使用 Compose 一样。例如，您可以创建一个这样的模板文件：
 
-[PRE5]
+```
+ ...
+ resources:
+   dockerhosts_group:
+     type: OS::Heat::ResourceGroup
+     properties:
+       count: 10
+       resource_def:
+         type: OS::Nova::Server
+         properties:
+           # create a unique name for each server
+           # using its index in the group
+           name: docker_host_%index%
+           image: Ubuntu 16.04
+           flavor: m.large
+ ...
+
+```
 
 然后，您可以从中启动一个堆栈（`heat stack-create -f configuration.hot dockerhosts`）。Heat 将调用 Nova、Neutron、Cinder 和所有必要的 OpenStack 服务来编排资源并使其可用。
 
@@ -226,7 +269,11 @@ Magnum 于 2015 年底宣布，并由 OpenStack 容器团队开发，旨在将**
 
 Magnum 有两个主要组件，运行在控制节点上：
 
-[PRE6]
+```
+ magnum-api
+ magnum-conductor
+
+```
 
 第一个进程`magnum-api`是典型的 OpenStack API 提供者，由 magnum Python 客户端或其他进程调用进行操作，例如创建集群。后者`magnum-conductor`由`magnum-api`（或多或少具有`nova-conductor`的相同功能）通过 AMQP 服务器（如 Rabbit）调用，其目标是与 Kubernetes 或 Docker API 进行接口。实际上，这两个二进制文件一起工作，提供一种编排抽象。
 
@@ -266,19 +313,37 @@ Magnum 术语随着项目的发展而不断演变。但这些是主要概念：
 
 然而，在安装 Magnum 之前，有必要准备环境。首先需要一个数据库。只需在任何控制器上输入 MySQL 控制台：
 
-[PRE7]
+```
+ node-1# mysql
+
+```
 
 在 MySQL 中，创建 magnum 数据库和用户，并授予正确的权限：
 
-[PRE8]
+```
+ CREATE DATABASE magnum;
+ GRANT ALL PRIVILEGES ON magnum.* TO 'magnum'@'controller' \
+   IDENTIFIED BY 'password';
+ GRANT ALL PRIVILEGES ON magnum.* TO 'magnum'@'%' \
+   IDENTIFIED BY 'password';
+
+```
 
 现在，有必要在 Keystone 中创建服务凭据，首先要定义一个 magnum OpenStack 用户，必须将其添加到服务组中。服务组是一个特殊的组，其中包括在集群中运行的 OpenStack 服务，如 Nova、Neutron 等。
 
-[PRE9]
+```
+ openstack user create --domain default --password-prompt magnum
+ openstack role add --project services --user magnum admin
+
+```
 
 之后，必须创建一个新的服务：
 
-[PRE10]
+```
+ openstack service create --name magnum \   --description "OpenStack 
+    Container Infrastructure" \   container-infra
+
+```
 
 OpenStack 程序通过其 API 调用并进行通信。API 通过端点访问，这是一个 URL 和端口的配对，在 HA 设置中由 HAproxy 代理。在我们的设置中，HAproxy 在`10.21.22.2`上接收 HTTP 请求，并在控制器 IP 之间进行负载均衡，即`10.21.22.4, 5`和`6`。
 
@@ -286,15 +351,32 @@ OpenStack 程序通过其 API 调用并进行通信。API 通过端点访问，�
 
 我们必须为 Magnum 创建这样的端点，默认情况下监听端口 9511，对于每个区域（公共、内部和管理员）：
 
-[PRE11]
+```
+ openstack endpoint create --region RegionOne \
+   container-infra public http://10.21.22.2:9511/v1
+ openstack endpoint create --region RegionOne \
+   container-infra internal http://10.21.22.2:9511/v1
+ openstack endpoint create --region RegionOne \
+   container-infra admin http://10.21.22.2:9511/v1
+
+```
 
 此外，Magnum 需要额外的配置来在域内部组织其工作负载，因此必须添加一个专用域和域用户：
 
-[PRE12]
+```
+ openstack domain create --description "Magnum" magnum
+ openstack user create --domain magnum --password-prompt 
+    magnum_domain_admin
+ openstack role add --domain magnum --user magnum_domain_admin admin
+
+```
 
 现在一切就绪，最终运行`apt-get`。在所有三个控制器上运行以下命令，并在 ncurses 界面中，始终选择 No，以不更改环境，或保持默认配置：
 
-[PRE13]
+```
+ apt-get install magnum-api magnum-conductor
+
+```
 
 ### 配置 HA Magnum 安装
 
@@ -312,59 +394,143 @@ Magnum 的配置非常简单。使其处于运行状态所需的操作是：
 
 必须在每个控制器上进行的关键配置如下。首先，在每个控制器上，主机参数应该是管理网络上接口的 IP：
 
-[PRE14]
+```
+ [api]
+ host = 10.21.22.6
+
+```
 
 如果未安装**Barbican**（专门用于管理密码等秘密的 OpenStack 项目），则必须由`**x509keypair**`插件处理证书：
 
-[PRE15]
+```
+ [certificates]
+ cert_manager_type = x509keypair
+
+```
 
 然后，需要一个数据库连接字符串。在这个 HA 设置中，MySQL 在 VIP`10.21.22.2`上响应：
 
-[PRE16]
+```
+ [database]
+ connection=mysql://magnum:password@10.21.22.2/magnum
+
+```
 
 Keystone 身份验证配置如下（选项相当不言自明）：
 
-[PRE17]
+```
+ [keystone_authtoken]
+ auth_uri=http://10.21.22.2:5000/
+ memcached_servers=10.21.22.4:11211,
+    10.21.22.5:11211,10.21.22.6:11211
+ auth_type=password
+ username=magnum
+ project_name=services
+ auth_url=http://10.21.22.2:35357/
+ password=password
+ user_domain_id = default
+ project_domain_id = default
+ auth_host = 127.0.0.1
+ auth_protocol = http
+ admin_user = admin
+ admin_password =
+ admin_tenant_name = admin
+
+```
 
 必须配置 Oslo（消息代理）以进行消息传递：
 
-[PRE18]
+```
+ [oslo_messaging_notifications]
+ driver = messaging
+
+```
 
 Rabbitmq 的配置是这样的，指定 Rabbit 集群主机（因为 Rabbit 在控制器上运行，所以所有控制器的管理网络的 IP）：
 
-[PRE19]
+```
+ [oslo_messaging_rabbit]
+ rabbit_hosts=10.21.22.6:5673, 10.21.22.4:5673, 10.21.22.5:5673
+ rabbit_ha_queues=True
+ heartbeat_timeout_threshold=60
+ heartbeat_rate=2
+ rabbit_userid=magnum
+ rabbit_password=A3elbTUIqOcqRihB6XE3MWzN
+
+```
 
 最后，受托人的额外配置如下：
 
-[PRE20]
+```
+ [trust]
+ trustee_domain_name = magnum
+ trustee_domain_admin_name = magnum_domain_admin
+ trustee_domain_admin_password = magnum
+
+```
 
 在进行此重新配置后，必须重新启动 Magnum 服务：
 
-[PRE21]
+```
+ service magnum-api restart
+ service magnum-conductor restart
+
+```
 
 Magnum 默认使用端口`tcp/9511`，因此必须在 iptables 中接受到该端口的流量：修改 iptables 以添加此规则：
 
-[PRE22]
+```
+ -A INPUT -s 10.21.22.0/24 -p tcp -m multiport --dports 9511 -m 
+    comment --comment "117 magnum-api from 10.21.22.0/24" -j ACCEPT
+
+```
 
 就在其他 OpenStack 服务之后，在`116 openvswitch db`之后。
 
 现在，是时候配置 HAproxy 来接受 magnum 了。在所有控制器的`/etc/haproxy/conf.d`中添加一个`180-magnum.cfg`文件，内容如下：
 
-[PRE23]
+```
+ listen magnum-api
+ bind 10.21.22.2:9511
+ http-request  set-header X-Forwarded-Proto https if { ssl_fc }
+ option  httpchk
+ option  httplog
+ option  httpclose
+ option  http-buffer-request
+ timeout  server 600s
+ timeout  http-request 10s
+ server node-1 10.21.22.6:9511  check inter 10s fastinter 2s 
+      downinter 3s rise 3 fall 3
+ server node-2 10.21.22.5:9511  check inter 10s fastinter 2s 
+      downinter 3s rise 3 fall 3
+ server node-3 10.21.22.4:9511  check inter 10s fastinter 2s 
+      downinter 3s rise 3 fall 3
+
+```
 
 这将配置 magnum-api 侦听 VIP`10.21.22.2:9511`，支持三个控制器。
 
 紧接着，必须从 Pacemaker 重新启动 HAproxy。从任何控制器上运行：
 
-[PRE24]
+```
+ pcs resource disable p_haproxy
+
+```
 
 等待直到所有控制器上没有运行 HAproxy 进程（您可以使用`ps aux`进行检查），但这应该非常快，不到 1 秒，然后：
 
-[PRE25]
+```
+ pcs resource enable p_haproxy
+
+```
 
 之后，Magnum 将可用并且服务已启动：
 
-[PRE26]
+```
+ source openrc
+ magnum service-list
+
+```
 
 ![配置 HA Magnum 安装](img/image_10_012.jpg)
 
@@ -378,11 +544,29 @@ Magnum 默认使用端口`tcp/9511`，因此必须在 iptables 中接受到该�
 
 我们不会深入研究尚不存在的东西，但命令可能是这样的：
 
-[PRE27]
+```
+ magnum cluster-template-create \
+ --name swarm-mode-cluster-template \
+ --image-id ubuntu_xenial \
+ --keypair-id fuel \
+ --fixed-network private \
+ --external-network-id public \
+ --dns-nameserver 8.8.8.8 \
+ --flavor-id m1.medium \
+ --docker-volume-size 5 \
+ --coe swarm-mode
+
+```
 
 在这里，定义了一个基于 Ubuntu Xenial 的`m1.medium` flavors 的 swarm-mode 类型的集群模板：VM 将注入 fuel 密钥对，将具有额外的外部公共 IP。基于这样一个模板创建集群的 UX 可能会是：
 
-[PRE28]
+```
+ magnum cluster-create --name swarm-mode-cluster \
+       --cluster-template swarm-mode-cluster-template \
+       --manager-count 3 \
+       --node-count 8
+
+```
 
 在这里，使用三个管理节点和五个工作节点实例化了一个 Swarm 集群。
 
