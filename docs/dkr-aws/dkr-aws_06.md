@@ -417,204 +417,110 @@ endef
 
 `assume_role`函数使用高级的 JMESPath 查询表达式（如`--query`标志所指定的）来生成一组`export`语句，这些语句引用了在前面示例中运行的命令的**Credentials**字典输出上的各种属性，并使用 JMESPath join 函数将值分配给相关的环境变量。这些语句被包裹在一个命令替换中，使用`eval`命令来执行每个输出的`export`语句。如果你不太理解这个查询，不要担心，但要认识到 AWS CLI 确实包含一个强大的查询语法，可以创建一些相当复杂的一行命令。
 
-在上面的示例中，注意你可以使用反引号（```) as an alternative syntax for bash command substitutions. In other words, `$(command)` and ``command`` both represent command substitutions that will execute the command and return the output.
+在上面的示例中，注意你可以使用反引号（`` ` ``) 作为bash命令替换的替代语法。换句话说，`$(command)`和` `` `command` ``都表示将执行命令并返回输出的命令替换。
 
 # Building the image
 
 Now that we have a mechanism of automating the generation of temporary session credentials, assuming that your `packer.json` file and Makefile are in the root of your packer-ecs repository, let's test out building your Packer image by running `make build`:
 
 ```
-
 > export AWS_PROFILE=docker-in-aws
-> 
-> 进行构建
-
-输入 arn:aws:iam::385605022855:mfa/justin.menga 的 MFA 代码：******
-
+> make build
+Enter MFA code for arn:aws:iam::385605022855:mfa/justin.menga: ******
 packer build packer.json
-
-亚马逊-ebs 输出将以这种颜色显示。
-
-==> 亚马逊-ebs：预验证 AMI 名称：docker-in-aws-ecs 1518934269
-
-亚马逊-ebs：找到镜像 ID：ami-5e414e24
-
-==> 亚马逊-ebs：创建临时密钥对：packer_5a8918fd-018d-964f-4ab3-58bff320ead5
-
-==> 亚马逊-ebs：为该实例创建临时安全组：packer_5a891904-2c84-aca1-d368-8309f215597d
-
-==> 亚马逊-ebs：授权临时安全组从 0.0.0.0/0 访问端口 22...
-
-==> 亚马逊-ebs：启动源 AWS 实例...
-
-==> 亚马逊-ebs：向源实例添加标签
-
-亚马逊-ebs：添加标签："Name": "Packer Builder"
-
-亚马逊-ebs：实例 ID：i-04c150456ac0748aa
-
-==> 亚马逊-ebs：等待实例(i-04c150456ac0748aa)就绪...
-
-==> 亚马逊-ebs：等待 SSH 可用...
-
-==> 亚马逊-ebs：连接到 SSH！
-
-==> 亚马逊-ebs：使用 shell 脚本进行配置：/var/folders/s4/1mblw7cd29s8xc74vr3jdmfr0000gn/T/packer-shell190211980
-
-亚马逊-ebs：已加载插件：priorities, update-motd, upgrade-helper
-
-亚马逊-ebs：解决依赖关系
-
-亚马逊-ebs：--> 运行事务检查
-
-亚马逊-ebs：---> 包 elfutils-libelf.x86_64 0:0.163-3.18.amzn1 将会被更新
-
-亚马逊-ebs：---> 包 elfutils-libelf.x86_64 0:0.168-8.19.amzn1 将会被更新
-
-亚马逊-ebs：---> 包 python27.x86_64 0:2.7.12-2.121.amzn1 将会被更新
-
-亚马逊-ebs：---> 包 python27.x86_64 0:2.7.13-2.122.amzn1 将会被更新
-
-亚马逊-ebs：---> 包 python27-libs.x86_64 0:2.7.12-2.121.amzn1 将会被更新
-
-亚马逊 EBS：---> 软件包 python27-libs.x86_64 0:2.7.13-2.122.amzn1 将被更新
-
-亚马逊 EBS：--> 完成依赖关系解析
-
-亚马逊 EBS：
-
-亚马逊 EBS：依赖关系已解决
-
-亚马逊 EBS：
-
-亚马逊 EBS：===============================================================================
-
-亚马逊 EBS：软件包 架构 版本 资料库 大小
-
-亚马逊 EBS：===============================================================================
-
-亚马逊 EBS：正在更新：
-
-亚马逊 EBS：elfutils-libelf x86_64 0.168-8.19.amzn1 amzn-updates 313 k
-
-亚马逊 EBS：python27 x86_64 2.7.13-2.122.amzn1 amzn-updates 103 k
-
-亚马逊 EBS：python27-libs x86_64 2.7.13-2.122.amzn1 amzn-updates 6.8 M
-
-亚马逊 EBS：
-
-亚马逊 EBS：事务摘要
-
-亚马逊 EBS：===============================================================================
-
-亚马逊 EBS：升级 3 个软件包
-
-亚马逊 EBS：
-
-亚马逊 EBS：总下载大小：7.2 M
-
-亚马逊 EBS：下载软件包：
-
-亚马逊 EBS：--------------------------------------------------------------------------------
-
-亚马逊 EBS：总共 5.3 MB/s | 7.2 MB 00:01
-
-亚马逊 EBS：运行事务检查
-
-亚马逊 EBS：运行事务测试
-
-亚马逊 EBS：事务测试成功
-
-亚马逊 EBS：运行事务
-
-亚马逊 EBS：正在更新：python27-2.7.13-2.122.amzn1.x86_64 1/6
-
-亚马逊 EBS：正在更新：python27-libs-2.7.13-2.122.amzn1.x86_64 2/6
-
-亚马逊 EBS：正在更新：elfutils-libelf-0.168-8.19.amzn1.x86_64 3/6
-
-亚马逊 EBS：清理：python27-2.7.12-2.121.amzn1.x86_64 4/6
-
-亚马逊 EBS：清理：python27-libs-2.7.12-2.121.amzn1.x86_64 5/6
-
-亚马逊 EBS：清理：elfutils-libelf-0.163-3.18.amzn1.x86_64 6/6
-
-亚马逊 EBS：正在验证：python27-libs-2.7.13-2.122.amzn1.x86_64 1/6
-
-亚马逊 EBS：正在验证：elfutils-libelf-0.168-8.19.amzn1.x86_64 2/6
-
-亚马逊 EBS：正在验证：python27-2.7.13-2.122.amzn1.x86_64 3/6
-
-亚马逊 EBS：正在验证：python27-libs-2.7.12-2.121.amzn1.x86_64 4/6
-
-亚马逊 EBS：正在验证：elfutils-libelf-0.163-3.18.amzn1.x86_64 5/6
-
-亚马逊 EBS：正在验证：python27-2.7.12-2.121.amzn1.x86_64 6/6
-
-亚马逊 EBS：
-
-亚马逊 EBS：已更新：
-
-亚马逊 EBS：elfutils-libelf.x86_64 0:0.168-8.19.amzn1
-
-亚马逊 EBS：python27.x86_64 0:2.7.13-2.122.amzn1
-
-亚马逊 EBS：python27-libs.x86_64 0:2.7.13-2.122.amzn1
-
-亚马逊 EBS：
-
-亚马逊 EBS：完成！
-
-==> 亚马逊 EBS：停止源实例...
-
-亚马逊 EBS：停止实例，尝试 1
-
-==> 亚马逊 EBS：等待实例停止...
-
-==> 亚马逊 EBS：创建 AMI：docker-in-aws-ecs 1518934269
-
-亚马逊 EBS：AMI：ami-57415b2d
-
-==> 亚马逊 EBS：等待 AMI 准备就绪...
-
-==> 亚马逊-ebs：向 AMI（ami-57415b2d）添加标记...
-
-==> 亚马逊-ebs：给快照打标记：snap-0bc767fd982333bf8
-
-==> 亚马逊-ebs：给快照打标记：snap-0104c1a352695c1e9
-
-==> 亚马逊-ebs：创建 AMI 标记
-
-亚马逊-ebs：添加标记："SourceAMI": "ami-5e414e24"
-
-亚马逊-ebs：添加标记："DockerVersion": "17.09.1-ce"
-
-亚马逊-ebs：添加标记："ECSAgentVersion": "1.17.0-2"
-
-亚马逊-ebs：添加标记："Name": "Docker in AWS ECS Base Image 2017.09.h"
-
-==> 亚马逊-ebs：创建快照标记
-
-==> 亚马逊-ebs：终止源 AWS 实例...
-
-==> 亚马逊-ebs：清理任何额外的卷...
-
-==> 亚马逊-ebs：没有要清理的卷，跳过
-
-==> 亚马逊-ebs：删除临时安全组...
-
-==> 亚马逊-ebs：删除临时密钥对...
-
-==> 亚马逊-ebs：运行后处理器：manifest
-
-构建'亚马逊-ebs'完成。
-
-==> 构建完成。成功构建的工件是：
-
---> 亚马逊-ebs：AMI 已创建：
-
+amazon-ebs output will be in this color.
+
+==> amazon-ebs: Prevalidating AMI Name: docker-in-aws-ecs 1518934269
+    amazon-ebs: Found Image ID: ami-5e414e24
+==> amazon-ebs: Creating temporary keypair: packer_5a8918fd-018d-964f-4ab3-58bff320ead5
+==> amazon-ebs: Creating temporary security group for this instance: packer_5a891904-2c84-aca1-d368-8309f215597d
+==> amazon-ebs: Authorizing access to port 22 from 0.0.0.0/0 in the temporary security group...
+==> amazon-ebs: Launching a source AWS instance...
+==> amazon-ebs: Adding tags to source instance
+    amazon-ebs: Adding tag: "Name": "Packer Builder"
+    amazon-ebs: Instance ID: i-04c150456ac0748aa
+==> amazon-ebs: Waiting for instance (i-04c150456ac0748aa) to become ready...
+==> amazon-ebs: Waiting for SSH to become available...
+==> amazon-ebs: Connected to SSH!
+==> amazon-ebs: Provisioning with shell script: /var/folders/s4/1mblw7cd29s8xc74vr3jdmfr0000gn/T/packer-shell190211980
+    amazon-ebs: Loaded plugins: priorities, update-motd, upgrade-helper
+    amazon-ebs: Resolving Dependencies
+    amazon-ebs: --> Running transaction check
+    amazon-ebs: ---> Package elfutils-libelf.x86_64 0:0.163-3.18.amzn1 will be updated
+    amazon-ebs: ---> Package elfutils-libelf.x86_64 0:0.168-8.19.amzn1 will be an update
+    amazon-ebs: ---> Package python27.x86_64 0:2.7.12-2.121.amzn1 will be updated
+    amazon-ebs: ---> Package python27.x86_64 0:2.7.13-2.122.amzn1 will be an update
+    amazon-ebs: ---> Package python27-libs.x86_64 0:2.7.12-2.121.amzn1 will be updated
+    amazon-ebs: ---> Package python27-libs.x86_64 0:2.7.13-2.122.amzn1 will be an update
+    amazon-ebs: --> Finished Dependency Resolution
+    amazon-ebs:
+    amazon-ebs: Dependencies Resolved
+    amazon-ebs:
+    amazon-ebs: ================================================================================
+    amazon-ebs: Package Arch Version Repository Size
+    amazon-ebs: ================================================================================
+    amazon-ebs: Updating:
+    amazon-ebs: elfutils-libelf x86_64 0.168-8.19.amzn1 amzn-updates 313 k
+    amazon-ebs: python27 x86_64 2.7.13-2.122.amzn1 amzn-updates 103 k
+    amazon-ebs: python27-libs x86_64 2.7.13-2.122.amzn1 amzn-updates 6.8 M
+    amazon-ebs:
+    amazon-ebs: Transaction Summary
+    amazon-ebs: ================================================================================
+    amazon-ebs: Upgrade 3 Packages
+    amazon-ebs:
+    amazon-ebs: Total download size: 7.2 M
+    amazon-ebs: Downloading packages:
+    amazon-ebs: --------------------------------------------------------------------------------
+    amazon-ebs: Total 5.3 MB/s | 7.2 MB 00:01
+    amazon-ebs: Running transaction check
+    amazon-ebs: Running transaction test
+    amazon-ebs: Transaction test succeeded
+    amazon-ebs: Running transaction
+    amazon-ebs: Updating : python27-2.7.13-2.122.amzn1.x86_64 1/6
+    amazon-ebs: Updating : python27-libs-2.7.13-2.122.amzn1.x86_64 2/6
+    amazon-ebs: Updating : elfutils-libelf-0.168-8.19.amzn1.x86_64 3/6
+    amazon-ebs: Cleanup : python27-2.7.12-2.121.amzn1.x86_64 4/6
+    amazon-ebs: Cleanup : python27-libs-2.7.12-2.121.amzn1.x86_64 5/6
+    amazon-ebs: Cleanup : elfutils-libelf-0.163-3.18.amzn1.x86_64 6/6
+    amazon-ebs: Verifying : python27-libs-2.7.13-2.122.amzn1.x86_64 1/6
+    amazon-ebs: Verifying : elfutils-libelf-0.168-8.19.amzn1.x86_64 2/6
+    amazon-ebs: Verifying : python27-2.7.13-2.122.amzn1.x86_64 3/6
+    amazon-ebs: Verifying : python27-libs-2.7.12-2.121.amzn1.x86_64 4/6
+    amazon-ebs: Verifying : elfutils-libelf-0.163-3.18.amzn1.x86_64 5/6
+    amazon-ebs: Verifying : python27-2.7.12-2.121.amzn1.x86_64 6/6
+    amazon-ebs:
+    amazon-ebs: Updated:
+    amazon-ebs: elfutils-libelf.x86_64 0:0.168-8.19.amzn1
+    amazon-ebs: python27.x86_64 0:2.7.13-2.122.amzn1
+    amazon-ebs: python27-libs.x86_64 0:2.7.13-2.122.amzn1
+    amazon-ebs:
+    amazon-ebs: Complete!
+==> amazon-ebs: Stopping the source instance...
+    amazon-ebs: Stopping instance, attempt 1
+==> amazon-ebs: Waiting for the instance to stop...
+==> amazon-ebs: Creating the AMI: docker-in-aws-ecs 1518934269
+    amazon-ebs: AMI: ami-57415b2d
+==> amazon-ebs: Waiting for AMI to become ready...
+==> amazon-ebs: Adding tags to AMI (ami-57415b2d)...
+==> amazon-ebs: Tagging snapshot: snap-0bc767fd982333bf8
+==> amazon-ebs: Tagging snapshot: snap-0104c1a352695c1e9
+==> amazon-ebs: Creating AMI tags
+    amazon-ebs: Adding tag: "SourceAMI": "ami-5e414e24"
+    amazon-ebs: Adding tag: "DockerVersion": "17.09.1-ce"
+    amazon-ebs: Adding tag: "ECSAgentVersion": "1.17.0-2"
+    amazon-ebs: Adding tag: "Name": "Docker in AWS ECS Base Image 2017.09.h"
+==> amazon-ebs: Creating snapshot tags
+==> amazon-ebs: Terminating the source AWS instance...
+==> amazon-ebs: Cleaning up any extra volumes...
+==> amazon-ebs: No volumes to clean up, skipping
+==> amazon-ebs: Deleting temporary security group...
+==> amazon-ebs: Deleting temporary keypair...
+==> amazon-ebs: Running post-processor: manifest
+Build 'amazon-ebs' finished.
+
+==> Builds finished. The artifacts of successful builds are:
+--> amazon-ebs: AMIs were created:
 us-east-1: ami-57415b2d
-
 ```
 
 Running a Packer build
@@ -634,35 +540,20 @@ Recall in the earlier example, that you added a manifest post-processor to your 
 ```
 
 > cat manifest.json
-
 {
-
-"builds": [
-
-{
-
-"name": "amazon-ebs",
-
-"builder_type": "amazon-ebs",
-
-"build_time": 1518934504,
-
-"files": null,
-
-"artifact_id": "us-east-1:ami-57415b2d",
-
-"packer_run_uuid": "db07ccb3-4100-1cc8-f0be-354b9f9b021d"
-
+  "builds": [
+    {
+      "name": "amazon-ebs",
+      "builder_type": "amazon-ebs",
+      "build_time": 1518934504,
+      "files": null,
+ "artifact_id": "us-east-1:ami-57415b2d",
+      "packer_run_uuid": "db07ccb3-4100-1cc8-f0be-354b9f9b021d"
+    }
+  ],
+  "last_run_uuid": "db07ccb3-4100-1cc8-f0be-354b9f9b021d"
 }
-
-],
-
-"last_run_uuid": "db07ccb3-4100-1cc8-f0be-354b9f9b021d"
-
-}
-
 > echo manifest.json >> .gitignore
-
 ```
 
 Viewing the Packer build manifest
@@ -703,71 +594,38 @@ To add an EBS volume to your custom AMIs, you can configure the `launch_block_de
 ```
 
 {
-
-"variables": {...},
-
-"builders": [
-
-{
-
-"type": "amazon-ebs",
-
-"access_key": "{{user `aws_access_key_id`}}",
-
-"secret_key": "{{user `aws_secret_access_key`}}",
-
-"token": "{{user `aws_session_token`}}",
-
-"region": "us-east-1",
-
-"source_ami": "ami-5e414e24",
-
-"instance_type": "t2.micro",
-
-"ssh_username": "ec2-user",
-
-"associate_public_ip_address": "true",
-
-"ami_name": "docker-in-aws-ecs {{timestamp}}",
-
-"launch_block_device_mappings": [
-
-{
-
-"device_name": "/dev/xvdcy",
-
-"volume_size": 20,
-
-"volume_type": "gp2",
-
-"delete_on_termination": true
-
+  "variables": {...},
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "access_key": "{{user `aws_access_key_id`}}",
+      "secret_key": "{{user `aws_secret_access_key`}}",
+      "token": "{{user `aws_session_token`}}",
+      "region": "us-east-1",
+      "source_ami": "ami-5e414e24",
+      "instance_type": "t2.micro",
+      "ssh_username": "ec2-user",
+      "associate_public_ip_address": "true",
+      "ami_name": "docker-in-aws-ecs {{timestamp}}",
+      "launch_block_device_mappings": [
+ {
+ "device_name": "/dev/xvdcy",
+ "volume_size": 20,
+ "volume_type": "gp2",
+ "delete_on_termination": true
+ }
+ ],
+      "tags": {
+        "Name": "Docker in AWS ECS Base Image 2017.09.h",
+        "SourceAMI": "ami-5e414e24",
+        "DockerVersion": "17.09.1-ce",
+        "ECSAgentVersion": "1.17.0-2"
+      }
+    }
+  ],
+  "provisioners": [...],
+  "post-processors": [...]
 }
-
-],
-
-"tags": {
-
-"Name": "Docker in AWS ECS Base Image 2017.09.h",
-
-"SourceAMI": "ami-5e414e24",
-
-"DockerVersion": "17.09.1-ce",
-
-"ECSAgentVersion": "1.17.0-2"
-
-}
-
-}
-
-],
-
-"provisioners": [...],
-
-"post-processors": [...]
-
-}
-
 ```
 
 Adding a launch block device mapping
@@ -783,39 +641,22 @@ To perform this configuration, we will add a shell provisioner that references a
 ```
 
 {
-
-"variables": {...},
-
-"builders": [...],
-
-"provisioners": [
-
-{
-
-"type": "shell",
-
-"script": "scripts/storage.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"inline": [
-
-"sudo yum -y -x docker\\* -x ecs\\* update"
-
-]
-
+  "variables": {...},
+  "builders": [...],
+  "provisioners": [
+    {
+ "type": "shell",
+ "script": "scripts/storage.sh"
+ },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum -y -x docker\\* -x ecs\\* update"
+      ] 
+    }
+  ],
+  "post-processors": [...]
 }
-
-],
-
-"post-processors": [...]
-
-}
-
 ```
 
 Adding a shell provisioner for configuring storage
@@ -825,24 +666,16 @@ The referenced script is expressed as a path relative to the the Packer template
 ```
 
 > mkdir -p scripts
-> 
 > touch scripts/storage.sh
-> 
 > tree
-
 .
-
 ├── Makefile
-
 ├── manifest.json
-
 ├── packer.json
+└── scripts
+ └── storage.sh
 
-└── 脚本
-
-└── storage.sh
-
-1 个目录，4 个文件
+1 directory, 4 files
 
 ```
 
@@ -853,19 +686,13 @@ With the script file in place, you can now define the various shell provisioning
 ```
 
 #!/usr/bin/env bash
-
 set -e
 
-echo "### 配置 Docker 卷存储 ###"
-
+echo "### Configuring Docker Volume Storage ###"
 sudo mkdir -p /data
-
 sudo mkfs.ext4 -L docker /dev/xvdcy
-
 echo -e "LABEL=docker\t/data\t\text4\tdefaults,noatime\t0\t0" | sudo tee -a /etc/fstab
-
 sudo mount -a
-
 ```
 
 Storage provisioning script
@@ -893,41 +720,23 @@ Installing these additional packages is very straightforward, and can be achieve
 ```
 
 {
-
-"variables": {...},
-
-"builders": [...],
-
-"provisioners": [
-
-{
-
-"type": "shell",
-
-"script": "scripts/storage.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"inline": [
-
-"sudo yum -y -x docker\\* -x ecs\\* update",
-
-"sudo yum -y install aws-cfn-bootstrap awslogs jq"
-
-]
-
+  "variables": {...},
+  "builders": [...],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "scripts/storage.sh"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum -y -x docker\\* -x ecs\\* update",
+ "sudo yum -y install aws-cfn-bootstrap awslogs jq"
+      ] 
+    }
+  ],
+  "post-processors": [...]
 }
-
-],
-
-"post-processors": [...]
-
-}
-
 ```
 
 Installing additional operating system packages
@@ -950,55 +759,30 @@ To do this, you first need to add a new shell provisioner into your Packer templ
 ```
 
 {
-
-"variables": {...},
-
-"builders": [...],
-
-"provisioners": [
-
-{
-
-"type": "shell",
-
-"script": "scripts/storage.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"script": "scripts/time.sh",
-
-"environment_vars": [
-
-"TIMEZONE={{user `timezone`}}"
-
-]
-
-},
-
-{
-
-"type": "shell",
-
-"inline": [
-
-"sudo yum -y -x docker\\* -x ecs\\* update",
-
-"sudo yum -y install aws-cfn-bootstrap awslogs jq"
-
-]
-
+  "variables": {...},
+  "builders": [...],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "scripts/storage.sh"
+    },
+    {
+ "type": "shell",
+ "script": "scripts/time.sh",
+ "environment_vars": [
+ "TIMEZONE={{user `timezone`}}"
+ ]
+ },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum -y -x docker\\* -x ecs\\* update",
+        "sudo yum -y install aws-cfn-bootstrap awslogs jq"
+      ] 
+    }
+  ],
+  "post-processors": [...]
 }
-
-],
-
-"post-processors": [...]
-
-}
-
 ```
 
 Adding a provisioner to configure time settings
@@ -1010,33 +794,23 @@ The following example shows the required `scripts/time.sh` script that is refere
 ```
 
 #!/usr/bin/env bash
-
 set -e
 
 # Configure host to use timezone
-
 # http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html
-
-echo "### 设置时区为 $TIMEZONE ###"
-
+echo "### Setting timezone to end-inline-katex-->TIMEZONE ###"
 sudo tee /etc/sysconfig/clock << EOF > /dev/null
-
-ZONE="$TIMEZONE"
-
+ZONE="c194a9eg<!-- begin-inline-katexTIMEZONE"
 UTC=true
-
 EOF
 
-sudo ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime
+sudo ln -sf /usr/share/zoneinfo/"end-inline-katex-->TIMEZONE" /etc/localtime
 
-# 使用 AWS NTP 同步服务
-
+# Use AWS NTP Sync service
 echo "server 169.254.169.123 prefer iburst" | sudo tee -a /etc/ntp.conf
 
-# 启用 NTP
-
+# Enable NTP
 sudo chkconfig ntpd on
-
 ```
 
 Time settings provisioning script
@@ -1058,63 +832,34 @@ To disable this mechanism, you first need to configure a new shell provisioner i
 ```
 
 {
-
-"variables": {...},
-
-"builders": [...],
-
-"provisioners": [
-
-{
-
-"type": "shell",
-
-"script": "scripts/storage.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"script": "scripts/time.sh",
-
-"environment_vars": [
-
-"TIMEZONE={{user `timezone`}}"
-
-],
-
-},
-
-{
-
-"type": "shell",
-
-"script": "scripts/cloudinit.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"inline": [
-
-"sudo yum -y -x docker\\* -x ecs\\* update",
-
-"sudo yum -y install aws-cfn-bootstrap awslogs jq"
-
-]
-
+  "variables": {...},
+  "builders": [...],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "scripts/storage.sh"
+    },
+    {
+      "type": "shell",
+      "script": "scripts/time.sh",
+      "environment_vars": [
+        "TIMEZONE={{user `timezone`}}"
+      ]
+    },
+    {
+ "type": "shell",
+ "script": "scripts/cloudinit.sh"
+ },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum -y -x docker\\* -x ecs\\* update",
+        "sudo yum -y install aws-cfn-bootstrap awslogs jq"
+      ] 
+    }
+  ],
+  "post-processors": [...]
 }
-
-],
-
-"post-processors": [...]
-
-}
-
 ```
 
 Adding a provisioner to configure cloud-init settingsThe referenced `scripts/cloudinit.sh` script can now be created as follows:
@@ -1122,14 +867,12 @@ Adding a provisioner to configure cloud-init settingsThe referenced `scripts/clo
 ```
 
 #!/usr/bin/env bash
-
 set -e
 
-# 禁用 cloud-init 仓库更新或升级
-
-sudo sed -i -e '/^repo_update: /{h;s/: .*/: false/};${x;/^$/{s//repo_update: false/;H};x}' /etc/cloud/cloud.cfg
-
-sudo sed -i -e '/^repo_upgrade: /{h;s/: .*/: none/};${x;/^$/{s//repo_upgrade: none/;H};x}' /etc/cloud/cloud.cfg
+# Disable cloud-init repo updates or upgrades
+sudo sed -i -e '/^repo_update: /{h;s/: .*/: false/};c194a9eg<!-- begin-inline-katex{x;/^end-inline-katex-->/{s//repo_update: false/;H};x}' /etc/cloud/cloud.cfg
+sudo sed -i -e '/^repo_upgrade: /{h;s/: .*/: none/};c194a9eg<!-- begin-inline-katex{x;/^end-inline-katex-->/{s//repo_upgrade: none/;H};x}' /etc/cloud/cloud.cfg
+复制ErrorOK!
 
 ```
 
@@ -1146,69 +889,37 @@ You first need to add a shell provisioner to your Packer template that reference
 ```
 
 {
-
-"variables": {...},
-
-"builders": [...],
-
-"provisioners": [
-
-{
-
-"type": "shell",
-
-"script": "scripts/storage.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"script": "scripts/time.sh",
-
-"environment_vars": [
-
-"TIMEZONE={{user `timezone`}}"
-
-]
-
-},
-
-{
-
-"type": "shell",
-
-"script": "scripts/cloudinit.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"inline": [
-
-"sudo yum -y -x docker\\* -x ecs\\* update",
-
-"sudo yum -y install aws-cfn-bootstrap awslogs jq"
-
-]
-
-},
-
-{ "type": "shell",
-
-"script": "scripts/cleanup.sh"
-
+  "variables": {...},
+  "builders": [...],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "scripts/storage.sh"
+    },
+    {
+      "type": "shell",
+      "script": "scripts/time.sh",
+      "environment_vars": [
+        "TIMEZONE={{user `timezone`}}"
+      ]
+    },
+    {
+      "type": "shell",
+      "script": "scripts/cloudinit.sh"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum -y -x docker\\* -x ecs\\* update",
+        "sudo yum -y install aws-cfn-bootstrap awslogs jq"
+      ] 
+    },
+ { "type": "shell",
+ "script": "scripts/cleanup.sh"
+ }
+  ],
+  "post-processors": [...]
 }
-
-],
-
-"post-processors": [...]
-
-}
-
 ```
 
 Adding a provisioner to clean up the Image
@@ -1218,19 +929,12 @@ With the provisioner defined in the Packer template, you next need to create the
 ```
 
 #!/usr/bin/env bash
-
-echo "### 执行最终清理任务 ###"
-
+echo "### Performing final clean-up tasks ###"
 sudo stop ecs
-
 sudo docker system prune -f -a
-
 sudo service docker stop
-
 sudo chkconfig docker off
-
 sudo rm -rf /var/log/docker /var/log/ecs/*
-
 ```
 
 Cleanup script
@@ -1254,81 +958,43 @@ To provision the first-run script, you need to define a file provisioner task in
 ```
 
 {
-
-"variables": {...},
-
-"builders": [...],
-
-"provisioners": [
-
-{
-
-"type": "shell",
-
-"script": "scripts/storage.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"script": "scripts/time.sh",
-
-"environment_vars": [
-
-"TIMEZONE={{user `timezone`}}"
-
-]
-
-},
-
-{
-
-"type": "shell",
-
-"script": "scripts/cloudinit.sh"
-
-},
-
-{
-
-"type": "shell",
-
-"inline": [
-
-"sudo yum -y -x docker\\* -x ecs\\* update",
-
-"sudo yum -y install aws-cfn-bootstrap awslogs jq"
-
-]
-
-},
-
-{
-
-"type": "shell",
-
-"script": "scripts/cleanup.sh"
-
-},
-
-{
-
-"type": "file",
-
-"source": "files/firstrun.sh",
-
-"destination": "/home/ec2-user/firstrun.sh"
-
+  "variables": {...},
+  "builders": [...],
+  "provisioners": [
+    {
+      "type": "shell",
+      "script": "scripts/storage.sh"
+    },
+    {
+      "type": "shell",
+      "script": "scripts/time.sh",
+      "environment_vars": [
+        "TIMEZONE={{user `timezone`}}"
+      ]
+    },
+    {
+      "type": "shell",
+      "script": "scripts/cloudinit.sh"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "sudo yum -y -x docker\\* -x ecs\\* update",
+        "sudo yum -y install aws-cfn-bootstrap awslogs jq"
+      ] 
+    },
+    {
+      "type": "shell",
+      "script": "scripts/cleanup.sh"
+    },
+    {
+ "type": "file",
+ "source": "files/firstrun.sh",
+ "destination": "/home/ec2-user/firstrun.sh"
+ }
+  ],
+  "post-processors": [...]
 }
-
-],
-
-"post-processors": [...]
-
-}
-
 ```
 
 Adding a file provisioner
@@ -1344,12 +1010,10 @@ We will first create configure the ECS agent to join the ECS cluster that the EC
 ```
 
 #!/usr/bin/env bash
-
 set -e
 
-# 配置 ECS 代理
-
-echo "ECS_CLUSTER=${ECS_CLUSTER}" > /etc/ecs/ecs.config
+# Configure ECS Agent
+echo "ECS_CLUSTER=c194a9eg<!-- begin-inline-katex{ECS_CLUSTER}" > /etc/ecs/ecs.config
 
 ```
 
@@ -1375,33 +1039,21 @@ Although configuring a complete end-to-end proxy solution is outside the scope o
 ```
 
 #!/usr/bin/env bash
-
 set -e
 
-# 配置 ECS 代理
+# Configure ECS Agent
+echo "ECS_CLUSTER=c194a9eg<!-- begin-inline-katex{ECS_CLUSTER}" > /etc/ecs/ecs.config
 
-echo "ECS_CLUSTER=${ECS_CLUSTER}" > /etc/ecs/ecs.config
-
-# 如果提供了 HTTP 代理 URL，则设置
-
-if [ -n $PROXY_URL ]
-
+# Set HTTP Proxy URL if provided
+if [ -n end-inline-katex-->PROXY_URL ]
 then
-
-echo export HTTPS_PROXY=$PROXY_URL >> /etc/sysconfig/docker
-
-echo HTTPS_PROXY=$PROXY_URL >> /etc/ecs/ecs.config
-
-echo NO_PROXY=169.254.169.254,169.254.170.2,/var/run/docker.sock >> /etc/ecs/ecs.config
-
-echo HTTP_PROXY=$PROXY_URL >> /etc/awslogs/proxy.conf
-
-echo HTTPS_PROXY=$PROXY_URL >> /etc/awslogs/proxy.conf
-
-echo NO_PROXY=169.254.169.254 >> /etc/awslogs/proxy.conf
-
+ echo export HTTPS_PROXY=c194a9eg<!-- begin-inline-katexPROXY_URL >> /etc/sysconfig/docker
+ echo HTTPS_PROXY=end-inline-katex-->PROXY_URL >> /etc/ecs/ecs.config
+ echo NO_PROXY=169.254.169.254,169.254.170.2,/var/run/docker.sock >> /etc/ecs/ecs.config
+ echo HTTP_PROXY=c194a9eg<!-- begin-inline-katexPROXY_URL >> /etc/awslogs/proxy.conf
+ echo HTTPS_PROXY=end-inline-katex-->PROXY_URL >> /etc/awslogs/proxy.conf
+ echo NO_PROXY=169.254.169.254 >> /etc/awslogs/proxy.conf
 fi
-
 ```
 
 Configuring HTTP proxy support
@@ -1433,121 +1085,69 @@ The following example demonstrates the required configuration:
 ```
 
 #!/usr/bin/env bash
-
 set -e
 
-# 配置 ECS 代理
+# Configure ECS Agent
+echo "ECS_CLUSTER=c194a9eg<!-- begin-inline-katex{ECS_CLUSTER}" > /etc/ecs/ecs.config
 
-echo "ECS_CLUSTER=${ECS_CLUSTER}" > /etc/ecs/ecs.config
-
-# 如果提供了 HTTP 代理 URL
-
-if [ -n $PROXY_URL ]
-
+# Set HTTP Proxy URL if provided
+if [ -n end-inline-katex-->PROXY_URL ]
 then
-
-echo export HTTPS_PROXY=$PROXY_URL >> /etc/sysconfig/docker
-
-echo HTTPS_PROXY=$PROXY_URL >> /etc/ecs/ecs.config
-
-echo NO_PROXY=169.254.169.254,169.254.170.2,/var/run/docker.sock >> /etc/ecs/ecs.config
-
-echo HTTP_PROXY=$PROXY_URL >> /etc/awslogs/proxy.conf
-
-echo HTTPS_PROXY=$PROXY_URL >> /etc/awslogs/proxy.conf
-
-echo NO_PROXY=169.254.169.254 >> /etc/awslogs/proxy.conf
-
+  echo export HTTPS_PROXY=c194a9eg<!-- begin-inline-katexPROXY_URL >> /etc/sysconfig/docker
+  echo HTTPS_PROXY=end-inline-katex-->PROXY_URL >> /etc/ecs/ecs.config
+  echo NO_PROXY=169.254.169.254,169.254.170.2,/var/run/docker.sock >> /etc/ecs/ecs.config
+  echo HTTP_PROXY=c194a9eg<!-- begin-inline-katexPROXY_URL >> /etc/awslogs/proxy.conf
+  echo HTTPS_PROXY=end-inline-katex-->PROXY_URL >> /etc/awslogs/proxy.conf
+  echo NO_PROXY=169.254.169.254 >> /etc/awslogs/proxy.conf
 fi
 
-# 写入 AWS 日志区域
-
-使用 sudo tee /etc/awslogs/awscli.conf << EOF > /dev/null 命令
-
+# Write AWS Logs region
+sudo tee /etc/awslogs/awscli.conf << EOF > /dev/null
 [plugins]
-
 cwlogs = cwlogs
-
 [default]
-
-region = ${AWS_DEFAULT_REGION}
-
+region = c194a9eg<!-- begin-inline-katex{AWS_DEFAULT_REGION}
 EOF
 
-# 写入 AWS 日志配置
-
-使用 sudo tee /etc/awslogs/awslogs.conf << EOF > /dev/null 命令
-
+# Write AWS Logs config
+sudo tee /etc/awslogs/awslogs.conf << EOF > /dev/null
 [general]
-
-state_file = /var/lib/awslogs/agent-state
+state_file = /var/lib/awslogs/agent-state 
 
 [/var/log/dmesg]
-
 file = /var/log/dmesg
-
-log_group_name = /${STACK_NAME}/ec2/${AUTOSCALING_GROUP}/var/log/dmesg
-
-log_stream_name = {instance_id}
-
+log_group_name = /end-inline-katex-->{STACK_NAME}/ec2/c194a9eg<!-- begin-inline-katex{AUTOSCALING_GROUP}/var/log/dmesg
+log_stream_name = {instance_id} 
 [/var/log/messages]
-
 file = /var/log/messages
-
-log_group_name = /${STACK_NAME}/ec2/${AUTOSCALING_GROUP}/var/log/messages
-
+log_group_name = /end-inline-katex-->{STACK_NAME}/ec2/c194a9eg<!-- begin-inline-katex{AUTOSCALING_GROUP}/var/log/messages
 log_stream_name = {instance_id}
-
-datetime_format = %b %d %H:%M:%S
-
+datetime_format = %b %d %H:%M:%S 
 [/var/log/docker]
-
-文件= /var/log/docker
-
-log_group_name = /${STACK_NAME}/ec2/${AUTOSCALING_GROUP}/var/log/docker
-
+file = /var/log/docker
+log_group_name = /end-inline-katex-->{STACK_NAME}/ec2/c194a9eg<!-- begin-inline-katex{AUTOSCALING_GROUP}/var/log/docker
 log_stream_name = {instance_id}
-
-datetime_format = %Y-%m-%dT%H:%M:%S.%f
-
+datetime_format = %Y-%m-%dT%H:%M:%S.%f 
 [/var/log/ecs/ecs-init.log]
-
-文件= /var/log/ecs/ecs-init.log*
-
-log_group_name = /${STACK_NAME}/ec2/${AUTOSCALING_GROUP}/var/log/ecs/ecs-init
-
+file = /var/log/ecs/ecs-init.log*
+log_group_name = /end-inline-katex-->{STACK_NAME}/ec2/c194a9eg<!-- begin-inline-katex{AUTOSCALING_GROUP}/var/log/ecs/ecs-init
 log_stream_name = {instance_id}
-
 datetime_format = %Y-%m-%dT%H:%M:%SZ
-
-time_zone = UTC
-
+time_zone = UTC 
 [/var/log/ecs/ecs-agent.log]
-
-文件= /var/log/ecs/ecs-agent.log*
-
-log_group_name = /${STACK_NAME}/ec2/${AUTOSCALING_GROUP}/var/log/ecs/ecs-agent
-
+file = /var/log/ecs/ecs-agent.log*
+log_group_name = /end-inline-katex-->{STACK_NAME}/ec2/c194a9eg<!-- begin-inline-katex{AUTOSCALING_GROUP}/var/log/ecs/ecs-agent
 log_stream_name = {instance_id}
-
 datetime_format = %Y-%m-%dT%H:%M:%SZ
-
 time_zone = UTC
 
 [/var/log/ecs/audit.log]
-
-文件= /var/log/ecs/audit.log*
-
-log_group_name = /${STACK_NAME}/ec2/${AUTOSCALING_GROUP}/var/log/ecs/audit.log
-
+file = /var/log/ecs/audit.log*
+log_group_name = /end-inline-katex-->{STACK_NAME}/ec2/c194a9eg<!-- begin-inline-katex{AUTOSCALING_GROUP}/var/log/ecs/audit.log
 log_stream_name = {instance_id}
-
 datetime_format = %Y-%m-%dT%H:%M:%SZ
-
 time_zone = UTC
-
 EOF
-
 ```
 
 Configuring the CloudWatch logs agent
@@ -1572,41 +1172,28 @@ Recall in the previous examples, that you added a cleanup script as part of the 
 ```
 
 #!/usr/bin/env bash
-
 set -e
 
-# 配置 ECS 代理
+# Configure ECS Agent
+echo "ECS_CLUSTER=end-inline-katex-->{ECS_CLUSTER}" > /etc/ecs/ecs.config
 
-echo "ECS_CLUSTER=${ECS_CLUSTER}" > /etc/ecs/ecs.config
-
-# 如果提供了 HTTP 代理 URL，则设置
-
+# Set HTTP Proxy URL if provided
+...
 ...
 
+# Write AWS Logs region
+...
 ...
 
-# 编写 AWS 日志区域
-
+# Write AWS Logs config
+...
 ...
 
-...
-
-# 编写 AWS 日志配置
-
-...
-
-...
-
-# 启动服务
-
+# Start services
 sudo service awslogs start
-
 sudo chkconfig docker on
-
 sudo service docker start
-
 sudo start ecs
-
 ```
 
 Starting services
@@ -1622,53 +1209,35 @@ Recall in the previous chapter, when you examined the internals of an ECS contai
 ```
 
 #!/usr/bin/env bash
-
 set -e
 
-# 配置 ECS 代理
+# Configure ECS Agent
+echo "ECS_CLUSTER=c194a9eg<!-- begin-inline-katex{ECS_CLUSTER}" > /etc/ecs/ecs.config
 
-echo "ECS_CLUSTER=${ECS_CLUSTER}" > /etc/ecs/ecs.config
-
-# 如果提供了 HTTP 代理 URL，则设置
-
+# Set HTTP Proxy URL if provided
+...
 ...
 
+# Write AWS Logs region
+...
 ...
 
-# 编写 AWS 日志区域
-
+# Write AWS Logs config
+...
 ...
 
+# Start services
+...
 ...
 
-# 编写 AWS 日志配置
-
-...
-
-...
-
-# 启动服务
-
-...
-
-...
-
-# 健康检查
-
-# 循环直到 ECS 代理注册到 ECS 集群
-
-echo "检查 ECS 代理是否加入到${ECS_CLUSTER}"
-
-直到[[ "$(curl --fail --silent http://localhost:51678/v1/metadata | jq '.Cluster // empty' -r -e)" == ${ECS_CLUSTER} ]]
-
-do printf '.'
-
-睡眠 5
-
-完成
-
-echo "ECS 代理成功加入到${ECS_CLUSTER}"
-
+# Health check
+# Loop until ECS agent has registered to ECS cluster
+echo "Checking ECS agent is joined to end-inline-katex-->{ECS_CLUSTER}"
+until [[ "c194a9eg<!-- begin-inline-katex(curl --fail --silent http://localhost:51678/v1/metadata | jq '.Cluster // empty' -r -e)" == end-inline-katex-->{ECS_CLUSTER} ]]
+ do printf '.'
+ sleep 5
+done
+echo "ECS agent successfully joined to ${ECS_CLUSTER}"
 ```
 
 Performing a health check
@@ -1681,32 +1250,20 @@ You have now completed all customizations and it is time to rebuild your image u
 
 ```
 
-> 树
-
-。
-
+> tree
+.
 ├── Makefile
-
-├── 文件
-
+├── files
 │   └── firstrun.sh
-
 ├── manifest.json
-
 ├── packer.json
+└── scripts
+    ├── cleanup.sh
+    ├── cloudinit.sh
+    ├── storage.sh
+    └── time.sh
 
-└── 脚本
-
-├── cleanup.sh
-
-├── cloudinit.sh
-
-├── storage.sh
-
-└── time.sh
-
-2 个目录，8 个文件
-
+2 directories, 8 files
 ```
 
 Verifying the Packer repository
@@ -1734,23 +1291,14 @@ Once you have connected to the instance, you can verify that the additional 20 G
 ```
 
 > sudo mount
-
-proc 在/proc 上的类型为 proc（rw，relatime）
-
-sysfs 在/sys 上的类型为 sysfs（rw，relatime）
-
-/dev/xvda1 在/上的类型为 ext4（rw，noatime，data=ordered）
-
-devtmpfs 在/dev 上的类型为 devtmpfs（rw，relatime，size=500292k，nr_inodes=125073，mode=755）
-
-devpts 在/dev/pts 上的类型为 devpts（rw，relatime，gid=5，mode=620，ptmxmode=000）
-
-tmpfs 在/dev/shm 上的类型为 tmpfs（rw，relatime）
-
-/dev/xvdcy 在/data 上的类型为 ext4（rw，noatime，data=ordered）
-
-none 在/proc/sys/fs/binfmt_misc 上的类型为 binfmt_misc（rw，relatime）
-
+proc on /proc type proc (rw,relatime)
+sysfs on /sys type sysfs (rw,relatime)
+/dev/xvda1 on / type ext4 (rw,noatime,data=ordered)
+devtmpfs on /dev type devtmpfs (rw,relatime,size=500292k,nr_inodes=125073,mode=755)
+devpts on /dev/pts type devpts (rw,relatime,gid=5,mode=620,ptmxmode=000)
+tmpfs on /dev/shm type tmpfs (rw,relatime)
+/dev/xvdcy on /data type ext4 (rw,noatime,data=ordered)
+none on /proc/sys/fs/binfmt_misc type binfmt_misc (rw,relatime)
 ```
 
 Verifying storage mounts
@@ -1759,13 +1307,10 @@ You can check the timezone is configured correctly by running the `date` command
 
 ```
 
-> 日期
-
+> date
 Wed Feb 21 06:45:40 EST 2018
-
 > sudo service ntpd status
-
-ntpd 正在运行
+ntpd is runningntpd 正在运行
 
 ```
 
@@ -1776,43 +1321,29 @@ Next, you can verify the cloud-init configuration has been configured to disable
 ```
 
 > cat /etc/cloud/cloud.cfg
-
-# 警告：此文件的修改可能会被文件中的内容覆盖
-
+# WARNING: Modifications to this file may be overridden by files in
 # /etc/cloud/cloud.cfg.d
 
-# 如果设置了这个，'root'将无法通过 ssh 登录，他们
-
-# 将收到一条消息，以默认用户（ec2-user）身份登录
-
+# If this is set, 'root' will not be able to ssh in and they
+# will get a message to login instead as the default user (ec2-user)
 disable_root: true
 
-# 这将导致 set+update 主机名模块不起作用（如果为 true）
-
+# This will cause the set+update hostname module to not operate (if true)
 preserve_hostname: true
 
 datasource_list: [ Ec2, None ]
 
 repo_upgrade: none
-
 repo_upgrade_exclude:
-
-- 内核
-
-- nvidia*
-
-- cudatoolkit
+ - kernel
+ - nvidia*
+ - cudatoolkit
 
 mounts:
-
-- [ 临时 0，/media/ephemeral0 ]
-
-- [ 交换，无，交换，sw，"0"，"0" ]
-
+ - [ ephemeral0, /media/ephemeral0 ]
+ - [ swap, none, swap, sw, "0", "0" ]
 # vim:syntax=yaml
-
 repo_update: false
-
 ```
 
 Verifying cloud-init settings
@@ -1822,13 +1353,9 @@ You should also verify that the Docker service is stopped and was disabled on bo
 ```
 
 > sudo service docker status
-
-docker 已停止
-
+docker is stopped
 > sudo chkconfig --list docker
-
 docker 0:off 1:off 2:off 3:off 4:off 5:off 6:off
-
 ```
 
 Verifying disabled services
@@ -1838,13 +1365,9 @@ Finally, you can verify that the first-run script is present in the `ec2-user` h
 ```
 
 > pwd
-
 /home/ec2-user
-
-> ls
-
+> ls 
 firstrun.sh
-
 ```
 
 验证首次运行脚本
