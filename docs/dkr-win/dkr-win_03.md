@@ -478,21 +478,15 @@ You need to brush off your old DOS commands to work with Nano Server containers.
 ```
 
 C:\>dir C:\data
+ Volume in drive C has no label.
+ Volume Serial Number is BC8F-B36C
 
-C 驱动器中的卷没有标签。
-
-卷序列号为 BC8F-B36C
-
-目录：C:\data
+ Directory of C:\data
 
 02/06/2019  11:00 AM    <DIR>          .
-
 02/06/2019  11:00 AM    <DIR>          ..
-
 02/06/2019  11:00 AM                17 file1.txt
-
-02/06/2019  11:00 AM                17 file2.txt
-
+02/06/2019  11:00 AM                17 file2.txt 
 ```
 
 Both of the files are there for the container to use in the `C:\data` directory; the first file is in a layer from the `ch02-fs-1:2e` image, and the second file is in a layer from the `ch02-fs-2:2e` image. The `dir` executable is available from another layer in the base Nano Server image, and the container sees them all in the same way.
@@ -506,32 +500,25 @@ C:\>echo ' * ADDITIONAL * ' >> c:\data\file2.txt
 C:\>echo 'New!' > c:\data\file3.txt
 
 C:\>dir C:\data
+ Volume in drive C has no label.
+ Volume Serial Number is BC8F-B36C
 
-C 驱动器中的卷没有标签。
-
-卷序列号为 BC8F-B36C
-
-目录：C:\data
+ Directory of C:\data
 
 02/06/2019  01:10 PM    <DIR>          .
-
 02/06/2019  01:10 PM    <DIR>          ..
-
 02/06/2019  11:00 AM                17 file1.txt
-
 02/06/2019  01:10 PM                38 file2.txt
-
-02/06/2019  01:10 PM                 9 file3.txt
-
+02/06/2019  01:10 PM                 9 file3.txt 
 ```
 
 From the file listing you can see that `file2.txt` from the image layer has been modified and there is a new file, `file3.txt`. Now I'll exit this container and create a new one using the same image:
 
 ```
 
-C:\> 退出
+C:\> exit
+PS> docker container run -it --name c2 dockeronwindows/ch02-fs-2:2e 
 
-PS> docker container run -it --name c2 dockeronwindows/ch02-fs-2:2e
 
 ```
 
@@ -540,21 +527,15 @@ What are you expecting to see in the `C:\data` directory in this new container? 
 ```
 
 C:\>dir C:\data
+ Volume in drive C has no label.
+ Volume Serial Number is BC8F-B36C
 
-C 驱动器中的卷没有标签。
-
-卷序列号为 BC8F-B36C
-
-目录：C:\data
+ Directory of C:\data
 
 02/06/2019  11:00 AM    <DIR>          .
-
 02/06/2019  11:00 AM    <DIR>          ..
-
 02/06/2019  11:00 AM                17 file1.txt
-
-02/06/2019  11:00 AM                17 file2.txt
-
+02/06/2019  11:00 AM                17 file2.txt 
 ```
 
 You know that image layers are read-only and every container has its own writeable layer, so the results should make sense. The new container, `c2`, has the original files from the image without the changes from the first container, `c1`, which are stored in the writeable layer for `c1`. Each container's filesystem is isolated, so one container doesn't see any changes made by another container.
@@ -607,16 +588,12 @@ This is an interactive container, and when I list the contents of the `C:\app` d
 
 > ls C:\app
 
-目录：C:\app
+ Directory: C:\app
 
-模式     最后写入时间      长度  名称
-
+Mode     LastWriteTime      Length  Name
 ----     -------------      ------  ----
-
 d----l   6/22/2017 8:11 AM          config
-
-d----l   6/22/2017 8:11 AM          logs
-
+d----l   6/22/2017 8:11 AM          logs 
 ```
 
 The shared volume has read and write access, so I can see the file created in the first container and append to it:
@@ -624,17 +601,13 @@ The shared volume has read and write access, so I can see the file created in th
 ```
 
 C:\>type C:\app\logs\log-1.txt
-
-开始
+'start'
 
 C:\>echo 'more' >> C:\app\logs\log-1.txt
 
 C:\>type C:\app\logs\log-1.txt
-
-开始
-
-更多
-
+'start'
+'more'
 ```
 
 Sharing data between containers like this is very useful; you can run a task container that takes a backup of data or log files from a long-running background container. The default access is for volumes to be writeable, but that's something to be wary of, as you could edit data and break the application running in the source container.
@@ -646,19 +619,14 @@ Docker lets you mount volumes from another container in read-only mode instead, 
 > docker container run -it --volumes-from source:ro dockeronwindows/ch02-volumes:2e cmd
 
 C:\>type C:\app\logs\log-1.txt
-
-开始
-
-更多
+'start'
+'more'
 
 C:\>echo 'more' >> C:\app\logs\log-1.txt
-
-拒绝访问。
+Access is denied.
 
 C:\>echo 'new' >> C:\app\logs\log-2.txt
-
-拒绝访问。
-
+Access is denied.
 ```
 
 In the new container I can't create a new file or write to the existing log file, but I can see the content in the log file from the original container, and the line appended by the second container.
@@ -673,46 +641,31 @@ I can use JSON formatting in the `container inspect` command, passing a query to
 
 > docker container inspect --format '{{ json .Mounts }}' source | ConvertFrom-Json
 
-类型        : 卷
+Type        : volume
+Name        : 65ab1b420a27bfd79d31d0d325622d0868e6b3f353c74ce3133888fafce972d9
+Source      : C:\ProgramData\docker\volumes\65ab1b42...\_data
+Destination : c:\app\config
+Driver      : local
+RW          : TruePropagation :
 
-名称：65ab1b420a27bfd79d31d0d325622d0868e6b3f353c74ce3133888fafce972d9
-
-来源：C：\ ProgramData \ docker \ volumes \ 65ab1b42 ... \ _data
-
-目的地：c：\ app \ config
-
-驱动程序：本地
-
-RW：TruePropagation：
-
-类型：卷
-
-名称：b1451fde3e222adbe7f0f058a461459e243ac15af8770a2f7a4aefa7516e0761
-
-来源：C：\ ProgramData \ docker \ volumes \ b1451fde ... \ _data
-
-目的地：c：\ app \ logs
-
-驱动程序：本地
-
-RW：True
-
+Type        : volume
+Name        : b1451fde3e222adbe7f0f058a461459e243ac15af8770a2f7a4aefa7516e0761
+Source      : C:\ProgramData\docker\volumes\b1451fde...\_data
+Destination : c:\app\logs
+Driver      : local
+RW          : True
 ```
 
 I've abbreviated the output, but in the `Source` field you can see the full path where the volume data is stored on the host. I can access the container's files directly from the host, using that source directory. When I run this command on my Windows machine, I'll see the file created inside the container volume:
 
 ```
 
-> ls C：\ ProgramData \ docker \ volumes \ b1451fde ... \ _data
+> ls C:\ProgramData\docker\volumes\b1451fde...\_data
+   Directory: C:\ProgramData\docker\volumes\b1451fde3e222adbe7f0f058a461459e243ac15af8770a2f7a4aefa7516e0761\_data
 
-目录：C：\ ProgramData \ docker \ volumes \ b1451fde3e222adbe7f0f058a461459e243ac15af8770a2f7a4aefa7516e0761 \ _data
-
-模式 LastWriteTime 长度名称
-
----- ------------- ------
-
--a---- 06/02/2019 13:33 19 log-1.txt
-
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----       06/02/2019     13:33             19 log-1.txt
 ```
 
 Accessing the files on the host is possible this way, but it's awkward to use the nested directory location with the volume ID. Instead you can mount a volume from a specific location on the host when you create a container.
@@ -735,16 +688,11 @@ Now I'll run a container which maps a volume from the host, and read the configu
 
 ```
 
-> docker 容器运行`
-
---volume C：\ app-config：C：\ app \ config `
-
-dockeronwindows / ch02-volumes：2e `
-
-类型 C：\ app \ config \ version.txt
-
-VERSION = 18.09
-
+> docker container run `
+ --volume C:\app-config:C:\app\config `
+ dockeronwindows/ch02-volumes:2e `
+ type C:\app\config\version.txt
+VERSION=18.09
 ```
 
 The `--volume` option specifies the mount in the format `{source}:{target}`. The source is the host location, which needs to exist. The target is the container location, which doesn't need to exist, but the existing contents will be hidden if it does exist.
@@ -763,10 +711,24 @@ The Dockerfile for the `dockeronwindows/ch02-hitcount-website` image uses multi
 
 ```
 
-# escape = `从 microsoft / dotnet：2.2-sdk-nanoserver-1809 AS 构建者的工作目录 C：\ src 复制 src。用户 ContainerAdministrator 运行 dotnet restore && dotnet publish # app image FROM microsoft / dotnet：2.2-aspnetcore-runtime-nanoserver-1809
+# escape=`
+FROM microsoft/dotnet:2.2-sdk-nanoserver-1809 AS builder
 
-EXPOSE 80 WORKDIR C：\ dotnetapp RUN mkdir app-state CMD ["dotnet", "HitCountWebApp.dll"] COPY --from=builder C：\ src \ bin \ Debug \ netcoreapp2.2 \ publish。
+WORKDIR C:\src
+COPY src .
 
+USER ContainerAdministrator
+RUN dotnet restore && dotnet publish
+
+# app image
+FROM microsoft/dotnet:2.2-aspnetcore-runtime-nanoserver-1809
+
+EXPOSE 80
+WORKDIR C:\dotnetapp
+RUN mkdir app-state
+
+CMD ["dotnet", "HitCountWebApp.dll"]
+COPY --from=builder C:\src\bin\Debug\netcoreapp2.2\publish .
 ```
 
 In the Dockerfile I create an empty directory at `C:\dotnetapp\app-state`, which is where the application will store the hit count in a text file. I've built the first version of the app into an image with the `2e-v1` tag:
@@ -781,25 +743,20 @@ I'll create a directory on the host to use for the container's state, and run a 
 
 ```
 
-mkdir C：\ app-state
+mkdir C:\app-state
 
-docker 容器运行-d --publish-all`
-
--v C：\ app-state：C：\ dotnetapp \ app-state `
-
---name appv1 `
-
-dockeronwindows / ch02-hitcount-website：2e-v1
-
-```
+docker container run -d --publish-all `
+ -v C:\app-state:C:\dotnetapp\app-state `
+ --name appv1 `
+ dockeronwindows/ch02-hitcount-website:2e-v1 
+ ```
 
 The `publish-all` option tells Docker to publish all the exposed ports from the container image to random ports on the host. This is a quick option for testing containers in a local environment, as Docker will assign a free port from the host and you don't need to worry about which ports are already in use by other containers. You find out the ports a container has published with the `container port` command:
 
 ```
 
-> docker 容器端口 appv1
-
-80 / tcp-> 0.0.0.0：51377
+> docker container port appv1
+80/tcp -> 0.0.0.0:51377
 
 ```
 
@@ -811,20 +768,15 @@ Now, when I have an upgraded version of the app to deploy, I can package it into
 
 ```
 
-PS> docker 容器停止 appv1
-
+PS> docker container stop appv1
 appv1
 
-PS> docker 容器运行-d --publish-all `
-
--v C：\ app-state：C：\ dotnetapp \ app-state `
-
---name appv2 `
-
-dockeronwindows / ch02-hitcount-website：2e-v2
+PS> docker container run -d --publish-all `
+ -v C:\app-state:C:\dotnetapp\app-state `
+ --name appv2 `
+ dockeronwindows/ch02-hitcount-website:2e-v2
 
 db8a39ba7af43be04b02d4ea5d9e646c87902594c26a62168c9f8bf912188b62
-
 ```
 
 The volume containing the application state gets reused, so the new version will continue using the saved state from the old version. I have a new container with a new published port. When I fetch the port and browse to it for the first time, I see the updated UI with an attractive icon, but the hit count is carried forward from version 1:
@@ -849,8 +801,15 @@ I'll follow the multi-stage build approach for NerdDinner, so the Dockerfile for
 
 ```
 
-# escape = `从 microsoft / dotnet-framework：4.7.2-sdk-windowsservercore-ltsc2019 AS 构建者的工作目录 C：\ src \ NerdDinner 复制 src \ NerdDinner \ packages.config。运行 nuget restore packages.config -PackagesDirectory .. \ packages COPY src C：\ src RUN msbuild NerdDinner.csproj / p：OutputPath = c：\ out / p：Configuration = Release
+# escape=`
+FROM microsoft/dotnet-framework:4.7.2-sdk-windowsservercore-ltsc2019 AS builder
 
+WORKDIR C:\src\NerdDinner
+COPY src\NerdDinner\packages.config .
+RUN nuget restore packages.config -PackagesDirectory ..\packages
+
+COPY src C:\src
+RUN msbuild NerdDinner.csproj /p:OutputPath=c:\out /p:Configuration=Release 
 ```
 
 The stage uses `microsoft/dotnet-framework` as the base image for compiling the application. This is an image which Microsoft maintains on Docker Hub. It's built on top of the Windows Server Core image, and it has everything you need to compile .NET Framework applications, including NuGet and MSBuild. The build stage happens in two parts:
@@ -876,10 +835,21 @@ This will be the basis for the second stage of the Dockerfile, but I will be abl
 
 ```
 
-FROM mcr.microsoft.com / dotnet / framework / aspnet：4.7.2-windowsservercore-ltsc2019 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'] ENV BING_MAPS_KEY bing_maps_key WORKDIR C：\ nerd-dinner RUN Remove-Website -Name 'Default Web Site'; `
+FROM mcr.microsoft.com/dotnet/framework/aspnet:4.7.2-windowsservercore-ltsc2019
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop']
 
-New-Website -Name 'nerd-dinner' ` -Port 80 -PhysicalPath 'c:\nerd-dinner' `-ApplicationPool '.NET v4.5' RUN & c:\windows\system32\inetsrv\appcmd.exe ` unlock config /section:system.webServer/handlers COPY --from=builder C:\out\_PublishedWebsites\NerdDinner C:\nerd-dinner
+ENV BING_MAPS_KEY bing_maps_key
+WORKDIR C:\nerd-dinner
 
+RUN Remove-Website -Name 'Default Web Site'; `
+    New-Website -Name 'nerd-dinner' `
+                -Port 80 -PhysicalPath 'c:\nerd-dinner' `
+                -ApplicationPool '.NET v4.5'
+
+RUN & c:\windows\system32\inetsrv\appcmd.exe `
+      unlock config /section:system.webServer/handlers
+
+COPY --from=builder C:\out\_PublishedWebsites\NerdDinner C:\nerd-dinner 
 ```
 
 Microsoft uses both Docker Hub and MCR to store their Docker images. The .NET Framework SDK is on Docker Hub, but the ASP.NET runtime image is on MCR. You can always find where an image is hosted by checking on Docker Hub.
