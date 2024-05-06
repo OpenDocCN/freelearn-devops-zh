@@ -312,19 +312,19 @@ DCT 实现*客户端*签名和验证操作，这意味着 Docker 客户端执行
 $ `export` `DOCKER_CONTENT_TRUST``=``1` 
 ```
 
-- 未来的 docker push 命令将自动在推送操作中签署镜像。同样，只有签署的镜像才能使用 pull、build 和 run 命令。
+未来的 docker push 命令将自动在推送操作中签署镜像。同样，只有签署的镜像才能使用 pull、build 和 run 命令。
 
-- 让我们将一个带有新标记的镜像推送到一个仓库。
+让我们将一个带有新标记的镜像推送到一个仓库。
 
 - 被推送的镜像可以是任何镜像。实际上，我正在使用的是我刚刚拉取的当前 alpine:latest。目前，它还没有由我签名！
 
-1.  - 给镜像打标记，这样它就可以推送到您想要的仓库。我将把它推送到我个人 Docker Hub 帐户命名空间内的一个新仓库。
+1.  给镜像打标记，这样它就可以推送到您想要的仓库。我将把它推送到我个人 Docker Hub 帐户命名空间内的一个新仓库。
 
 ```
  $ docker image tag alpine:latest nigelpoulton/dockerbook:v1 
 ```
 
-- 登录到 Docker Hub（或其他注册表），这样您就可以在下一步中推送镜像。
+登录到 Docker Hub（或其他注册表），这样您就可以在下一步中推送镜像。
 
 ```
  $ docker login
@@ -334,24 +334,24 @@ $ `export` `DOCKER_CONTENT_TRUST``=``1`
  Login Succeeded 
 ```
 
-- 推送新标记的镜像。
+推送新标记的镜像。
 
-- ```
-     $ docker image push nigelpoulton/dockerbook:v1
-     The push refers to a repository [docker.io/nigelpoulton/dockerbook]
-     cd7100a72410: Mounted from library/alpine
-     v1: digest: sha256:8c03...acbc size: 528
-     Signing and pushing trust metadata
-     <Snip>
-     Enter passphrase for new root key with ID 865e4ec:
-     Repeat passphrase for new root key with ID 865e4ec:
-     Enter passphrase for new repository key with ID bd0d97d:
-     Repeat passphrase for new repository key with ID bd0d97d:
-     Finished initializing "docker.io/nigelpoulton/sign"
-     Successfully signed "docker.io/nigelpoulton/sign":v1 
-    `````
+```
+    $ docker image push nigelpoulton/dockerbook:v1
+    The push refers to a repository [docker.io/nigelpoulton/dockerbook]
+    cd7100a72410: Mounted from library/alpine
+    v1: digest: sha256:8c03...acbc size: 528
+    Signing and pushing trust metadata
+    <Snip>
+    Enter passphrase for new root key with ID 865e4ec:
+    Repeat passphrase for new root key with ID 865e4ec:
+    Enter passphrase for new repository key with ID bd0d97d:
+    Repeat passphrase for new repository key with ID bd0d97d:
+    Finished initializing "docker.io/nigelpoulton/sign"
+    Successfully signed "docker.io/nigelpoulton/sign":v1 
+```
 
-```With DCT enabled, the image was automatically signed as part of the push operation.
+With DCT enabled, the image was automatically signed as part of the push operation.
 
 Two sets of keys were created as part of the signing operation:
 
@@ -525,7 +525,7 @@ Tag the image so it can be pushed to the DTR repo.
 
 ```
 
-- docker image tag alpine:latest dtr.mydns.com/technology/test:v1
+docker image tag alpine:latest dtr.mydns.com/technology/test:v1
 
 ```
 
@@ -563,7 +563,7 @@ The following will work on Mac and Linux.
 
 ```
 
- `You are now ready to push the re-tagged image to DTR.
+You are now ready to push the re-tagged image to DTR.
 
 ```
 
@@ -768,4 +768,4 @@ Docker Content Trust (DCT) brings cryptographic guarantees to image-based operat
 
 DTR can be configured to use self-signed certificates, or certificates from trusted 3rd-party CAs. You can configure it to perform binary-level image scans that identify known vulnerabilities. And you can configure policies to automate the promotion of images through your build pipelines.
 
-Finally, we looked at the HTTP Routing mesh that performs application layer routing based on hostnames in HTTP headers.````````````
+Finally, we looked at the HTTP Routing mesh that performs application layer routing based on hostnames in HTTP headers.

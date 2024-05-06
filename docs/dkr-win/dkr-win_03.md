@@ -363,7 +363,7 @@ RUN (Get-Content -Raw -Path C:\template.html) `
  | Set-Content -Path C:\inetpub\wwwroot\index.html
 ```
 
-这个 Dockerfile 的开始方式不同，使用了`escape`指令。这告诉 Docker 使用反引号``` option for the escape character, to split commands over multiple lines, rather than the default backslash `\` option. With this escape directive I can use backslashes in file paths, and backticks to split long PowerShell commands, which is more natural to Windows users.
+这个 Dockerfile 的开始方式不同，使用了`escape`指令。这告诉 Docker 使用反引号`` ` ``用于转义字符的选项，将命令拆分为多行，而不是默认的反斜杠`\`选项。通过这个转义指令，我可以在文件路径中使用反斜杠和反斜杠来拆分较长的 PowerShell 命令，这对于 Windows 用户来说更加自然。
 
 The base image is `microsoft/iis`, which is a Microsoft Windows Server Core image with IIS already set up. I copy an HTML template file from the Docker build context into the root folder. Then I run a PowerShell command to update the content of the template file and save it in the default website location for IIS.
 
