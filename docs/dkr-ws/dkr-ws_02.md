@@ -1,4 +1,4 @@
-# 第二章：2. 使用 Dockerfile 入门
+# 第二章：使用 Dockerfile 入门
 
 概述
 

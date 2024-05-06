@@ -1,4 +1,4 @@
-# 第一章：1. Docker 和 Kubernetes 简介
+# 第一章：Docker 和 Kubernetes 简介
 
 Kubernetes 已成为容器编排的领先标准。自 2014 年成立以来，它已经获得了巨大的流行。它已被初创公司和主要企业采用，而且主要的公共云供应商都提供了托管的 Kubernetes 服务。
 

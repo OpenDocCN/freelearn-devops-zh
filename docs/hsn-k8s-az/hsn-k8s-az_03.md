@@ -1,4 +1,4 @@
-# 第二章：2. 在 Azure 上使用 Kubernetes（AKS）
+# 第二章：在 Azure 上使用 Kubernetes（AKS）
 
 正确和安全地安装和维护 Kubernetes 集群是困难的。幸运的是，所有主要的云提供商，如 Azure、AWS 和 Google Cloud Platform（GCP），都可以帮助安装和维护集群。在本章中，您将通过 Azure 门户导航，启动自己的集群，并运行一个示例应用程序。所有这些都将在您的浏览器中完成。
 

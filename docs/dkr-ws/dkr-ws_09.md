@@ -1,4 +1,4 @@
-# 第九章：9\. Docker Swarm
+# 第九章：Docker Swarm
 
 概述
 

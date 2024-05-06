@@ -1,4 +1,4 @@
-# 第五章：5\. 使用 Docker Compose 组合环境
+# 第五章：使用 Docker Compose 组合环境
 
 概述
 

@@ -1,4 +1,4 @@
-## 第十二章：10：Docker Swarm
+# 第十一章：Docker Swarm
 
 现在我们知道如何安装 Docker，拉取镜像并使用容器，我们需要的下一步是以规模处理事物的方法。这就是 Docker Swarm 出现的地方。
 
