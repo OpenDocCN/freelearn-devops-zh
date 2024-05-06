@@ -1,4 +1,4 @@
-+   [GPT3 探索指南](README.md)
++   [Docker 研讨会](README.md)
 +   [前言](dkr-ws_00.md)
 +   [第一章：运行我的第一个 Docker 容器](dkr-ws_01.md)
 +   [第二章：使用 Dockerfile 入门](dkr-ws_02.md)

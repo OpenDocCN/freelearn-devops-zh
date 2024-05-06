@@ -9,7 +9,7 @@
 +   [Docker 网络秘籍](docs/dkr-net-cb/README.md)
 +   [Docker 快速启动指南](docs/dkr-qk-st-gd/README.md)
 +   [Docker Windows 教程](docs/dkr-win/README.md)
-+   [GPT3 探索指南](docs/dkr-ws/README.md)
++   [Docker 研讨会](docs/dkr-ws/README.md)
 +   [DevOps 2.5 工具包](docs/dop-25-tk/README.md)
 +   [Kubernetes DevOps 手册](docs/dop-k8s/README.md)
 +   [Docker 部署手册](docs/dpl-dkr/README.md)
