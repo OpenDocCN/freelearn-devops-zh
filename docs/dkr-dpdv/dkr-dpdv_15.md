@@ -324,4 +324,4 @@ I promise to write a review of the book on Amazon
 
 Docker 卷是 Docker API 中的一流公民，并且独立于容器进行管理，具有自己的`docker volume`子命令。这意味着删除容器不会删除它正在使用的卷。
 
-卷是在 Docker 环境中处理持久数据的推荐方式。```````````````
+卷是在 Docker 环境中处理持久数据的推荐方式。
