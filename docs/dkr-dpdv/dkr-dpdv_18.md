@@ -93,13 +93,13 @@ Docker EE 是基于订阅的服务，因此您需要一个 Docker ID 和一个�
  $ DOCKER_EE_REPO=<paste-in-your-unique-ee-url> 
 ```
 
-* 将官方 Docker GPG 密钥添加到所有密钥环中。
++   将官方 Docker GPG 密钥添加到所有密钥环中。
 
 ```
  $ curl -fsSL "`${``DOCKER_EE_REPO``}`/ubuntu/gpg" | sudo apt-key add - 
 ```
 
-* 设置最新的稳定仓库。您可能需要用最新的稳定版本替换最后一行的值。
++   设置最新的稳定仓库。您可能需要用最新的稳定版本替换最后一行的值。
 
 ```
  $ add-apt-repository \
@@ -108,32 +108,32 @@ Docker EE 是基于订阅的服务，因此您需要一个 Docker ID 和一个�
     stable-17.06" 
 ```
 
-* 运行另一个`apt-get update`，以从您新添加的 Docker EE 仓库中获取最新的软件包列表。
++   运行另一个`apt-get update`，以从您新添加的 Docker EE 仓库中获取最新的软件包列表。
 
 ```
  $ apt-get update 
 ```
 
-* 卸载先前版本的 Docker。
++   卸载先前版本的 Docker。
 
 ```
  $ apt-get remove docker docker-engine docker-ce docker.io 
 ```
 
-* 安装 Docker EE
++   安装 Docker EE
 
 ```
  $ apt-get install docker-ee -y 
 ```
 
-* 检查安装是否成功。
++   检查安装是否成功。
 
 ```
 $ docker --version
 Docker version `17`.06.2-ee-6, build e75fdb8 
-``````````` 
+```
 
- ```That’s it, you’ve installed the Docker EE engine.
+That’s it, you’ve installed the Docker EE engine.
 
 Now you can install Universal Control Plane.
 
@@ -209,15 +209,15 @@ In this section, we’ll walk through the process of installing Docker UCP on th
        --interactive 
     ```
 
-`*   Configure credentials.
++   Configure credentials.
 
     You’ll be prompted to create a username and password for the UCP Admin account. This is a local account, and you should follow your corporate guidelines for choosing the username and password. Be sure you don’t forget it :-D
 
-    *   Subject alternative names (SANs).
+*   Subject alternative names (SANs).
 
     The installer gives you the option to enter a list of alternative IP addresses and names that might be used to access UCP. These can be public and private IP addresses and DNS names, and will be added to the certificates.` 
 
- `A few things to note about the install.
+A few things to note about the install.
 
 UCP leverages Docker Swarm. This means UCP managers have to run on Swarm managers. If you install UCP on a node in *single-engine mode*, it will automatically be switched into *Swarm mode*.
 
@@ -238,7 +238,7 @@ INFO[0080] Pulling docker/ucp-controller:2.2.5
 INFO[0084] Pulling docker/ucp-proxy:2.2.5 
 ```
 
- `Some of the interesting ones include:
+Some of the interesting ones include:
 
 *   `ucp-agent` This is the main UCP agent. It gets deployed to all nodes in the cluster and is in charge of making sure the required UCP containers are up and running.
 *   `ucp-etcd` The cluster’s persistent key-value store.
@@ -263,7 +263,7 @@ The last thing the UCP installer outputs is the URL that you can access it from.
 INFO[0049] Login to UCP at https://<IP or DNS>:443 
 ```
 
- `Point a web browser to that address and login. If you’re using self-signed certificates you’ll need to accept the browser warnings. You’ll also need to specify your license file, which can be downloaded from the `My Content` section of the Docker Store.
+Point a web browser to that address and login. If you’re using self-signed certificates you’ll need to accept the browser warnings. You’ll also need to specify your license file, which can be downloaded from the `My Content` section of the Docker Store.
 
 Once you’re logged in, you’ll be landed at the UCP Dashboard.
 
@@ -334,8 +334,8 @@ In this section we’ll create a new UCP user, create and download a certificate
      extracting: env.cmd 
     ```
 
-     `As the output shows, the bundle contains the required `ca.pem`, `cert.pem`, and `key.pem` files. It also includes scripts that will configure the Docker client to use the certificates.` 
-`*   Use the appropriate script to configure the Docker client. `env.sh` works on Linux and Mac, `env.ps1` and `env.cmd` work on Windows.
+    As the output shows, the bundle contains the required `ca.pem`, `cert.pem`, and `key.pem` files. It also includes scripts that will configure the Docker client to use the certificates.` 
+7.  Use the appropriate script to configure the Docker client. `env.sh` works on Linux and Mac, `env.ps1` and `env.cmd` work on Windows.
 
     You’ll probably need administrator/root privileges to run the scripts.
 
@@ -345,7 +345,7 @@ In this section we’ll create a new UCP user, create and download a certificate
      $ eval "$(<env.sh)" 
     ```
 
-     `At this point, the client node is fully configured.` `*   Test access.
+    At this point, the client node is fully configured.` `*   Test access.
 
     ```
      $ docker version
@@ -362,9 +362,9 @@ In this section we’ll create a new UCP user, create and download a certificate
       Experimental: false 
     ```
 
-     `Notice that the server portion of the output shows the version as `ucp/2.2.5`. This proves the Docker client is successfully talking to the daemon on a UCP node!``` 
+    Notice that the server portion of the output shows the version as `ucp/2.2.5`. This proves the Docker client is successfully talking to the daemon on a UCP node!
 
- ``Under-the-hood, the script configures three environment variables:
+Under-the-hood, the script configures three environment variables:
 
 *   `DOCKER_HOST`
 *   `DOCKER_TLS_VERIFY`
@@ -418,7 +418,7 @@ Before proceeding, you might want to create a couple of Swarm objects so that yo
      $ service docker stop 
     ```
 
-`*   Backup the Swarm config.
+*   Backup the Swarm config.
 
     The example uses the Linux `tar` utility to perform the file copy. Feel free to use a different tool.
 
@@ -431,20 +431,21 @@ Before proceeding, you might want to create a couple of Swarm objects so that yo
      <Snip> 
     ```
 
-    `*   Verify that the backup file exists.
+*   Verify that the backup file exists.
 
     ```
      $ ls -l
      -rw-r--r-- 1 root   root   450727 Jan 29 14:06 swarm.bkp 
     ```
 
-     `You should rotate, and store the backup file off-site according to your corporate backup policies.` `*   Restart Docker.
+    You should rotate, and store the backup file off-site according to your corporate backup policies.
+*   Restart Docker.
 
     ```
      $ service docker restart 
-    `````` 
+    ```
 
- ```Now that Swarm is backed up, it’s time to **backup UCP**.
+Now that Swarm is backed up, it’s time to **backup UCP**.
 
 A few notes on backing up UCP before we start.
 
@@ -467,7 +468,7 @@ $ docker container run --log-driver none --rm -i --name ucp `\`
   --passphrase `"Password123"` > ucp.bkp 
 ```
 
- `It’s a long command, so let’s step through it.
+It’s a long command, so let’s step through it.
 
 The first line is a standard `docker container run` command that tells Docker to run a container with no log driver, to remove it when the operation is complete, and to call it `ucp`. The second line mounts the *Docker socket* into the container so that the container has access to the Docker API to stop containers etc. The third line tells Docker to run a `backup --interactive` command inside of a container based on the `docker/ucp:2.2.5` image. The final line creates an encrypted file called `ucp.bkp` and protects it with a password.
 
@@ -497,13 +498,13 @@ Perform the following tasks from the Swarm/UCP manager node that you wish to rec
      $ service docker stop 
     ```
 
-`*   Delete any existing Swarm configuration.
+*   Delete any existing Swarm configuration.
 
     ```
      $ rm -r /var/lib/docker/swarm 
     ```
 
-    `*   Restore the Swarm configuration from backup.
+*   Restore the Swarm configuration from backup.
 
     In this example, we’ll restore from a zipped `tar` file called `swarm.bkp`. Restoring to the root directory is required with this command as it will include the full path to the original files as part of the extract operation. This may be different in your environment.
 
@@ -511,7 +512,7 @@ Perform the following tasks from the Swarm/UCP manager node that you wish to rec
      $ tar -zxvf swarm.bkp -C / 
     ```
 
-    `*   Initialize a new Swarm cluster.
+*   Initialize a new Swarm cluster.
 
     Remember, you are not recovering a manager and adding it back to a working cluster. This operation is to recover a failed Swarm that has no surviving managers. The `--force-new-cluster` flag tells Docker to create a new cluster using the configuration stored in `/var/lib/docker/swarm` on the current node.
 
@@ -520,7 +521,7 @@ Perform the following tasks from the Swarm/UCP manager node that you wish to rec
      Swarm initialized: current node (jhsg...3l9h) is now a manager. 
     ```
 
-    `*   Check that the network and service were recovered as part of the operation.
+*   Check that the network and service were recovered as part of the operation.
 
     ```
      $ docker network ls
@@ -532,9 +533,11 @@ Perform the following tasks from the Swarm/UCP manager node that you wish to rec
      w9dimu8jfrze    vantage-svc   replicated   5/5         alpine:latest 
     ```
 
-     `Congratulations. The Swarm is recovered.` `*   Add new manager and worker nodes to the Swarm, and take a fresh backup.`````
+    Congratulations. The Swarm is recovered.
+    
+*   Add new manager and worker nodes to the Swarm, and take a fresh backup.
 
- ```With Swarm recovered, you can now **recover UCP.
+With Swarm recovered, you can now **recover UCP.
 
 In this example, UCP was backed up to a file called `ucp.bkp` in the current directory. Despite the name of the backup file, it is a Linux tarball.
 
@@ -555,7 +558,7 @@ Run the following commands from the node that you want to recover UCP on. This c
      INFO[0011] Removing UCP Services 
     ```
 
-`*   Restore UCP from the backup.
+*   Restore UCP from the backup.
 
     ```
      $ docker container run --rm -i --name ucp \
@@ -569,9 +572,9 @@ Run the following commands from the node that you want to recover UCP on. This c
      time="2018-01-30T10:17:18Z" level=info msg="Cluster successfully restored. 
     ```
 
-    `*   Log on to the UCP web UI and ensure that the user created earlier is still present (or any other UCP objects that previously existed in your environment).``
+*   Log on to the UCP web UI and ensure that the user created earlier is still present (or any other UCP objects that previously existed in your environment).
 
- ``Congrats. You now know how to backup and recover Docker Swarm and Docker UCP.
+Congrats. You now know how to backup and recover Docker Swarm and Docker UCP.
 
 Let’s shift our attention to Docker Trusted Registry.
 
@@ -625,8 +628,8 @@ Figure 16.10 High level single-instance DTR config.
        --ucp-username admin --ucp-insecure-tls 
     ```
 
-     `You will need to provide the UCP admin password to complete the installation.` 
-`*   Once the installation is complete, point your web browser to your load balancer. You will be automatically logged in to DTR.![Figure 16.11 DTR home page](img/figure16-11.png)
+    You will need to provide the UCP admin password to complete the installation.` 
+*   Once the installation is complete, point your web browser to your load balancer. You will be automatically logged in to DTR.![Figure 16.11 DTR home page](img/figure16-11.png)
 
     Figure 16.11 DTR home page` 
 
@@ -657,12 +660,12 @@ DTR is now configured with a shared storage backend and ready to have additional
        --ucp-insecure-tls 
     ```
 
-     `The `--ucp-node` flag tells the command which node to add the new DTR replica on. The `--insecure-tls` flag is required if you’re using self-signed certificates.
+    The `--ucp-node` flag tells the command which node to add the new DTR replica on. The `--insecure-tls` flag is required if you’re using self-signed certificates.
 
     You will need to substitute the version of the image and the replica ID. The replica ID was displayed as part of the output when you installed the initial replica.` 
-`*   Enter the UCP URL and port, as well as admin credentials when prompted.`
+*   Enter the UCP URL and port, as well as admin credentials when prompted.
 
- `When the join is complete, you will see some messages like the following.
+When the join is complete, you will see some messages like the following.
 
 ```
 INFO[0166] Join is complete
@@ -672,7 +675,7 @@ INFO[0166] You have an even number of replicas which can impact availability
 INFO[0166] It is recommended that you have 3, 5 or 7 replicas in your cluster 
 ```
 
- `Be sure to follow the advice and install additional replicas so that you operate an odd number.
+Be sure to follow the advice and install additional replicas so that you operate an odd number.
 
 You may need to update your load balancer configuration so that it balances traffic across the new replicas.
 
@@ -700,16 +703,16 @@ Images are not backed up as part of a native DTR backup**. It is expected that i
 Run the following command from a UCP manager node to perform a DTR backup.
 
 ```
-$ `read` -sp `'ucp password: '` UCP_PASSWORD`;` `\`
-    docker run --log-driver none -i --rm `\`
-    --env `UCP_PASSWORD``=``$UCP_PASSWORD` `\`
-    docker/dtr:2.4.1 backup `\`
-    --ucp-insecure-tls `\`
-    --ucp-username admin `\`
+$ read -sp 'ucp password: ' UCP_PASSWORD; \
+    docker run --log-driver none -i --rm \
+    --env UCP_PASSWORD=$UCP_PASSWORD \
+    docker/dtr:2.4.1 backup \
+    --ucp-insecure-tls \
+    --ucp-username admin \
     > ucp.bkp 
 ```
 
- `Let’s explain what the command is doing.
+Let’s explain what the command is doing.
 
 The `read` command will prompt you to enter the password for the UCP admin account, and will store it in a variable called `UCP_PASSWORD`. The second line tells Docker to start a new temporary container for the operation. The third line makes the UCP password available inside the container as an environment variable. The fourth line issues the backup command. The fifth line makes it work with self-signed certificates. The sixth line sets the UCP username to “admin”. The last line directs the backup to a file in the current directory called `ucp.bkp`.
 
@@ -752,26 +755,26 @@ Run the following commands from the node that you want to restore DTR to. This n
      INFO[0047] Replica removed. 
     ```
 
-     `You’ll be prompted to enter the UCP URL, admin credentials, and replica ID that you want to delete.
+    You’ll be prompted to enter the UCP URL, admin credentials, and replica ID that you want to delete.
 
     If you have multiple replicas, you can run the command multiple times to remove them all.` 
-`*   If the images were lost from the shared backend, you will need to recover them. This step is beyond the scope of the book as it can be specific to your shared storage backend.*   Restore DTR with the following command.
+*   If the images were lost from the shared backend, you will need to recover them. This step is beyond the scope of the book as it can be specific to your shared storage backend.*   Restore DTR with the following command.
 
     You will need to substitute the values on lines 5 and 6 with the values from your environment. Unfortunately the `restore` command cannot be ran interactively, so you cannot be prompted for values once the `restore` has started.
 
     ```
-     `$` `read` `-sp` `'ucp password: '` `UCP_PASSWORD``;` `\`
-     `docker` `run` `-i` `--rm` `\`
-     `--env` `UCP_PASSWORD``=$``UCP_PASSWORD` `\`
-     `docker``/``dtr``:``2``.``4``.``1` `restore` `\`
-     `--ucp-url` `<``ENTER_YOUR_ucp-url``>` `\`
-     `--ucp-node` `<``ENTER_DTR_NODE_hostname``>` `\`
-     `--ucp-insecure-tls` `\`
-     `--ucp-username` `admin` `\`
-     `<` `ucp``.``bkp` 
-    ```` 
+     $ read -sp 'ucp password: ' UCP_PASSWORD; \
+     docker run -i --rm \
+     --env UCP_PASSWORD=$UCP_PASSWORD \
+     docker/dtr:2.4.1 restore \
+     --ucp-url <ENTER_YOUR_ucp-url> \
+     --ucp-node <ENTER_DTR_NODE_hostname> \
+     --ucp-insecure-tls \
+     --ucp-username admin \
+     < ucp.bkp 
+    ```
 
- ``DTR is now recovered.
+DTR is now recovered.
 
 Congratulations. You now know how to backup and recover; Swarm, UCP, and DTR.
 
@@ -789,4 +792,4 @@ Docker Enterprise Edition (EE) is a suite of products that form an “*enterpris
 
 Docker Universal Control Plane (UCP) provides a simple-to-use web UI focussed at traditional enterprise Ops teams. It supports native high availability (HA) and has tools to perform backup and restore operations. Once up and running, it provides a whole suite of enterprise-grade features that we’ll discuss in the next chapter.
 
-Docker Trusted Registry (DTR) sits on top of UCP and provides a highly available secure registry. Like UCP, this can be deployed on-premises within the safety of the corporate *“firewall”*, and provides native tools for backup and recovery.```````````````````````
+Docker Trusted Registry (DTR) sits on top of UCP and provides a highly available secure registry. Like UCP, this can be deployed on-premises within the safety of the corporate *“firewall”*, and provides native tools for backup and recovery.
