@@ -365,19 +365,21 @@ RUN (Get-Content -Raw -Path C:\template.html) `
 
 这个 Dockerfile 的开始方式不同，使用了`escape`指令。这告诉 Docker 使用反引号`` ` ``用于转义字符的选项，将命令拆分为多行，而不是默认的反斜杠`\`选项。通过这个转义指令，我可以在文件路径中使用反斜杠和反斜杠来拆分较长的 PowerShell 命令，这对于 Windows 用户来说更加自然。
 
-The base image is `microsoft/iis`, which is a Microsoft Windows Server Core image with IIS already set up. I copy an HTML template file from the Docker build context into the root folder. Then I run a PowerShell command to update the content of the template file and save it in the default website location for IIS.
+基本图像是`microsoft/iis`，这是一个已经设置好 IIS 的 Microsoft Windows Server Core 图像。我将一个 HTML 模板文件从 Docker 构建上下文复制到根文件夹中。然后，我运行一个 PowerShell 命令来更新模板文件的内容，并将其保存在 IIS 的默认网站位置。
 
-In this Dockerfile, I use three new instructions:
+在此 Dockerfile 中，我使用了三条新指令：
 
-*   `SHELL` specifies the command line to use in `RUN` commands. The default is `cmd`, and this switches to `powershell`.
-*   `ARG` specifies a build argument to use in the image with a default value.
-*   `EXPOSE` will make a port available in the image, so that containers from the image can have traffic sent in from the host.
++   `SHELL`指定在`RUN`命令中使用的命令行。默认值是`cmd`，这会切换到`powershell`。
 
-This static website has a single home page, which tells you the name of the server that sent the response, with the name of the environment in the page title. The HTML template file has placeholders for the hostname and the environment name. The `RUN` command executes a PowerShell script to read the file contents, replace the placeholders with the actual hostname and environment value, and then write the contents out.
++   `ARG`指定要在带有默认值的图像中使用的构建参数。
 
-Containers run in an isolated space, and the host can only send network traffic into the container if the image has explicitly made the port available for use. That's the `EXPOSE` instruction, which is like a very simple firewall; you use it to expose the ports that your application is listening on. When you run a container from this image, port `80` is available to be published so Docker can serve web traffic from the container.
++   `EXPOSE`将使图像中的端口可用，以便从主机中向图像的容器发送流量。
 
-I can build this image in the usual way, and make use of the `ARG` command specified in the Dockerfile to override the default value at build time with the `--build-arg` option:
+此静态网站有一个单一的主页，其中告诉您发送响应的服务器的名称，并在页面标题中显示环境的名称。HTML 模板文件具有主机名和环境名称的占位符。`RUN`命令执行一个 PowerShell 脚本来读取文件内容，用实际主机名和环境值替换占位符，然后写出内容。
+
+容器在一个隔离的空间中运行，只有在图像明确地使端口可用的情况下，主机才能将网络流量发送到容器中。那就是`EXPOSE`指令，它类似于一个非常简单的防火墙；您可以使用它来暴露应用程序正在侦听的端口。当您从此图像运行容器时，端口`80`可供发布，因此 Docker 可以从容器中提供 Web 流量。
+
+我可以按照通常的方式构建此图像，并利用 Dockerfile 中指定的`ARG`命令，在构建时使用`--build-arg`选项来覆盖默认值：
 
 ```
 
@@ -385,7 +387,7 @@ docker image build --build-arg ENV_NAME=TEST --tag dockeronwindows/ch02-static-w
 
 ```
 
-Docker processes the new instructions in the same way as those you've already seen: it creates a new, intermediate container from the previous image in the stack, executes the instruction, and extracts a new image layer from the container. After the build, I have a new image which I can run to start the static web server:
+Docker 处理新的指令的方式与您已经看到的指令相同：它从堆栈中的前一个图像创建一个新的中间容器，执行指令，并从容器中提取新的图像层。构建后，我有一个新的图像，可以运行以启动静态 Web 服务器：
 
 ```
 
@@ -395,9 +397,9 @@ Docker processes the new instructions in the same way as those you've already se
 
 ```
 
-This is a detached container so it runs in the background, and the `--publish` option makes port `80` in the container available to the host. Published ports mean that the traffic coming into the host can be directed into containers by Docker. I've specified that port `8081` on the host should map to port `80` on the container.
+这是一个分离的容器，因此它在后台运行，而`--publish`选项使容器中的端口`80`对主机可用。发布的端口意味着主机进入的流量可以通过 Docker 定向到容器中。我指定主机上的端口`8081`应映射到容器中的端口`80`。
 
-You can also let Docker choose a random port on the host, and use the `port` command to list which ports the container exposes, and where they are published on the host:
+您还可以让 Docker 在主机上选择一个随机端口，并使用`port`命令列出容器公开的端口以及它们在主机上的发布位置：
 
 ```
 
@@ -407,43 +409,43 @@ You can also let Docker choose a random port on the host, and use the `port` com
 
 ```
 
-Now I can browse to port `8081` on my machine and see the response from IIS running inside the container, showing me the hostname, which is actually the container ID, and in the title bar is the name of the environment:
+现在，我可以在我的计算机上浏览到端口`8081`，并查看来自容器内运行的 IIS 的响应，显示给我容器的主机名，实际上是容器 ID，以及标题栏中的环境名称：
 
 ![](img/76a58414-9209-4783-a22d-ef44c904ef3b.png)
 
-The environment name is just a text description, but the value came from the argument is passed to the `docker image build` command, which overrides the default value from the `ARG` instruction in the Dockerfile. The hostname should show the container ID, but there's a problem with the current implementation.
+环境名称只是描述文本，但是传递给`docker image build`命令的参数值会覆盖 Dockerfile 中`ARG`指令的默认值。主机名应该显示容器 ID，但是当前实现存在问题。
 
-On the web page the hostname starts with `bf37`, but my container ID actually starts with `6e3d`. To understand why the ID displayed isn't the actual ID of the running container, I'll look again at the temporary containers used during image builds.
+在网页上，主机名以`bf37`开头，但实际上我的容器 ID 以`6e3d`开头。为了理解为什么显示的 ID 不是正在运行的容器的实际 ID，我将再次查看构建映像期间使用的临时容器。
 
-# Understanding temporary containers and image state
+# 理解临时容器和映像状态
 
-My website container has an ID that starts with `6e3d`, which is the hostname that the application inside the container should see, but that's not what the website claims. So, what went wrong? Remember that Docker executes every build instruction inside a temporary, intermediate container.
+我的网站容器具有以`6e3d`开头的 ID，这是容器内应用程序应看到的主机名，但网站声称不是。那么，出了什么问题？请记住，Docker 在临时中间容器中执行每个构建指令。
 
-The `RUN` instruction to generate the HTML ran in a temporary container, so the PowerShell script wrote *that* container's ID as the hostname in the HTML file; this is where the container ID starting with `bf37` came from. The intermediate container gets removed by Docker, but the HTML file it created persists within the image.
+生成 HTML 的`RUN`指令在临时容器中运行，因此 PowerShell 脚本将该容器的 ID 写入 HTML 文件作为主机名。这就是起始于`bf37`的容器 ID 的来源。Docker 会删除中间容器，但是它创建的 HTML 文件将保留在映像中。
 
-This is an important concept: when you build a Docker image, the instructions execute inside temporary containers. The containers are removed, but the state they write persists within the final image and will be present in any containers you run from that image. If I run multiple containers from my website image, they will all show the same hostname from the HTML file, because that's saved inside the image, which is shared by all containers.
+这是一个重要的概念：当您构建 Docker 映像时，指令在临时容器内执行。容器会被移除，但是它们写入的状态将保留在最终映像中，并将在从该映像运行的任何容器中存在。如果我从我的网站映像运行多个容器，它们将在 HTML 文件中显示相同的主机名，因为它保存在映像中，该映像由所有容器共享。
 
-Of course, you can also store the state in individual containers, which is not part of the image, so it's not shared between containers. I'll look at how to work with data in Docker now and then finish the chapter with a real-world Dockerfile example.
+当然，您也可以将状态存储在单独的容器中，这不是映像的一部分，因此不会在容器之间共享。我将现在介绍如何使用 Docker 的数据，并以真实的 Dockerfile 示例结束本章。
 
-# Working with data in Docker images and containers
+# 使用 Docker 映像和容器中的数据
 
-Applications running in a Docker container see a single filesystem which they can read from and write to in the usual way for the operating system. The container sees a single filesystem drive but it's actually a virtual filesystem, and the underlying data can be in many different physical locations.
+在 Docker 容器中运行的应用程序看到的是单个文件系统，可以按照操作系统的惯例读取和写入。容器看到的是单个文件系统驱动器，但实际上是一个虚拟文件系统，底层数据可以位于许多不同的物理位置。
 
-Files which a container can access on its `C` drive could actually be stored in an image layer, in the container's own storage layer, or in a volume that is mapped to a location on the host. Docker merges all of these locations into a single virtual filesystem.
+容器可以访问其 C 驱动器上的文件，这些文件实际上可以存储在镜像层中，在容器自己的存储层中或者映射到主机上某个位置的卷中。 Docker 将所有这些位置合并为单个虚拟文件系统。
 
-# Data in layers and the virtual C drive
+# 层和虚拟 C 驱动器中的数据
 
-The virtual filesystem is how Docker can take a set of physical image layers and treat them as one logical container image. Image layers are mounted as read-only parts of the filesystem in a container, so they can't be altered, and that's how they can be safely shared by many containers.
+虚拟文件系统是 Docker 如何将一组物理镜像层视为一个逻辑容器映像的方式。镜像层被挂载为容器文件系统的只读部分，因此它们无法被更改，这就是它们可以被许多容器安全共享的方式。
 
-Each container has its own writeable layer on top of all of the read-only layers, so every container can modify its own data without affecting any other containers:
+每个容器在所有只读层的顶部都有自己的可写层，因此每个容器都可以修改自己的数据而不影响其他容器：
 
 ![](img/e5203dc0-e4fa-4e26-a79f-6665788e9d60.png)
 
-This diagram shows two containers running from the same image. The image (1) is physically composed of many layers: one built from each instruction in the Dockerfile. The two containers (2 and 3) use the same layers from the image when they run, but they each have their own isolated, writeable layers.
+该图显示了从相同镜像运行的两个容器。镜像 (1) 由许多层物理组成：每个 Dockerfile 中的指令构建一个层。两个容器 (2 和 3) 在运行时使用相同的镜像层，但它们各自具有其自己的隔离、可写层。
 
-Docker presents a single filesystem to the container. The concept of layers and read-only base layers is hidden, and your container just reads and writes data as if it had a full native filesystem, with a single drive. If you create a file when you build a Docker image and then edit the file inside a container, Docker actually creates a copy of the changed file in the container's writeable layer and hides the original read-only file. So the container has an edited copy of the file, but the original file in the image is unchanged.
+Docker 向容器呈现单个文件系统。层和只读基础层的概念被隐藏起来，你的容器只是读取和写入数据，就好像它拥有一个完整的本机文件系统，带有一个单独的驱动器。如果在构建 Docker 镜像时创建一个文件，然后在容器内编辑该文件，Docker 实际上会在容器的可写层中创建一个已更改文件的副本，并隐藏原始的只读文件。因此，容器中有一个已编辑文件的副本，但镜像中的原始文件保持不变。
 
-You can see this by creating some simple images with data in different layers. The Dockerfile for the `dockeronwindows/ch02-fs-1:2e` image uses Nano Server as the base image, creates a directory, and writes a file into it:
+你可以通过创建一些具有不同层中的数据的简单镜像来看到这一点。用于`dockeronwindows/ch02-fs-1:2e`镜像的 Dockerfile 使用 Nano Server 作为基础镜像，创建一个目录，并在其中写入一个文件：
 
 ```
 
@@ -451,7 +453,7 @@ You can see this by creating some simple images with data in different layers. T
 
 ```
 
-The Dockerfile for the `dockeronwindows/ch02-fs-2:2e` image creates an image based on that image, and adds a second file to the data directory:
+用于`dockeronwindows/ch02-fs-2:2e`镜像的 Dockerfile 创建了一个基于该镜像的镜像，并向数据目录添加了第二个文件：
 
 ```
 
@@ -459,9 +461,9 @@ FROM dockeronwindows/ch02-fs-1:2e RUN echo 'from image 2' > c:\data\file2.txt
 
 ```
 
-There's nothing special about *base* images; any image can be used in the `FROM` instruction for a new image. It can be an official image curated on Docker Hub, a commercial image from a private registry, a local image built from scratch, or an image that is many levels deep in a hierarchy.
+*基础*镜像没有任何特殊之处；任何镜像都可以在新镜像的`FROM`指令中使用。它可以是 Docker Hub 上的官方镜像，来自私有注册表的商业镜像，从头开始构建的本地镜像，或者是在层次结构中多层深的镜像。
 
-I'll build both images and run an interactive container from `dockeronwindows/ch02-fs-2:2e`, so I can take a look at the files on the `C` drive. This command starts a container and gives it an explicit name, `c1`, so I can work with it without using the random container ID:
+我将构建两个镜像，并从`dockeronwindows/ch02-fs-2:2e`运行一个交互式容器，以便我可以查看`C`驱动器上的文件。此命令启动一个容器，并为其指定了一个显式名称`c1`，这样我就可以在不使用随机容器 ID 的情况下使用它：
 
 ```
 
@@ -469,11 +471,11 @@ docker container run -it --name c1 dockeronwindows/ch02-fs-2:2e
 
 ```
 
-Many options in the Docker commands have short and long forms. The long form starts with two dashes, like `--interactive`. The short form is a single letter and starts with a single dash, like `-i`. Short tags can be combined, so `-it` is equivalent to `-i -t`, which is equivalent to `--interactive --tty`. Run `docker --help` to navigate the commands and their options.
+Docker 命令中的许多选项都有短格式和长格式。长格式以两个短横线开头，如`--interactive`。短格式是一个单独的字母，并以单个短横线开头，如`-i`。短标记可以组合使用，因此`-it`等同于`-i -t`，等同于`--interactive --tty`。运行`docker --help`来浏览命令及其选项。
 
-Nano Server is a minimal operating system, built for running apps in containers. It is not a full version of Windows, you can't run Nano Server as the OS on a VM or a physical machine, and you can't run all Windows apps in a Nano Server container. The base image is deliberately small, and even PowerShell is not included to keep the surface area down, meaning you need fewer updates and there are fewer potential attack vectors.
+Nano Server 是一个精简的操作系统，专为在容器中运行应用程序而构建。它不是 Windows 的完整版本，你不能在虚拟机或物理机上运行 Nano Server，也不能在 Nano Server 容器中运行所有 Windows 应用程序。基础镜像特意设计得很小，甚至连 PowerShell 也没有包含在内，以减少表面积，意味着你需要更少的更新，攻击向量也更少。
 
-You need to brush off your old DOS commands to work with Nano Server containers. `dir` lists the directory contents inside the container:
+你需要重新熟悉旧的 DOS 命令以使用 Nano Server 容器。`dir`列出容器内的目录内容：
 
 ```
 
@@ -489,9 +491,9 @@ C:\>dir C:\data
 02/06/2019  11:00 AM                17 file2.txt 
 ```
 
-Both of the files are there for the container to use in the `C:\data` directory; the first file is in a layer from the `ch02-fs-1:2e` image, and the second file is in a layer from the `ch02-fs-2:2e` image. The `dir` executable is available from another layer in the base Nano Server image, and the container sees them all in the same way.
+这两个文件都在容器中用于在`C:\data`目录中使用；第一个文件在来自`ch02-fs-1:2e`镜像的一个层中，而第二个文件在来自`ch02-fs-2:2e`镜像的一个层中。`dir`可执行文件来自基础 Nano Server 镜像的另一个层，并且容器以相同的方式看待它们。
 
-I'll append some more text to one of the existing files and create a new file in the `c1` container:
+我将向现有文件中追加一些文本，并在`c1`容器中创建一个新文件：
 
 ```
 
@@ -512,7 +514,7 @@ C:\>dir C:\data
 02/06/2019  01:10 PM                 9 file3.txt 
 ```
 
-From the file listing you can see that `file2.txt` from the image layer has been modified and there is a new file, `file3.txt`. Now I'll exit this container and create a new one using the same image:
+从文件列表中你可以看到来自镜像层的`file2.txt`已经被修改，并且有一个新文件`file3.txt`。现在我会退出这个容器，并使用相同的镜像创建一个新容器：
 
 ```
 
@@ -522,7 +524,7 @@ PS> docker container run -it --name c2 dockeronwindows/ch02-fs-2:2e
 
 ```
 
-What are you expecting to see in the `C:\data` directory in this new container? Let's take a look:
+在这个新容器的`C:\data`目录中，你期望看到什么？让我们来看看：
 
 ```
 
@@ -538,19 +540,19 @@ C:\>dir C:\data
 02/06/2019  11:00 AM                17 file2.txt 
 ```
 
-You know that image layers are read-only and every container has its own writeable layer, so the results should make sense. The new container, `c2`, has the original files from the image without the changes from the first container, `c1`, which are stored in the writeable layer for `c1`. Each container's filesystem is isolated, so one container doesn't see any changes made by another container.
+你知道镜像层是只读的，每个容器都有自己的可写层，所以结果应该是有意义的。新容器`c2`具有来自镜像的原始文件，没有来自第一个容器`c1`的更改，这些更改存储在`c1`的可写层中。每个容器的文件系统是隔离的，所以一个容器看不到另一个容器所做的任何更改。
 
-If you want to share data between containers, or between containers and the host, you can use Docker volumes.
+如果你想在容器之间或在容器和主机之间共享数据，你可以使用 Docker 卷。
 
-# Sharing data between containers with volumes
+# 使用卷在容器之间共享数据
 
-Volumes are units of storage. They have a separate life cycle to containers, so they can be created independently and then mounted inside one or more containers. You can ensure containers are always created with volume storage using the `VOLUME` instruction in the Dockerfile.
+卷是存储单元。它们有一个与容器不同的生命周期，因此它们可以独立创建，然后在一个或多个容器中挂载。你可以使用 Dockerfile 中的`VOLUME`指令确保容器始终使用卷存储。
 
-You specify volumes with a target directory, which is the location inside the container where the volume is surfaced. When you run a container with a volume defined in the image, the volume is mapped to a physical location on the host, which is specific to that one container. More containers running from the same image will have their volumes mapped to a different host location.
+你可以用目标目录指定卷，这是容器内的位置，卷在其中显示。当你运行一个在镜像中定义了卷的容器时，卷被映射到主机上的一个物理位置，该位置特定于该容器。从相同镜像运行的更多容器将使它们的卷映射到不同的主机位置。
 
-In Windows, volume directories need to be empty. In your Dockerfile, you can't create files in a directory and then expose it as a volume. Volumes also need to be defined on a disk that exists in the image. In the Windows base images, there is only a `C` drive available, so volumes need to be created on the `C` drive.
+在 Windows 中，卷目录需要为空。在你的 Dockerfile 中，你不能在一个目录中创建文件，然后将其公开为卷。卷还需要在镜像中存在的磁盘上定义。在 Windows 基础镜像中，只有一个`C`盘可用，所以卷需要在`C`盘上创建。
 
-The Dockerfile for `dockeronwindows/ch02-volumes:2e` creates an image with two volumes, and explicitly specifies the `cmd` shell as the `ENTRYPOINT` when containers are run from the image:
+`dockeronwindows/ch02-volumes:2e`的 Dockerfile 创建了一个具有两个卷的镜像，并且在从镜像运行容器时明确指定了`cmd` shell 作为`ENTRYPOINT`：
 
 ```
 
@@ -560,13 +562,13 @@ FROM mcr.microsoft.com/windows/nanoserver:1809 VOLUME C:\app\config VOLUME C:\ap
 
 ```
 
-Remember the Nano Server image uses a least-privilege user by default. Volumes are not accessible by that user, so this Dockerfile switches to the administrative account, and when you run a container from the image you can access volume directories.
+请记住，Nano Server 镜像默认使用最低权限用户。这个用户无法访问卷，所以这个 Dockerfile 切换到管理帐户，当你从镜像运行一个容器时，你可以访问卷目录。
 
-When I run a container from that image, Docker creates a virtual filesystem from three sources. The image layers are read-only, the container's layer is writeable, and the volumes can be set to read-only or writeable:
+当我从该镜像运行一个容器时，Docker 会从三个源创建一个虚拟文件系统。镜像层是只读的，容器的层是可写的，卷可以设置为只读或可写：
 
 ![](img/f630b9fe-5ce9-44cb-b8ac-9f76da4fb8ab.png)
 
-Because volumes are separate from the container, they can be shared with other containers even if the source container isn't running. I can run a task container from this image, with a command to create a new file in the volume:
+因为卷是与容器分开的，所以即使源容器未运行，它们也可以与其他容器共享。我可以从该映像运行一个任务容器，并使用命令在卷中创建新文件：
 
 ```
 
@@ -574,7 +576,7 @@ docker container run --name source dockeronwindows/ch02-volumes:2e "echo 'start'
 
 ```
 
-Docker starts the container, which writes the file, and then exits. The container and its volumes haven't been deleted, so I can connect to the volumes in another container using the `--volumes-from` option and by specifying my first container's name:
+Docker 启动容器，该容器写入文件，然后退出。容器及其卷尚未被删除，因此我可以使用`--volumes-from`选项连接到另一个容器中的卷，并指定我的第一个容器的名称：
 
 ```
 
@@ -582,7 +584,7 @@ docker container run -it --volumes-from source dockeronwindows/ch02-volumes:2e c
 
 ```
 
-This is an interactive container, and when I list the contents of the `C:\app` directory, I'll see the two directories, `logs` and `config`, which are volumes from the first container:
+这是一个交互式容器，当我列出`C:\app`目录的内容时，我将看到两个目录，`logs`和`config`，它们是第一个容器中的卷：
 
 ```
 
@@ -596,7 +598,7 @@ d----l   6/22/2017 8:11 AM          config
 d----l   6/22/2017 8:11 AM          logs 
 ```
 
-The shared volume has read and write access, so I can see the file created in the first container and append to it:
+共享卷具有读写访问权限，因此我可以看到在第一个容器中创建的文件并向其追加：
 
 ```
 
@@ -610,9 +612,9 @@ C:\>type C:\app\logs\log-1.txt
 'more'
 ```
 
-Sharing data between containers like this is very useful; you can run a task container that takes a backup of data or log files from a long-running background container. The default access is for volumes to be writeable, but that's something to be wary of, as you could edit data and break the application running in the source container.
+这样在容器之间共享数据非常有用；您可以运行一个任务容器，从长时间运行的后台容器中备份数据或日志文件。默认访问权限是卷可写的，但这是需要注意的一点，因为您可能会编辑数据并破坏运行在源容器中的应用程序。
 
-Docker lets you mount volumes from another container in read-only mode instead, by adding the `:ro` flag to the name of the container in the `--volumes-from` option. This is a safer way to access data if you want to read it without making changes. I'll run a new container, sharing the same volumes from the original container in read-only mode:
+Docker 允许您以只读模式从另一个容器中挂载卷，方法是在`--volumes-from`选项中将`：ro`标志添加到容器名称。如果您只想阅读而不做更改，这是访问数据的更安全方式。我将运行一个新的容器，在只读模式下共享与原始容器相同的卷：
 
 ```
 
@@ -629,13 +631,13 @@ C:\>echo 'new' >> C:\app\logs\log-2.txt
 Access is denied.
 ```
 
-In the new container I can't create a new file or write to the existing log file, but I can see the content in the log file from the original container, and the line appended by the second container.
+在新容器中，我无法创建新文件或向现有日志文件中写入内容，但我可以看到原始容器中的日志文件中的内容，以及第二个容器追加的行。
 
-# Sharing data between the container and host with volumes
+# 使用卷在容器和主机之间共享数据
 
-Container volumes are stored on the host, so you can access them directly from the machine running Docker, but they'll be in a nested directory somewhere in Docker's program data directory. The `docker container inspect` command tells you the physical location for a container's volumes, along with a lot more information, including the container's ID, name, and the virtual IP address of the container in the Docker network.
+容器卷存储在主机上，因此您可以直接从运行 Docker 的机器访问它们，但它们将位于 Docker 的程序数据目录中的某个嵌套目录中。`docker container inspect`命令告诉您容器卷的物理位置，以及更多信息，包括容器的 ID、名称以及 Docker 网络中容器的虚拟 IP 地址。
 
-I can use JSON formatting in the `container inspect` command, passing a query to extract just the volume information in the `Mounts` field. This command pipes the Docker output into a PowerShell cmdlet, to show the JSON in a friendly format:
+我可以在`container inspect`命令中使用 JSON 格式化，传递一个查询以提取`Mounts`字段中的卷信息。此命令将 Docker 输出传递到一个 PowerShell cmdlet 中，以友好的格式显示 JSON：
 
 ```
 
@@ -656,7 +658,7 @@ Driver      : local
 RW          : True
 ```
 
-I've abbreviated the output, but in the `Source` field you can see the full path where the volume data is stored on the host. I can access the container's files directly from the host, using that source directory. When I run this command on my Windows machine, I'll see the file created inside the container volume:
+我已经缩写了输出，但在`Source`字段中，您可以看到卷数据存储在主机上的完整路径。我可以直接从主机访问容器的文件，使用该源目录。当我在我的 Windows 机器上运行此命令时，我将看到在容器卷内创建的文件：
 
 ```
 
@@ -668,13 +670,13 @@ Mode                LastWriteTime         Length Name
 -a----       06/02/2019     13:33             19 log-1.txt
 ```
 
-Accessing the files on the host is possible this way, but it's awkward to use the nested directory location with the volume ID. Instead you can mount a volume from a specific location on the host when you create a container.
+通过这种方式访问主机上的文件是可能的，但使用带有卷 ID 的嵌套目录位置非常麻烦。相反，您可以在创建容器时从主机的特定位置挂载卷。
 
-# Mounting volumes from host directories
+# 从主机目录挂载卷
 
-You use the `--volume` option to explicitly map a directory in a container from a known location on the host. The target location in the container can be a directory created with the `VOLUME` command, or any directory in the container's filesystem. If the target location already exists in the Docker image, it is hidden by the volume mount, so you won't see any of the image files.
+你可以使用 `--volume` 选项将容器中的一个目录映射到主机上的一个已知位置。容器中的目标位置可以是使用 `VOLUME` 命令创建的目录，或者容器文件系统中的任何目录。如果 Docker 镜像中的目标位置已经存在，它将被卷挂载隐藏，因此你将看不到任何镜像文件。
 
-I'll create a dummy configuration file for my app in a directory on the `C` drive on my Windows machine:
+我将在我的 Windows 机器的 `C` 盘上的一个目录中创建一个虚拟配置文件：
 
 ```
 
@@ -684,7 +686,7 @@ PS> echo 'VERSION = 18.09' > C：\ app-config \ version.txt
 
 ```
 
-Now I'll run a container which maps a volume from the host, and read the configuration file which is actually stored on the host:
+现在我将运行一个容器，该容器从主机映射一个卷，并读取实际存储在主机上的配置文件：
 
 ```
 
@@ -695,19 +697,19 @@ Now I'll run a container which maps a volume from the host, and read the configu
 VERSION=18.09
 ```
 
-The `--volume` option specifies the mount in the format `{source}:{target}`. The source is the host location, which needs to exist. The target is the container location, which doesn't need to exist, but the existing contents will be hidden if it does exist.
+`--volume` 选项指定挂载的格式为 `{source}:{target}`。源是主机位置，需要存在。目标是容器位置，不需要存在，但如果存在，现有内容将被隐藏。
 
-Volume mounts are different in Windows and Linux containers. In Linux containers, Docker merges the contents from the source into the target, so if files exist in the image, you see them as well as the contents of the volume source. Docker on Linux also lets you mount a single file location, but on Windows you can only mount whole directories.
+Windows 和 Linux 容器中的卷挂载不同。在 Linux 容器中，Docker 将源的内容合并到目标中，因此如果镜像中存在文件，则你会看到它们以及卷源的内容。Linux 上的 Docker 也允许你挂载单个文件位置，但在 Windows 上，你只能挂载整个目录。
 
-Volume mounts are useful for running stateful applications in containers, like databases. You can run SQL Server in a container, and have the database files stored in a location on the host, which could be a RAID array on the server. When you have schema updates, you remove the old container and start a new container from the updated Docker image. You use the same volume mount for the new container, so that the data is preserved from the old container.
+卷挂载对于在容器中运行有状态的应用程序（如数据库）非常有用。你可以在容器中运行 SQL Server，并将数据库文件存储在主机上的某个位置，这可以是服务器上的 RAID 阵列。当你有模式更新时，你删除旧的容器，并从更新的 Docker 镜像启动新的容器。你使用相同的卷挂载为新容器，以便从旧容器中保留数据。
 
-# Using volumes for configuration and state
+# 使用卷来进行配置和状态管理
 
-Application state is an important consideration when you're running applications in containers. Containers can be long-running, but they are not intended to be permanent. One of the biggest advantages with containers over traditional compute models is that you can easily replace them, and it only takes a few seconds to do so. When you have a new feature to deploy, or a security vulnerability to patch, you just build and test an upgraded image, stop the old container, and start a replacement from the new image.
+当你在容器中运行应用程序时，应用程序状态是一个重要考虑因素。容器可以长时间运行，但并不打算是永久的。与传统计算模型相比，容器的最大优势之一是你可以轻松替换它们，而且只需几秒钟的时间。当你有一个新功能要部署，或者要修补的安全漏洞时，你只需构建和测试一个升级后的镜像，停止旧的容器，然后从新镜像启动一个替代容器。
 
-Volumes let you manage that upgrade process by keeping your data separate from your application container. I'll demonstrate this with a simple web application that stores the hit count for a page in a text file; each time you browse to the page, the site increments the count.
+通过将数据与应用程序容器分开，卷让你管理升级过程。我将用一个简单的 Web 应用程序演示这一点，该应用程序将页面的点击计数存储在文本文件中；每当你浏览到页面时，网站都会增加计数。
 
-The Dockerfile for the `dockeronwindows/ch02-hitcount-website` image uses multi-stage builds, compiling the application using the `microsoft/dotnet` image, and packaging the final app using `microsoft/aspnetcore` as the base:
+`dockeronwindows/ch02-hitcount-website` 镜像的 Dockerfile 使用多阶段构建，使用 `microsoft/dotnet` 镜像编译应用程序，并使用 `microsoft/aspnetcore` 作为基础打包最终应用程序：
 
 ```
 
@@ -731,7 +733,7 @@ CMD ["dotnet", "HitCountWebApp.dll"]
 COPY --from=builder C:\src\bin\Debug\netcoreapp2.2\publish .
 ```
 
-In the Dockerfile I create an empty directory at `C:\dotnetapp\app-state`, which is where the application will store the hit count in a text file. I've built the first version of the app into an image with the `2e-v1` tag:
+在 Dockerfile 中，我在 `C:\dotnetapp\app-state` 创建了一个空目录，这是应用程序将在其中的文本文件中存储点击计数的位置。我已经使用 `2e-v1` 标签将应用程序的第一个版本构建成一个镜像：
 
 ```
 
@@ -739,7 +741,7 @@ docker image build --tag dockeronwindows / ch02-hitcount-website：2e-v1。
 
 ```
 
-I'll create a directory on the host to use for the container's state, and run a container that mounts the application state directory from a directory on the host:
+我会在主机上创建一个目录用于容器的状态，并运行一个容器，将应用程序状态目录从主机上的一个目录挂载到容器中：
 
 ```
 
@@ -751,7 +753,7 @@ docker container run -d --publish-all `
  dockeronwindows/ch02-hitcount-website:2e-v1 
  ```
 
-The `publish-all` option tells Docker to publish all the exposed ports from the container image to random ports on the host. This is a quick option for testing containers in a local environment, as Docker will assign a free port from the host and you don't need to worry about which ports are already in use by other containers. You find out the ports a container has published with the `container port` command:
+`publish-all` 选项告诉 Docker 将容器镜像的所有暴露端口发布到主机上的随机端口。这是在本地环境中测试容器的快速选项，因为 Docker 将从主机分配一个空闲端口，你不需要担心其他容器已经使用了哪些端口。你可以使用 `container port` 命令查看容器发布的端口：
 
 ```
 
@@ -760,11 +762,11 @@ The `publish-all` option tells Docker to publish all the exposed ports from the 
 
 ```
 
-I can browse to the site at `http://localhost:51377`. When I refresh the page a few times, I'll see the hit count increasing:
+我可以在 `http://localhost:51377` 上浏览到该站点。当我刷新页面几次时，会看到点击数增加：
 
 ![](img/47bcf624-7bdc-478d-a735-0edc36d20e14.png)
 
-Now, when I have an upgraded version of the app to deploy, I can package it into a new image tagged with `2e-v2`. When the image is ready, I can stop the old container and start a new one using the same volume mapping:
+现在，当我有一个要部署的升级版本的应用程序时，我可以将其打包成一个带有 `2e-v2` 标签的新镜像。当镜像准备好时，我可以停止旧容器并启动一个新容器，使用相同的卷映射：
 
 ```
 
@@ -779,25 +781,25 @@ PS> docker container run -d --publish-all `
 db8a39ba7af43be04b02d4ea5d9e646c87902594c26a62168c9f8bf912188b62
 ```
 
-The volume containing the application state gets reused, so the new version will continue using the saved state from the old version. I have a new container with a new published port. When I fetch the port and browse to it for the first time, I see the updated UI with an attractive icon, but the hit count is carried forward from version 1:
+包含应用程序状态的卷被重用，因此新版本将继续使用旧版本的保存状态。我有一个新的容器，带有一个新发布的端口。当我获取端口并首次浏览时，我会看到更新的 UI 和一个吸引人的图标，但点击数从版本 1 中继承下来：
 
 ![](img/6d464a9f-b169-4970-9b8b-cc01198853c4.png)
 
-Application state can have structural changes between versions, which is something you will need to manage yourself. The Docker image for the open source Git server, GitLab, is a good example of this. The state is stored in a database on a volume, and when you upgrade to a new version, the app checks the database and runs upgrade scripts if needed.
+应用程序状态在版本之间可能会有结构性变化，这是你需要自行管理的。开源 Git 服务器 GitLab 的 Docker 镜像就是一个很好的例子。状态存储在卷上的数据库中，当你升级到新版本时，应用程序会检查数据库并在需要时运行升级脚本。
 
-Application configuration is another way to make use of volume mounts. You can ship your application with a default configuration set built into the image, but users can override the base configuration with their own files using a mount.
+应用程序配置是利用卷挂载的另一种方式。你可以在镜像中嵌入默认的配置集合，但用户可以使用挂载来覆盖基本配置，使用他们自己的文件。
 
-You'll see these techniques put to good use in the next chapter.
+你将在下一章中看到这些技术被很好地运用。
 
-# Packaging a traditional ASP.NET web app as a Docker image
+# 将传统的 ASP.NET Web 应用程序打包为 Docker 镜像
 
-Microsoft has made the Windows Server Core base image available on MCR, and that's a version of Windows Server 2019 which has much of the functionality of the full server edition, but without the UI. As base images go, it's very large: 2 GB compressed on Docker Hub, compared to 100 MB for Nano Server, and 2 MB for the tiny Alpine Linux image. But it means you can Dockerize pretty much any existing Windows app, and that's a great way to start migrating your systems to Docker.
+微软已经在 MCR 上提供了 Windows Server Core 基础镜像，这是 Windows Server 2019 的一个版本，具有大部分完整服务器版的功能，但没有用户界面。就基础镜像而言，它非常庞大：在 Docker Hub 上压缩后为 2 GB，而 Nano Server 仅为 100 MB，微小的 Alpine Linux 镜像仅为 2 MB。但这意味着你几乎可以将任何现有的 Windows 应用程序 Docker 化，这是迁移系统到 Docker 的一个很好的方式。
 
-Remember NerdDinner? It was an open source ASP.NET MVC showcase app, originally written by Scott Hanselman and Scott Guthrie among others at Microsoft. You can still get the code at CodePlex, but there hasn't been a change made since 2013, so it's an ideal candidate for proving that old .NET Framework apps can be migrated to Docker Windows containers, and this can be the first step in modernizing them.
+还记得 NerdDinner 吗？它是一个开源的 ASP.NET MVC 展示应用程序，最初由微软的 Scott Hanselman 和 Scott Guthrie 等人编写。你仍然可以在 CodePlex 上获取到代码，但自 2013 年以来就没有进行过任何更改，因此它是证明旧的 .NET Framework 应用程序可以迁移到 Docker Windows 容器的理想候选项，这可以是现代化的第一步。
 
-# Writing a Dockerfile for NerdDinner
+# 为 NerdDinner 编写 Dockerfile
 
-I'll follow the multi-stage build approach for NerdDinner, so the Dockerfile for the `dockeronwindows/ch-02-nerd-dinner:2e` images starts with a builder stage:
+我将遵循 NerdDinner 的多阶段构建方法，因此`dockeronwindows/ch-02-nerd-dinner:2e`镜像的 Dockerfile 从一个构建器阶段开始：
 
 ```
 
@@ -812,26 +814,35 @@ COPY src C:\src
 RUN msbuild NerdDinner.csproj /p:OutputPath=c:\out /p:Configuration=Release 
 ```
 
-The stage uses `microsoft/dotnet-framework` as the base image for compiling the application. This is an image which Microsoft maintains on Docker Hub. It's built on top of the Windows Server Core image, and it has everything you need to compile .NET Framework applications, including NuGet and MSBuild. The build stage happens in two parts:
+该阶段使用`microsoft/dotnet-framework`作为编译应用程序的基础镜像。这是微软在 Docker Hub 上维护的一个镜像。它是构建在 Windows Server Core 镜像之上的，并且拥有编译 .NET Framework 应用程序所需的一切，包括 NuGet 和 MSBuild。构建阶段分为两个部分：
 
-1.  Copy the NuGet `packages.config` file into the image, and then run `nuget restore`.
-2.  Copy the rest of the source tree and run `msbuild`.
+1.  将 NuGet `packages.config` 文件复制到镜像中，然后运行`nuget restore`。
 
-Separating these parts means Docker will use multiple image layers: the first layer will contain all the restored NuGet packages, and the second layer will contain the compiled web app. This means I can take advantage of Docker's layer caching. Unless I change my NuGet references, the packages will be loaded from the cached layer and Docker won't run the restore part, which is an expensive operation. The MSBuild step will run every time any source files change.
+1.  复制其余的源代码树并运行`msbuild`。
 
-If I had a deployment guide for NerdDinner, before the move to Docker, it would look something like this:
+将这些部分分开意味着 Docker 将使用多个镜像层：第一层将包含所有已还原的 NuGet 包，第二层将包含已编译的 Web 应用程序。这意味着我可以利用 Docker 的层缓存。除非我更改了 NuGet 引用，否则包将从缓存层加载，Docker 将不会运行还原部分，这是一个昂贵的操作。只要任何源文件发生更改，MSBuild 步骤就会运行。 
 
-1.  Install Windows on a clean server.
-2.  Run all Windows updates.
-3.  Install IIS.
-4.  Install .NET.
-5.  Set up ASP.NET.
-6.  Copy the web app into the `C` drive.
-7.  Create an application pool in IIS.
-8.  Create the website in IIS using the application pool.
-9.  Delete the default website.
+如果我有一个 NerdDinner 的部署指南，在迁移到 Docker 之前，它会是这样的：
 
-This will be the basis for the second stage of the Dockerfile, but I will be able to simplify all the steps. I can use Microsoft's ASP.NET Docker image as the `FROM` image, which will give me a clean install of Windows with IIS and ASP.NET installed. That takes care of the first five steps in one instruction. This is the rest of the Dockerfile for `dockeronwindows/ch-02-nerd-dinner:2e`:
+1.  在一个干净的服务器上安装 Windows。
+
+1.  运行所有 Windows 更新。
+
+1.  安装 IIS。
+
+1.  安装 .NET。
+
+1.  设置 ASP.NET。
+
+1.  将 Web 应用程序复制到`C`驱动器中。
+
+1.  在 IIS 中创建一个应用程序池。
+
+1.  在 IIS 中创建网站并使用应用程序池。
+
+1.  删除默认网站。
+
+这将成为 Dockerfile 的第二阶段的基础，但我将能够简化所有步骤。我可以使用微软的 ASP.NET Docker 镜像作为`FROM`镜像，这将为我提供一个带有 IIS 和 ASP.NET 的干净安装的 Windows。这样一条指令就完成了前五个步骤。这是`dockeronwindows/ch-02-nerd-dinner:2e`的其余 Dockerfile 部分：
 
 ```
 
@@ -852,17 +863,17 @@ RUN & c:\windows\system32\inetsrv\appcmd.exe `
 COPY --from=builder C:\out\_PublishedWebsites\NerdDinner C:\nerd-dinner 
 ```
 
-Microsoft uses both Docker Hub and MCR to store their Docker images. The .NET Framework SDK is on Docker Hub, but the ASP.NET runtime image is on MCR. You can always find where an image is hosted by checking on Docker Hub.
+微软同时使用 Docker Hub 和 MCR 存储他们的 Docker 镜像。.NET Framework SDK 在 Docker Hub 上，但 ASP.NET 运行时镜像在 MCR 上。您可以通过在 Docker Hub 上检查来找到镜像的托管位置。
 
-Using the `escape` directive and `SHELL` instruction lets me use normal Windows file paths without double backslashes, and PowerShell-style backticks to separate commands over many lines. Removing the default website and creating a new website in IIS is simple with PowerShell, and the Dockerfile clearly shows me the port the app is using and the path of the content.
+使用`escape`指令和`SHELL`指令让我可以在普通的 Windows 文件路径中使用，而无需双反斜杠，并使用 PowerShell 风格的反引号在多行中分隔命令。使用 PowerShell 在 IIS 中删除默认网站并创建新网站非常简单，Dockerfile 清楚地显示了应用程序使用的端口和内容的路径。
 
-I'm using the built-in .NET 4.5 application pool, which is a simplification from the original deployment process. In IIS on a VM you'd normally have a dedicated application pool for each website in order to isolate processes from each other. But in the containerized app, there will be only one website running. Any other websites will be running in other containers, so we already have isolation, and each container can use the default application pool without worrying about interference.
+我正在使用内置的 .NET 4.5 应用程序池，这是与原始部署过程相比的简化。在虚拟机上的 IIS 中，通常会为每个网站拥有一个专用的应用程序池，以便将进程与其他进程隔离。但在容器化的应用程序中，只会运行一个网站。任何其他网站都将在其他容器中运行，因此我们已经进行了隔离，并且每个容器可以使用默认的应用程序池，而不必担心干扰。
 
-The final `COPY` instruction copies the published web application from the builder stage into the application image. It's the last line in the Dockerfile to take advantage of Docker's caching again. When I'm working on the app, the source code will be the thing I change most frequently. The Dockerfile is structured so that when I change code and run `docker image build`, the only instructions that run are MSBuild in the first stage and the copy in the second stage, so the build is very fast.
+最后的 `COPY` 指令将发布的 Web 应用程序从构建器阶段复制到应用程序镜像中。这是 Dockerfile 中利用 Docker 缓存的最后一行。当我在应用程序上工作时，源代码将是我最频繁更改的东西。Dockerfile 结构化得当，以便当我更改代码并运行 `docker image build` 时，只会运行第一阶段的 MSBuild 和第二阶段的复制，因此构建非常快速。
 
-This could be all you need for a fully functioning Dockerized ASP.NET website, but in the case of NerdDinner there is one more instruction, which proves that you can cope with awkward, unexpected details when you containerize your application. The NerdDinner app has some custom configuration settings in the `system.webServer` section of its `Web.config` file, and by default the section is locked by IIS. I need to unlock the section, which I do with `appcmd` in the second `RUN` instruction.
+这可能是一个完全功能的 Docker 化的 ASP.NET 网站所需的一切，但在 NerdDinner 的情况下，还有一条额外的指令，证明了当您将应用程序容器化时，您可以处理棘手的，意想不到的细节。NerdDinner 应用程序在其 `Web.config` 文件的 `system.webServer` 部分中有一些自定义配置设置，并且默认情况下，该部分由 IIS 锁定。我需要解锁该部分，我在第二个 `RUN` 指令中使用 `appcmd` 完成。
 
-Now I can build the image and run a legacy ASP.NET app in a Windows container:
+现在我可以构建图像并在 Windows 容器中运行遗留的 ASP.NET 应用程序：
 
 ```
 
