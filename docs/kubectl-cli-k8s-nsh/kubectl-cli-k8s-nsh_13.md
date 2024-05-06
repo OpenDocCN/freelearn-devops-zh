@@ -1,4 +1,4 @@
-# *第九章*：介绍 Helm 用于 Kubernetes
+# 第九章：介绍 Helm 用于 Kubernetes
 
 在上一章中，我们学习了如何安装和使用 Kustomize。在本章中，让我们了解 Helm（[`helm.sh`](https://helm.sh)）。
 

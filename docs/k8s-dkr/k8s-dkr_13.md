@@ -1,4 +1,4 @@
-# *第十章*：创建 PodSecurityPolicies
+# 第十章：创建 PodSecurityPolicies
 
 到目前为止，大部分讨论的安全重点都集中在保护 Kubernetes API 上。身份验证意味着对 API 调用进行身份验证。授权意味着授权访问某些 API。即使在关于仪表板的讨论中，也主要集中在如何通过仪表板安全地对 API 服务器进行身份验证。
 

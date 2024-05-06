@@ -1,4 +1,4 @@
-# 第六章。Docker 的下一代网络堆栈：libnetwork
+# 第六章：Docker 的下一代网络堆栈：libnetwork
 
 在本章中，我们将学习关于 Docker 的新网络堆栈：libnetwork，它提供了一个可插拔的架构，具有单主机和多主机虚拟网络的默认实现：
 

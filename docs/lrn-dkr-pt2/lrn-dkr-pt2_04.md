@@ -1,4 +1,4 @@
-# 第四章。发布图像
+# 第四章：发布图像
 
 在上一章中，我们学习了如何构建 Docker 镜像。下一个逻辑步骤是将这些镜像发布到公共存储库以供公众发现和使用。因此，本章重点介绍了在 Docker Hub 上发布图像以及如何充分利用 Docker Hub。我们可以使用`commit`命令和`Dockerfile`创建一个新的 Docker 镜像，对其进行构建，并将其推送到 Docker Hub。将讨论受信任存储库的概念。这个受信任的存储库是从 GitHub 或 Bitbucket 创建的。然后可以将其与 Docker Hub 集成，以便根据存储库中的更新自动构建图像。GitHub 上的这个存储库用于存储之前创建的`Dockerfile`。此外，我们将说明全球组织如何使他们的开发团队能够创建和贡献各种 Docker 镜像，并将其存储在 Docker Hub 中。Docker Hub REST API 可用于用户管理和以编程方式操作存储库。
 

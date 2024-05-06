@@ -1,4 +1,4 @@
-# 弹性 Beanstalk
+# 第十五章：弹性 Beanstalk
 
 到目前为止，在本书中，我们已经专注于使用弹性容器服务（ECS）及其变体 AWS Fargate 来管理和部署 Docker 应用程序。本书的其余部分将专注于您可以使用的替代技术，以在 AWS 中运行 Docker 应用程序，我们将首先介绍的是弹性 Beanstalk。
 

@@ -1,4 +1,4 @@
-# 使用 Java 与 Kubernetes
+# 第八章：使用 Java 与 Kubernetes
 
 在第七章中，*Kubernetes 简介*，我们了解了 Kubernetes 的架构和概念。我们知道节点、Pod 和服务。在本章中，我们将进行一些实际的实践，并将我们的 Java REST 服务部署到本地 Kubernetes 集群。为了学习目的，我们将使用 Minikube 工具在本地机器上创建一个集群。在第一次学习时，最好在本地机器上学习 Kubernetes，而不是直接去云端。因为 Minikube 在本地运行，而不是通过云提供商，某些特定于提供商的功能，如负载均衡器和持久卷，将无法直接使用。但是，您可以使用`NodePort`、`HostPath`、持久卷和一些插件，如 DNS 或仪表板，在将应用程序推送到真正的、生产级别的集群之前，在本地测试您的应用程序。在第十章中，*在云中部署 Java 到 Kubernetes*，我们将在**Amazon Web Services**（**AWS**）和 Google 容器引擎中运行 Kubernetes。
 

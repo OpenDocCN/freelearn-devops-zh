@@ -1,4 +1,4 @@
-# 使用 Kubernetes 部署、更新和保护应用程序
+# 第十六章：使用 Kubernetes 部署、更新和保护应用程序
 
 在上一章中，我们了解了容器编排器 Kubernetes 的基础知识。我们对 Kubernetes 的架构有了高层次的概述，并且学到了很多关于 Kubernetes 用于定义和管理容器化应用程序的重要对象。
 

@@ -1,4 +1,4 @@
-# 第十章。在公共云中部署 Docker - AWS 和 Azure
+# 第十章：在公共云中部署 Docker - AWS 和 Azure
 
 在本章中，我们将在公共云 AWS 和 Azure 上进行 Docker 部署。 AWS 在 2014 年底推出了**弹性计算云**（**EC2**）容器服务。当它推出时，该公司强调了基于过去发布的亚马逊服务的高级 API 调用的容器集群管理任务。 AWS 最近发布了 Docker for AWS Beta，允许用户快速在 AWS 和 Azure 上设置和配置 Docker 1.13 swarm 模式。借助这项新服务，我们可以获得以下功能：
 

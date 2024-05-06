@@ -1,4 +1,4 @@
-# *第六章*：保护集群组件
+# 第六章：保护集群组件
 
 在之前的章节中，我们看过了 Kubernetes 集群的架构。一个 Kubernetes 集群包括主要组件，包括`kube-apiserver`、`etcd`、`kube-scheduler`、CoreDNS、`kube-controller-manager`和`cloud-controller-manager`，以及节点组件，包括`kubelet`、`kube-proxy`和`container-runtime`。主要组件负责集群管理，它们构成了集群的控制平面。另一方面，节点组件负责节点上 pod 和容器的运行。
 

@@ -1,4 +1,4 @@
-# Kubernetes 简介
+# 第十五章：Kubernetes 简介
 
 在上一章中，我们学习了 SwarmKit 如何使用滚动更新来实现零停机部署。我们还介绍了 Docker 配置文件，用于在集群中存储非敏感数据并用于配置应用程序服务，以及 Docker 秘密，用于与在 Docker Swarm 中运行的应用程序服务共享机密数据。
 

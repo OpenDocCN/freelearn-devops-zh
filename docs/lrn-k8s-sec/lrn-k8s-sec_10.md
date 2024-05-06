@@ -1,4 +1,4 @@
-# *第八章*：保护 Kubernetes Pods
+# 第八章：保护 Kubernetes Pods
 
 尽管 pod 是作为运行微服务的最细粒度单位，保护 Kubernetes pods 是一个广泛的主题，因为它应该涵盖整个 DevOps 流程：构建、部署和运行。
 

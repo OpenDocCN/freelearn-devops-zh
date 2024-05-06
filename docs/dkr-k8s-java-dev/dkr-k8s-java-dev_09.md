@@ -1,4 +1,4 @@
-# 使用 Kubernetes API。
+# 第九章：使用 Kubernetes API。
 
 在第七章中，*Kubernetes 简介*，和第八章，*使用 Java 与 Kubernetes*，我们学习了 Kubernetes 的概念，并通过安装本地 Kubernetes 集群`minikube`来实践使用它们。我们了解了 Kubernetes 架构的所有组件，比如 pod、节点、部署和服务等。我们还提到了驻留在 Master 节点上的主要组件之一，即 API 服务器。正如你在第七章中所记得的，API 服务器在技术上是一个名为`kube-apiserver`的进程，它接受并响应使用 JSON 的`HTTP REST`请求。API 服务器的主要目的是验证和处理集群资源的数据，比如 Pod、服务或部署等。API 服务器是中央管理实体。它也是唯一直接连接到`etcd`的 Kubernetes 组件，`etcd`是 Kubernetes 存储其所有集群状态的分布式键值数据存储。
 

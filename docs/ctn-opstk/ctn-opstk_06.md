@@ -1,4 +1,4 @@
-# Zun - OpenStack 中的容器管理
+# 第六章：Zun - OpenStack 中的容器管理
 
 在本章中，我们将了解用于管理容器的 OpenStack 项目 Zun。Zun 是 OpenStack 中唯一可用的解决方案，允许用户管理其应用程序容器，支持不同技术，并结合了其他 OpenStack 组件（如 Cinder、Glance 和 Neutron）的优点。Zun 为在 OpenStack IaaS 上运行容器化应用程序提供了强大的平台。
 

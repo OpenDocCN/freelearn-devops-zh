@@ -1,4 +1,4 @@
-# Kubernetes 简介
+# 第七章：Kubernetes 简介
 
 阅读完第六章，*使用 Java 应用程序运行容器*，现在您对使用 Docker 打包 Java 应用程序有了很多知识。现在是时候更进一步，专注于我们所缺少的内容--容器管理和编排。市场上有一些合适的工具，例如 Nomad、Docker Swarm、Apache Mesos 或 AZK 等。在本章中，我们将重点介绍可能是最受欢迎的工具之一，Kubernetes。Kubernetes（有时简称为 k8s）是由 Google 于 2015 年创建的用于 Docker 容器的开源编排系统。Google 开发的第一个统一容器管理系统是内部称为 Borg 的系统；Kubernetes 是它的后代。本章涵盖的主题列表将是：
 

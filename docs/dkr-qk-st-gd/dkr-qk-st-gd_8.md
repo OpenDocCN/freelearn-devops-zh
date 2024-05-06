@@ -1,4 +1,4 @@
-# Docker 和 Jenkins
+# 第八章：Docker 和 Jenkins
 
 在本章中，我们将学习如何利用 Jenkins 来构建我们的 Docker 镜像并部署我们的 Docker 容器。接下来，我们将学习如何将我们的 Jenkins 服务器部署为 Docker 容器。然后，我们将学习如何在 Docker 化的 Jenkins 服务器中构建 Docker 镜像。这通常被称为 Docker 中的 Docker。最后，我们将看到如何利用 Docker 容器作为 Jenkins 构建代理，允许每个构建在一个原始的、短暂的 Docker 容器中运行。当然，我们将展示如何在我们的 Docker 化的 Jenkins 构建代理中构建 Docker 镜像、测试应用程序，并将经过测试的镜像推送到 Docker 注册表中。这将为您提供设置 CI/CD 系统所需的所有工具。
 

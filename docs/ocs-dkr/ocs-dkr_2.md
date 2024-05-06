@@ -1,4 +1,4 @@
-# 第二章。Docker CLI 和 Dockerfile
+# 第二章：Docker CLI 和 Dockerfile
 
 在上一章中，我们在开发环境中设置了 Docker 并运行了我们的第一个容器。在本章中，我们将探索 Docker 命令行界面。在本章后面，我们将看到如何使用 Dockerfiles 创建自己的 Docker 镜像以及如何自动化这个过程。
 

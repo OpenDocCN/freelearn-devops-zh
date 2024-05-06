@@ -1,4 +1,4 @@
-# Magnum - OpenStack 中的 COE 管理
+# 第五章：Magnum - OpenStack 中的 COE 管理
 
 本章将解释用于管理**容器编排引擎**（**COE**）的 OpenStack 项目 Magnum。Magnum 是用于管理基础架构并在 OpenStack 顶部运行容器的 OpenStack 项目，由不同的技术支持。在本章中，我们将涵盖以下主题：
 

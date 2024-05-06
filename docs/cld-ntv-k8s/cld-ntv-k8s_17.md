@@ -1,4 +1,4 @@
-# *第十三章*：使用 CRD 扩展 Kubernetes
+# 第十三章：使用 CRD 扩展 Kubernetes
 
 本章解释了扩展 Kubernetes 功能的许多可能性。它从讨论**自定义资源定义**（**CRD**）开始，这是一种 Kubernetes 本地的方式，用于指定可以通过熟悉的`kubectl`命令（如`get`、`create`、`describe`和`apply`）对其进行操作的自定义资源。接下来是对运算符模式的讨论，这是 CRD 的扩展。然后详细介绍了云提供商附加到其 Kubernetes 实现的一些钩子，并以对更大的云原生生态系统的简要介绍结束。使用本章学到的概念，您将能够设计和开发对 Kubernetes 集群的扩展，解锁高级使用模式。
 

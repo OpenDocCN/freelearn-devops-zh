@@ -1,4 +1,4 @@
-# 弹性 Kubernetes 服务
+# 第十七章：弹性 Kubernetes 服务
 
 Kubernetes 是一种流行的开源容器管理平台，最初由谷歌开发，基于谷歌自己内部的 Borg 容器平台。Kubernetes 借鉴了谷歌在大规模运行容器方面的丰富经验，现在得到了所有主要云平台提供商的支持，包括 AWS Elastic Kubernetes Service（EKS）的发布。EKS 提供了一个托管的 Kubernetes 集群，您可以在其中部署容器应用程序，而无需担心日常运营开销和集群管理的复杂性。AWS 已经完成了建立一个强大和可扩展平台的大部分工作，使得使用 Kubernetes 变得比以往更容易。
 

@@ -1,4 +1,4 @@
-# 使用 Docker Swarm 进行集群化
+# 第八章：使用 Docker Swarm 进行集群化
 
 我们已经涵盖了持续交付流水线的所有基本方面。在本章中，我们将看到如何将 Docker 环境从单个 Docker 主机更改为一组机器，并如何与 Jenkins 一起使用它。
 

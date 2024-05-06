@@ -1,4 +1,4 @@
-# *第四章*：使用 KinD 部署 Kubernetes
+# 第四章：使用 KinD 部署 Kubernetes
 
 学习 Kubernetes 最大的障碍之一是拥有足够的资源来创建用于测试或开发的集群。像大多数 IT 专业人员一样，我们喜欢在笔记本电脑上拥有一个 Kubernetes 集群，用于演示和测试产品。
 

@@ -1,4 +1,4 @@
-# 我们做了什么？
+# 第八章：我们做了什么？
 
 我们探讨了一些超出“正常”Kubernetes 使用范围的主题。我们学会了如何使用 HorizontalPodAutoscaler 来扩展 Pods。我们发现，如果不能扩展集群节点，扩展 Pods 并不能提供足够的好处。我们探讨了如何使用 Cluster Autoscaler 来做到这一点。不幸的是，目前它只适用于 AWS、GKE 和 AKS。
 

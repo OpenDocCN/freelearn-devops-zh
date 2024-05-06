@@ -1,4 +1,4 @@
-# *第三章*：威胁建模
+# 第三章：威胁建模
 
 Kubernetes 是一个庞大的生态系统，包括多个组件，如`kube-apiserver`、`etcd`、`kube-scheduler`、`kubelet`等。在第一章中，我们强调了不同 Kubernetes 组件的基本功能。在默认配置中，Kubernetes 组件之间的交互会导致开发人员和集群管理员应该意识到的威胁。此外，在 Kubernetes 中部署应用程序会引入应用程序与之交互的新实体，为应用程序的威胁模型增加新的威胁行为者和攻击面。
 

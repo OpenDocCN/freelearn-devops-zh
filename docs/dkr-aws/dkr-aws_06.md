@@ -1,4 +1,4 @@
-# 构建自定义 ECS 容器实例
+# 第六章：构建自定义 ECS 容器实例
 
 在早期的章节中，您学习了如何使用 Amazon ECS-Optimized Amazon Machine Image (AMI)来在几个简单的步骤中创建 ECS 容器实例并将它们加入到 ECS 集群中。尽管 ECS-Optimized AMI 非常适合快速启动和运行，但您可能希望为生产环境的 ECS 容器实例添加其他功能，例如添加日志代理或包括对 HTTP 代理的支持，以便将 ECS 集群放置在私有子网中。
 

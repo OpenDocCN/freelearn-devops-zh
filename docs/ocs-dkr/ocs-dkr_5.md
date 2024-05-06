@@ -1,4 +1,4 @@
-# 第五章。Docker 的朋友
+# 第五章：Docker 的朋友
 
 到目前为止，我们一直忙于学习有关 Docker 的一切。影响开源项目寿命的一个主要因素是其周围的社区。Docker 的创建者 Docker Inc.（**dotCloud**的分支）负责开发和维护 Docker 及其姊妹项目，如 libcontainer、libchan、swarm 等（完整列表可在[github.com/docker](http://github.com/docker)找到）。然而，像任何其他开源项目一样，开发是公开的（在 GitHub 上），他们接受拉取请求。
 

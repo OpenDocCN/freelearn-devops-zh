@@ -1,4 +1,4 @@
-# AWS 中的 Docker Swarm
+# 第十六章：AWS 中的 Docker Swarm
 
 Docker Swarm 代表了 Docker 的本机容器管理平台，直接内置到 Docker Engine 中，对于许多第一次使用 Docker 的人来说，Docker Swarm 是他们首次了解和学习的容器管理平台，因为它是 Docker Engine 的集成功能。Docker Swarm 自然是 AWS 支持的 ECS、Fargate、弹性 Beanstalk 和最近的弹性 Kubernetes 服务（EKS）的竞争对手，因此您可能会想知道为什么一本关于 AWS 中的 Docker 的书会有一个专门介绍 Docker Swarm 的章节。许多组织更喜欢使用与云提供商无关的容器管理平台，可以在 AWS、谷歌云和 Azure 等其他云提供商以及本地运行，如果这对您和您的组织是这种情况，那么 Docker Swarm 肯定是值得考虑的选项。
 

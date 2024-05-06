@@ -1,4 +1,4 @@
-# 第八章。使用 Kubernetes 管理 Docker 容器
+# 第八章：使用 Kubernetes 管理 Docker 容器
 
 在上一章中，我们学习了 Docker 网络和如何解决网络问题。在本章中，我们将介绍 Kubernetes。
 

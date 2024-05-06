@@ -1,4 +1,4 @@
-# Docker Machine
+# 第七章：Docker Machine
 
 在本章中，我们将更深入地了解 Docker Machine，这是我们在上一章中提到的。它可以用于轻松启动和引导针对各种平台的 Docker 主机，包括本地或云环境。您也可以使用它来控制您的 Docker 主机。让我们看看本章将涵盖的内容：
 

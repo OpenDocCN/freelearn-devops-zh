@@ -1,4 +1,4 @@
-# *第十章*：kubectl 最佳实践和 Docker 命令
+# 第十章：kubectl 最佳实践和 Docker 命令
 
 在上一章中，我们学习了 Helm，这是一个 Kubernetes 包管理器。在本书的最后一章中，我们将学习一些`kubectl`的最佳实践。
 

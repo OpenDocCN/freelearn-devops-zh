@@ -1,4 +1,4 @@
-# *第八章*：介绍 Kubernetes 的 Kustomize
+# 第八章：介绍 Kubernetes 的 Kustomize
 
 在上一章中，我们学习了如何安装、使用和创建`kubectl`插件。
 

@@ -1,4 +1,4 @@
-# Kolla - OpenStack 的容器化部署
+# 第九章：Kolla - OpenStack 的容器化部署
 
 在本章中，您将了解 Kolla。它为操作 OpenStack 云提供了生产就绪的容器和部署工具。本章的内容如下：
 

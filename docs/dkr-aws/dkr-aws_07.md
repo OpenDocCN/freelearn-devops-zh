@@ -1,4 +1,4 @@
-# 创建 ECS 集群
+# 第七章：创建 ECS 集群
 
 在上一章中，您学习了如何构建自定义 ECS 容器实例 Amazon Machine Image（AMI），介绍了您在生产实际用例中通常需要的功能，包括自定义存储配置、CloudWatch 日志支持以及与 CloudFormation 的集成。
 

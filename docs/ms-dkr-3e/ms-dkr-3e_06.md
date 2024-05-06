@@ -1,4 +1,4 @@
-# Windows 容器
+# 第六章：Windows 容器
 
 在这一章中，我们将讨论并了解 Windows 容器。微软已经接受容器作为在新硬件上部署旧应用程序的一种方式。与 Linux 容器不同，Windows 容器仅在基于 Windows 的 Docker 主机上可用。
 

@@ -1,4 +1,4 @@
-# 第三章。了解 Docker Swarm 模式
+# 第三章：了解 Docker Swarm 模式
 
 在 Dockercon 16 上，Docker 团队提出了一种操作 Swarm 集群的新方式，称为 Swarm 模式。这一宣布略有预期，因为引入了一套新的工具，被称为*在任何规模上操作分布式系统*的**Swarmkit**。
 

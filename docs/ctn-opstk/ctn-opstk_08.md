@@ -1,4 +1,4 @@
-# Murano - 在 OpenStack 上的容器化应用部署
+# 第八章：Murano - 在 OpenStack 上的容器化应用部署
 
 本章将解释 OpenStack 项目 Murano，它是 OpenStack 的应用程序目录，使应用程序开发人员和云管理员能够发布各种云就绪应用程序在一个可浏览的分类目录中。Murano 大大简化了在 OpenStack 基础设施上的应用程序部署，只需点击一下即可。在本章中，我们将讨论以下主题：
 
