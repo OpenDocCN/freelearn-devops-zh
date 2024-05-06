@@ -130,19 +130,19 @@ Compose 现在已安装。只要您的 Windows Server 机器安装了最新版�
 该命令可能会在书中跨越多行。如果您在一行上运行该命令，您需要删除任何反斜杠（`\`）。
 
 ```
-`$` `curl` `-``L` `\`
- `https``:``//``github``.``com``/``docker``/``compose``/``releases``/``download``/``1.18.0``/``docker``-``compose-``````
+$ curl -L \
+ https://github.com/docker/compose/releases/download/1.18.0/docker-compose-
 
-`uname` `-``s`````-`````uname` `-``m```` `\`
- `-``o` `/``usr``/``local``/``bin``/``docker``-``compose`
+uname -s-uname -m \
+ -o /usr/local/bin/docker-compose
 
-`% Total    % Received   Time        Time     Time    Current`
-                        `Total`       `Spent`    `Left`    `Speed`
-`100`   `617`    `0`   `617`    `0` `--:--:--` `--:--:--` `--:--:--`  `1047`
-`100` `8280``k`  `100` `8280``k`    `0`  `0``:``00``:``03`  `0``:``00``:``03` `--:--:--`  `4069``k` 
+% Total    % Received   Time        Time     Time    Current
+                        Total       Spent    Left    Speed
+100   617    0   617    0 --:--:-- --:--:-- --:--:--  1047
+100 8280k  100 8280k    0  0:00:03  0:00:03 --:--:--  4069k 
 ```
 
- `Now that you’ve downloaded the `docker-compose` binary, use the following `chmod` command to make it executable.
+Now that you’ve downloaded the `docker-compose` binary, use the following `chmod` command to make it executable.
 
 ```
 $ chmod +x /usr/local/bin/docker-compose 
@@ -653,4 +653,4 @@ Once the app is deployed, we can manage its entire lifecycle using the many `doc
 
 We also saw how volumes can be used to mount changes directly into containers.
 
-Docker Compose is very popular with developers, and the Compose file is an excellent source of application documentation — it defies all the services that make up the app, the images they use, ports they expose, networks and volumes they use, and much more. As such, it can help bridge the gap between dev and ops. You should also treat your Compose files as if they were code. This means, among other things, storing them in source control repos.``````````````````````````````````
+Docker Compose is very popular with developers, and the Compose file is an excellent source of application documentation — it defies all the services that make up the app, the images they use, ports they expose, networks and volumes they use, and much more. As such, it can help bridge the gap between dev and ops. You should also treat your Compose files as if they were code. This means, among other things, storing them in source control repos.

@@ -207,16 +207,16 @@ https://hub.docker.com/r/nigelpoulton/pluralsight-docker-ci/
 
 ```
 $ docker image pull mongo:3.3.11
-//This will pull the image tagged as ````3`.3.11```
-//from the official ```mongo``` repository.
+//This will pull the image tagged as 3.3.11
+//from the official mongo repository.
 
 $ docker image pull redis:latest
-//This will pull the image tagged as ```latest```
-//from the official ```redis``` repository.
+//This will pull the image tagged as latest
+//from the official redis repository.
 
 $ docker image pull alpine
-//This will pull the image tagged as ```latest```
-//from the official ```alpine``` repository. 
+//This will pull the image tagged as latest
+//from the official alpine repository. 
 ```
 
 `关于这些命令的一些要点。
@@ -229,8 +229,8 @@ $ docker image pull alpine
 
 ```
 $ docker image pull nigelpoulton/tu-demo:v2
-//This will pull the image tagged as ```v2```
-//from the ```tu-demo``` repository within the namespace
+//This will pull the image tagged as v2
+//from the tu-demo repository within the namespace
 //of my personal Docker Hub account. 
 ```
 

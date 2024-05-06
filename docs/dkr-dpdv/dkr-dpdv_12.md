@@ -124,7 +124,7 @@ Swarm initialized: current node `(`d21lyz...c79qzkx`)` is now a manager.
 
 集群模式操作的默认端口是**2377**。这是可以自定义的，但惯例是使用`2377/tcp`用于安全（HTTPS）的客户端到集群的连接。
 
-`*列出集群中的节点
+列出集群中的节点
 
 ```
 $ docker node ls
@@ -132,7 +132,7 @@ ID            HOSTNAME   STATUS  AVAILABILITY  MANAGER STATUS
 d21...qzkx *  mgr1       Ready   Active        Leader 
 ```
 
-`请注意，**mgr1**目前是集群中唯一的节点，并被列为*Leader*。我们稍后会回到这一点。`*从**mgr1**运行`docker swarm join-token`命令来提取添加新工作节点和管理节点到集群所需的命令和令牌。
+请注意，**mgr1**目前是集群中唯一的节点，并被列为*Leader*。我们稍后会回到这一点。从**mgr1**运行`docker swarm join-token`命令来提取添加新工作节点和管理节点到集群所需的命令和令牌。
 
 ```
 $ docker swarm join-token worker
@@ -160,7 +160,7 @@ $ docker swarm join `\`
 This node joined a swarm as a worker. 
 ```
 
-`--advertise-addr`和`--listen-addr`标志是可选的。我添加了它们，因为我认为在网络配置方面尽可能具体是最佳实践。`*在**wrk2**和**wrk3**上重复上一步，使它们作为工作节点加入到集群。确保您使用**wrk2**和**wrk3**自己的 IP 地址作为`--advertise-addr`和`--listen-addr`标志。*登录**mgr2**并使用用于加入管理节点的令牌使用`docker swarm join`命令将其加入到集群。
+`--advertise-addr`和`--listen-addr`标志是可选的。我添加了它们，因为我认为在网络配置方面尽可能具体是最佳实践。在**wrk2**和**wrk3**上重复上一步，使它们作为工作节点加入到集群。确保您使用**wrk2**和**wrk3**自己的 IP 地址作为`--advertise-addr`和`--listen-addr`标志。*登录**mgr2**并使用用于加入管理节点的令牌使用`docker swarm join`命令将其加入到集群。
 
 ```
 $ docker swarm join `\`
@@ -172,7 +172,7 @@ $ docker swarm join `\`
 This node joined a swarm as a manager. 
 ```
 
-`*在**mgr3**上重复上一步，记得使用**mgr3**的 IP 地址作为`advertise-addr`和`--listen-addr`标志。*通过从集群中的任何管理节点运行`docker node ls`来列出集群中的节点。
+在**mgr3**上重复上一步，记得使用**mgr3**的 IP 地址作为`advertise-addr`和`--listen-addr`标志。*通过从集群中的任何管理节点运行`docker node ls`来列出集群中的节点。
 
 ```
 $ docker node ls
@@ -183,9 +183,9 @@ ID               HOSTNAME     STATUS  AVAILABILITY  MANAGER STATUS
 9mzwf...e4m4n    wrk3         Ready   Active
 d21ly...9qzkx    mgr1         Ready   Active        Leader
 e62gf...l5wt6    wrk2         Ready   Active 
-```````` 
+```
 
- ```Congratulations! You’ve just created a 6-node swarm with 3 managers and 3 workers. As part of the process you put the Docker Engine on each node into *swarm mode*. As a bonus, the *swarm* is automatically secured with TLS.
+Congratulations! You’ve just created a 6-node swarm with 3 managers and 3 workers. As part of the process you put the Docker Engine on each node into *swarm mode*. As a bonus, the *swarm* is automatically secured with TLS.
 
 If you look in the `MANAGER STATUS` column you’ll see that the three manager nodes are showing as either “Reachable” or “Leader”. We’ll learn more about leaders shortly. Nodes with nothing in the `MANAGER STATUS` column are *workers*. Also note the asterisk (`*`) after the ID on the line showing **mgr2**. This shows us which node we ran the `docker node ls` command from. In this instance the command was issued from **mgr2**.
 
@@ -241,16 +241,20 @@ Run the following command from a swarm manager.
 ```
 $ docker swarm update --autolock`=``true`
 Swarm updated.
-To unlock a swarm manager after it restarts, run the ```docker swarm
-unlock````command` and provide the following key:
+```
 
+To unlock a swarm manager after it restarts, run the `docker swarm
+unlock` command and provide the following key:
+
+```
     SWMKEY-1-5+ICW2kRxPxZrVyBDWzBkzZdSd0Yc7Cl2o4Uuf9NPU4
+```
 
 Please remember to store this key in a password manager, since without
 it you will not be able to restart the manager. 
-```
 
- `Be sure to keep the unlock key in a secure place!
+
+Be sure to keep the unlock key in a secure place!
 
 Restart one of your manager nodes to see if it automatically re-joins the cluster. You may need to prepend the command with `sudo`.
 
@@ -258,7 +262,7 @@ Restart one of your manager nodes to see if it automatically re-joins the cluste
 $ service docker restart 
 ```
 
- `Try and list the nodes in the swarm.
+Try and list the nodes in the swarm.
 
 ```
 $ docker node ls
