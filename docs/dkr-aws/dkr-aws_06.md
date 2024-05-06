@@ -419,9 +419,9 @@ endef
 
 在上面的示例中，注意你可以使用反引号（`` ` ``) 作为bash命令替换的替代语法。换句话说，`$(command)`和` `` `command` ``都表示将执行命令并返回输出的命令替换。
 
-# Building the image
+# 构建镜像
 
-Now that we have a mechanism of automating the generation of temporary session credentials, assuming that your `packer.json` file and Makefile are in the root of your packer-ecs repository, let's test out building your Packer image by running `make build`:
+现在我们有了自动生成临时会话凭据的机制，假设您的`packer.json`文件和 Makefile 位于您的 packer-ecs 存储库的根目录中，让我们通过运行`make build`来测试构建您的 Packer 镜像：
 
 ```
 > export AWS_PROFILE=docker-in-aws
@@ -523,19 +523,23 @@ Build 'amazon-ebs' finished.
 us-east-1: ami-57415b2d
 ```
 
-Running a Packer build
+运行 Packer 构建
 
-Referring back to the previous example and the output of the preceding one, notice in the `build` task that the command to build a Packer image is simply `packer build <template-file>`, which in this case is `packer build packer.json`.
+回顾前面的示例和上一个示例的输出，在`build`任务中注意到构建 Packer 镜像的命令只是`packer build <template-file>`，在这种情况下是`packer build packer.json`。
 
-If you review the output of the preceding example, you can see the following steps are performed by Packer:
+如果您回顾上一个示例的输出，您会看到以下步骤由 Packer 执行：
 
-*   Packer initially validates the source AMI and then generates a temporary SSH key pair and security group so that it is able to access the temporary EC2 instance.
-*   Packer launches a temporary EC2 instance from the source AMI and then waits until it is able to establish SSH access.
-*   Packer executes the provisioning actions as defined in the provisioners section of the template. In this case, you can see the output of the yum `update` command, which is our current single provisioning action.
-*   Once complete, Packer stops the instance and creates a snapshot of the EBS volume instance, which produces an AMI with an appropriate name and ID.
-*   With the AMI created, Packer terminates the instance, deletes the temporary SSH key pair and security group, and outputs the new AMI ID.
++   Packer 首先验证源 AMI，然后生成临时 SSH 密钥对和安全组，以便能够访问临时 EC2 实例。
 
-Recall in the earlier example, that you added a manifest post-processor to your template, and you should find a file called `manifest.json` has been output at the root of your repository, which you typically would not want to commit to your **packer-ecs** repository:
++   Packer 从源 AMI 启动临时 EC2 实例，然后等待能够建立 SSH 访问。
+
++   Packer 根据模板的 provisioners 部分中定义的配置执行配置操作。在这种情况下，您可以看到 yum `update` 命令的输出，这是我们当前的单个配置操作。
+
++   完成后，Packer 停止实例并创建 EBS 卷实例的快照，从而生成具有适当名称和 ID 的 AMI。
+
++   创建完成后，Packer 终止实例，删除临时 SSH 密钥对和安全组，并输出新的 AMI ID。
+
+回顾前面的示例，您向模板添加了一个 manifest 后处理器，并且您应该在存储库的根目录中找到一个名为`manifest.json`的文件，通常您不会想要提交到您的 **packer-ecs** 存储库中：
 
 ```
 
@@ -556,40 +560,45 @@ Recall in the earlier example, that you added a manifest post-processor to your 
 > echo manifest.json >> .gitignore
 ```
 
-Viewing the Packer build manifest
+查看 Packer 构建清单
 
-# Building custom ECS container instance images using Packer
+# 使用 Packer 构建自定义 ECS 容器实例镜像
 
-In the previous section, you established a base template for building a custom AMI using Packer, and proceed to build and publish your first custom AMI. At this point, you have not performed any customization that is specific to the use case of provisioning ECS container instances, so this section will focus on enhancing your Packer template to include such customizations.
+在前一节中，您已经建立了一个用于使用 Packer 构建自定义 AMI 的基本模板，并且继续构建和发布了您的第一个自定义 AMI。在这一点上，您尚未执行任何特定于 ECS 容器实例配置的自定义操作，因此本节将重点介绍如何改进您的 Packer 模板以包括这些自定义操作。
 
-The customizations you will learn about now include the following:
+您现在将了解以下自定义内容：
 
-*   Defining a custom storage configuration
-*   Installing additional packages and configuring operating system settings
-*   Configuring a cleanup script
-*   Creating a first-run script
++   定义自定义存储配置
 
-With these customizations in place, we will complete the chapter by building your final custom ECS Container Instance AMI and launching an instance to verify the various customizations.
++   安装额外的软件包并配置操作系统设置
 
-# Defining a custom storage configuration
++   配置清理脚本
 
-The AWS ECS-Optimized AMI includes a default storage configuration that uses a 30 GB EBS volume, which is partitioned as follows:
++   创建第一次运行脚本
 
-*   `/dev/xvda`: An 8 GB volume that is mounted as the root filesystem and serves as the operating system partition.
-*   `dev/xvdcz`: A 22 GB volume that is configured as a logical volume management (LVM) device and is used for Docker image and metadata storage.
+有了这些自定义设置，我们将通过构建最终的自定义 ECS 容器实例 AMI 并启动实例来完成本章，并验证各种自定义设置。
 
-The ECS-Optimized AMI uses the devicemapper storage driver for Docker image and metadata storage, which you can learn more about at [`docs.docker.com/v17.09/engine/userguide/storagedriver/device-mapper-driver/`](https://docs.docker.com/storage/storagedriver/device-mapper-driver/).
+# 定义自定义存储配置
 
-For most use cases, this storage configuration should be sufficient, however there are a couple of scenarios in which you may want to modify the default configuration:
+AWS ECS 优化的 AMI 包括一个使用 30GB EBS 卷的默认存储配置，分区如下：
 
-*   **You need more Docker image and metadata storage**: This is easily addressed by simply configuring your ECS container instances with a larger volume size. The default storage configuration will always reserve 8GB for the operating system and root filesystem, with the remainder of the storage allocated for Docker image and metadata storage.
-*   **You need to support Docker volumes that have large storage requirements**: By default, the ECS-Optimized AMI stores Docker volumes at `/var/lib/docker/volumes`, which is part of the root filesystem on the 8GB `/dev/xvda` partition. If you have larger volume requirements, this can cause your operating system partition to quickly become full, so in this scenario you should separate out the volume storage to a separate EBS volume.
++   `/dev/xvda`：作为根文件系统挂载的 8GB 卷，用作操作系统分区。
 
-Let's now see how you can modify your Packer template to add a new dedicated volume for Docker volume storage and ensure this volume is mounted correctly on instance creation.
++   `dev/xvdcz`：一个 22GB 卷，配置为逻辑卷管理（LVM）设备，用于 Docker 镜像和元数据存储。
 
-# Adding EBS volumes
+ECS 优化的 AMI 使用 devicemapper 存储驱动程序进行 Docker 镜像和元数据存储，您可以在[`docs.docker.com/v17.09/engine/userguide/storagedriver/device-mapper-driver/`](https://docs.docker.com/storage/storagedriver/device-mapper-driver/)上了解更多信息。
 
-To add an EBS volume to your custom AMIs, you can configure the `launch_block_device_mappings` parameter within the Amazon EBS builder:
+对于大多数用例，这种存储配置应该足够了，但是有一些情况下您可能希望修改默认配置：
+
++   **你需要更多的 Docker 镜像和元数据存储**：这可以通过简单地配置您的 ECS 容器实例以使用更大的卷大小来轻松解决。默认存储配置将始终保留 8GB 用于操作系统和根文件系统，其余存储用于 Docker 镜像和元数据存储。
+
++   **你需要支持具有大容量存储需求的 Docker 卷**：默认情况下，ECS 优化的 AMI 将 Docker 卷存储在 `/var/lib/docker/volumes`，这是根文件系统中 8GB `/dev/xvda` 分区的一部分。如果您有更大的卷需求，这可能会导致您的操作系统分区很快变满，所以在这种情况下，您应该将卷存储分离到单独的 EBS 卷中。
+
+现在让我们看看您如何修改您的 Packer 模板，以为 Docker 卷存储添加一个新的专用卷，并确保在实例创建时正确挂载此卷。
+
+# 添加 EBS 卷
+
+要向您的自定义 AMI 添加 EBS 卷，您可以在 Amazon EBS 构建器中配置 `launch_block_device_mappings` 参数：
 
 ```
 
@@ -628,15 +637,15 @@ To add an EBS volume to your custom AMIs, you can configure the `launch_block_de
 }
 ```
 
-Adding a launch block device mapping
+添加一个启动块设备映射
 
-In the preceding example, I have truncated other portions of the Packer template for brevity, and you can see that we have added a single 20 GB volume called `/dev/xvdcy`, which is configured to be destroyed on instance termination. Notice that the `volume_type` parameter is set to `gp2`, which is the general-purpose SSD storage type that typically offers the best overall price/performance in AWS.
+在上述示例中，为了简洁起见，我已经截断了 Packer 模板的其他部分，您可以看到我们添加了一个名为 `/dev/xvdcy` 的 20GB 单一卷，该卷配置为在实例终止时销毁。请注意，`volume_type` 参数设置为 `gp2`，这是通常在 AWS 中提供最佳整体价格/性能的通用 SSD 存储类型。
 
-# Formatting and mounting volumes
+# 格式化和挂载卷
 
-With the configuration of the preceding example in place, we next need to format and mount that new volume. Because we used the `launch_block_device_mappings` parameter (as opposed to the `ami_block_device_mappings` parameter), the block device is actually attached at image build time (the latter parameter is attached upon image creation only) and we can perform all formatting and mount configuration settings at build time.
+有了上述示例的配置，我们接下来需要格式化和挂载新卷。因为我们使用了 `launch_block_device_mappings` 参数（而不是 `ami_block_device_mappings` 参数），所以块设备实际上是在构建镜像时附加的（后者仅在创建镜像时附加），我们可以在构建时执行所有格式化和挂载配置设置。
 
-To perform this configuration, we will add a shell provisioner that references a file called `scripts/storage.sh` to your Packer template:
+要执行此配置，我们将向您的 Packer 模板添加一个 shell provisioner，该 provisioner 引用名为 `scripts/storage.sh` 的文件：
 
 ```
 
@@ -659,9 +668,9 @@ To perform this configuration, we will add a shell provisioner that references a
 }
 ```
 
-Adding a shell provisioner for configuring storage
+添加一个用于配置存储的 shell provisioner
 
-The referenced script is expressed as a path relative to the the Packer template, so you now need to create this script:
+引用的脚本表示为相对于 Packer 模板的路径，因此您现在需要创建此脚本：
 
 ```
 
@@ -679,9 +688,9 @@ The referenced script is expressed as a path relative to the the Packer template
 
 ```
 
-Creating a scripts folder
+创建一个 scripts 文件夹
 
-With the script file in place, you can now define the various shell provisioning actions in this script as demonstrated in the following example:
+通过使用以下示例中所示的脚本文件，你可以定义各种 shell 配置操作：
 
 ```
 
@@ -695,27 +704,29 @@ echo -e "LABEL=docker\t/data\t\text4\tdefaults,noatime\t0\t0" | sudo tee -a /etc
 sudo mount -a
 ```
 
-Storage provisioning script
+存储配置脚本
 
-As you can see in the preceding example, the script is a regular bash script, and it's important to always set the error flag for all of your Packer shell scripts (`set -e`), which ensures the script will exit with an error code should any command fail within the script.
+如你在前面的示例中所见，这个脚本是一个普通的 bash 脚本，重要的是要为所有的 Packer shell 脚本设置错误标志 (`set -e`)，这样可以确保脚本在任何命令失败时都会以错误代码退出。
 
-You first create a folder called `/data`, which you will use to store Docker volumes, and then format the `/dev/xvdcy` device you attached earlier in the earlier example with the `.ext4` filesystem, and attach a label called `docker`, which makes mount operations simpler to perform. The next `echo` command adds an entry to the `/etc/fstab` file, which defines all filesystem mounts that will be applied at boot, and notice that you must pipe the `echo` command through to `sudo tee -a /etc/fstab`, which appends the `echo` output to the `/etc/fstab` file with the correct sudo privileges.
+首先创建一个名为 `/data` 的文件夹，用于存储 Docker 卷，然后使用 `.ext4` 文件系统格式化之前示例中附加的 `/dev/xvdcy` 设备，并附加一个名为 `docker` 的标签，这使得挂载操作更加简单。下一个 `echo` 命令将添加一个条目到 `/etc/fstab` 文件中，该文件定义了在启动时将应用的所有文件系统挂载，注意你必须通过 `sudo tee -a /etc/fstab` 将 `echo` 命令传递给 `sudo`，以使用正确的 sudo 权限将 `echo` 的输出追加到 `/etc/fstab` 文件中。
 
-Finally, you auto-mount the new entry in the `/etc/fstab` file by running the `mount -a` command, which although not required at image build time, is a simple way to verify that the mount is actually configured correctly (if not, this command will fail and the resulting build will fail).
+最后，通过运行 `mount -a` 命令，你可以自动挂载 `/etc/fstab` 文件中的新条目，尽管在构建镜像时不是必需的，但这是一种简单的方法来验证该挂载是否正确配置（如果不正确，此命令将失败并导致构建失败）。
 
-# Installing additional packages and configuring system settings
+# 安装额外的软件包和配置系统设置
 
-The next customizations you will perform are to install additional packages and configuring system settings.
+接下来，你将执行其他自定义操作，例如安装额外的软件包和配置系统设置。
 
-# Installing additional packages
+# 安装额外的软件包
 
-There are a few additional packages that we need to install into our custom ECS container instance, which include the following:
+我们需要安装一些额外的软件包到我们的自定义 ECS 容器实例中，包括以下几个：
 
-*   **CloudFormation helper scripts**: When you use CloudFormation to deploy your infrastructure, AWS provide a set of CloudFormation helper scripts, collectively referred to as **cfn-bootstrap**, that work with CloudFormation to obtain initialization metadata that allows you to perform custom initialization tasks at instance-creation time, and also signal CloudFormation when the instance has successfully completed initialization. We will explore the benefits of this approach in later chapters, however, for now you need to ensure these helper scripts are present in your custom ECS container-instance image.
-*   **CloudWatch logs agent**: The AWS CloudWatch logs service offers central storage of logs from various sources, including EC2 instances, ECS containers, and other AWS services. To ship your ECS container instance (EC2 instance) logs to CloudWatch logs, you must install the CloudWatch logs agent locally, which you can then use to forward various system logs, including operating system, Docker, and ECS agent logs.
-*   **`jq` utility**: The `jq` utility ([`stedolan.github.io/jq/manual/`](https://stedolan.github.io/jq/manual/)) is handy for parsing JSON output, and you will need this utility later on in this chapter when you define a simple health check that verifies the ECS container instance has joined to the configured ECS cluster.
++   **CloudFormation 帮助脚本**：当你使用 CloudFormation 部署基础设施时，AWS 提供了一组称为 **cfn-bootstrap** 的 CloudFormation 帮助脚本，它们与 CloudFormation 一起工作，以获取初始化元数据，允许你在实例创建时执行自定义初始化任务，并在实例成功完成初始化后向 CloudFormation 发出信号。我们将在后面的章节中探讨这种方法的好处，但现在你需要确保这些帮助脚本存在于你的自定义 ECS 容器实例镜像中。
 
-Installing these additional packages is very straightforward, and can be achieved by modifying the inline shell provisioner you created earlier:
++   **CloudWatch 日志代理**：AWS CloudWatch 日志服务提供了从各种来源（包括 EC2 实例、ECS 容器和其他 AWS 服务）集中存储日志的功能。要将 ECS 容器实例（EC2 实例）的日志发送到 CloudWatch 日志，你必须在本地安装 CloudWatch 日志代理，并将其用于转发各种系统日志，包括操作系统、Docker 和 ECS 代理的日志。
+
++   **`jq` 实用程序**：`jq` 实用程序（[`stedolan.github.io/jq/manual/`](https://stedolan.github.io/jq/manual/)）对于解析 JSON 输出很方便，在本章后面当您定义一个简单的健康检查来验证 ECS 容器实例是否已加入到配置的 ECS 集群时，您将需要此实用程序。
+
+安装这些额外的软件包非常简单，可以通过修改您之前创建的内联 shell provisioner 来实现：
 
 ```
 
@@ -739,22 +750,23 @@ Installing these additional packages is very straightforward, and can be achieve
 }
 ```
 
-Installing additional operating system packages
+安装其他操作系统软件包
 
-As you can see in the preceding example, each of the required packages can be easily installed using the `yum` package manager.
+如您在上述示例中所见，每个所需的软件包都可以通过 `yum` 软件包管理器轻松安装。
 
-# Configuring system settings
+# 配置系统设置
 
-There are a few minor system settings that you need to make to your custom ECS container instance:
+您需要对自定义 ECS 容器实例进行一些小的系统设置：
 
-*   Configure time-zone settings
-*   Modify default cloud-init behavior
++   配置时区设置
 
-# Configuring timezone settings
++   修改默认的 cloud-init 行为
 
-Earlier, you defined a variable called `timezone`, which so far you have not referenced in your template. You can use this variable to configure the timezone of your custom ECS container instance image.
+# 配置时区设置
 
-To do this, you first need to add a new shell provisioner into your Packer template:
+之前，您定义了一个名为 `timezone` 的变量，到目前为止您还没有在模板中引用过。您可以使用此变量来配置自定义 ECS 容器实例镜像的时区。
+
+要做到这一点，您首先需要在您的 Packer 模板中添加一个新的 shell provisioner：
 
 ```
 
@@ -785,11 +797,11 @@ To do this, you first need to add a new shell provisioner into your Packer templ
 }
 ```
 
-Adding a provisioner to configure time settings
+添加一个 provisioner 来配置时间设置
 
-In the preceding example, we reference a script called `scripts/time.sh`, which you will create shortly, but notice that we also include a parameter called `environment_vars`, which allows you to inject your Packer variables (`timezone` in this example) as environment variables into your shell provisioning scripts.
+在上述示例中，我们引用了一个名为 `scripts/time.sh` 的脚本，您将很快创建它，但请注意，我们还包含了一个名为 `environment_vars` 的参数，它允许您将您的 Packer 变量（例如此示例中的 `timezone`）作为环境变量注入到您的 shell provisioning 脚本中。
 
-The following example shows the required `scripts/time.sh` script that is referenced in the new Packer template provisioning task:
+下面的示例展示了新的 Packer 模板配置任务中引用的必需 `scripts/time.sh` 脚本：
 
 ```
 
@@ -813,21 +825,21 @@ echo "server 169.254.169.123 prefer iburst" | sudo tee -a /etc/ntp.conf
 sudo chkconfig ntpd on
 ```
 
-Time settings provisioning script
+时间设置配置脚本
 
-In the preceding example, you first configure the [AWS recommended settings for configuring time](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html), configuring the `/etc/sysconfig/clock` file with the configured `TIMEZONE` environment variable, creating the symbolic `/etc/localtime` link, and finally ensuring the `ntpd` service is configured to use the [AWS NTP sync](https://aws.amazon.com/blogs/aws/keeping-time-with-amazon-time-sync-service/) service and start at instance boot.
+在上面的示例中，首先配置了[配置时间的 AWS 推荐设置](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time.html)，通过配置 `/etc/sysconfig/clock` 文件使用配置的 `TIMEZONE` 环境变量，创建了符号链接 `/etc/localtime`，最后确保 `ntpd` 服务配置为使用[AWS NTP 同步服务](https://aws.amazon.com/blogs/aws/keeping-time-with-amazon-time-sync-service/)并在实例启动时启动。
 
-The AWS NTP sync service is a free AWS service that provides an NTP server endpoint at the `169.254.169.123` local address, ensuring your EC2 instances can obtain accurate time without having to traverse the network or internet.
+AWS NTP 同步服务是一个免费的 AWS 服务，提供了一个位于本地地址 `169.254.169.123` 的 NTP 服务器端点，确保您的 EC2 实例可以获得准确的时间，而无需穿越网络或互联网。
 
-# Modifying default cloud-init behavior
+# 修改默认的 cloud-init 行为
 
-cloud-init is a standard set of utilities for performing initialization of cloud images and associated instances. The most popular feature of cloud-init is the user-data mechanism, which is a simple means of running your own custom initialization commands at instance creation.
+cloud-init 是一组标准的工具，用于执行云映像和相关实例的初始化。cloud-init 最流行的功能是 user-data 机制，它是在实例创建时运行您自己的自定义初始化命令的一种简单方法。
 
-cloud-init is also used in the ECS-Optimized AMI to perform automatic security patching at instance creation, and although this sounds like a useful feature, it can cause problems, particularly in environments where your instances are located in private subnets and require an HTTP proxy to communicate with the internet.
+云初始化还用于 ECS 优化的 AMI，以在实例创建时执行自动安全补丁，尽管这听起来像一个有用的功能，但它可能会导致问题，特别是在您的实例位于私有子网并且需要使用 HTTP 代理与互联网通信的环境中。
 
-The issue with the cloud-init security mechanism is that although it can be configured to work with an HTTP proxy by setting proxy environment variables, it is invoked prior to when userdata is executed, leading to a chicken-and-egg scenario where you have no option but to disable automated security patching if you are using a proxy.
+云初始化安全机制的问题在于，虽然可以通过设置代理环境变量来配置它与 HTTP 代理一起工作，但它在执行 userdata 之前被调用，导致鸡和蛋的情况，即如果你使用代理，你别无选择，只能禁用自动安全补丁。
 
-To disable this mechanism, you first need to configure a new shell provisioner in your Packer template:
+要禁用此机制，您首先需要在 Packer 模板中配置一个新的外壳供应商：
 
 ```
 
@@ -862,7 +874,7 @@ To disable this mechanism, you first need to configure a new shell provisioner i
 }
 ```
 
-Adding a provisioner to configure cloud-init settingsThe referenced `scripts/cloudinit.sh` script can now be created as follows:
+添加一个供应商以配置云初始化设置引用的`scripts/cloudinit.sh`脚本现在可以按以下方式创建：
 
 ```
 
@@ -872,19 +884,19 @@ set -e
 # Disable cloud-init repo updates or upgrades
 sudo sed -i -e '/^repo_update: /{h;s/: .*/: false/};c194a9eg<!-- begin-inline-katex{x;/^end-inline-katex-->/{s//repo_update: false/;H};x}' /etc/cloud/cloud.cfg
 sudo sed -i -e '/^repo_upgrade: /{h;s/: .*/: none/};c194a9eg<!-- begin-inline-katex{x;/^end-inline-katex-->/{s//repo_upgrade: none/;H};x}' /etc/cloud/cloud.cfg
-复制ErrorOK!
+复制 ErrorOK!
 
 ```
 
-Disabling security updates for cloud-init
+禁用云初始化的安全更新
 
-In the following example, the rather scary-looking `sed` expressions will either add or replace lines beginning with `repo_update` and `repo_upgrade` in the `/etc/cloud/cloud.cfg` cloud-init configuration file and ensure they are set to `false` and `none`, respectively.
+在下面的示例中，看起来相当可怕的`sed`表达式将在`/etc/cloud/cloud.cfg`云初始化配置文件中添加或替换以`repo_update`和`repo_upgrade`开头的行，并确保它们分别设置为`false`和`none`。
 
-# Configuring a cleanup script
+# 配置清理脚本
 
-At this point, we have performed all required installation and configuration shell provisioning tasks. We will create one final shell provisioner, a cleanup script, which will remove any log files created while the instance used to build the custom image was running and to ensure the machine image is in a state ready to be launched.
+到目前为止，我们已经执行了所有必需的安装和配置外壳供应任务。我们将创建一个最终的外壳供应商，一个清理脚本，它将删除构建自定义镜像的实例运行时创建的任何日志文件，并确保机器镜像处于准备启动的状态。
 
-You first need to add a shell provisioner to your Packer template that references the `scripts/cleanup.sh` script:
+您首先需要向 Packer 模板添加一个引用`scripts/cleanup.sh`脚本的外壳供应商：
 
 ```
 
@@ -922,9 +934,9 @@ You first need to add a shell provisioner to your Packer template that reference
 }
 ```
 
-Adding a provisioner to clean up the Image
+添加一个清理镜像的供应商
 
-With the provisioner defined in the Packer template, you next need to create the cleanup script, as defined here:
+定义了 Packer 模板中的供应商之后，您需要创建清理脚本，如下所示：
 
 ```
 
@@ -937,23 +949,27 @@ sudo chkconfig docker off
 sudo rm -rf /var/log/docker /var/log/ecs/*
 ```
 
-Cleanup script
+清理脚本
 
-In the following example, notice you don't execute the command `set -e`, given this is a cleanup script that you are not too worried about if there is an error and you don't want your build to fail should a service already be stopped. The ECS agent is first stopped, with the `docker system prune` command used to clear any ECS container state that may be present, and next the Docker service is stopped and then disabled using the `chkconfig` command. The reason for this is that on instance creation, we will always invoke a first-run script that will perform initial configuration of the instance and requires the Docker service to be stopped. Of course this means that once the first-run script has completed its initial configuration, it will be responsible for ensuring the Docker service is both started and enabled to start on boot.
+在下面的示例中，请注意您不执行`set -e`命令，因为这是一个清理脚本，如果出现错误，您不太担心，也不希望如果服务已经停止，构建失败。首先停止 ECS 代理，使用`docker system prune`命令清除可能存在的任何 ECS 容器状态，然后停止 Docker 服务，并使用`chkconfig`命令停用它。原因是在实例创建时，我们总是会调用一个首次运行脚本，该脚本将执行实例的初始配置，并要求停止 Docker 服务。当然，这意味着一旦首次运行脚本完成其初始配置，它将负责确保 Docker 服务已启动并且已启用以在启动时启动。
 
-Finally, the cleanup script removes any Docker and ECS agent log files that may have been created during the short period the instance was up during the custom machine-image build process.
+最后，清理脚本将删除在自定义机器镜像构建过程中实例运行的短时间内可能创建的任何 Docker 和 ECS 代理日志文件。
 
-# Creating a first-run script
+# 创建首次运行脚本
 
-The final set of customizations we will apply to your custom ECS container instance image is to create a first-run script, which will be responsible for performing runtime configuration of your ECS container instance at instance creation, by performing the following tasks:
+我们将对自定义 ECS 容器实例镜像应用的最终一组自定义是创建一个首次运行脚本，该脚本将负责在实例创建时执行 ECS 容器实例的运行时配置，执行以下任务：
 
-*   Configuring ECS cluster membership
-*   Configuring HTTP proxy support
-*   Configuring the CloudWatch logs agent
-*   Starting required services
-*   Performing health checks
++   配置 ECS 集群成员身份
 
-To provision the first-run script, you need to define a file provisioner task in your Packer template, as demonstrated here:
++   配置 HTTP 代理支持
+
++   配置 CloudWatch 日志代理
+
++   启动所需服务
+
++   执行健康检查
+
+要提供首次运行脚本，您需要在您的 Packer 模板中定义一个文件提供者任务，如下所示：
 
 ```
 
@@ -997,15 +1013,15 @@ To provision the first-run script, you need to define a file provisioner task in
 }
 ```
 
-Adding a file provisioner
+添加文件提供者
 
-Notice that the provisioner type is configured as `file`, and specifies a local source file that needs to be located in `files/firstrun.sh`. The `destination` parameter defines the location within the AMI where the first-run script will be located. Note that the file provisioner task copies files as the `ec2-user` user, hence it has limited permissions as to where this script can be copied.
+注意，配置了提供者类型为 `file`，并指定了需要位于 `files/firstrun.sh` 中的本地源文件。 `destination` 参数定义了首次运行脚本将位于 AMI 中的位置。请注意，文件提供者任务将文件复制为 `ec2-user` 用户，因此它对可以复制该脚本的位置具有有限的权限。
 
-# Configuring ECS cluster membership
+# 配置 ECS 集群成员身份
 
-You can now create the first-run script at the files/firstrun.sh location referenced by your Packer template. Before you get started configuring this file, it is important to bear in mind that the first-run script is designed to be run at initial boot of an instance created from your custom machine image, so you must consider this when configuring the various commands that will be executed.
+您现在可以在您的 Packer 模板引用的 files/firstrun.sh 位置创建首次运行脚本。在开始配置此文件之前，重要的是要记住，首次运行脚本被设计为在从您的自定义机器映像创建的实例的初始引导时运行，因此在配置将执行的各种命令时，必须考虑到这一点。
 
-We will first create configure the ECS agent to join the ECS cluster that the ECS container instance is intended to join, as demonstrated in the following example:
+我们首先将配置 ECS 代理加入 ECS 集群，以加入 ECS 容器实例打算加入的 ECS 集群，如下面的示例所示：
 
 ```
 
@@ -1017,24 +1033,27 @@ echo "ECS_CLUSTER=c194a9eg<!-- begin-inline-katex{ECS_CLUSTER}" > /etc/ecs/ecs.c
 
 ```
 
-Configuring ECS cluster membership
+配置 ECS 集群成员身份
 
-Back in Chapter 5, *Publishing Docker Images using ECR*, you saw how the ECS cluster wizard configured ECS container instances using this same approach, although one difference is that the script is expecting an environment variable called `ECS_CLUSTER` to be configured in the environment, as designated by the `${ECS_CLUSTER}` expression. Rather than hardcode the ECS cluster name, which would make the first-run script very inflexible, the idea here is that the configuration being applied to a given instance defines the `ECS_CLUSTER` environment variable with the correct cluster name, meaning the script is reusable and can be configured with any given ECS cluster.
+回到第五章，*使用 ECR 发布 Docker 镜像*，您看到了 ECS 集群向导使用了这种相同的方法配置 ECS 容器实例，尽管有一个区别是脚本期望在环境中配置了一个名为 `ECS_CLUSTER` 的环境变量，如 `${ECS_CLUSTER}` 表达式所指定的那样。与硬编码 ECS 集群名称不同，这会使首次运行脚本非常不灵活，这里的想法是，应用于给定实例的配置定义了具有正确集群名称的 `ECS_CLUSTER` 环境变量，这意味着该脚本是可重用的，并且可以配置为任何给定的 ECS 集群。
 
-# Configuring HTTP proxy support
+# 配置 HTTP 代理支持
 
-A common security best practice is to place your ECS container instances in private subnets, meaning they are located in subnets that possess no default route to the internet. This approach makes it more difficult for attackers to compromise your systems, and even if they do, provides a means to restrict what information they can transmit back to the internet.
+一个常见的安全最佳实践是将您的 ECS 容器实例放置在私有子网中，这意味着它们位于没有默认路由到互联网的子网中。这种方法使得攻击者更难以破坏您的系统，即使他们这样做了，也提供了一种限制他们可以向互联网传输的信息的方法。
 
-Depending on the nature of your application, you typically will require your ECS container instances to be able to connect to the internet, and using an HTTP proxy provides an effective mechanism to provide such access in a controlled manner with Layer 7 application-layer inspection capabilities.
+根据您的应用程序性质，您通常需要您的 ECS 容器实例能够连接到互联网，使用 HTTP 代理提供了一种有效的机制，以控制方式提供具有第 7 层应用层检查功能的访问。
 
-Regardless of the nature of your application, it is important to understand that ECS container instances require internet connectivity for the following purposes:
+无论您的应用程序的性质如何，都重要的是要了解，ECS 容器实例需要互联网连接，用于以下目的：
 
-*   ECS agent control-plane and management-plane communications with ECS
-*   Docker Engine communication with ECR and other repositories for downloading Docker images
-*   CloudWatch logs agent communication with the CloudWatch logs service
-*   CloudFormation helper-script communication with the CloudFormation service
++   ECS 代理控制平面和管理平面与 ECS 的通信
 
-Although configuring a complete end-to-end proxy solution is outside the scope of this book, it is useful to understand how you can customize your ECS container instances to use an HTTP proxy, as demonstrated in the following example:
++   Docker 引擎与 ECR 和其他存储库的通信，以下载 Docker 镜像
+
++   CloudWatch 日志代理与 CloudWatch 日志服务的通信
+
++   CloudFormation 辅助脚本与 CloudFormation 服务的通信
+
+尽管配置完整的端到端代理解决方案超出了本书的范围，但了解如何自定义 ECS 容器实例以使用 HTTP 代理是有用的，如下例所示：
 
 ```
 
@@ -1056,31 +1075,35 @@ then
 fi
 ```
 
-Configuring HTTP proxy support
+配置 HTTP 代理支持
 
-In the preceding example, the script checks for the existence of a non-empty environment variable called `PROXY_URL`, and if present proceeds to configure proxy settings for various components of the ECS container instance:
+在上面的示例中，脚本检查名为`PROXY_URL`的非空环境变量是否存在，如果存在，则继续为 ECS 容器实例的各个组件配置代理设置：
 
-*   Docker Engine: Configured via `/etc/sysconfig/docker`
-*   ECS agent: Configured via `/etc/ecs/ecs.config`
-*   CloudWatch logs agent: Configured via `/etc/awslogs/proxy.conf`
++   Docker 引擎：通过`/etc/sysconfig/docker`配置
 
-Notice that in some cases you need to configure the `NO_PROXY` setting, which disables proxy communications for the following IP addresses:
++   ECS 代理：通过`/etc/ecs/ecs.config`配置
 
-*   `169.254.169.254`: This is a special local address that is used to communicate with the EC2 metadata service to obtain instance metadata, such as EC2 instance role credentials.
-*   `169.254.170.2`: This is a special local address that is used to obtained ECS task credentials.
++   CloudWatch 日志代理：通过`/etc/awslogs/proxy.conf`配置
 
-# Configuring the CloudWatch logs agent
+请注意，在某些情况下，您需要配置`NO_PROXY`设置，该设置禁用以下 IP 地址的代理通信：
 
-The next configuration task that you will perform in the first-run script is to configure the CloudWatch logs agent. On an ECS container instance, the CloudWatch logs agent is responsible for collecting system logs, such as operating system, Docker, and ECS agent logs.
++   `169.254.169.254`：这是一个特殊的本地地址，用于与 EC2 元数据服务通信，以获取实例元数据，如 EC2 实例角色凭证。
 
-Note that this agent is NOT required to implement CloudWatch logs support for your Docker containers - this is already implemented within the Docker Engine via the `awslogs` logging driver.
++   `169.254.170.2`：这是一个特殊的本地地址，用于获取 ECS 任务凭证。
 
-Configuring the CloudWatch logs agent requires you to perform the following configuration tasks:
+# 配置 CloudWatch 日志代理
 
-*   **Configure the correct AWS region**: For this task, you will inject the value of an environment variable called `AWS_DEFAULT_REGION` and write this to the `/etc/awslogs/awscli.conf` file.
-*   **Define the various log group and log stream settings that the CloudWatch logs agent will log to**: For this task, you will define the recommended set of log groups for ECS container instances, which is described at [`docs.aws.amazon.com/AmazonECS/latest/developerguide/using_cloudwatch_logs.html#configure_cwl_agent`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_cloudwatch_logs.html#configure_cwl_agent)
+您将在首次运行脚本中执行的下一个配置任务是配置 CloudWatch 日志代理。在 ECS 容器实例上，CloudWatch 日志代理负责收集系统日志，例如操作系统、Docker 和 ECS 代理日志。
 
-The following example demonstrates the required configuration:
+请注意，此代理不需要为您的 Docker 容器实现 CloudWatch 日志支持 - 这已经在 Docker 引擎中通过`awslogs`日志驱动程序实现了。
+
+配置 CloudWatch 日志代理需要执行以下配置任务：
+
++   **配置正确的 AWS 区域**：对于这个任务，你将注入一个名为`AWS_DEFAULT_REGION`的环境变量的值，并将其写入`/etc/awslogs/awscli.conf`文件中。
+
++   **定义 CloudWatch 日志代理将记录到的各种日志组和日志流设置**：对于这个任务，您将定义 ECS 容器实例的建议日志组集，该集在[`docs.aws.amazon.com/AmazonECS/latest/developerguide/using_cloudwatch_logs.html#configure_cwl_agent`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_cloudwatch_logs.html#configure_cwl_agent)中描述。
+
+下面的示例演示了所需的配置：
 
 ```
 
@@ -1150,24 +1173,25 @@ time_zone = UTC
 EOF
 ```
 
-Configuring the CloudWatch logs agent
+配置 CloudWatch 日志代理
 
-You can see that the first-run script includes references to environment variables in the `log_group_name` parameter for each defined log group, which helps ensure unique log group naming in your AWS account:
+您可以看到第一次运行脚本中包含对每个定义的日志组的`log_group_name`参数中环境变量的引用，这有助于确保在您的 AWS 账户中具有唯一的日志组命名：
 
-*   `STACK_NAME`: The name of the CloudFormation stack
-*   `AUTOSCALING_GROUP`: The name of the Autoscaling Group
++   `STACK_NAME`：CloudFormation 堆栈的名称
 
-Again, these environment variables must be injected at instance creation to the first-run script, so bear this in mind for future chapters when we will learn how to do this.
++   `AUTOSCALING_GROUP`：自动缩放组的名称
 
-One other point to note in the preceding example is the value of each `log_stream_name` parameter - this is set to a special variable called `{instance_id}`, which the CloudWatch logs agent will automatically configure with the EC2 instance ID of the instance.
+再次强调，这些环境变量必须在实例创建时注入到第一次运行的脚本中，请记住这一点，因为在未来的章节中，我们将学习如何执行此操作。
 
-The end result is that you will get several log groups for each type of log, which are scoped to the context of a given CloudFormation stack and EC2 auto scaling group, and within each log group, a log stream for each ECS container instance will be created, as illustrated in the following diagram:
+在前面的示例中需要注意的另一点是每个`log_stream_name`参数的值 - 这设置为一个称为`{instance_id}`的特殊变量，CloudWatch 日志代理将自动配置为实例的 EC2 实例 ID。
 
-![](img/a199eec7-ad83-4e86-bd90-ac0febe0df2f.png)CloudWatch logs group configuration for ECS container instances
+结果是，对于每种类型的日志，您将获得几个日志组，这些日志组的范围限定为特定的 CloudFormation 堆栈和 EC2 自动缩放组的上下文，并且在每个日志组中，将为每个 ECS 容器实例创建一个日志流，如下图所示：
 
-# Starting required services
+![图](img/a199eec7-ad83-4e86-bd90-ac0febe0df2f.png)ECS 容器实例的 CloudWatch 日志组配置
 
-Recall in the previous examples, that you added a cleanup script as part of the image-build process, which disables the Docker Engine service from starting on boot. This approach allows you to perform required initialization tasks prior to starting the Docker Engine, and at this point in the first-run script we are ready to start the Docker Engine and other important system services:
+# 启动所需服务
+
+在前面的示例中，您添加了一个清理脚本作为镜像构建过程的一部分，该脚本禁用了 Docker 引擎服务在启动时的启动。这种方法允许您在启动 Docker 引擎之前执行所需的初始化任务，在第一次运行脚本的这一点上，我们准备好启动 Docker 引擎和其他重要的系统服务：
 
 ```
 
@@ -1196,15 +1220,15 @@ sudo service docker start
 sudo start ecs
 ```
 
-Starting services
+启动服务
 
-In the preceding example, note that I have omitted the earlier parts of the first-run script for brevity. Notice that you first start the awslogs service, which ensures the CloudWatch logs agent will pick up all Docker Engine logs, and then proceed to enable Docker to start on boot, start Docker, and finally start the ECS agent.
+在前面的示例中，请注意，出于简洁起见，我省略了第一次运行脚本的早期部分。请注意，您首先启动了 awslogs 服务，这确保了 CloudWatch 日志代理将捕获所有 Docker 引擎日志，然后继续启用 Docker 以在启动时启动，启动 Docker，最后启动 ECS 代理。
 
-# Performing required health checks
+# 执行所需的健康检查
 
-The final task we need to perform in the first-run script is a health check, which ensures the ECS container instance has initialized and successfully registered to the configured ECS cluster. This is a reasonable health check for your ECS container instances, given the ECS agent can only run if the Docker Engine is operational, and the ECS agent must be registered with the ECS cluster in order to deploy your applications.
+在第一次运行脚本中我们需要执行的最终任务是健康检查，以确保 ECS 容器实例已初始化并成功注册到配置的 ECS 集群。鉴于 ECS 代理只能在 Docker 引擎可用时运行，并且必须将 ECS 代理注册到 ECS 集群中以部署您的应用程序，因此这是对您的 ECS 容器实例的合理健康检查。
 
-Recall in the previous chapter, when you examined the internals of an ECS container instance that the ECS agent exposes a local HTTP endpoint that can be queried for current ECS agent status. You can use this endpoint to create a very simple health check, as demonstrated here:
+在上一章中回顾，当您检查 ECS 容器实例的内部时，ECS 代理公开了一个本地 HTTP 端点，可以查询当前 ECS 代理状态。您可以使用此端点创建一个非常简单的健康检查，如下所示：
 
 ```
 
@@ -1240,13 +1264,13 @@ done
 echo "ECS agent successfully joined to ${ECS_CLUSTER}"
 ```
 
-Performing a health check
+执行健康检查
 
-In the preceding example, a bash `until` loop is configured, which uses curl to query the `http://localhost:51678/v1/metadata` endpoint every five seconds. The output of this command is piped through to `jq`, which will either return the Cluster property or an empty value if this property is not present. Once the ECS agent registers to the correct ECS cluster and returns this property in the JSON response, the loop will complete and the first-run script will complete.
+在上面的示例中，配置了一个 bash `until` 循环，该循环使用 curl 查询`http://localhost:51678/v1/metadata`端点，每五秒钟一次。此命令的输出通过管道传输到`jq`，它将返回 Cluster 属性或如果不存在此属性，则返回空值。一旦 ECS 代理注册到正确的 ECS 集群并在 JSON 响应中返回此属性，循环将完成，并且第一次运行脚本将完成。
 
-# Testing your custom ECS container instance image
+# 测试你的自定义 ECS 容器实例映像
 
-You have now completed all customizations and it is time to rebuild your image using the `packer build` command. Before you do this, now is a good time to verify you have the correct Packer template in place, and also have created the associated supporting files. The following example shows the folder and file structure you should now have in your packer-ecs repository:
+你现在已经完成了所有的定制工作，现在是使用`packer build`命令重建你的映像的时候了。在此之前，现在是验证你已经放置了正确的 Packer 模板，并且也创建了相关的支持文件的好时机。下面的示例显示了你的 packer-ecs 仓库现在应该具有的文件夹和文件结构：
 
 ```
 
@@ -1266,27 +1290,27 @@ You have now completed all customizations and it is time to rebuild your image u
 2 directories, 8 files
 ```
 
-Verifying the Packer repository
+验证 Packer 仓库
 
-Assuming everything is in place, you can now run your Packer build once again by running the `make build` command.
+假设一切就绪，你现在可以通过运行`make build`命令再次运行你的 Packer 构建。
 
-Once everything is complete and your AMI has been successfully created, you can now view your AMI in the AWS console by navigating to **Services** | **EC2** and selecting AMIs from the menu on the left:
+一旦一切都完成并且你的 AMI 已成功创建，你现在可以通过导航到**服务** | **EC2**并从左侧菜单中选择 AMIs 来在 AWS 控制台中查看你的 AMI：
 
-![](img/286a5d2f-7e98-467b-a671-5f3ad55eaf24.png)EC2 dashboard AMIs
+![](img/286a5d2f-7e98-467b-a671-5f3ad55eaf24.png)EC2 仪表板 AMIs
 
-In the preceding screenshot, you can see the two AMIs you built earlier in this chapter and just now. Notice that the most recent AMI now includes three block devices, with `/dev/xvdcy` representing the additional 20 GB gp2 volume you added earlier in this chapter.
+在上面的截图中，你可以看到你在本章和刚刚构建的两个 AMI。请注意，最近的 AMI 现在包括三个块设备，其中`/dev/xvdcy`代表你在本章前面添加的额外 20 GB gp2 卷。
 
-At this point, you can actually test out your AMI by clicking on the **Launch** button, which will start the EC2 Instance Wizard. After clicking the **Review and Launch** button, click on the **Edit security groups** link to grant your IP address access via SSH to the instance, as shown in the following screenshot:
+此时，你可以通过点击**启动**按钮来测试你的 AMI，这将启动 EC2 实例向导。点击**审核并启动**按钮后，点击**编辑安全组**链接以通过 SSH 将你的 IP 地址授权给实例，如下截图所示：
 
-![](img/c0fd0ffb-bc0b-4026-b9c0-9d8232b143cd.png)Launching a new EC2 instance
+![](img/c0fd0ffb-bc0b-4026-b9c0-9d8232b143cd.png)启动新的 EC2 实例
 
-Once complete, click on **Review and Launch**, then click the **Launch** button, and finally configure an appropriate SSH key pair that you have access to.
+完成后，点击**审核并启动**，然后点击**启动**按钮，最后配置你有权限访问的适当的 SSH 密钥对。
 
-On the launching instance screen, you can now click the link to your new EC2 instance, and copy the public IP address so that you can SSH to the instance, as shown in the following screenshot:
+在启动实例屏幕上，你现在可以点击链接到你的新 EC2 实例，并复制公共 IP 地址，以便你可以通过 SSH 连接到实例，如下截图所示：
 
-![](img/99e70e6b-1183-437c-bf3b-7d2c04fde547.png)Connecting to a new EC2 instance
+![](img/99e70e6b-1183-437c-bf3b-7d2c04fde547.png)连接到新的 EC2 实例
 
-Once you have connected to the instance, you can verify that the additional 20 GB volume you configured for Docker volume storage has been successfully mounted:
+连接到实例后，你可以验证你为 Docker 卷存储配置的额外 20 GB 卷已成功挂载：
 
 ```
 
@@ -1301,9 +1325,9 @@ tmpfs on /dev/shm type tmpfs (rw,relatime)
 none on /proc/sys/fs/binfmt_misc type binfmt_misc (rw,relatime)
 ```
 
-Verifying storage mounts
+验证存储挂载
 
-You can check the timezone is configured correctly by running the `date` command, which should display the correct timezone (US/Eastern), and also verify the `ntpd` service is running:
+你可以通过运行`date`命令来检查时区是否正确配置，该命令应显示正确的时区（美国/东部），并验证`ntpd`服务是否正在运行：
 
 ```
 
@@ -1314,9 +1338,9 @@ ntpd is runningntpd 正在运行
 
 ```
 
-Verifying time settings
+验证时间设置
 
-Next, you can verify the cloud-init configuration has been configured to disable security updates, by viewing the `/etc/cloud/cloud.cfg` file:
+接下来，你可以通过查看`/etc/cloud/cloud.cfg`文件来验证 cloud-init 配置已经配置为禁用安全更新：
 
 ```
 
@@ -1346,9 +1370,9 @@ mounts:
 repo_update: false
 ```
 
-Verifying cloud-init settings
+验证 cloud-init 设置
 
-You should also verify that the Docker service is stopped and was disabled on boot, as per the cleanup script you configured:
+你还应该验证 Docker 服务是否已停止，并根据你配置的清理脚本在启动时被禁用：
 
 ```
 
@@ -1358,9 +1382,10 @@ docker is stopped
 docker 0:off 1:off 2:off 3:off 4:off 5:off 6:off
 ```
 
-Verifying disabled services
+验证已禁用的服务
 
-Finally, you can verify that the first-run script is present in the `ec2-user` home directory:
+最后，你可以验证 `ec2-user` 用户的家目录中是否存在首次运行脚本：
+
 
 ```
 
