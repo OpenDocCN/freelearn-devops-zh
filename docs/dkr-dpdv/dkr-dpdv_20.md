@@ -442,4 +442,4 @@ Docker 支持两种 TLS 模式：
 
 `DOCKER_HOST`告诉客户端在哪里找到守护进程。`export DOCKER_HOST=tcp://node3:2376`将告诉 Docker 客户端连接到远程主机`node3`上的端口`2376`上的守护进程。
 
-`export DOCKER_TLS_VERIFY=1`将告诉 Docker 客户端签署其发出的所有命令。```````````````````````
+`export DOCKER_TLS_VERIFY=1`将告诉 Docker 客户端签署其发出的所有命令。

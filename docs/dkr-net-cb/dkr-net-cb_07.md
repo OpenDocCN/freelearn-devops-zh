@@ -180,7 +180,31 @@ user@**docker4**:~$ weave launch-router **192.168.50.101
 
 在每种情况下，我们将先前加入的 Weave 节点指定为我们尝试加入的节点的对等体。在我们的情况下，我们的加入模式看起来像下面的图片所示：
 
-![如何做...然而，我们也可以让每个节点加入到任何其他现有节点，并且得到相同的结果。也就是说，将节点`docker2`、`docker3`和`docker4`加入到`docker1`会产生相同的最终状态。这是因为 Weave 只需要与现有节点通信，以获取有关 Weave 网络当前状态的信息。由于所有现有成员都有这些信息，因此无论加入新节点时与哪个节点通信都无所谓。如果现在检查任何 Weave 节点的状态，我们应该看到我们有四个对等体：```user@docker4:~$ weave status        Version: 1.7.1 (up to date; next check at 2016/10/11 03:25:22)        Service: router       Protocol: weave 1..2           Name: 42:ec:92:86:1a:31(docker4)     Encryption: disabled  PeerDiscovery: enabled        Targets: 1 **Connections: 3 (3 established)** **Peers: 4 (with 12 established connections)** TrustedSubnets: none …<Additional output removed for brevity>… user@docker4:~$```我们可以看到这个节点有三个连接，分别连接到其他两个加入的节点。这给我们总共四个对等体，共有十二个连接，每个 Weave 节点有三个连接。因此，尽管只在三个节点之间配置了对等连接，但最终我们得到了所有主机之间的容器连接的全网格：![如何做...](img/B05453_07_04.jpg)
+![如何做...](img/B05453_07_03.jpg)
+
+然而，我们也可以让每个节点加入到任何其他现有节点，并且得到相同的结果。也就是说，将节点`docker2`、`docker3`和`docker4`加入到`docker1`会产生相同的最终状态。这是因为 Weave 只需要与现有节点通信，以获取有关 Weave 网络当前状态的信息。由于所有现有成员都有这些信息，因此无论加入新节点时与哪个节点通信都无所谓。如果现在检查任何 Weave 节点的状态，我们应该看到我们有四个对等体：
+
+
+```
+user@docker4:~$ weave status
+        Version: 1.7.1 (up to date; next check at 2016/10/11 03:25:22)
+
+        Service: router
+       Protocol: weave 1..2
+           Name: 42:ec:92:86:1a:31(docker4)
+     Encryption: disabled
+  PeerDiscovery: enabled
+        Targets: 1
+ Connections: 3 (3 established)
+ Peers: 4 (with 12 established connections)
+ TrustedSubnets: none 
+…<Additional output removed for brevity>… 
+user@docker4:~$
+```
+
+我们可以看到这个节点有三个连接，分别连接到其他两个加入的节点。这给我们总共四个对等体，共有十二个连接，每个 Weave 节点有三个连接。因此，尽管只在三个节点之间配置了对等连接，但最终我们得到了所有主机之间的容器连接的全网格：
+
+![如何做...](img/B05453_07_04.jpg)
 
 现在 Weave 的配置已经完成，我们在所有启用 Weave 的 Docker 主机之间建立了一个完整的网状网络。您可以使用`weave status connections`命令验证每个主机与其他对等体的连接情况。
 
