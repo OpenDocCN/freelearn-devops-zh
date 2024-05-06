@@ -1,1 +1,0 @@
-+   [GPT3 探索指南](README.md)

@@ -1,4 +1,3 @@
-+   [GPT3 探索指南](docs/bd-yron-paas-dkr/README.md)
 +   [Docker DevOps 入门手册](docs/bg-dop-dkr/README.md)
 +   [Docker 和 Jenkins 持续交付](docs/cd-dkr-jkn/README.md)
 +   [Kubernetes 云原生指南](docs/cld-ntv-k8s/README.md)
