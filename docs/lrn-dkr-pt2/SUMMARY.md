@@ -1,4 +1,4 @@
-+   [Docker 学习手册（二）](README.md)
++   [Docker 学习手册](README.md)
 +   [前言](lrn-dkr-pt2_00.md)
 +   [第一章：Docker 入门](lrn-dkr-pt2_01.md)
 +   [第二章：处理 Docker 容器](lrn-dkr-pt2_02.md)
